@@ -81,7 +81,7 @@ export async function createFormField(data: {
         placeholder: data.placeholder,
         helpText: data.helpText,
         required: data.required,
-        options: data.options || null,
+        options: data.options || undefined, // ✅ CAMBIO: null → undefined
         otherLabel: data.otherLabel,
         minLength: data.minLength,
         maxLength: data.maxLength,
@@ -130,7 +130,7 @@ export async function updateFormField(
         ...(data.placeholder !== undefined && { placeholder: data.placeholder }),
         ...(data.helpText !== undefined && { helpText: data.helpText }),
         ...(data.required !== undefined && { required: data.required }),
-        ...(data.options !== undefined && { options: data.options }),
+        ...(data.options !== undefined && { options: data.options.length > 0 ? data.options : undefined }), // ✅ CAMBIO: manejo de arrays vacíos
         ...(data.minLength !== undefined && { minLength: data.minLength }),
         ...(data.maxLength !== undefined && { maxLength: data.maxLength }),
         ...(data.pattern !== undefined && { pattern: data.pattern }),
@@ -437,7 +437,7 @@ export async function updateComplaintStatus(
 }
 
 // ==========================================
-// CONFIGURACIÓN - ACTUALIZADO
+// CONFIGURACIÓN
 // ==========================================
 
 export async function getComplaintsConfig() {
