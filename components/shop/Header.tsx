@@ -83,7 +83,7 @@ export default async function Header() {
               href="/contacto"
               className="transition-colors hover:text-foreground/80 whitespace-nowrap"
             >
-              Contacto
+              Contactoo
             </Link>
           </nav>
         </div>
