@@ -16,6 +16,18 @@ export interface EmailSettings {
 }
 
 // ============================================================
+// VALORES POR DEFECTO
+// ============================================================
+
+const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
+  fromEmail: "onboarding@resend.dev",
+  fromName: "Mi Tienda",
+  replyToEmail: "soporte@mitienda.com",
+  adminEmail: "admin@mitienda.com",
+  companyName: "Mi Tienda",
+};
+
+// ============================================================
 // OBTENER CONFIGURACIÓN DE EMAILS
 // ============================================================
 
@@ -25,28 +37,29 @@ export async function getEmailSettings(): Promise<EmailSettings> {
       where: { key: "email_settings" },
     });
 
-    if (!setting) {
-      // Valores por defecto si no existe configuración
-      return {
-        fromEmail: "onboarding@resend.dev",
-        fromName: "Mi Tienda",
-        replyToEmail: "soporte@mitienda.com",
-        adminEmail: "admin@mitienda.com",
-        companyName: "Mi Tienda",
-      };
+    // ✅ Validar que exista y que value no sea null
+    if (!setting || !setting.value) {
+      return DEFAULT_EMAIL_SETTINGS;
     }
 
-    return setting.value as EmailSettings;
+    // ✅ Validar que sea un objeto con las propiedades requeridas
+    const value = setting.value as any;
+    if (
+      typeof value === "object" &&
+      value.fromEmail &&
+      value.fromName &&
+      value.replyToEmail &&
+      value.adminEmail &&
+      value.companyName
+    ) {
+      return value as EmailSettings;
+    }
+
+    // Si no cumple la estructura, retornar defaults
+    return DEFAULT_EMAIL_SETTINGS;
   } catch (error) {
     console.error("Error getting email settings:", error);
-    // Retornar defaults en caso de error
-    return {
-      fromEmail: "onboarding@resend.dev",
-      fromName: "Mi Tienda",
-      replyToEmail: "soporte@mitienda.com",
-      adminEmail: "admin@mitienda.com",
-      companyName: "Mi Tienda",
-    };
+    return DEFAULT_EMAIL_SETTINGS;
   }
 }
 
@@ -96,13 +109,13 @@ export async function saveEmailSettings(settings: EmailSettings) {
     await prisma.setting.upsert({
       where: { key: "email_settings" },
       update: {
-        value: settings,
+        value: settings as any, // ✅ Cast a any para evitar error de tipos
         category: "email",
         description: "Configuración de emails del sistema",
       },
       create: {
         key: "email_settings",
-        value: settings,
+        value: settings as any, // ✅ Cast a any para evitar error de tipos
         category: "email",
         description: "Configuración de emails del sistema",
       },
