@@ -57,7 +57,7 @@ export async function createFormField(data: {
   placeholder?: string;
   helpText?: string;
   required: boolean;
-  options?: string[];
+  options?: string[]; // ✅ Sin null
   otherLabel?: string;
   minLength?: number;
   maxLength?: number;
@@ -81,7 +81,8 @@ export async function createFormField(data: {
         placeholder: data.placeholder,
         helpText: data.helpText,
         required: data.required,
-        options: data.options || undefined, // ✅ CAMBIO: null → undefined
+        // ✅ Conversión explícita: array con elementos o undefined
+        options: data.options && data.options.length > 0 ? data.options : undefined,
         otherLabel: data.otherLabel,
         minLength: data.minLength,
         maxLength: data.maxLength,
@@ -114,7 +115,7 @@ export async function updateFormField(
     placeholder?: string;
     helpText?: string;
     required?: boolean;
-    options?: string[];
+    options?: string[]; // ✅ Sin null
     minLength?: number;
     maxLength?: number;
     pattern?: string;
@@ -122,20 +123,27 @@ export async function updateFormField(
   }
 ) {
   try {
+    // ✅ Preparar data con conversión explícita
+    const updateData: any = {};
+    
+    if (data.label !== undefined) updateData.label = data.label;
+    if (data.fieldType !== undefined) updateData.fieldType = data.fieldType;
+    if (data.placeholder !== undefined) updateData.placeholder = data.placeholder;
+    if (data.helpText !== undefined) updateData.helpText = data.helpText;
+    if (data.required !== undefined) updateData.required = data.required;
+    if (data.minLength !== undefined) updateData.minLength = data.minLength;
+    if (data.maxLength !== undefined) updateData.maxLength = data.maxLength;
+    if (data.pattern !== undefined) updateData.pattern = data.pattern;
+    if (data.active !== undefined) updateData.active = data.active;
+    
+    // ✅ Manejo especial para options
+    if (data.options !== undefined) {
+      updateData.options = data.options && data.options.length > 0 ? data.options : undefined;
+    }
+
     const field = await prisma.complaintFormField.update({
       where: { id },
-      data: {
-        ...(data.label !== undefined && { label: data.label }),
-        ...(data.fieldType !== undefined && { fieldType: data.fieldType }),
-        ...(data.placeholder !== undefined && { placeholder: data.placeholder }),
-        ...(data.helpText !== undefined && { helpText: data.helpText }),
-        ...(data.required !== undefined && { required: data.required }),
-        ...(data.options !== undefined && { options: data.options.length > 0 ? data.options : undefined }), // ✅ CAMBIO: manejo de arrays vacíos
-        ...(data.minLength !== undefined && { minLength: data.minLength }),
-        ...(data.maxLength !== undefined && { maxLength: data.maxLength }),
-        ...(data.pattern !== undefined && { pattern: data.pattern }),
-        ...(data.active !== undefined && { active: data.active }),
-      },
+      data: updateData,
     });
 
     revalidatePath("/admin/libro-reclamaciones");
