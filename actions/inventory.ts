@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { InventoryMovementType } from "@prisma/client"; // ✅ Importar el enum
 
 // Tipos
 export interface InventoryItem {
@@ -181,7 +182,7 @@ export async function getInventoryList() {
 export async function getInventoryMovements(filters?: {
   productId?: string;
   variantId?: string;
-  type?: string;
+  type?: InventoryMovementType; // ✅ CAMBIO: usar el enum en lugar de string
   limit?: number;
 }) {
   try {
@@ -189,7 +190,7 @@ export async function getInventoryMovements(filters?: {
       where: {
         ...(filters?.productId && { productId: filters.productId }),
         ...(filters?.variantId && { variantId: filters.variantId }),
-        ...(filters?.type && { type: filters.type }),
+        ...(filters?.type && { type: filters.type }), // ✅ Ahora es del tipo correcto
       },
       include: {
         product: {
@@ -390,36 +391,15 @@ export async function adjustStock(data: {
 // Obtener productos con stock bajo
 export async function getLowStockProducts() {
   try {
+    // ✅ Simplificar la query - Prisma no soporta prisma.productVariant.fields en queries
     const products = await prisma.product.findMany({
       where: {
         active: true,
-        OR: [
-          {
-            hasVariants: false,
-            stock: {
-              lte: 5,
-            },
-          },
-          {
-            hasVariants: true,
-            variants: {
-              some: {
-                active: true,
-                stock: {
-                  lte: prisma.productVariant.fields.lowStockAlert,
-                },
-              },
-            },
-          },
-        ],
       },
       include: {
         variants: {
           where: {
             active: true,
-            stock: {
-              lte: prisma.productVariant.fields.lowStockAlert,
-            },
           },
           select: {
             id: true,
@@ -432,9 +412,18 @@ export async function getLowStockProducts() {
       },
     });
 
+    // Filtrar en JavaScript
+    const lowStockProducts = products.filter((product) => {
+      if (!product.hasVariants) {
+        return product.stock <= 5;
+      } else {
+        return product.variants.some((v) => v.stock <= v.lowStockAlert);
+      }
+    });
+
     return {
       success: true,
-      data: products,
+      data: lowStockProducts,
     };
   } catch (error) {
     console.error("Error fetching low stock products:", error);
