@@ -2,9 +2,9 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 
 export default async function DebugAuthPage() {
-  const { userId, sessionClaims } = auth();
+  const { userId, sessionClaims } = await auth();
   const user = await currentUser();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const allCookies = cookieStore.getAll();
 
   return (
