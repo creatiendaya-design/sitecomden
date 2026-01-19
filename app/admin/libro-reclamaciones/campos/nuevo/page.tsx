@@ -70,9 +70,8 @@ export default function NewFieldPage() {
 
     if (!formData.label.trim()) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "El campo Label es obligatorio",
-        variant: "destructive",
       });
       setLoading(false);
       return;
@@ -80,9 +79,8 @@ export default function NewFieldPage() {
 
     if (needsOptions && options.length === 0) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Debes agregar al menos una opción",
-        variant: "destructive",
       });
       setLoading(false);
       return;
@@ -106,23 +104,21 @@ export default function NewFieldPage() {
 
       if (result.success) {
         toast({
-          title: "Campo creado",
+          title: "✅ Campo creado",
           description: "El campo se creó correctamente",
         });
         router.push("/admin/libro-reclamaciones");
       } else {
         toast({
-          title: "Error",
+          title: "❌ Error",
           description: result.error || "Error al crear campo",
-          variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error creating field:", error);
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Ocurrió un error inesperado",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
