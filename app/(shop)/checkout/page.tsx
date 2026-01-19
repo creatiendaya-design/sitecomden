@@ -92,7 +92,7 @@ export default function CheckoutPage() {
     const stockItems = items.map((item) => ({
       id: item.id,
       productId: item.productId,
-      variantId: item.variantId,
+      variantId: item.variantId || null, // ✅ CORREGIDO
       quantity: item.quantity,
     }));
 
@@ -197,7 +197,7 @@ export default function CheckoutPage() {
       const stockItems = items.map((item) => ({
         id: item.id,
         productId: item.productId,
-        variantId: item.variantId,
+        variantId: item.variantId || null, // ✅ CORREGIDO
         quantity: item.quantity,
       }));
 
