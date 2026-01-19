@@ -11,16 +11,16 @@ export const metadata = {
 };
 
 export default async function PerfilPage() {
-  const { userId } = auth();
+  const { userId } = await auth(); // ✅ Agregado await
 
   if (!userId) {
-    redirect("/sign-in");
+    redirect("/iniciar-sesion"); // ✅ Consistencia en español
   }
 
   const user = await currentUser();
 
   if (!user) {
-    redirect("/sign-in");
+    redirect("/iniciar-sesion"); // ✅ Consistencia en español
   }
 
   return (
