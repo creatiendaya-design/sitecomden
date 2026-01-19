@@ -41,13 +41,13 @@ export default async function OrderDetailPage({
 }: {
   params: { id: string };
 }) {
-  const { userId } = auth();
+  // ✅ Una sola llamada a auth() con await
+  const { userId, sessionClaims } = await auth();
 
   if (!userId) {
     redirect("/sign-in");
   }
 
-  const { sessionClaims } = auth();
   const userEmail = sessionClaims?.email as string;
 
   // Obtener pedido
