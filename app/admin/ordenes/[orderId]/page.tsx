@@ -188,7 +188,7 @@ export default async function AdminOrderDetailPage({
                   <span className="text-muted-foreground">Envío:</span>
                   <span>{formatPrice(Number(order.shipping))}</span>
                 </div>
-                {order.discount > 0 && (
+                {Number(order.discount) > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Descuento:</span>
                     <span className="text-green-600">
