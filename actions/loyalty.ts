@@ -60,6 +60,11 @@ export async function registerCustomer(data: {
 
     // Obtener configuración
     const settings = await getLoyaltySettings();
+    
+    // ✅ Validar que settings exista
+    if (!settings) {
+      return { success: false, error: "Error en configuración del programa de lealtad" };
+    }
 
     // Generar código único de referido
     let referralCode = generateReferralCode(data.name);
@@ -195,6 +200,12 @@ export async function getCustomerStats(customerId: string) {
 
     // Calcular puntos próximos a expirar
     const settings = await getLoyaltySettings();
+    
+    // ✅ Validar que settings exista
+    if (!settings) {
+      return null;
+    }
+
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() - settings.pointsExpireDays);
 
@@ -273,6 +284,12 @@ export async function addPoints(
 
     // Obtener configuración para calcular tier
     const settings = await getLoyaltySettings();
+    
+    // ✅ Validar que settings exista
+    if (!settings) {
+      return { success: false, error: "Error en configuración del programa de lealtad" };
+    }
+
     const newTier = calculateLoyaltyTier(newBalance, settings);
 
     // Actualizar cliente
@@ -333,6 +350,12 @@ export async function deductPoints(
     const newTotalSpent = customer.totalPointsSpent + data.points;
 
     const settings = await getLoyaltySettings();
+    
+    // ✅ Validar que settings exista
+    if (!settings) {
+      return { success: false, error: "Error en configuración del programa de lealtad" };
+    }
+
     const newTier = calculateLoyaltyTier(newBalance, settings);
 
     const updatedCustomer = await prisma.customer.update({
@@ -378,6 +401,11 @@ export async function awardPurchasePoints(orderId: string) {
     }
 
     const settings = await getLoyaltySettings();
+    
+    // ✅ Validar que settings exista
+    if (!settings) {
+      return { success: false, error: "Error en configuración del programa de lealtad" };
+    }
     
     // Calcular puntos: 1 punto por cada sol gastado
     const pointsToAward = Math.floor(
