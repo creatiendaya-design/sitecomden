@@ -3,21 +3,34 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
+import { FormField, ComplaintsConfig } from "@/types/complaints";
+import { prismaFieldToFormField } from "@/lib/complaints-helpers";
+
+// ==========================================
+// TIPOS DE RETORNO
+// ==========================================
+
+type ActionResult<T> = 
+  | { success: true; data: T }
+  | { success: false; error: string; data?: T };
 
 // ==========================================
 // GESTIÓN DE CAMPOS DEL FORMULARIO
 // ==========================================
 
-export async function getFormFields() {
+export async function getFormFields(): Promise<ActionResult<FormField[]>> {
   try {
     const fields = await prisma.complaintFormField.findMany({
       where: { active: true },
       orderBy: { order: "asc" },
     });
 
+    // ⭐ CONVERSIÓN DE TIPOS PRISMA → FORMFIELD ⭐
+    const formFields = fields.map(prismaFieldToFormField);
+
     return {
       success: true,
-      data: fields,
+      data: formFields,
     };
   } catch (error) {
     console.error("Error fetching form fields:", error);
@@ -29,15 +42,18 @@ export async function getFormFields() {
   }
 }
 
-export async function getAllFormFields() {
+export async function getAllFormFields(): Promise<ActionResult<FormField[]>> {
   try {
     const fields = await prisma.complaintFormField.findMany({
       orderBy: { order: "asc" },
     });
 
+    // ⭐ CONVERSIÓN DE TIPOS PRISMA → FORMFIELD ⭐
+    const formFields = fields.map(prismaFieldToFormField);
+
     return {
       success: true,
-      data: fields,
+      data: formFields,
     };
   } catch (error) {
     console.error("Error fetching all form fields:", error);
@@ -448,7 +464,7 @@ export async function updateComplaintStatus(
 // CONFIGURACIÓN
 // ==========================================
 
-export async function getComplaintsConfig() {
+export async function getComplaintsConfig(): Promise<ActionResult<ComplaintsConfig>> {
   try {
     let config = await prisma.setting.findUnique({
       where: { key: "complaints_config" },
@@ -476,13 +492,7 @@ export async function getComplaintsConfig() {
 
     return {
       success: true,
-      data: config.value as {
-        prefix: string;
-        emailSubject: string;
-        emailMessage: string;
-        successMessage: string;
-        requireEmail: boolean;
-      },
+      data: config.value as ComplaintsConfig,
     };
   } catch (error) {
     console.error("Error fetching complaints config:", error);

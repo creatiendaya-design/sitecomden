@@ -18,28 +18,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-
-interface FormField {
-  id: string;
-  label: string;
-  fieldType: string;
-  placeholder?: string;
-  helpText?: string;
-  required: boolean;
-  options?: string[];
-  minLength?: number;
-  maxLength?: number;
-  pattern?: string;
-  section?: string;
-  width?: string;
-  otherLabel?: string; // NUEVO: Para select_with_other
-}
+import { FormField, ComplaintsConfig } from "@/types/complaints";
 
 interface ComplaintsFormProps {
   fields: FormField[];
-  config: {
-    successMessage?: string;
-  };
+  config: ComplaintsConfig;
 }
 
 const widthClasses: Record<string, string> = {
@@ -290,9 +273,6 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
             </>
           );
 
-        // =========================================
-        // NUEVO: Select con opción "Otro"
-        // =========================================
         case "select_with_other":
           const showOtherInput = formData[field.id] === "__other__";
           const otherError = errors[`${field.id}_other`];
@@ -315,21 +295,17 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Opciones normales */}
                   {field.options?.map((option) => (
                     <SelectItem key={option} value={option}>
                       {option}
                     </SelectItem>
                   ))}
-                  
-                  {/* Opción "Otro" automática */}
                   <SelectItem value="__other__">
                     {field.otherLabel || "Otro (especificar)"}
                   </SelectItem>
                 </SelectContent>
               </Select>
               
-              {/* Input adicional cuando elige "Otro" */}
               {showOtherInput && (
                 <Input
                   id={`${field.id}_other`}
@@ -461,24 +437,19 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Renderizar por secciones */}
           {Object.entries(fieldsBySection).map(([section, sectionFields]) => (
             <div key={section} className="space-y-4">
-              {/* Título de la sección */}
               <div className="border-b pb-2">
                 <h3 className="text-lg font-semibold text-primary">
                   {section}
                 </h3>
               </div>
-
-              {/* Campos de la sección en grid */}
               <div className="flex flex-wrap -mx-2">
                 {sectionFields.map((field) => renderField(field))}
               </div>
             </div>
           ))}
 
-          {/* Submit */}
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={loading} className="w-full">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
