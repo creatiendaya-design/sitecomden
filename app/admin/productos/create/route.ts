@@ -37,11 +37,23 @@ export async function POST(request: Request) {
         sku: data.sku || null,
         stock: data.stock || 0,
         images: data.images || [],
-        categoryId: data.categoryId || null,
         active: data.active ?? true,
         featured: data.featured ?? false,
         hasVariants: data.hasVariants ?? false,
+        // Relación con categorías (many-to-many)
+        categories: data.categoryId ? {
+          create: {
+            categoryId: data.categoryId
+          }
+        } : undefined,
       },
+      include: {
+        categories: {
+          include: {
+            category: true
+          }
+        }
+      }
     });
 
     return NextResponse.json({ success: true, product });
