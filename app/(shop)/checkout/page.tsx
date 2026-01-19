@@ -265,7 +265,7 @@ export default function CheckoutPage() {
       }
 
       // Guardar ID de orden
-      setCreatedOrderId(result.orderId);
+      setCreatedOrderId(result.orderId || null);
 
       // Si es pago con tarjeta, mostrar formulario inline
       if (result.paymentMethod === "CARD") {
