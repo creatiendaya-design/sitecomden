@@ -1,7 +1,8 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 
 export default async function TestServerAuth() {
-  const { userId } = auth();
+  // ⭐ CLERK v5+: auth() ahora es asíncrono, necesita await
+  const { userId } = await auth();
   const user = await currentUser();
 
   return (
