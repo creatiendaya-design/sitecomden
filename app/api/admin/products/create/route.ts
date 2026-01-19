@@ -40,14 +40,26 @@ export async function POST(request: Request) {
         compareAtPrice: data.compareAtPrice || null,
         sku: data.sku || null,
         stock: data.stock || 0,
-        images: normalizedImages,
-        categoryId: data.categoryId || null,
+        images: normalizedImages as any, // Cast para compatibilidad con Json
         active: data.active ?? true,
         featured: data.featured ?? false,
         hasVariants: data.hasVariants ?? false,
         metaTitle: data.metaTitle || null,
         metaDescription: data.metaDescription || null,
+        // Relación con categorías (many-to-many)
+        categories: data.categoryId ? {
+          create: {
+            categoryId: data.categoryId
+          }
+        } : undefined,
       },
+      include: {
+        categories: {
+          include: {
+            category: true
+          }
+        }
+      }
     });
 
     return NextResponse.json({ success: true, product });
