@@ -99,8 +99,8 @@ export default function NewInventoryMovementForm() {
         toast({
           title: "Error",
           description: "La cantidad debe ser un número válido",
-          variant: "destructive",
         });
+        setLoading(false);
         return;
       }
 
@@ -127,7 +127,6 @@ export default function NewInventoryMovementForm() {
         toast({
           title: "Error",
           description: result.error || "Error al crear movimiento",
-          variant: "destructive",
         });
       }
     } catch (error) {
@@ -135,7 +134,6 @@ export default function NewInventoryMovementForm() {
       toast({
         title: "Error",
         description: "Ocurrió un error inesperado",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
