@@ -84,18 +84,16 @@ export default function EditFieldPage({ params }: EditFieldPageProps) {
         setOptions(field.options || []);
       } else {
         toast({
-          title: "Error",
+          title: "❌ Error",
           description: "No se pudo cargar el campo",
-          variant: "destructive",
         });
         router.push("/admin/libro-reclamaciones");
       }
     } catch (error) {
       console.error("Error loading field:", error);
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Error al cargar el campo",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -110,9 +108,8 @@ export default function EditFieldPage({ params }: EditFieldPageProps) {
 
     if (!formData.label.trim()) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "El campo Label es obligatorio",
-        variant: "destructive",
       });
       setSaving(false);
       return;
@@ -120,9 +117,8 @@ export default function EditFieldPage({ params }: EditFieldPageProps) {
 
     if (needsOptions && options.length === 0) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Debes agregar al menos una opción",
-        variant: "destructive",
       });
       setSaving(false);
       return;
@@ -144,23 +140,21 @@ export default function EditFieldPage({ params }: EditFieldPageProps) {
 
       if (result.success) {
         toast({
-          title: "Campo actualizado",
+          title: "✅ Campo actualizado",
           description: "Los cambios se guardaron correctamente",
         });
         router.push("/admin/libro-reclamaciones");
       } else {
         toast({
-          title: "Error",
+          title: "❌ Error",
           description: result.error || "Error al actualizar campo",
-          variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error updating field:", error);
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Ocurrió un error inesperado",
-        variant: "destructive",
       });
     } finally {
       setSaving(false);
