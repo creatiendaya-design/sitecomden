@@ -13,7 +13,7 @@ export default async function CuentaLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = auth();
+  const { userId } = await auth(); // ✅ Agregado await
 
   if (!userId) {
     redirect("/iniciar-sesion");
