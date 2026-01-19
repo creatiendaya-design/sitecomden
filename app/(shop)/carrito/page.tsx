@@ -41,7 +41,7 @@ export default function CartPage() {
     const stockItems = items.map((item) => ({
       id: item.id,
       productId: item.productId,
-      variantId: item.variantId,
+      variantId: item.variantId || null,
       quantity: item.quantity,
     }));
 
