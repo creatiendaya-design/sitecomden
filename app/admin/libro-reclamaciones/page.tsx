@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Plus, Settings, FileText, List,Layout, FolderOpen } from "lucide-react";
+import { Plus, Settings, FileText, List, Layout, FolderOpen } from "lucide-react";
 import { getAllFormFields } from "@/actions/complaints";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FormFieldsList from "@/components/admin/complaints/FormFieldsList";
@@ -35,19 +35,19 @@ export default async function ComplaintsManagementPage() {
           </p>
         </div>
         <div className="flex gap-2">
-    <Button asChild variant="outline">
-      <Link href="/admin/libro-reclamaciones/builder">
-        <Layout className="mr-2 h-4 w-4" />
-        Constructor Visual
-      </Link>
-    </Button>
-    <Button asChild>
-      <Link href="/libro-reclamaciones" target="_blank">
-        <FileText className="mr-2 h-4 w-4" />
-        Ver Formulario Público
-      </Link>
-    </Button>
-  </div>
+          <Button asChild variant="outline">
+            <Link href="/admin/libro-reclamaciones/builder">
+              <Layout className="mr-2 h-4 w-4" />
+              Constructor Visual
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/libro-reclamaciones" target="_blank">
+              <FileText className="mr-2 h-4 w-4" />
+              Ver Formulario Público
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -76,18 +76,20 @@ export default async function ComplaintsManagementPage() {
                 Configura los campos que aparecerán en el formulario público
               </p>
             </div>
-            <Button asChild>
-              <Link href="/admin/libro-reclamaciones/campos/nuevo">
-                <Plus className="mr-2 h-4 w-4" />
-                Agregar Campo
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-  <Link href="/admin/libro-reclamaciones/organizar">
-    <FolderOpen className="mr-2 h-4 w-4" />
-    Organizar por Sección
-  </Link>
-</Button>
+            <div className="flex gap-2">
+              <Button asChild variant="outline">
+                <Link href="/admin/libro-reclamaciones/organizar">
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  Organizar por Sección
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/admin/libro-reclamaciones/campos/nuevo">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar Campo
+                </Link>
+              </Button>
+            </div>
           </div>
 
           <Card>
@@ -112,7 +114,7 @@ export default async function ComplaintsManagementPage() {
                   </Button>
                 </div>
               ) : (
-                <FormFieldsList fields={fields} />
+                <FormFieldsList fields={fields as any} />
               )}
             </CardContent>
           </Card>
