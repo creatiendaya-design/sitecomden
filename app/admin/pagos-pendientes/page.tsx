@@ -42,7 +42,7 @@ interface PendingPayment {
   reference: string | null;
   proofImage: string | null;
   status: string;
-  createdAt: string;
+  createdAt: Date;
   order: {
     id: string;
     orderNumber: string;
@@ -50,7 +50,7 @@ interface PendingPayment {
     customerEmail: string;
     customerPhone: string;
     total: number;
-    createdAt: string;
+    createdAt: Date;
   };
 }
 
@@ -72,7 +72,7 @@ export default function PendingPaymentsPage() {
     setError(null);
     const result = await getPendingPayments();
     if (result.success && result.data) {
-      setPayments(result.data);
+      setPayments(result.data as any);
     } else {
       setError(result.error || "Error al cargar pagos");
     }
@@ -164,9 +164,9 @@ export default function PendingPaymentsPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+        <Alert className="border-red-500 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
         </Alert>
       )}
 
@@ -314,7 +314,7 @@ export default function PendingPaymentsPage() {
                       <Button
                         onClick={() => openRejectModal(payment)}
                         disabled={actionLoading}
-                        variant="destructive"
+                        className="bg-red-600 hover:bg-red-700"
                         size="sm"
                       >
                         <XCircle className="h-4 w-4 mr-1" />
@@ -420,7 +420,7 @@ export default function PendingPaymentsPage() {
               Cancelar
             </Button>
             <Button
-              variant="destructive"
+              className="bg-red-600 hover:bg-red-700"
               onClick={handleReject}
               disabled={actionLoading || !rejectionReason.trim()}
             >
