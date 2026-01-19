@@ -40,14 +40,14 @@ const statusLabels = {
 };
 
 export default async function OrdenesPage() {
-  const { userId } = auth();
+  // ✅ Una sola llamada a auth() con await
+  const { userId, sessionClaims } = await auth();
 
   if (!userId) {
-    redirect("/sign-in");
+    redirect("/iniciar-sesion");
   }
 
   // Obtener email del usuario desde Clerk
-  const { sessionClaims } = auth();
   const userEmail = sessionClaims?.email as string;
 
   // Obtener pedidos del usuario
