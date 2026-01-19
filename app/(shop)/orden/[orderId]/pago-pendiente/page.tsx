@@ -220,26 +220,26 @@ export default async function PendingPaymentPage({ params }: PageProps) {
                   </span>
                 </div>
               ))}
-              <div className="border-t pt-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span>{formatPrice(Number(order.subtotal))}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Envío:</span>
-                  <span>{formatPrice(Number(order.shipping))}</span>
-                </div>
-                {order.discount > 0 && (
-                  <div className="flex justify-between text-sm text-green-600">
-                    <span>Descuento:</span>
-                    <span>-{formatPrice(Number(order.discount))}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                  <span>Total:</span>
-                  <span>{formatPrice(Number(order.total))}</span>
-                </div>
-              </div>
+           <div className="border-t pt-3 space-y-2">
+  <div className="flex justify-between text-sm">
+    <span className="text-muted-foreground">Subtotal:</span>
+    <span>{formatPrice(Number(order.subtotal))}</span>
+  </div>
+  <div className="flex justify-between text-sm">
+    <span className="text-muted-foreground">Envío:</span>
+    <span>{formatPrice(Number(order.shipping))}</span>
+  </div>
+  {Number(order.discount) > 0 && ( // ✅ Agregado Number()
+    <div className="flex justify-between text-sm text-green-600">
+      <span>Descuento:</span>
+      <span>-{formatPrice(Number(order.discount))}</span>
+    </div>
+  )}
+  <div className="flex justify-between font-bold text-lg pt-2 border-t">
+    <span>Total:</span>
+    <span>{formatPrice(Number(order.total))}</span>
+  </div>
+</div>
             </div>
           </CardContent>
         </Card>
