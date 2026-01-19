@@ -346,9 +346,16 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                 <CardTitle>Imágenes del Producto</CardTitle>
               </CardHeader>
               <CardContent>
+                {/* ⭐ FIX: Convertir ImageMetadata[] a string[] ⭐ */}
                 <ImageUpload
                   images={formData.images}
-                  onChange={(images) => setFormData({ ...formData, images })}
+                  onChange={(images) => {
+                    // Si images es un array de objetos con url, extraer las URLs
+                    const imageUrls = Array.isArray(images)
+                      ? images.map((img: any) => (typeof img === 'string' ? img : img.url || img))
+                      : [];
+                    setFormData({ ...formData, images: imageUrls });
+                  }}
                   maxImages={5}
                 />
               </CardContent>
