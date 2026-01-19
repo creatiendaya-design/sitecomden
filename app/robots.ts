@@ -17,7 +17,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   })
 
   // Validación de tipo segura
-  let baseUrl = 'https://tusitio.com'
+  let baseUrl = 'https://nuejoy.online'
   
   if (siteSettings?.value && isSiteConfig(siteSettings.value)) {
     baseUrl = siteSettings.value.siteUrl || baseUrl

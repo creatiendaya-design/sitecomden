@@ -7,7 +7,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     where: { key: 'site_settings' },
   })
 
-  const baseUrl = siteSettings?.value?.siteUrl || 'https://tusitio.com'
+  // Type assertion para JsonValue
+  const siteConfig = siteSettings?.value as { siteUrl?: string } | undefined
+  const baseUrl = siteConfig?.siteUrl || 'https://nuejoy.online'
 
   // Páginas estáticas
   const staticPages = [
