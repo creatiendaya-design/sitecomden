@@ -5,7 +5,8 @@ export default async function TestSimplePage() {
   let error = null;
 
   try {
-    const authResult = auth();
+    // ⭐ CLERK v5+: auth() necesita await
+    const authResult = await auth();
     userId = authResult.userId || "NULL";
   } catch (e: any) {
     error = e.message;
