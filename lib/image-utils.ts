@@ -78,7 +78,8 @@ export function normalizeImagesForSave(images: any): ImageMetadata[] {
     return [];
   }
 
-  return images.map((image) => {
+  // ⭐ FIX: Separar en dos pasos para TypeScript
+  const mapped = images.map((image): ImageMetadata | null => {
     // Si ya es un objeto con url, mantenerlo
     if (typeof image === "object" && image.url) {
       return {
@@ -98,5 +99,10 @@ export function normalizeImagesForSave(images: any): ImageMetadata[] {
     }
     
     return null;
-  }).filter((img): img is ImageMetadata => img !== null && img.url !== "");
+  });
+
+  // ⭐ FIX: Type guard explícito
+  return mapped.filter((img): img is ImageMetadata => {
+    return img !== null && img.url !== "";
+  });
 }

@@ -35,14 +35,24 @@ async function main() {
     console.log('   Mensajes configurados: ✓');
   } else {
     console.log('ℹ️  La configuración ya existe');
-    console.log('   Prefijo actual:', existing.value?.prefix || 'REC');
+    
+    // ⭐ FIX: Type assertion para JsonValue
+    const config = existing.value as {
+      prefix?: string;
+      emailSubject?: string;
+      emailMessage?: string;
+      successMessage?: string;
+      requireEmail?: boolean;
+    } | undefined;
+    
+    console.log('   Prefijo actual:', config?.prefix || 'REC');
     
     // Mostrar configuración actual
     console.log('\n📋 Configuración actual:');
     console.log('   Key:', existing.key);
-    console.log('   Prefijo:', existing.value?.prefix || 'REC');
-    console.log('   Email Subject:', existing.value?.emailSubject || 'N/A');
-    console.log('   Require Email:', existing.value?.requireEmail !== false ? 'Sí' : 'No');
+    console.log('   Prefijo:', config?.prefix || 'REC');
+    console.log('   Email Subject:', config?.emailSubject || 'N/A');
+    console.log('   Require Email:', config?.requireEmail !== false ? 'Sí' : 'No');
   }
 
   console.log('\n🎉 Listo para usar');

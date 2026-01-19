@@ -75,9 +75,7 @@ export const checkoutFormSchema = z.object({
   districtName: z.string().optional(),
 
   // Método de pago
-  paymentMethod: z.enum(["YAPE", "PLIN", "CARD", "PAYPAL", "MERCADOPAGO"], {
-    errorMap: () => ({ message: "Selecciona un método de pago válido" }),
-  }),
+  paymentMethod: z.enum(["YAPE", "PLIN", "CARD", "PAYPAL", "MERCADOPAGO"] as const),
 
   // Notas del cliente
   customerNotes: z
@@ -109,7 +107,8 @@ export const cartItemSchema = z.object({
   quantity: z.number().int().positive(),
   maxStock: z.number().int().positive(),
   image: z.string().nullable(),
-  options: z.record(z.string()).nullable(),
+  // ⭐ FIX: z.record() requiere 2 argumentos (key type, value type)
+  options: z.record(z.string(), z.string()).nullable(),
 });
 
 export type CartItem = z.infer<typeof cartItemSchema>;

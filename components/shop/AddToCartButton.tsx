@@ -53,7 +53,8 @@ export default function AddToCartButton({
         name: product.name,
         variantName,
         price: Number(selectedVariant.price),
-        image: imageUrl,
+        // ⭐ FIX: Convertir null a undefined
+        image: imageUrl ?? undefined,
         maxStock: selectedVariant.stock,
         options: variantOptions,
       });
@@ -74,7 +75,8 @@ export default function AddToCartButton({
         productId: product.id,
         name: product.name,
         price: Number(product.basePrice),
-        image: imageUrl,
+        // ⭐ FIX: Convertir null a undefined
+        image: imageUrl ?? undefined,
         maxStock: product.stock,
       });
 

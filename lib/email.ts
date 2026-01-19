@@ -40,6 +40,7 @@ interface ShippingData {
   viewOrderLink: string;
 }
 
+// ⭐ FIX: Cambiar el tipo de retorno para usar undefined en lugar de null
 async function getSiteSettings() {
   try {
     const [siteName, siteLogo, primaryColor] = await Promise.all([
@@ -50,14 +51,15 @@ async function getSiteSettings() {
 
     return {
       storeName: (siteName?.value as string) || "ShopGood Perú",
-      logoUrl: (siteLogo?.value as string) || null,
+      // ⭐ FIX: Convertir null a undefined
+      logoUrl: ((siteLogo?.value as string) ?? undefined),
       primaryColor: (primaryColor?.value as string) || "#000000",
     };
   } catch (error) {
     console.error("Error fetching site settings:", error);
     return {
       storeName: "ShopGood Perú",
-      logoUrl: null,
+      logoUrl: undefined,  // ⭐ FIX: usar undefined en lugar de null
       primaryColor: "#000000",
     };
   }
@@ -250,7 +252,7 @@ export async function sendOrderShippedEmail(shippingData: ShippingData) {
     console.log("Order shipped email sent:", data);
     return { success: true, data };
   } catch (error) {
-    console.error("Error sending order shipped email:", error);
+    console.error("Order sending order shipped email:", error);
     return { success: false, error };
   }
 }
