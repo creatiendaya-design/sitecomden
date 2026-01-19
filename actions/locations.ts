@@ -141,11 +141,23 @@ export async function calculateShippingCost(districtCode: string, subtotal: numb
         districtCode,
       },
       include: {
-        shippingZone: true,
+        shippingZone: {
+          include: {
+            rateGroups: {
+              where: { active: true },
+              include: {
+                rates: {
+                  where: { active: true },
+                  orderBy: { order: "asc" },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    if (!zoneDistrict) {
+    if (!zoneDistrict || !zoneDistrict.shippingZone) {
       // Si no está en ninguna zona, retornar costo por defecto
       return {
         success: true,
@@ -160,21 +172,55 @@ export async function calculateShippingCost(districtCode: string, subtotal: numb
 
     const zone = zoneDistrict.shippingZone;
 
+    // Buscar el rate apropiado según el subtotal
+    let selectedRate = null;
+
+    for (const group of zone.rateGroups) {
+      for (const rate of group.rates) {
+        // Verificar si el subtotal está dentro del rango del rate
+        const minOrder = rate.minOrderAmount ? Number(rate.minOrderAmount) : 0;
+        const maxOrder = rate.maxOrderAmount ? Number(rate.maxOrderAmount) : Infinity;
+
+        if (subtotal >= minOrder && subtotal <= maxOrder) {
+          selectedRate = rate;
+          break;
+        }
+      }
+      if (selectedRate) break;
+    }
+
+    // Si no se encontró un rate específico, usar el primer rate disponible
+    if (!selectedRate && zone.rateGroups.length > 0 && zone.rateGroups[0].rates.length > 0) {
+      selectedRate = zone.rateGroups[0].rates[0];
+    }
+
+    if (!selectedRate) {
+      // No hay rates configurados
+      return {
+        success: true,
+        data: {
+          cost: 20,
+          zoneName: zone.name,
+          estimatedDays: "3-5 días",
+          isFreeShipping: false,
+        },
+      };
+    }
+
     // Verificar si aplica envío gratis
-    const isFreeShipping =
-      zone.freeShippingMin !== null &&
-      subtotal >= Number(zone.freeShippingMin);
+    const freeShippingMin = selectedRate.freeShippingMin ? Number(selectedRate.freeShippingMin) : null;
+    const isFreeShipping = freeShippingMin !== null && subtotal >= freeShippingMin;
 
     return {
       success: true,
       data: {
-        cost: isFreeShipping ? 0 : Number(zone.baseCost),
+        cost: isFreeShipping ? 0 : Number(selectedRate.baseCost),
         zoneName: zone.name,
-        estimatedDays: zone.estimatedDays || "3-5 días",
+        rateName: selectedRate.name,
+        estimatedDays: selectedRate.estimatedDays || "3-5 días",
+        carrier: selectedRate.carrier || null,
         isFreeShipping,
-        freeShippingMin: zone.freeShippingMin
-          ? Number(zone.freeShippingMin)
-          : null,
+        freeShippingMin,
       },
     };
   } catch (error) {
