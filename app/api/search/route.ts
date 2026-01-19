@@ -21,10 +21,14 @@ export async function GET(request: Request) {
         ],
       },
       include: {
-        category: {
-          select: {
-            name: true,
-            slug: true,
+        categories: {
+          include: {
+            category: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
       },
@@ -34,14 +38,14 @@ export async function GET(request: Request) {
       },
     });
 
-    // Serializar precios
+    // Serializar precios y categorías
     const serializedProducts = products.map((product) => ({
       id: product.id,
       name: product.name,
       slug: product.slug,
       basePrice: Number(product.basePrice),
       images: product.images,
-      category: product.category,
+      category: product.categories[0]?.category || null, // Primera categoría
     }));
 
     return NextResponse.json({ products: serializedProducts });
