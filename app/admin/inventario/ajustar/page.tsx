@@ -120,7 +120,6 @@ export default function AdjustStockPage() {
         toast({
           title: "Error",
           description: "El stock debe ser un número válido mayor o igual a 0",
-          variant: "destructive",
         });
         setLoading(false);
         return;
@@ -130,7 +129,6 @@ export default function AdjustStockPage() {
         toast({
           title: "Error",
           description: "Debes especificar un motivo para el ajuste",
-          variant: "destructive",
         });
         setLoading(false);
         return;
@@ -153,7 +151,6 @@ export default function AdjustStockPage() {
         toast({
           title: "Error",
           description: result.error || "Error al ajustar stock",
-          variant: "destructive",
         });
       }
     } catch (error) {
@@ -161,7 +158,6 @@ export default function AdjustStockPage() {
       toast({
         title: "Error",
         description: "Ocurrió un error inesperado",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
