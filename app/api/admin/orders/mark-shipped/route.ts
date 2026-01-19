@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     // Generar link de visualización
     const viewOrderLink = order.viewToken
       ? `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
-      : undefined;
+      : '';
 
     // Enviar email de envío
     try {
@@ -68,9 +68,9 @@ export async function POST(request: Request) {
         orderNumber: order.orderNumber,
         customerName: order.customerName,
         customerEmail: order.customerEmail,
-        trackingNumber: trackingNumber || undefined,
-        shippingCourier: shippingCourier || undefined,
-        estimatedDelivery: estimatedDelivery || undefined,
+        trackingNumber: trackingNumber || '',
+        shippingCourier: shippingCourier || '',
+        estimatedDelivery: estimatedDelivery || '',
         viewOrderLink: viewOrderLink,
       });
     } catch (emailError) {
