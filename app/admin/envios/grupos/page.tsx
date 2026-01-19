@@ -1,6 +1,7 @@
 import { getRateGroupsByZone, getShippingZoneById } from "@/actions/shipping-system";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge"; // ✅ Agregado
 import { Plus, Package } from "lucide-react";
 
 export default async function RateGroupsPage({
