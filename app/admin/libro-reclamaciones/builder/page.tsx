@@ -151,9 +151,8 @@ export default function ConstructorEditablePage() {
     } catch (error) {
       console.error("Error loading fields:", error);
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Error al cargar campos existentes",
-        variant: "destructive",
       });
       setSections([
         {
@@ -181,9 +180,8 @@ export default function ConstructorEditablePage() {
   const removeSection = (sectionId: string) => {
     if (sections.length === 1) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Debe haber al menos una sección",
-        variant: "destructive",
       });
       return;
     }
@@ -226,7 +224,7 @@ export default function ConstructorEditablePage() {
     );
 
     toast({
-      title: "Campo agregado",
+      title: "✅ Campo agregado",
       description: `${newElement.label} agregado a ${
         sections.find((s) => s.id === sectionId)?.title
       }`,
@@ -396,9 +394,8 @@ export default function ConstructorEditablePage() {
     } catch (error) {
       console.error("Error saving form:", error);
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Error al guardar el formulario",
-        variant: "destructive",
       });
     } finally {
       setSaving(false);
@@ -552,7 +549,7 @@ export default function ConstructorEditablePage() {
                           {element.required && (
                             <>
                               <span>•</span>
-                              <Badge variant="destructive" className="text-xs">
+                              <Badge className="text-xs bg-red-100 text-red-700 hover:bg-red-100">
                                 Obligatorio
                               </Badge>
                             </>
