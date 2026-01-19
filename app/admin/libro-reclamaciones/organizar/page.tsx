@@ -102,9 +102,8 @@ export default function OrganizarCamposPage() {
     } catch (error) {
       console.error("Error loading fields:", error);
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Error al cargar campos",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -124,18 +123,16 @@ export default function OrganizarCamposPage() {
     
     if (!trimmedName) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Ingresa un nombre de sección",
-        variant: "destructive",
       });
       return;
     }
 
     if (sections.includes(trimmedName)) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Esta sección ya existe",
-        variant: "destructive",
       });
       return;
     }
@@ -162,7 +159,7 @@ export default function OrganizarCamposPage() {
     setSections(sections.filter((s) => s !== sectionName));
 
     toast({
-      title: "Sección eliminada",
+      title: "✅ Sección eliminada",
       description: `Los campos se movieron a "Sin sección"`,
     });
 
@@ -194,9 +191,8 @@ export default function OrganizarCamposPage() {
     } catch (error) {
       console.error("Error saving:", error);
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Error al guardar cambios",
-        variant: "destructive",
       });
     } finally {
       setSaving(false);
@@ -350,7 +346,7 @@ export default function OrganizarCamposPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <p className="font-medium truncate">{field.label}</p>
                           {field.required && (
-                            <Badge variant="destructive" className="text-xs">
+                            <Badge className="text-xs bg-red-100 text-red-700 hover:bg-red-100">
                               Obligatorio
                             </Badge>
                           )}
