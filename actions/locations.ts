@@ -248,18 +248,17 @@ export async function checkShippingCoverage(districtCode: string) {
         districtCode,
       },
       include: {
-        shippingZone: {
-          where: {
-            active: true,
-          },
-        },
+        shippingZone: true,
       },
     });
 
+    // Verificar si existe y si la zona está activa
+    const hasCoverage = coverage && coverage.shippingZone?.active === true;
+
     return {
       success: true,
-      hasCoverage: !!coverage,
-      zoneName: coverage?.shippingZone?.name || null,
+      hasCoverage: !!hasCoverage,
+      zoneName: hasCoverage ? coverage.shippingZone!.name : null,
     };
   } catch (error) {
     console.error("Error checking shipping coverage:", error);
