@@ -220,8 +220,8 @@ export async function createOrder(data: OrderInput) {
         total,
 
         // Cupón
-        couponCode: data.couponCode || null,
-        couponDiscount: discount,
+        couponCode: data.couponCode,
+        couponDiscount: discount > 0 ? discount : undefined,
 
         // Estados
         status: "PENDING",
@@ -232,7 +232,7 @@ export async function createOrder(data: OrderInput) {
         customerName: data.customerName,
         customerEmail: data.customerEmail.toLowerCase().trim(),
         customerPhone: data.customerPhone,
-        customerDni: data.customerDni || null,
+        customerDni: data.customerDni,
         customerType: "person",
 
         // Direcciones
@@ -256,20 +256,19 @@ export async function createOrder(data: OrderInput) {
         shippingCourier: data.shippingCarrier || data.shippingMethod || "Standard",
 
         // Notas
-        customerNotes: data.customerNotes || null,
+        customerNotes: data.customerNotes,
 
-        // Items
+        // Items - ✅ CORREGIDO
         items: {
           create: data.items.map((item) => ({
             productId: item.productId,
-            variantId: item.variantId || null,
+            variantId: item.variantId || undefined,
             name: item.name,
-            variantName: item.variantName || null,
+            variantName: item.variantName || undefined,
             price: item.price,
             quantity: item.quantity,
-            image: item.image || null,
-            sku: null,
-            variantOptions: item.options || null,
+            image: item.image || undefined,
+            variantOptions: item.options || undefined, // ✅ undefined en lugar de null
           })),
         },
       },
@@ -857,6 +856,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
     };
   }
 }
+
 // ============================================================
 // ESTADÍSTICAS (Admin Dashboard)
 // ============================================================
