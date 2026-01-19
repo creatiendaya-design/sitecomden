@@ -23,6 +23,25 @@ export interface PaymentMethodSettings {
 }
 
 // ============================================================
+// VALORES POR DEFECTO
+// ============================================================
+
+const DEFAULT_PAYMENT_SETTINGS: PaymentMethodSettings = {
+  yape: {
+    enabled: true,
+    phoneNumber: "987654321",
+    qrImageUrl: "",
+    accountName: "Tu Tienda Perú",
+  },
+  plin: {
+    enabled: true,
+    phoneNumber: "987654321",
+    qrImageUrl: "",
+    accountName: "Tu Tienda Perú",
+  },
+};
+
+// ============================================================
 // OBTENER CONFIGURACIÓN DE MÉTODOS DE PAGO
 // ============================================================
 
@@ -32,42 +51,28 @@ export async function getPaymentMethodSettings(): Promise<PaymentMethodSettings>
       where: { key: "payment_methods" },
     });
 
-    if (!setting) {
-      // Valores por defecto si no existe configuración
-      return {
-        yape: {
-          enabled: true,
-          phoneNumber: "987654321",
-          qrImageUrl: "",
-          accountName: "Tu Tienda Perú",
-        },
-        plin: {
-          enabled: true,
-          phoneNumber: "987654321",
-          qrImageUrl: "",
-          accountName: "Tu Tienda Perú",
-        },
-      };
+    // ✅ Validar que exista y que value no sea null
+    if (!setting || !setting.value) {
+      return DEFAULT_PAYMENT_SETTINGS;
     }
 
-    return setting.value as PaymentMethodSettings;
+    // ✅ Validar que sea un objeto con la estructura correcta
+    const value = setting.value as any;
+    if (
+      typeof value === "object" &&
+      value.yape &&
+      value.plin &&
+      typeof value.yape === "object" &&
+      typeof value.plin === "object"
+    ) {
+      return value as PaymentMethodSettings;
+    }
+
+    // Si no cumple la estructura, retornar defaults
+    return DEFAULT_PAYMENT_SETTINGS;
   } catch (error) {
     console.error("Error getting payment method settings:", error);
-    // Retornar defaults en caso de error
-    return {
-      yape: {
-        enabled: true,
-        phoneNumber: "987654321",
-        qrImageUrl: "",
-        accountName: "Tu Tienda Perú",
-      },
-      plin: {
-        enabled: true,
-        phoneNumber: "987654321",
-        qrImageUrl: "",
-        accountName: "Tu Tienda Perú",
-      },
-    };
+    return DEFAULT_PAYMENT_SETTINGS;
   }
 }
 
@@ -96,13 +101,13 @@ export async function savePaymentMethodSettings(settings: PaymentMethodSettings)
     await prisma.setting.upsert({
       where: { key: "payment_methods" },
       update: {
-        value: settings,
+        value: settings as any, // ✅ Cast a any para evitar error de tipos
         category: "payment",
         description: "Configuración de métodos de pago Yape y Plin",
       },
       create: {
         key: "payment_methods",
-        value: settings,
+        value: settings as any, // ✅ Cast a any para evitar error de tipos
         category: "payment",
         description: "Configuración de métodos de pago Yape y Plin",
       },
