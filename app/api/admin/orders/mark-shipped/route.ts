@@ -21,6 +21,7 @@ export async function POST(request: Request) {
         orderNumber: true,
         customerName: true,
         customerEmail: true,
+        viewToken: true,
         status: true,
         paymentStatus: true,
       },
@@ -56,6 +57,11 @@ export async function POST(request: Request) {
       },
     });
 
+    // Generar link de visualización
+    const viewOrderLink = order.viewToken
+      ? `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
+      : undefined;
+
     // Enviar email de envío
     try {
       await sendOrderShippedEmail({
@@ -65,6 +71,7 @@ export async function POST(request: Request) {
         trackingNumber: trackingNumber || undefined,
         shippingCourier: shippingCourier || undefined,
         estimatedDelivery: estimatedDelivery || undefined,
+        viewOrderLink: viewOrderLink,
       });
     } catch (emailError) {
       console.error("Error sending shipped email:", emailError);
