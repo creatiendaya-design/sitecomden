@@ -80,7 +80,8 @@ export async function POST(req: NextRequest) {
     });
     
     // Usar prefijo de configuración o "REC" por defecto
-    const prefix = configSetting?.value?.prefix || "REC";
+    const configValue = configSetting?.value as { prefix?: string; emailSubject?: string; emailMessage?: string } | null;
+    const prefix = configValue?.prefix || "REC";
     
     // Generar número de reclamo secuencial: {PREFIX}-YYYY-###
     const currentYear = new Date().getFullYear();
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
           original: formData,         // IDs originales
           mapped: dataByLabel,        // Datos mapeados a labels
           submittedAt: new Date().toISOString(),
-        },
+        } as any,
         
         // Campos específicos extraídos
         customerName: customerName || null,
@@ -146,15 +147,9 @@ export async function POST(req: NextRequest) {
         
         // Importar función de envío de email
         const { sendEmail } = await import("@/lib/email");
-        
-        // Obtener configuración de emails
-        const emailConfig = configSetting?.value as {
-          emailSubject?: string;
-          emailMessage?: string;
-        };
 
-        const emailSubject = emailConfig?.emailSubject || "Reclamación Recibida";
-        const emailMessage = emailConfig?.emailMessage || 
+        const emailSubject = configValue?.emailSubject || "Reclamación Recibida";
+        const emailMessage = configValue?.emailMessage || 
           "Hemos recibido su reclamación y será atendida a la brevedad. Nuestro equipo revisará su caso y se pondrá en contacto con usted en un plazo máximo de 15 días hábiles.";
 
         await sendEmail({
