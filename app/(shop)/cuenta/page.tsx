@@ -22,6 +22,7 @@ import {
   getCustomerByEmail,
   getCustomerStats,
   getLoyaltySettings,
+  registerCustomer,
 } from "@/actions/loyalty";
 
 export const metadata = {
@@ -43,23 +44,52 @@ export default async function CuentaPage() {
   }
 
   const userEmail = user.primaryEmailAddress.emailAddress;
-  const customer = await getCustomerByEmail(userEmail);
+  let customer = await getCustomerByEmail(userEmail);
 
+  // ✅ SI NO EXISTE CUSTOMER, CREARLO AUTOMÁTICAMENTE
   if (!customer) {
-    // Si no existe el customer, crear uno nuevo
-    // Por ahora redirigir a una página de setup
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-2xl text-center">
-        <Trophy className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-        <h1 className="text-2xl font-bold mb-2">¡Bienvenido a ShopGood!</h1>
-        <p className="text-muted-foreground mb-6">
-          Completa tu primera compra para empezar a acumular puntos y beneficios VIP
-        </p>
-        <Link href="/productos">
-          <Button size="lg">Explorar productos</Button>
-        </Link>
-      </div>
-    );
+    const userName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.primaryEmailAddress.emailAddress;
+    
+    const result = await registerCustomer({
+      email: userEmail,
+      name: userName,
+      phone: user.primaryPhoneNumber?.phoneNumber,
+    });
+
+    if (result.success) {
+      // Volver a buscar el customer con todas sus relaciones
+      customer = await getCustomerByEmail(userEmail);
+      
+      if (!customer) {
+        // Si falla la creación, mostrar mensaje de error
+        return (
+          <div className="container mx-auto px-4 py-8 max-w-2xl text-center">
+            <Trophy className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold mb-2">Error al crear cuenta</h1>
+            <p className="text-muted-foreground mb-6">
+              Hubo un problema al inicializar tu cuenta de loyalty. Por favor contacta a soporte.
+            </p>
+            <Link href="/">
+              <Button size="lg">Volver al inicio</Button>
+            </Link>
+          </div>
+        );
+      }
+    } else {
+      // Si falla la creación, mostrar mensaje de error
+      return (
+        <div className="container mx-auto px-4 py-8 max-w-2xl text-center">
+          <Trophy className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Error al crear cuenta</h1>
+          <p className="text-muted-foreground mb-6">
+            Hubo un problema al inicializar tu cuenta de loyalty. Por favor contacta a soporte.
+          </p>
+          <Link href="/">
+            <Button size="lg">Volver al inicio</Button>
+          </Link>
+        </div>
+      );
+    }
   }
 
   const stats = await getCustomerStats(customer.id);
@@ -78,7 +108,7 @@ export default async function CuentaPage() {
     const total = nextThreshold - currentThreshold;
     progressPercentage = Math.min((progress / total) * 100, 100);
   } else {
-    progressPercentage = 100; // Ya está en el nivel máximo
+    progressPercentage = 100;
   }
 
   return (
@@ -259,7 +289,7 @@ export default async function CuentaPage() {
       </div>
 
       {/* Actividad Reciente */}
-      {stats.recentTransactions.length > 0 && (
+      {stats.recentTransactions && stats.recentTransactions.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Actividad Reciente</CardTitle>
