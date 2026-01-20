@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { format } from "date-fns";
@@ -41,16 +41,27 @@ export default async function OrderDetailPage({
 }: {
   params: { id: string };
 }) {
-  // ✅ Una sola llamada a auth() con await
-  const { userId, sessionClaims } = await auth();
+  const { userId } = await auth();
 
   if (!userId) {
-    redirect("/sign-in");
+    redirect("/iniciar-sesion");
   }
 
-  const userEmail = sessionClaims?.email as string;
+  // Obtener email del usuario actual
+  const user = await currentUser();
 
-  // Obtener pedido
+  if (!user || !user.primaryEmailAddress?.emailAddress) {
+    redirect("/iniciar-sesion");
+  }
+
+  const userEmail = user.primaryEmailAddress.emailAddress;
+
+  // Buscar customer del usuario actual
+  const customer = await prisma.customer.findUnique({
+    where: { email: userEmail },
+  });
+
+  // Obtener orden
   const order = await prisma.order.findUnique({
     where: {
       id: params.id,
@@ -68,8 +79,19 @@ export default async function OrderDetailPage({
     notFound();
   }
 
-  // Verificar que el pedido pertenece al usuario
-  if (order.customerEmail !== userEmail) {
+  // ✅ VALIDACIÓN DE SEGURIDAD: Verificar que la orden pertenece al usuario
+  let ordenPerteneceAlUsuario = false;
+
+  if (customer && order.customerId === customer.id) {
+    // Orden vinculada al customer del usuario
+    ordenPerteneceAlUsuario = true;
+  } else if (order.customerEmail === userEmail) {
+    // Orden con el mismo email (para órdenes antiguas sin vincular)
+    ordenPerteneceAlUsuario = true;
+  }
+
+  if (!ordenPerteneceAlUsuario) {
+    // Si la orden NO pertenece al usuario, redirigir
     redirect("/cuenta/ordenes");
   }
 

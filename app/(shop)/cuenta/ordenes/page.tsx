@@ -1,10 +1,10 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
-import { Package, ChevronRight, ShoppingBag } from "lucide-react";
+import { ShoppingBag, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,32 +40,65 @@ const statusLabels = {
 };
 
 export default async function OrdenesPage() {
-  // ✅ Una sola llamada a auth() con await
-  const { userId, sessionClaims } = await auth();
+  const { userId } = await auth();
 
   if (!userId) {
     redirect("/iniciar-sesion");
   }
 
-  // Obtener email del usuario desde Clerk
-  const userEmail = sessionClaims?.email as string;
+  // Obtener email del usuario actual
+  const user = await currentUser();
+  
+  if (!user || !user.primaryEmailAddress?.emailAddress) {
+    redirect("/iniciar-sesion");
+  }
 
-  // Obtener pedidos del usuario
-  const orders = await prisma.order.findMany({
-    where: {
-      customerEmail: userEmail,
-    },
-    include: {
-      items: {
-        include: {
-          product: true,
+  const userEmail = user.primaryEmailAddress.emailAddress;
+
+  // Buscar customer del usuario actual
+  const customer = await prisma.customer.findUnique({
+    where: { email: userEmail },
+  });
+
+  // ✅ FILTRADO CORRECTO
+  let orders;
+
+  if (customer) {
+    // Si existe customer, buscar órdenes vinculadas a ese customer
+    orders = await prisma.order.findMany({
+      where: {
+        customerId: customer.id,
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
         },
       },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  } else {
+    // Si NO existe customer, buscar órdenes con ese email exacto
+    // (para órdenes antiguas que aún no tienen customer)
+    orders = await prisma.order.findMany({
+      where: {
+        customerEmail: userEmail,
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
 
   if (orders.length === 0) {
     return (
