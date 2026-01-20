@@ -193,6 +193,10 @@ export async function getCustomerStats(customerId: string) {
             referrals: true,
           },
         },
+        pointsHistory: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
       },
     });
 
@@ -243,11 +247,13 @@ export async function getCustomerStats(customerId: string) {
       customer,
       stats: {
         totalOrders: customer._count.orders,
+        totalSpent: Number(customer.totalSpent || 0), // ✅ AGREGADO
         totalReferrals: customer._count.referrals,
         expiringPoints: expiringPoints._sum.points || 0,
         pointsToNextTier: Math.max(0, pointsToNextTier),
         nextTier,
       },
+      recentTransactions: customer.pointsHistory || [], // ✅ AGREGADO
     };
   } catch (error) {
     console.error("Error obteniendo stats:", error);
