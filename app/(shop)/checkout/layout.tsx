@@ -1,26 +1,21 @@
+import CheckoutHeader from "@/components/shop/CheckoutHeader";
+import CheckoutFooter from "@/components/shop/CheckoutFooter";
 import { getSiteSettings } from "@/lib/site-settings";
-import LayoutWrapper from "@/components/shop/LayoutWrapper";
 
-export default async function ShopLayout({
+export default async function CheckoutLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const settings = await getSiteSettings();
 
-  // Structured Data para la organización
+  // Structured Data para la organización (mínimo para checkout)
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: settings.site_name,
     url: settings.site_url,
     logo: settings.site_logo,
-    description: settings.seo_home_description,
-    address: {
-      "@type": "PostalAddress",
-      addressCountry: "PE",
-      streetAddress: settings.contact_address,
-    },
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "Customer Service",
@@ -28,12 +23,6 @@ export default async function ShopLayout({
       telephone: settings.contact_phone,
       availableLanguage: ["Spanish"],
     },
-    sameAs: [
-      settings.social_facebook,
-      settings.social_instagram,
-      settings.social_twitter,
-      settings.social_tiktok,
-    ].filter(Boolean),
   };
 
   return (
@@ -44,8 +33,11 @@ export default async function ShopLayout({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
       
-      {/* LayoutWrapper decide si mostrar Header/Footer basado en la ruta */}
-      <LayoutWrapper>{children}</LayoutWrapper>
+      <div className="flex min-h-screen flex-col">
+        <CheckoutHeader />
+        <main className="flex-1 bg-slate-50/50">{children}</main>
+        <CheckoutFooter />
+      </div>
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import SiteSettingsForm from "@/components/admin/SiteSettingsForm";
+import SiteImageUploader from "@/components/admin/SiteImageUploader";
 
 export default async function SiteSettingsPage() {
   // Obtener settings actuales
@@ -31,6 +32,10 @@ export default async function SiteSettingsPage() {
         </p>
       </div>
 
+      {/* Logo y Favicon */}
+      <SiteImageUploader />
+
+      {/* Resto de configuración */}
       <SiteSettingsForm initialSettings={settingsObject} />
     </div>
   );

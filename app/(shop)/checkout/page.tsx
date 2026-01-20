@@ -92,7 +92,7 @@ export default function CheckoutPage() {
     const stockItems = items.map((item) => ({
       id: item.id,
       productId: item.productId,
-      variantId: item.variantId || null, // ✅ CORREGIDO
+      variantId: item.variantId || null,
       quantity: item.quantity,
     }));
 
@@ -197,7 +197,7 @@ export default function CheckoutPage() {
       const stockItems = items.map((item) => ({
         id: item.id,
         productId: item.productId,
-        variantId: item.variantId || null, // ✅ CORREGIDO
+        variantId: item.variantId || null,
         quantity: item.quantity,
       }));
 
@@ -389,7 +389,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="container py-8 mx-auto">
-      <h1 className="mb-8 text-3xl font-bold">Checkout</h1>
+      <h1 className="mb-8 text-3xl font-bold">Finalizar Compra</h1>
 
       <form onSubmit={handleSubmit}>
         {/* Messages */}
@@ -529,7 +529,7 @@ export default function CheckoutPage() {
                 <CardTitle>Dirección de Envío</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Selector de Ubicación - SIN props de envío */}
+                {/* Selector de Ubicación */}
                 <LocationSelector
                   value={{
                     departmentId: formData.departmentId,
@@ -661,43 +661,6 @@ export default function CheckoutPage() {
                 />
               </CardContent>
             </Card>
-
-            {/* Términos y Condiciones */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-2">
-                    <Checkbox
-                      id="acceptTerms"
-                      checked={formData.acceptTerms}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, acceptTerms: checked === true })
-                      }
-                      className={validationErrors.acceptTerms ? "border-destructive" : ""}
-                    />
-                    <div className="grid gap-1.5 leading-none">
-                      <Label
-                        htmlFor="acceptTerms"
-                        className="text-sm font-normal cursor-pointer"
-                      >
-                        Acepto los{" "}
-                        <TermsAndConditions>
-                          <span className="text-primary underline cursor-pointer">
-                            términos y condiciones
-                          </span>
-                        </TermsAndConditions>
-                        {" "}<span className="text-destructive">*</span>
-                      </Label>
-                      {validationErrors.acceptTerms && (
-                        <p className="text-xs text-destructive">
-                          {validationErrors.acceptTerms}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Resumen de Orden */}
@@ -795,6 +758,40 @@ export default function CheckoutPage() {
                   <span>{formatPrice(total)}</span>
                 </div>
 
+                {/* ✅ TÉRMINOS Y CONDICIONES - MOVIDO AQUÍ, ARRIBA DEL BOTÓN */}
+                <div className="pt-2">
+                  <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
+                    <Checkbox
+                      id="acceptTerms"
+                      checked={formData.acceptTerms}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, acceptTerms: checked === true })
+                      }
+                      className={validationErrors.acceptTerms ? "border-destructive mt-0.5" : "mt-0.5"}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label
+                        htmlFor="acceptTerms"
+                        className="text-sm font-normal cursor-pointer leading-relaxed"
+                      >
+                        He leído y acepto los{" "}
+                        <TermsAndConditions>
+                          <span className="text-primary underline cursor-pointer font-medium">
+                            términos y condiciones
+                          </span>
+                        </TermsAndConditions>
+                        {" "}de compra <span className="text-destructive">*</span>
+                      </Label>
+                      {validationErrors.acceptTerms && (
+                        <p className="text-xs text-destructive mt-1">
+                          {validationErrors.acceptTerms}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botón de pago */}
                 <Button
                   type="submit"
                   size="lg"
