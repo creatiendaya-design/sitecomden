@@ -56,9 +56,9 @@ export default function AdminRegisterPage() {
         return;
       }
 
-      // Redirigir al login
+      // ✅ Redirigir al login
       alert("Cuenta creada exitosamente. Ahora puedes iniciar sesión.");
-      router.push("/admin/login");
+      router.push("/admin-auth/login");
     } catch (err) {
       setError("Error de conexión");
     } finally {
@@ -154,7 +154,7 @@ export default function AdminRegisterPage() {
 
             <div className="text-center text-sm">
               <span className="text-muted-foreground">¿Ya tienes cuenta? </span>
-              <Link href="/admin/login" className="text-primary hover:underline">
+              <Link href="/admin-auth/login" className="text-primary hover:underline">
                 Inicia sesión
               </Link>
             </div>

@@ -10,19 +10,20 @@ import type { NextRequest } from 'next/server';
 function handleAdminRoutes(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Solo procesar rutas que empiezan con /admin
   if (!pathname.startsWith("/admin")) {
-    return null; // No es ruta de admin
+    return null;
   }
 
-  // /admin/login es público
-  if (pathname === "/admin/login") {
+  // ✅ Rutas públicas de admin (login/register)
+  if (pathname.startsWith("/admin-auth/")) {
     return NextResponse.next();
   }
 
-  // Verificar cookie admin_session
+  // ✅ Verificar cookie admin_session para rutas protegidas
   const adminSession = req.cookies.get("admin_session");
   if (!adminSession) {
-    return NextResponse.redirect(new URL("/admin/login", req.url));
+    return NextResponse.redirect(new URL("/admin-auth/login", req.url));
   }
 
   return NextResponse.next();

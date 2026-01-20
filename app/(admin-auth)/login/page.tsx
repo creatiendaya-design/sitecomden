@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Redirigir al dashboard
+      // ✅ Redirigir al dashboard
       router.push("/admin/dashboard");
       router.refresh();
     } catch (err) {
@@ -96,7 +96,7 @@ export default function AdminLoginPage() {
 
             <div className="text-center text-sm">
               <span className="text-muted-foreground">¿No tienes cuenta? </span>
-              <Link href="/admin/register" className="text-primary hover:underline">
+              <Link href="/admin-auth/register" className="text-primary hover:underline">
                 Regístrate aquí
               </Link>
             </div>
