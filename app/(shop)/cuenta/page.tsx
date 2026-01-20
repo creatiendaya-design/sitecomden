@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,13 +29,20 @@ export const metadata = {
 };
 
 export default async function CuentaPage() {
-  const { userId, sessionClaims } = await auth();
+  const { userId } = await auth();
 
   if (!userId) {
     redirect("/iniciar-sesion");
   }
 
-  const userEmail = sessionClaims?.email as string;
+  // Obtener usuario de Clerk
+  const user = await currentUser();
+  
+  if (!user || !user.primaryEmailAddress?.emailAddress) {
+    redirect("/iniciar-sesion");
+  }
+
+  const userEmail = user.primaryEmailAddress.emailAddress;
   const customer = await getCustomerByEmail(userEmail);
 
   if (!customer) {
