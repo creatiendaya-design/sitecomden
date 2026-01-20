@@ -71,6 +71,19 @@ export default function SignInPage() {
         </div>
         
         <SignIn 
+         appearance={{
+          elements: {
+            rootBox: "mx-auto",
+            card: "shadow-none border",
+            headerTitle: "text-2xl font-bold",
+            headerSubtitle: "text-gray-600",
+            socialButtonsBlockButton: "border hover:bg-gray-50",
+            formButtonPrimary: "bg-primary hover:bg-primary/90",
+            footerActionLink: "text-primary hover:text-primary/90",
+            // 👇 Ocultar branding de Clerk
+            footer: "hidden",
+          },
+        }}
           afterSignInUrl="/cuenta"
           afterSignUpUrl="/cuenta"
         />

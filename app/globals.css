@@ -123,3 +123,6 @@
     @apply bg-background text-foreground;
   }
 }
+.cl-internal-vorlia{
+  display: none !important;
+}
