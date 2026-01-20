@@ -111,7 +111,7 @@ export default async function HomePage() {
 
       {/* Featured Products */}
       <section className="py-16">
-        <div className="container">
+        <div className="container mx-auto">
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h2 className="text-3xl font-bold tracking-tight">
