@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,8 @@ interface Product {
   }[];
 }
 
-export default function AdjustStockPage() {
+// ⭐ FIX: Separar el componente que usa useSearchParams()
+function AdjustStockContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -95,7 +96,7 @@ export default function AdjustStockPage() {
         })
         .finally(() => setLoadingProduct(false));
     }
-  }, [formData.productId]);
+  }, [formData.productId, selectedProduct]);
 
   // Actualizar stock actual cuando se selecciona variante
   useEffect(() => {
@@ -467,5 +468,18 @@ export default function AdjustStockPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ⭐ FIX: Wrapper con Suspense
+export default function AdjustStockPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    }>
+      <AdjustStockContent />
+    </Suspense>
   );
 }

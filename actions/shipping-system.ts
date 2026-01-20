@@ -52,8 +52,18 @@ export async function getShippingZones() {
 
 /**
  * Obtener zona por ID
+ * ⭐ FIX: Validar id antes del query
  */
-export async function getShippingZoneById(id: string) {
+export async function getShippingZoneById(id: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return { 
+      success: false, 
+      error: "Zone ID required", 
+      data: null 
+    };
+  }
+
   try {
     const zone = await prisma.shippingZone.findUnique({
       where: { id },
@@ -110,15 +120,25 @@ export async function createShippingZone(data: {
 
 /**
  * Actualizar zona
+ * ⭐ FIX: Validar id antes del query
  */
 export async function updateShippingZone(
-  id: string,
+  id: string | undefined,
   data: {
     name?: string;
     description?: string;
     active?: boolean;
   }
 ) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return { 
+      success: false, 
+      error: "Zone ID required", 
+      data: null 
+    };
+  }
+
   try {
     const zone = await prisma.shippingZone.update({
       where: { id },
@@ -144,8 +164,17 @@ export async function updateShippingZone(
 
 /**
  * Eliminar zona
+ * ⭐ FIX: Validar id antes del query
  */
-export async function deleteShippingZone(id: string) {
+export async function deleteShippingZone(id: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return { 
+      success: false, 
+      error: "Zone ID required" 
+    };
+  }
+
   try {
     // Verificar si tiene grupos
     const zone = await prisma.shippingZone.findUnique({
@@ -177,8 +206,20 @@ export async function deleteShippingZone(id: string) {
 
 /**
  * Toggle estado de zona
+ * ⭐ FIX: Validar id antes del query
  */
-export async function toggleShippingZoneStatus(id: string, active: boolean) {
+export async function toggleShippingZoneStatus(
+  id: string | undefined, 
+  active: boolean
+) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return { 
+      success: false, 
+      error: "Zone ID required" 
+    };
+  }
+
   try {
     await prisma.shippingZone.update({
       where: { id },
@@ -203,11 +244,20 @@ export async function toggleShippingZoneStatus(id: string, active: boolean) {
 
 /**
  * Asignar distrito a zona
+ * ⭐ FIX: Validar zoneId y districtCode
  */
 export async function assignDistrictToZone(
-  zoneId: string,
-  districtCode: string
+  zoneId: string | undefined,
+  districtCode: string | undefined
 ) {
+  // ✅ VALIDAR PRIMERO
+  if (!zoneId?.trim() || !districtCode?.trim()) {
+    return {
+      success: false,
+      error: "Zone ID and district code required",
+    };
+  }
+
   try {
     // Verificar si ya está asignado
     const existing = await prisma.shippingZoneDistrict.findFirst({
@@ -237,11 +287,20 @@ export async function assignDistrictToZone(
 
 /**
  * Quitar distrito de zona
+ * ⭐ FIX: Validar zoneId y districtCode
  */
 export async function removeDistrictFromZone(
-  zoneId: string,
-  districtCode: string
+  zoneId: string | undefined,
+  districtCode: string | undefined
 ) {
+  // ✅ VALIDAR PRIMERO
+  if (!zoneId?.trim() || !districtCode?.trim()) {
+    return {
+      success: false,
+      error: "Zone ID and district code required",
+    };
+  }
+
   try {
     await prisma.shippingZoneDistrict.deleteMany({
       where: { shippingZoneId: zoneId, districtCode },
@@ -258,8 +317,18 @@ export async function removeDistrictFromZone(
 
 /**
  * Obtener distritos de una zona
+ * ⭐ FIX: Validar zoneId
  */
-export async function getZoneDistricts(zoneId: string) {
+export async function getZoneDistricts(zoneId: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!zoneId?.trim()) {
+    return {
+      success: false,
+      error: "Zone ID required",
+      data: [],
+    };
+  }
+
   try {
     const assignments = await prisma.shippingZoneDistrict.findMany({
       where: { shippingZoneId: zoneId },
@@ -339,8 +408,18 @@ export async function searchAvailableDistricts(
 
 /**
  * Obtener grupos de una zona
+ * ⭐ FIX: Validar zoneId
  */
-export async function getRateGroupsByZone(zoneId: string) {
+export async function getRateGroupsByZone(zoneId: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!zoneId?.trim()) {
+    return {
+      success: false,
+      error: "Zone ID required",
+      data: [],
+    };
+  }
+
   try {
     const groups = await prisma.shippingRateGroup.findMany({
       where: { zoneId },
@@ -367,8 +446,18 @@ export async function getRateGroupsByZone(zoneId: string) {
 
 /**
  * Obtener grupo por ID
+ * ⭐ FIX: Validar id
  */
-export async function getRateGroupById(id: string) {
+export async function getRateGroupById(id: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return {
+      success: false,
+      error: "Group ID required",
+      data: null,
+    };
+  }
+
   try {
     const group = await prisma.shippingRateGroup.findUnique({
       where: { id },
@@ -425,9 +514,10 @@ export async function createRateGroup(data: {
 
 /**
  * Actualizar grupo
+ * ⭐ FIX: Validar id
  */
 export async function updateRateGroup(
-  id: string,
+  id: string | undefined,
   data: {
     name?: string;
     description?: string;
@@ -435,6 +525,15 @@ export async function updateRateGroup(
     active?: boolean;
   }
 ) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return {
+      success: false,
+      error: "Group ID required",
+      data: null,
+    };
+  }
+
   try {
     const group = await prisma.shippingRateGroup.update({
       where: { id },
@@ -460,8 +559,17 @@ export async function updateRateGroup(
 
 /**
  * Eliminar grupo
+ * ⭐ FIX: Validar id
  */
-export async function deleteRateGroup(id: string) {
+export async function deleteRateGroup(id: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return {
+      success: false,
+      error: "Group ID required",
+    };
+  }
+
   try {
     const group = await prisma.shippingRateGroup.findUnique({
       where: { id },
@@ -496,8 +604,18 @@ export async function deleteRateGroup(id: string) {
 
 /**
  * Obtener tarifas de un grupo
+ * ⭐ FIX: Validar groupId
  */
-export async function getRatesByGroup(groupId: string) {
+export async function getRatesByGroup(groupId: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!groupId?.trim()) {
+    return {
+      success: false,
+      error: "Group ID required",
+      data: [],
+    };
+  }
+
   try {
     const rates = await prisma.shippingRate.findMany({
       where: { groupId },
@@ -513,8 +631,18 @@ export async function getRatesByGroup(groupId: string) {
 
 /**
  * Obtener tarifa por ID
+ * ⭐ FIX: Validar id
  */
-export async function getShippingRateById(id: string) {
+export async function getShippingRateById(id: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return {
+      success: false,
+      error: "Rate ID required",
+      data: null,
+    };
+  }
+
   try {
     const rate = await prisma.shippingRate.findUnique({
       where: { id },
@@ -588,9 +716,10 @@ export async function createShippingRate(data: {
 
 /**
  * Actualizar tarifa
+ * ⭐ FIX: Validar id
  */
 export async function updateShippingRate(
-  id: string,
+  id: string | undefined,
   data: {
     name?: string;
     description?: string;
@@ -606,6 +735,15 @@ export async function updateShippingRate(
     active?: boolean;
   }
 ) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return {
+      success: false,
+      error: "Rate ID required",
+      data: null,
+    };
+  }
+
   try {
     const rate = await prisma.shippingRate.update({
       where: { id },
@@ -631,8 +769,17 @@ export async function updateShippingRate(
 
 /**
  * Eliminar tarifa
+ * ⭐ FIX: Validar id
  */
-export async function deleteShippingRate(id: string) {
+export async function deleteShippingRate(id: string | undefined) {
+  // ✅ VALIDAR PRIMERO
+  if (!id?.trim()) {
+    return {
+      success: false,
+      error: "Rate ID required",
+    };
+  }
+
   try {
     const rate = await prisma.shippingRate.findUnique({
       where: { id },

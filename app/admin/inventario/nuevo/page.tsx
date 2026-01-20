@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,8 @@ interface Product {
   }[];
 }
 
-export default function NewInventoryMovementForm() {
+// ⭐ FIX: Separar el componente que usa useSearchParams()
+function InventoryMovementFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -362,5 +363,14 @@ export default function NewInventoryMovementForm() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ⭐ FIX: Wrapper con Suspense
+export default function NewInventoryMovementForm() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <InventoryMovementFormContent />
+    </Suspense>
   );
 }

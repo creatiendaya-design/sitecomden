@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getOrderByToken } from "@/actions/orders";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 
-export default function VerificarOrdenPage() {
+// ⭐ FIX: Separar el componente que usa useSearchParams()
+function VerificarOrdenContent() {
   const searchParams = useSearchParams();
   const tokenFromUrl = searchParams.get("token");
   const emailFromUrl = searchParams.get("email");
@@ -40,6 +41,7 @@ export default function VerificarOrdenPage() {
     if (tokenFromUrl && emailFromUrl) {
       handleVerify();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleVerify = async () => {
@@ -389,5 +391,18 @@ function TimelineItem({
         )}
       </div>
     </div>
+  );
+}
+
+// ⭐ FIX: Wrapper con Suspense
+export default function VerificarOrdenPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    }>
+      <VerificarOrdenContent />
+    </Suspense>
   );
 }
