@@ -20,6 +20,17 @@ function handleAdminRoutes(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // ✅ Redirect pages (admin/login → admin-auth/login)
+  // Dejar que Next.js maneje estos redirects
+  if (pathname === "/admin/login" || pathname === "/admin/register") {
+    return NextResponse.next();
+  }
+
+  // ✅ Root admin redirect (dejar que page.tsx lo maneje)
+  if (pathname === "/admin") {
+    return NextResponse.next();
+  }
+
   // ✅ Verificar cookie admin_session para rutas protegidas
   const adminSession = req.cookies.get("admin_session");
   if (!adminSession) {
