@@ -188,18 +188,7 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
                 </p>
               </div>
 
-              <div>
-                <Label htmlFor="seo_home_og_image">Imagen Open Graph</Label>
-                <Input
-                  id="seo_home_og_image"
-                  value={settings.seo_home_og_image}
-                  onChange={(e) => handleChange("seo_home_og_image", e.target.value)}
-                  placeholder="/og-image.jpg"
-                />
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Imagen que aparece al compartir en redes sociales (1200x630px recomendado)
-                </p>
-              </div>
+              
             </CardContent>
           </Card>
         </TabsContent>

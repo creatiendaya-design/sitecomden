@@ -6,15 +6,16 @@ import { prisma } from "@/lib/db";
 export type SiteImageSettings = {
   logo: string | null;
   favicon: string | null;
+  ogImage: string | null; // ✅ Agregado
 };
 
 /**
- * Subir logo o favicon
+ * Subir logo, favicon u og-image
  */
 export async function uploadSiteImage(formData: FormData) {
   try {
     const file = formData.get("file") as File;
-    const imageType = formData.get("imageType") as "logo" | "favicon";
+    const imageType = formData.get("imageType") as "logo" | "favicon" | "ogImage"; // ✅ Agregado ogImage
 
     if (!file) {
       return { success: false, error: "No se proporcionó archivo" };
@@ -47,7 +48,11 @@ export async function uploadSiteImage(formData: FormData) {
     });
 
     // Guardar URL en la base de datos como objeto JSON
-    const settingKey = imageType === "logo" ? "site_logo" : "site_favicon";
+    const settingKey = 
+      imageType === "logo" ? "site_logo" : 
+      imageType === "favicon" ? "site_favicon" : 
+      "seo_home_og_image"; // ✅ Agregado
+
     await prisma.setting.upsert({
       where: { key: settingKey },
       update: {
@@ -56,8 +61,11 @@ export async function uploadSiteImage(formData: FormData) {
       create: {
         key: settingKey,
         value: { url: blob.url },
-        category: "general",
-        description: imageType === "logo" ? "Logo del sitio" : "Favicon del sitio",
+        category: imageType === "ogImage" ? "seo" : "general", // ✅ Categoría correcta
+        description: 
+          imageType === "logo" ? "Logo del sitio" : 
+          imageType === "favicon" ? "Favicon del sitio" :
+          "Imagen Open Graph", // ✅ Agregado
       },
     });
 
@@ -75,11 +83,14 @@ export async function uploadSiteImage(formData: FormData) {
 }
 
 /**
- * Eliminar logo o favicon
+ * Eliminar logo, favicon u og-image
  */
-export async function deleteSiteImage(imageType: "logo" | "favicon") {
+export async function deleteSiteImage(imageType: "logo" | "favicon" | "ogImage") { // ✅ Agregado ogImage
   try {
-    const settingKey = imageType === "logo" ? "site_logo" : "site_favicon";
+    const settingKey = 
+      imageType === "logo" ? "site_logo" : 
+      imageType === "favicon" ? "site_favicon" :
+      "seo_home_og_image"; // ✅ Agregado
 
     await prisma.setting.deleteMany({
       where: { key: settingKey },
@@ -103,63 +114,60 @@ export async function getSiteImageSettings(): Promise<SiteImageSettings> {
     const settings = await prisma.setting.findMany({
       where: {
         key: {
-          in: ["site_logo", "site_favicon"],
+          in: ["site_logo", "site_favicon", "seo_home_og_image"], // ✅ Agregado
         },
       },
     });
 
-    console.log("📦 Raw settings from DB:", JSON.stringify(settings, null, 2));
-
     // Extraer URLs de los objetos JSON
     const logoSetting = settings.find((s) => s.key === "site_logo");
     const faviconSetting = settings.find((s) => s.key === "site_favicon");
-
-    console.log("🔍 Logo setting:", logoSetting);
-    console.log("🔍 Favicon setting:", faviconSetting);
+    const ogImageSetting = settings.find((s) => s.key === "seo_home_og_image"); // ✅ Agregado
 
     // Parsear el JSON correctamente
     let logo: string | null = null;
     let favicon: string | null = null;
+    let ogImage: string | null = null; // ✅ Agregado
 
     if (logoSetting?.value) {
       const value = logoSetting.value;
-      console.log("🔍 Logo value type:", typeof value, value);
-      
-      // Si ya es un objeto con url
       if (typeof value === "object" && value !== null && "url" in value) {
         logo = String(value.url);
-      }
-      // Si es string directo (legacy)
-      else if (typeof value === "string") {
+      } else if (typeof value === "string") {
         logo = value;
       }
     }
 
     if (faviconSetting?.value) {
       const value = faviconSetting.value;
-      console.log("🔍 Favicon value type:", typeof value, value);
-      
-      // Si ya es un objeto con url
       if (typeof value === "object" && value !== null && "url" in value) {
         favicon = String(value.url);
-      }
-      // Si es string directo (legacy)
-      else if (typeof value === "string") {
+      } else if (typeof value === "string") {
         favicon = value;
       }
     }
 
-    console.log("✅ Final result:", { logo, favicon });
+    // ✅ Agregado: Procesar OG Image
+    if (ogImageSetting?.value) {
+      const value = ogImageSetting.value;
+      if (typeof value === "object" && value !== null && "url" in value) {
+        ogImage = String(value.url);
+      } else if (typeof value === "string") {
+        ogImage = value;
+      }
+    }
 
     return {
       logo,
       favicon,
+      ogImage, // ✅ Agregado
     };
   } catch (error) {
     console.error("Error getting site image settings:", error);
     return {
       logo: null,
       favicon: null,
+      ogImage: null, // ✅ Agregado
     };
   }
 }

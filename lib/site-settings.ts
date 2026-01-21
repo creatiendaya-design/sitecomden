@@ -47,6 +47,17 @@ const DEFAULT_SETTINGS: SiteSettings = {
 };
 
 /**
+ * Extrae el valor de un setting, manejando objetos JSON con 'url'
+ */
+function extractSettingValue(value: any): any {
+  // Si es un objeto JSON con 'url', extraer solo la URL
+  if (value && typeof value === "object" && "url" in value) {
+    return value.url;
+  }
+  return value;
+}
+
+/**
  * Obtiene todas las configuraciones del sitio
  * Si no existen en la BD, las crea automáticamente
  */
@@ -81,7 +92,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       });
 
       const settingsObject = newSettings.reduce((acc, setting) => {
-        acc[setting.key] = setting.value;
+        acc[setting.key] = extractSettingValue(setting.value);
         return acc;
       }, {} as Record<string, any>);
 
@@ -91,9 +102,9 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       };
     }
 
-    // Convertir array a objeto
+    // Convertir array a objeto, extrayendo URLs de objetos JSON
     const settingsObject = settings.reduce((acc, setting) => {
-      acc[setting.key] = setting.value;
+      acc[setting.key] = extractSettingValue(setting.value);
       return acc;
     }, {} as Record<string, any>);
 
@@ -173,7 +184,7 @@ export async function getSetting(key: string, defaultValue: any = null) {
       where: { key },
     });
 
-    return setting ? setting.value : defaultValue;
+    return setting ? extractSettingValue(setting.value) : defaultValue;
   } catch (error) {
     console.error(`Error getting setting ${key}:`, error);
     return defaultValue;

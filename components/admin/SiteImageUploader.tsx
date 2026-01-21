@@ -18,35 +18,31 @@ export default function SiteImageUploader() {
   const [settings, setSettings] = useState<SiteImageSettings>({
     logo: null,
     favicon: null,
+    ogImage: null, // ✅ Agregado
   });
 
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState<"logo" | "favicon" | null>(null);
+  const [uploading, setUploading] = useState<"logo" | "favicon" | "ogImage" | null>(null); // ✅ Agregado ogImage
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar configuración al montar
   useEffect(() => {
     loadSettings();
   }, []);
 
   const loadSettings = async () => {
-    console.log("🔄 Cargando settings...");
     setLoading(true);
     const loadedSettings = await getSiteImageSettings();
-    console.log("📦 Settings cargados:", loadedSettings);
     setSettings(loadedSettings);
     setLoading(false);
   };
 
   const handleUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    imageType: "logo" | "favicon"
+    imageType: "logo" | "favicon" | "ogImage" // ✅ Agregado ogImage
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    console.log("📤 Iniciando upload de", imageType, file.name);
 
     setUploading(imageType);
     setError(null);
@@ -56,12 +52,9 @@ export default function SiteImageUploader() {
     formData.append("file", file);
     formData.append("imageType", imageType);
 
-    console.log("🚀 Llamando a uploadSiteImage...");
     const result = await uploadSiteImage(formData);
-    console.log("📥 Resultado:", result);
 
     if (result.success && result.url) {
-      console.log("✅ Upload exitoso:", result.url);
       setSettings((prev) => ({
         ...prev,
         [imageType]: result.url,
@@ -69,39 +62,37 @@ export default function SiteImageUploader() {
       setSuccess(
         imageType === "logo"
           ? "Logo actualizado correctamente"
-          : "Favicon actualizado correctamente"
+          : imageType === "favicon"
+          ? "Favicon actualizado correctamente"
+          : "Imagen Open Graph actualizada correctamente" // ✅ Agregado
       );
       setTimeout(() => setSuccess(null), 3000);
       
-      // Recargar settings desde la DB para confirmar
-      console.log("🔄 Recargando settings desde DB...");
       await loadSettings();
     } else {
-      console.error("❌ Error en upload:", result.error);
       setError(result.error || "Error al subir imagen");
     }
 
     setUploading(null);
-    
-    // Limpiar input
     e.target.value = "";
   };
 
-  const handleDelete = async (imageType: "logo" | "favicon") => {
-    if (!confirm(`¿Estás seguro de eliminar el ${imageType === "logo" ? "logo" : "favicon"}?`)) {
+  const handleDelete = async (imageType: "logo" | "favicon" | "ogImage") => { // ✅ Agregado ogImage
+    const confirmText = 
+      imageType === "logo" ? "logo" :
+      imageType === "favicon" ? "favicon" :
+      "imagen Open Graph";
+
+    if (!confirm(`¿Estás seguro de eliminar el ${confirmText}?`)) {
       return;
     }
-
-    console.log("🗑️ Eliminando", imageType);
 
     setError(null);
     setSuccess(null);
 
     const result = await deleteSiteImage(imageType);
-    console.log("📥 Resultado delete:", result);
 
     if (result.success) {
-      console.log("✅ Eliminado correctamente");
       setSettings((prev) => ({
         ...prev,
         [imageType]: null,
@@ -109,14 +100,14 @@ export default function SiteImageUploader() {
       setSuccess(
         imageType === "logo"
           ? "Logo eliminado correctamente"
-          : "Favicon eliminado correctamente"
+          : imageType === "favicon"
+          ? "Favicon eliminado correctamente"
+          : "Imagen Open Graph eliminada correctamente" // ✅ Agregado
       );
       setTimeout(() => setSuccess(null), 3000);
       
-      // Recargar desde DB
       await loadSettings();
     } else {
-      console.error("❌ Error al eliminar:", result.error);
       setError(result.error || "Error al eliminar imagen");
     }
   };
@@ -136,18 +127,10 @@ export default function SiteImageUploader() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ImageIcon className="h-5 w-5" />
-          Logo y Favicon
+          Imágenes del Sitio
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Debug Info */}
-        <Alert>
-          <AlertDescription className="text-xs font-mono">
-            <div>Logo: {settings.logo || "null"}</div>
-            <div>Favicon: {settings.favicon || "null"}</div>
-          </AlertDescription>
-        </Alert>
-
         {/* Alerts */}
         {error && (
           <Alert variant="destructive">
@@ -359,6 +342,103 @@ export default function SiteImageUploader() {
           )}
         </div>
 
+        <div className="border-t pt-6" />
+
+        {/* ✅ NUEVO: Open Graph Image */}
+        <div className="space-y-3">
+          <div>
+            <Label>Imagen Open Graph (OG Image)</Label>
+            <p className="text-sm text-muted-foreground">
+              Imagen que aparece al compartir tu sitio en redes sociales (Recomendado: 1200x630px)
+            </p>
+          </div>
+
+          {settings.ogImage ? (
+            <div className="space-y-3">
+              <div className="relative w-full max-w-md h-48 rounded-lg border-2 overflow-hidden bg-white flex items-center justify-center">
+                <Image
+                  src={settings.ogImage}
+                  alt="Open Graph Image"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <div className="flex gap-2">
+                <label htmlFor="og-image-upload">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={uploading === "ogImage"}
+                    asChild
+                  >
+                    <span>
+                      {uploading === "ogImage" ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Subiendo...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Cambiar Imagen
+                        </>
+                      )}
+                    </span>
+                  </Button>
+                </label>
+                <input
+                  id="og-image-upload"
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => handleUpload(e, "ogImage")}
+                  disabled={uploading === "ogImage"}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDelete("ogImage")}
+                  disabled={uploading === "ogImage"}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Eliminar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label
+                htmlFor="og-image-upload-new"
+                className="flex flex-col items-center justify-center w-full max-w-md h-48 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex flex-col items-center justify-center">
+                  {uploading === "ogImage" ? (
+                    <Loader2 className="h-10 w-10 text-gray-400 animate-spin mb-2" />
+                  ) : (
+                    <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                  )}
+                  <p className="text-sm text-gray-500">
+                    {uploading === "ogImage"
+                      ? "Subiendo imagen..."
+                      : "Click para subir imagen OG"}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    PNG, JPG (1200x630px recomendado, MAX. 2MB)
+                  </p>
+                </div>
+                <input
+                  id="og-image-upload-new"
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => handleUpload(e, "ogImage")}
+                  disabled={uploading === "ogImage"}
+                />
+              </label>
+            </div>
+          )}
+        </div>
+
         {/* Información */}
         <Alert>
           <AlertCircle className="h-4 w-4" />
@@ -367,6 +447,7 @@ export default function SiteImageUploader() {
             <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
               <li>Logo: PNG transparente, ancho recomendado 200-300px</li>
               <li>Favicon: ICO o PNG, 32x32px o 16x16px</li>
+              <li>OG Image: JPG o PNG, 1200x630px (proporción 1.91:1)</li>
               <li>Peso máximo: 2MB por archivo</li>
               <li>Los cambios se aplicarán inmediatamente en todo el sitio</li>
             </ul>
