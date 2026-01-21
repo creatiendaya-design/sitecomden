@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { getSiteSettings } from "@/lib/site-settings";
 import Image from "next/image";
+import { 
+  VisaIcon, 
+  MastercardIcon, 
+  YapeIcon, 
+  PlinIcon, 
+  PayPalIcon 
+} from "@/components/payment-icons";
 
 export default async function CheckoutFooter() {
   const settings = await getSiteSettings();
@@ -12,21 +19,21 @@ export default async function CheckoutFooter() {
         {/* Métodos de pago */}
         <div className="mb-6 flex flex-wrap items-center justify-center gap-4">
           <p className="text-sm text-muted-foreground">Métodos de pago:</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex h-8 items-center rounded border bg-white px-3 text-xs font-semibold">
-              Visa
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
+              <VisaIcon width={40} height={26} />
             </div>
-            <div className="flex h-8 items-center rounded border bg-white px-3 text-xs font-semibold">
-              Mastercard
+            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
+              <MastercardIcon width={34} height={22} />
             </div>
-            <div className="flex h-8 items-center rounded border bg-white px-3 text-xs font-semibold text-purple-600">
-              Yape
+            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
+              <YapeIcon width={32} height={32} />
             </div>
-            <div className="flex h-8 items-center rounded border bg-white px-3 text-xs font-semibold text-blue-600">
-              Plin
+            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
+              <PlinIcon width={32} height={32} />
             </div>
-            <div className="flex h-8 items-center rounded border bg-white px-3 text-xs font-semibold text-blue-700">
-              PayPal
+            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
+              <PayPalIcon width={34} height={22} />
             </div>
           </div>
         </div>

@@ -34,6 +34,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
 
 const initialFormData = {
   customerName: "",
@@ -743,45 +744,66 @@ export default function CheckoutPage() {
                       setFormData({ ...formData, paymentMethod: value as any })
                     }
                   >
-                    <div className="flex items-center space-x-2 rounded-lg border p-4">
+                    <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="YAPE" id="yape" />
-                      <Label htmlFor="yape" className="flex-1 cursor-pointer">
-                        <div className="font-semibold">Yape</div>
-                        <div className="text-sm text-muted-foreground">
-                          Transferencia instantánea • 0% comisión
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="flex-shrink-0">
+                          <YapeIcon width={32} height={32} />
                         </div>
-                      </Label>
-                      <Badge variant="secondary">Recomendado</Badge>
+                        <Label htmlFor="yape" className="flex-1 cursor-pointer">
+                          <div className="font-semibold">Yape</div>
+                          <div className="text-sm text-muted-foreground">
+                            Transferencia instantánea • 0% comisión
+                          </div>
+                        </Label>
+                      </div>
+                      <Badge variant="secondary" className="flex-shrink-0">Recomendado</Badge>
                     </div>
 
-                    <div className="flex items-center space-x-2 rounded-lg border p-4">
+                    <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="PLIN" id="plin" />
-                      <Label htmlFor="plin" className="flex-1 cursor-pointer">
-                        <div className="font-semibold">Plin</div>
-                        <div className="text-sm text-muted-foreground">
-                          Transferencia instantánea • 0% comisión
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="flex-shrink-0">
+                          <PlinIcon width={32} height={32} />
                         </div>
-                      </Label>
+                        <Label htmlFor="plin" className="flex-1 cursor-pointer">
+                          <div className="font-semibold">Plin</div>
+                          <div className="text-sm text-muted-foreground">
+                            Transferencia instantánea • 0% comisión
+                          </div>
+                        </Label>
+                      </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 rounded-lg border p-4">
+                    <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="CARD" id="card" />
-                      <Label htmlFor="card" className="flex-1 cursor-pointer">
-                        <div className="font-semibold">Tarjeta de Crédito/Débito</div>
-                        <div className="text-sm text-muted-foreground">
-                          Visa, Mastercard (Culqi)
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <VisaIcon width={40} height={26} />
+                          <MastercardIcon width={32} height={20} />
                         </div>
-                      </Label>
+                        <Label htmlFor="card" className="flex-1 cursor-pointer">
+                          <div className="font-semibold">Tarjeta de Crédito/Débito</div>
+                          <div className="text-sm text-muted-foreground">
+                            Visa, Mastercard • Pago seguro
+                          </div>
+                        </Label>
+                      </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 rounded-lg border p-4">
+                    <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="PAYPAL" id="paypal" />
-                      <Label htmlFor="paypal" className="flex-1 cursor-pointer">
-                        <div className="font-semibold">PayPal</div>
-                        <div className="text-sm text-muted-foreground">
-                          Pago internacional seguro
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="flex-shrink-0">
+                          <PayPalIcon width={32} height={20} />
                         </div>
-                      </Label>
+                        <Label htmlFor="paypal" className="flex-1 cursor-pointer">
+                          <div className="font-semibold">PayPal</div>
+                          <div className="text-sm text-muted-foreground">
+                            Pago internacional seguro
+                          </div>
+                        </Label>
+                      </div>
                     </div>
                   </RadioGroup>
                 </CardContent>
@@ -876,9 +898,22 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  <p className="text-center text-xs text-muted-foreground">
-                    🔒 Pago 100% seguro y encriptado
-                  </p>
+                  {/* Métodos de pago aceptados */}
+                  <div className="space-y-2">
+                    <p className="text-center text-xs text-muted-foreground">
+                      🔒 Pago 100% seguro y encriptado
+                    </p>
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      <span className="text-xs text-muted-foreground">Aceptamos:</span>
+                      <div className="flex items-center gap-2">
+                        <VisaIcon width={28} height={18} className="opacity-70 hover:opacity-100 transition-opacity" />
+                        <MastercardIcon width={26} height={16} className="opacity-70 hover:opacity-100 transition-opacity" />
+                        <YapeIcon width={24} height={24} className="opacity-70 hover:opacity-100 transition-opacity" />
+                        <PlinIcon width={24} height={24} className="opacity-70 hover:opacity-100 transition-opacity" />
+                        <PayPalIcon width={26} height={16} className="opacity-70 hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -938,6 +973,16 @@ export default function CheckoutPage() {
               </span>
             )}
           </Button>
+
+          {/* Métodos de pago - versión móvil compacta */}
+          <div className="flex items-center justify-center gap-1.5 flex-wrap pt-1">
+            <VisaIcon width={24} height={16} className="opacity-60" />
+            <MastercardIcon width={22} height={14} className="opacity-60" />
+            <YapeIcon width={20} height={20} className="opacity-60" />
+            <PlinIcon width={20} height={20} className="opacity-60" />
+            <PayPalIcon width={22} height={14} className="opacity-60" />
+            <span className="text-[10px] text-muted-foreground ml-1">🔒 Seguro</span>
+          </div>
         </div>
       </div>
     </>
