@@ -31,8 +31,10 @@ export default function SiteImageUploader() {
   }, []);
 
   const loadSettings = async () => {
+    console.log("🔄 Cargando settings...");
     setLoading(true);
     const loadedSettings = await getSiteImageSettings();
+    console.log("📦 Settings cargados:", loadedSettings);
     setSettings(loadedSettings);
     setLoading(false);
   };
@@ -44,6 +46,8 @@ export default function SiteImageUploader() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    console.log("📤 Iniciando upload de", imageType, file.name);
+
     setUploading(imageType);
     setError(null);
     setSuccess(null);
@@ -52,9 +56,12 @@ export default function SiteImageUploader() {
     formData.append("file", file);
     formData.append("imageType", imageType);
 
+    console.log("🚀 Llamando a uploadSiteImage...");
     const result = await uploadSiteImage(formData);
+    console.log("📥 Resultado:", result);
 
     if (result.success && result.url) {
+      console.log("✅ Upload exitoso:", result.url);
       setSettings((prev) => ({
         ...prev,
         [imageType]: result.url,
@@ -65,7 +72,12 @@ export default function SiteImageUploader() {
           : "Favicon actualizado correctamente"
       );
       setTimeout(() => setSuccess(null), 3000);
+      
+      // Recargar settings desde la DB para confirmar
+      console.log("🔄 Recargando settings desde DB...");
+      await loadSettings();
     } else {
+      console.error("❌ Error en upload:", result.error);
       setError(result.error || "Error al subir imagen");
     }
 
@@ -80,12 +92,16 @@ export default function SiteImageUploader() {
       return;
     }
 
+    console.log("🗑️ Eliminando", imageType);
+
     setError(null);
     setSuccess(null);
 
     const result = await deleteSiteImage(imageType);
+    console.log("📥 Resultado delete:", result);
 
     if (result.success) {
+      console.log("✅ Eliminado correctamente");
       setSettings((prev) => ({
         ...prev,
         [imageType]: null,
@@ -96,7 +112,11 @@ export default function SiteImageUploader() {
           : "Favicon eliminado correctamente"
       );
       setTimeout(() => setSuccess(null), 3000);
+      
+      // Recargar desde DB
+      await loadSettings();
     } else {
+      console.error("❌ Error al eliminar:", result.error);
       setError(result.error || "Error al eliminar imagen");
     }
   };
@@ -120,6 +140,14 @@ export default function SiteImageUploader() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Debug Info */}
+        <Alert>
+          <AlertDescription className="text-xs font-mono">
+            <div>Logo: {settings.logo || "null"}</div>
+            <div>Favicon: {settings.favicon || "null"}</div>
+          </AlertDescription>
+        </Alert>
+
         {/* Alerts */}
         {error && (
           <Alert variant="destructive">

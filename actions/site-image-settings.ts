@@ -46,16 +46,16 @@ export async function uploadSiteImage(formData: FormData) {
       access: "public",
     });
 
-    // Guardar URL en la base de datos
+    // Guardar URL en la base de datos como objeto JSON
     const settingKey = imageType === "logo" ? "site_logo" : "site_favicon";
     await prisma.setting.upsert({
       where: { key: settingKey },
       update: {
-        value: blob.url,
+        value: { url: blob.url },
       },
       create: {
         key: settingKey,
-        value: blob.url,
+        value: { url: blob.url },
         category: "general",
         description: imageType === "logo" ? "Logo del sitio" : "Favicon del sitio",
       },
@@ -69,7 +69,7 @@ export async function uploadSiteImage(formData: FormData) {
     console.error("Error uploading site image:", error);
     return {
       success: false,
-      error: "Error al subir la imagen",
+      error: error instanceof Error ? error.message : "Error al subir la imagen",
     };
   }
 }
@@ -81,11 +81,8 @@ export async function deleteSiteImage(imageType: "logo" | "favicon") {
   try {
     const settingKey = imageType === "logo" ? "site_logo" : "site_favicon";
 
-    await prisma.setting.update({
+    await prisma.setting.deleteMany({
       where: { key: settingKey },
-      data: {
-        value: "",
-      },
     });
 
     return { success: true };
@@ -93,7 +90,7 @@ export async function deleteSiteImage(imageType: "logo" | "favicon") {
     console.error("Error deleting site image:", error);
     return {
       success: false,
-      error: "Error al eliminar la imagen",
+      error: error instanceof Error ? error.message : "Error al eliminar la imagen",
     };
   }
 }
@@ -111,12 +108,52 @@ export async function getSiteImageSettings(): Promise<SiteImageSettings> {
       },
     });
 
-    const logo = settings.find((s) => s.key === "site_logo")?.value as string;
-    const favicon = settings.find((s) => s.key === "site_favicon")?.value as string;
+    console.log("📦 Raw settings from DB:", JSON.stringify(settings, null, 2));
+
+    // Extraer URLs de los objetos JSON
+    const logoSetting = settings.find((s) => s.key === "site_logo");
+    const faviconSetting = settings.find((s) => s.key === "site_favicon");
+
+    console.log("🔍 Logo setting:", logoSetting);
+    console.log("🔍 Favicon setting:", faviconSetting);
+
+    // Parsear el JSON correctamente
+    let logo: string | null = null;
+    let favicon: string | null = null;
+
+    if (logoSetting?.value) {
+      const value = logoSetting.value;
+      console.log("🔍 Logo value type:", typeof value, value);
+      
+      // Si ya es un objeto con url
+      if (typeof value === "object" && value !== null && "url" in value) {
+        logo = String(value.url);
+      }
+      // Si es string directo (legacy)
+      else if (typeof value === "string") {
+        logo = value;
+      }
+    }
+
+    if (faviconSetting?.value) {
+      const value = faviconSetting.value;
+      console.log("🔍 Favicon value type:", typeof value, value);
+      
+      // Si ya es un objeto con url
+      if (typeof value === "object" && value !== null && "url" in value) {
+        favicon = String(value.url);
+      }
+      // Si es string directo (legacy)
+      else if (typeof value === "string") {
+        favicon = value;
+      }
+    }
+
+    console.log("✅ Final result:", { logo, favicon });
 
     return {
-      logo: logo || null,
-      favicon: favicon || null,
+      logo,
+      favicon,
     };
   } catch (error) {
     console.error("Error getting site image settings:", error);

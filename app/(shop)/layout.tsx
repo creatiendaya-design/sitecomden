@@ -1,5 +1,6 @@
 import { getSiteSettings } from "@/lib/site-settings";
-import LayoutWrapper from "@/components/shop/LayoutWrapper";
+import Header from "@/components/shop/Header";
+import Footer from "@/components/shop/Footer";
 
 export default async function ShopLayout({
   children,
@@ -44,8 +45,12 @@ export default async function ShopLayout({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
       
-      {/* LayoutWrapper decide si mostrar Header/Footer basado en la ruta */}
-      <LayoutWrapper>{children}</LayoutWrapper>
+      {/* Header y Footer directo - SIN LayoutWrapper */}
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </div>
     </>
   );
 }

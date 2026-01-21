@@ -15,11 +15,22 @@ export default async function SiteSettingsPage() {
     },
   });
 
-  // Convertir a objeto
+  // Convertir a objeto y extraer correctamente el valor JSON
   const settingsObject = settings.reduce((acc, setting) => {
-    acc[setting.key] = setting.value;
+    // Si el valor es un objeto JSON con 'url', extraer solo la URL
+    if (
+      setting.value &&
+      typeof setting.value === "object" &&
+      "url" in setting.value
+    ) {
+      acc[setting.key] = (setting.value as any).url;
+    } else {
+      acc[setting.key] = setting.value;
+    }
     return acc;
   }, {} as Record<string, any>);
+
+  console.log("📦 Settings cargados en página:", settingsObject);
 
   return (
     <div className="space-y-6">

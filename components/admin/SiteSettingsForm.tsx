@@ -19,11 +19,9 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({
-    // General
+    // General - EXCLUIR site_logo y site_favicon
     site_name: initialSettings.site_name || "ShopGood Perú",
-    site_logo: initialSettings.site_logo || "/logo.png",
     site_url: initialSettings.site_url || "https://shopgood.pe",
-    site_favicon: initialSettings.site_favicon || "/favicon.ico",
 
     // SEO Home
     seo_home_title: initialSettings.seo_home_title || "",
@@ -74,9 +72,7 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
     if (confirm("¿Estás seguro de restaurar los valores por defecto? Esto sobrescribirá tu configuración actual.")) {
       setSettings({
         site_name: "ShopGood Perú",
-        site_logo: "/logo.png",
         site_url: "https://shopgood.pe",
-        site_favicon: "/favicon.ico",
         seo_home_title: "ShopGood Perú - Los Mejores Productos con Envío a Todo el País",
         seo_home_description: "Compra en línea con envío a todo el Perú. Múltiples métodos de pago: tarjeta, Yape, Plin, PayPal. Los mejores productos al mejor precio.",
         seo_home_keywords: "tienda online Perú, comprar en línea, envío Perú, Yape, Plin, e-commerce",
@@ -134,32 +130,6 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
                 />
                 <p className="mt-1 text-sm text-muted-foreground">
                   Usado para sitemap y structured data
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="site_logo">URL del Logo</Label>
-                <Input
-                  id="site_logo"
-                  value={settings.site_logo}
-                  onChange={(e) => handleChange("site_logo", e.target.value)}
-                  placeholder="/logo.png"
-                />
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Logo principal del sitio
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="site_favicon">URL del Favicon</Label>
-                <Input
-                  id="site_favicon"
-                  value={settings.site_favicon}
-                  onChange={(e) => handleChange("site_favicon", e.target.value)}
-                  placeholder="/favicon.ico"
-                />
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Icono que aparece en la pestaña del navegador (16x16 o 32x32 px)
                 </p>
               </div>
             </CardContent>
