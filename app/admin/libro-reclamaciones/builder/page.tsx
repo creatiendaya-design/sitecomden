@@ -24,6 +24,9 @@ import {
   Edit2,
   Loader2,
   Save,
+  X,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/use-toast";
@@ -33,6 +36,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface Element {
   id: string;
@@ -53,16 +63,16 @@ interface Section {
 }
 
 const ELEMENT_TYPES = [
-  { id: "heading", label: "Título", icon: "H1" },
-  { id: "text", label: "Texto", icon: "T" },
-  { id: "email", label: "Email", icon: "@" },
-  { id: "tel", label: "Teléfono", icon: "📞" },
-  { id: "textarea", label: "Área de texto", icon: "¶" },
-  { id: "select", label: "Selector", icon: "▼" },
-  { id: "select_with_other", label: "Selector + Otro", icon: "▼+" },
-  { id: "radio", label: "Radio", icon: "◉" },
-  { id: "checkbox", label: "Checkbox", icon: "☑" },
-  { id: "date", label: "Fecha", icon: "📅" },
+  { id: "heading", label: "Título", icon: "📝", description: "Título de sección" },
+  { id: "text", label: "Texto", icon: "✏️", description: "Campo de texto corto" },
+  { id: "email", label: "Email", icon: "📧", description: "Campo de email" },
+  { id: "tel", label: "Teléfono", icon: "📞", description: "Campo de teléfono" },
+  { id: "textarea", label: "Área de texto", icon: "📄", description: "Campo de texto largo" },
+  { id: "select", label: "Selector", icon: "🔽", description: "Lista desplegable" },
+  { id: "select_with_other", label: "Selector + Otro", icon: "🔽➕", description: "Lista con opción 'Otro'" },
+  { id: "radio", label: "Radio", icon: "⭕", description: "Opciones únicas" },
+  { id: "checkbox", label: "Checkbox", icon: "☑️", description: "Casillas de verificación" },
+  { id: "date", label: "Fecha", icon: "📅", description: "Selector de fecha" },
 ];
 
 const fieldTypeLabels: Record<string, string> = {
@@ -85,7 +95,7 @@ const widthLabels: Record<string, string> = {
   quarter: "25%",
 };
 
-export default function ConstructorEditablePage() {
+export default function ConstructorMobileOptimized() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -93,13 +103,16 @@ export default function ConstructorEditablePage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [editingElement, setEditingElement] = useState<Element | null>(null);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  
+  // Para drag & drop en desktop
   const [draggedElement, setDraggedElement] = useState<{
     type: string;
     fromSection?: string;
     elementId?: string;
   } | null>(null);
 
-  // Cargar campos existentes
   useEffect(() => {
     loadExistingFields();
   }, []);
@@ -139,14 +152,17 @@ export default function ConstructorEditablePage() {
         );
 
         setSections(loadedSections);
+        if (loadedSections.length > 0) {
+          setActiveSection(loadedSections[0].id);
+        }
       } else {
-        setSections([
-          {
-            id: "section-0",
-            title: "Sección Principal",
-            elements: [],
-          },
-        ]);
+        const initialSection = {
+          id: "section-0",
+          title: "Sección Principal",
+          elements: [],
+        };
+        setSections([initialSection]);
+        setActiveSection(initialSection.id);
       }
     } catch (error) {
       console.error("Error loading fields:", error);
@@ -154,19 +170,11 @@ export default function ConstructorEditablePage() {
         title: "❌ Error",
         description: "Error al cargar campos existentes",
       });
-      setSections([
-        {
-          id: "section-0",
-          title: "Sección Principal",
-          elements: [],
-        },
-      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Agregar nueva sección
   const addSection = () => {
     const newSection: Section = {
       id: `section-${Date.now()}`,
@@ -174,9 +182,9 @@ export default function ConstructorEditablePage() {
       elements: [],
     };
     setSections([...sections, newSection]);
+    setActiveSection(newSection.id);
   };
 
-  // Eliminar sección
   const removeSection = (sectionId: string) => {
     if (sections.length === 1) {
       toast({
@@ -186,9 +194,11 @@ export default function ConstructorEditablePage() {
       return;
     }
     setSections(sections.filter((s) => s.id !== sectionId));
+    if (activeSection === sectionId) {
+      setActiveSection(sections[0].id);
+    }
   };
 
-  // Editar nombre de sección
   const updateSectionTitle = (sectionId: string, newTitle: string) => {
     setSections(
       sections.map((s) => (s.id === sectionId ? { ...s, title: newTitle } : s))
@@ -196,7 +206,20 @@ export default function ConstructorEditablePage() {
     setEditingSectionId(null);
   };
 
-  // Agregar elemento a sección
+  // NUEVA FUNCIÓN: Agregar elemento con tap (mobile-friendly)
+  const addElementToSectionByTap = (elementType: string) => {
+    if (!activeSection) {
+      toast({
+        title: "❌ Error",
+        description: "Selecciona una sección primero",
+      });
+      return;
+    }
+
+    addElementToSection(activeSection, elementType);
+    setSheetOpen(false); // Cerrar sheet después de agregar
+  };
+
   const addElementToSection = (sectionId: string, elementType: string) => {
     const needsOptions =
       elementType === "select" ||
@@ -225,13 +248,10 @@ export default function ConstructorEditablePage() {
 
     toast({
       title: "✅ Campo agregado",
-      description: `${newElement.label} agregado a ${
-        sections.find((s) => s.id === sectionId)?.title
-      }`,
+      description: `${newElement.label} agregado`,
     });
   };
 
-  // Eliminar elemento
   const removeElement = (sectionId: string, elementId: string) => {
     setSections(
       sections.map((section) =>
@@ -245,7 +265,6 @@ export default function ConstructorEditablePage() {
     );
   };
 
-  // Actualizar elemento
   const updateElement = (updatedElement: Element) => {
     setSections(
       sections.map((section) => ({
@@ -258,42 +277,45 @@ export default function ConstructorEditablePage() {
     setEditingElement(null);
   };
 
-  // Mover elemento entre secciones o dentro de la misma sección
-  const moveElement = (
-    elementId: string,
-    fromSectionId: string,
-    toSectionId: string,
-    toIndex: number
-  ) => {
-    const fromSection = sections.find((s) => s.id === fromSectionId);
-    const element = fromSection?.elements.find((e) => e.id === elementId);
+  // Mover elemento arriba/abajo
+  const moveElementUp = (sectionId: string, elementIndex: number) => {
+    if (elementIndex === 0) return;
 
-    if (!element) return;
-
-    // Eliminar del origen
-    const updatedSections = sections.map((section) =>
-      section.id === fromSectionId
-        ? {
-            ...section,
-            elements: section.elements.filter((e) => e.id !== elementId),
-          }
-        : section
+    setSections(
+      sections.map((section) => {
+        if (section.id === sectionId) {
+          const newElements = [...section.elements];
+          [newElements[elementIndex - 1], newElements[elementIndex]] = [
+            newElements[elementIndex],
+            newElements[elementIndex - 1],
+          ];
+          return { ...section, elements: newElements };
+        }
+        return section;
+      })
     );
-
-    // Agregar al destino
-    const finalSections = updatedSections.map((section) => {
-      if (section.id === toSectionId) {
-        const newElements = [...section.elements];
-        newElements.splice(toIndex, 0, element);
-        return { ...section, elements: newElements };
-      }
-      return section;
-    });
-
-    setSections(finalSections);
   };
 
-  // Handlers de drag & drop
+  const moveElementDown = (sectionId: string, elementIndex: number) => {
+    const section = sections.find((s) => s.id === sectionId);
+    if (!section || elementIndex === section.elements.length - 1) return;
+
+    setSections(
+      sections.map((s) => {
+        if (s.id === sectionId) {
+          const newElements = [...s.elements];
+          [newElements[elementIndex], newElements[elementIndex + 1]] = [
+            newElements[elementIndex + 1],
+            newElements[elementIndex],
+          ];
+          return { ...s, elements: newElements };
+        }
+        return s;
+      })
+    );
+  };
+
+  // Drag & drop para desktop
   const handleDragStart = (
     e: React.DragEvent,
     type: string,
@@ -314,25 +336,13 @@ export default function ConstructorEditablePage() {
 
     if (!draggedElement) return;
 
-    // Caso 1: Arrastrar nuevo elemento del panel
     if (!draggedElement.fromSection && !draggedElement.elementId) {
       addElementToSection(toSectionId, draggedElement.type);
-    }
-    // Caso 2: Mover elemento existente
-    else if (draggedElement.fromSection && draggedElement.elementId) {
-      const targetIndex = toIndex ?? sections.find((s) => s.id === toSectionId)?.elements.length ?? 0;
-      moveElement(
-        draggedElement.elementId,
-        draggedElement.fromSection,
-        toSectionId,
-        targetIndex
-      );
     }
 
     setDraggedElement(null);
   };
 
-  // Guardar formulario
   const handleSave = async () => {
     setSaving(true);
 
@@ -367,7 +377,6 @@ export default function ConstructorEditablePage() {
         });
       });
 
-      // Crear nuevos campos
       for (const field of fieldsToSave) {
         await fetch("/api/admin/complaints/fields", {
           method: "POST",
@@ -376,7 +385,6 @@ export default function ConstructorEditablePage() {
         });
       }
 
-      // Actualizar campos existentes
       for (const field of fieldsToUpdate) {
         await fetch(`/api/admin/complaints/fields/${field.id}`, {
           method: "PATCH",
@@ -411,39 +419,81 @@ export default function ConstructorEditablePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="space-y-3 md:space-y-0 md:flex md:items-center md:justify-between">
+        <div className="flex items-center gap-2 md:gap-4">
           <Button variant="outline" size="sm" asChild>
             <Link href="/admin/libro-reclamaciones">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver
+              <ArrowLeft className="h-4 w-4 md:mr-2" />
+              <span className="hidden sm:inline">Volver</span>
             </Link>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Constructor Editable</h1>
-            <p className="text-muted-foreground">
-              Arrastra elementos para agregar o reorganizar campos
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl md:text-3xl font-bold truncate">Constructor</h1>
+            <p className="text-xs md:text-sm text-muted-foreground hidden md:block">
+              Toca para agregar campos en mobile, arrastra en desktop
             </p>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={saving} size="lg">
+        <Button onClick={handleSave} disabled={saving} size="sm" className="w-full md:w-auto">
           {saving ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          Guardar Cambios
+          <span className="hidden sm:inline">Guardar Cambios</span>
+          <span className="sm:hidden">Guardar</span>
         </Button>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Panel de elementos */}
-        <div className="col-span-3">
+      {/* Mobile: Bottom Sheet + FAB */}
+      <div className="lg:hidden">
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetTrigger asChild>
+            <Button
+              size="lg"
+              className="fixed bottom-6 right-6 rounded-full h-14 w-14 shadow-lg z-50"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[80vh]">
+            <SheetHeader>
+              <SheetTitle>Agregar Campo</SheetTitle>
+              <p className="text-sm text-muted-foreground">
+                Selecciona un tipo de campo para agregar
+              </p>
+            </SheetHeader>
+            <div className="mt-6 space-y-2 overflow-y-auto max-h-[calc(80vh-120px)]">
+              {ELEMENT_TYPES.map((type) => (
+                <button
+                  key={type.id}
+                  onClick={() => addElementToSectionByTap(type.id)}
+                  className="w-full flex items-center gap-3 p-4 border rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-colors text-left"
+                >
+                  <span className="text-2xl">{type.icon}</span>
+                  <div className="flex-1">
+                    <p className="font-medium">{type.label}</p>
+                    <p className="text-xs text-muted-foreground">{type.description}</p>
+                  </div>
+                  <Plus className="h-5 w-5 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+        {/* Desktop: Sidebar con elementos */}
+        <div className="hidden lg:block lg:col-span-3">
           <Card className="sticky top-6">
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle className="text-base">Elementos</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Arrastra para agregar
+              </p>
             </CardHeader>
             <CardContent className="space-y-2">
               {ELEMENT_TYPES.map((type) => (
@@ -454,7 +504,12 @@ export default function ConstructorEditablePage() {
                   className="flex items-center gap-2 p-3 border rounded-lg cursor-move hover:bg-slate-50 transition-colors active:opacity-50"
                 >
                   <span className="text-lg">{type.icon}</span>
-                  <span className="text-sm font-medium">{type.label}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{type.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {type.description}
+                    </p>
+                  </div>
                 </div>
               ))}
             </CardContent>
@@ -462,16 +517,37 @@ export default function ConstructorEditablePage() {
         </div>
 
         {/* Área de construcción */}
-        <div className="col-span-9 space-y-4">
+        <div className="lg:col-span-9 space-y-3 md:space-y-4">
+          {/* Selector de sección activa (mobile) */}
+          <div className="lg:hidden">
+            <Label className="text-sm mb-2 block">Sección activa</Label>
+            <Select value={activeSection || ""} onValueChange={setActiveSection}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sections.map((section) => (
+                  <SelectItem key={section.id} value={section.id}>
+                    {section.title} ({section.elements.length} campos)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {sections.map((section) => (
             <Card
               key={section.id}
-              className="border-2 border-dashed"
+              className={`border-2 ${
+                activeSection === section.id
+                  ? "border-primary shadow-md"
+                  : "border-dashed"
+              }`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, section.id)}
             >
-              <CardHeader>
-                <div className="flex items-center justify-between">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
                   {editingSectionId === section.id ? (
                     <Input
                       autoFocus
@@ -489,20 +565,23 @@ export default function ConstructorEditablePage() {
                       onKeyDown={(e) =>
                         e.key === "Enter" && setEditingSectionId(null)
                       }
-                      className="text-lg font-semibold"
+                      className="text-base md:text-lg font-semibold"
                     />
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <CardTitle>{section.title}</CardTitle>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <CardTitle className="text-base md:text-lg truncate">
+                        {section.title}
+                      </CardTitle>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setEditingSectionId(section.id)}
+                        className="flex-shrink-0 h-8 w-8 p-0"
                       >
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
-                      <Badge variant="secondary">
-                        {section.elements.length} campos
+                      <Badge variant="secondary" className="text-xs flex-shrink-0">
+                        {section.elements.length}
                       </Badge>
                     </div>
                   )}
@@ -510,15 +589,28 @@ export default function ConstructorEditablePage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => removeSection(section.id)}
+                    className="flex-shrink-0 h-8 w-8 p-0"
                   >
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                    <Trash2 className="h-3 w-3 md:h-4 md:w-4 text-red-500" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="min-h-[100px] space-y-2">
+              <CardContent className="min-h-[80px] md:min-h-[100px] space-y-2">
                 {section.elements.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Arrastra elementos aquí para agregarlos
+                  <div className="text-center py-6 md:py-8 text-muted-foreground text-xs md:text-sm">
+                    {activeSection === section.id ? (
+                      <div>
+                        <p className="font-medium">Sección activa</p>
+                        <p className="lg:hidden mt-1">
+                          Toca el botón + para agregar campos
+                        </p>
+                        <p className="hidden lg:block mt-1">
+                          Arrastra elementos aquí
+                        </p>
+                      </div>
+                    ) : (
+                      <p>Vacío</p>
+                    )}
                   </div>
                 ) : (
                   section.elements.map((element, index) => (
@@ -533,49 +625,81 @@ export default function ConstructorEditablePage() {
                         e.stopPropagation();
                         handleDrop(e, section.id, index);
                       }}
-                      className="flex items-center gap-2 p-3 border rounded-lg bg-white hover:border-slate-400 transition-colors cursor-move"
+                      className="flex items-center gap-2 p-2 md:p-3 border rounded-lg bg-white hover:border-slate-400 transition-colors"
                     >
-                      <GripVertical className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                      {/* Desktop: drag handle */}
+                      <GripVertical className="hidden lg:block h-5 w-5 text-muted-foreground flex-shrink-0 cursor-move" />
+                      
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{element.label}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="outline" className="text-xs">
+                        <p className="font-medium text-sm md:text-base truncate">
+                          {element.label}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1 md:gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="text-[10px]">
                             {fieldTypeLabels[element.type]}
                           </Badge>
-                          <span>•</span>
-                          <Badge variant="secondary" className="text-xs">
+                          <span className="hidden sm:inline">•</span>
+                          <Badge variant="secondary" className="text-[10px]">
                             {widthLabels[element.width]}
                           </Badge>
                           {element.required && (
                             <>
-                              <span>•</span>
-                              <Badge className="text-xs bg-red-100 text-red-700 hover:bg-red-100">
-                                Obligatorio
+                              <span className="hidden sm:inline">•</span>
+                              <Badge className="text-[10px] bg-red-100 text-red-700 hover:bg-red-100">
+                                Req
                               </Badge>
                             </>
                           )}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingElement(element);
-                        }}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeElement(section.id, element.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
+
+                      {/* Mobile: Up/Down buttons */}
+                      <div className="flex lg:hidden gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveElementUp(section.id, index)}
+                          disabled={index === 0}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveElementDown(section.id, index)}
+                          disabled={index === section.elements.length - 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Edit & Delete buttons */}
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingElement(element);
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit2 className="h-3 w-3 md:h-4 md:w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeElement(section.id, element.id);
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-3 w-3 md:h-4 md:w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -583,7 +707,7 @@ export default function ConstructorEditablePage() {
             </Card>
           ))}
 
-          <Button onClick={addSection} variant="outline" className="w-full">
+          <Button onClick={addSection} variant="outline" className="w-full" size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Agregar Sección
           </Button>
@@ -595,7 +719,7 @@ export default function ConstructorEditablePage() {
         open={editingElement !== null}
         onOpenChange={() => setEditingElement(null)}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Campo</DialogTitle>
           </DialogHeader>
@@ -717,7 +841,7 @@ function ElementEditor({
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 pt-4">
         <Button onClick={() => onSave(formData)} className="flex-1">
           Guardar
         </Button>

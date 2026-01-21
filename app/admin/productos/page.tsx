@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Edit, Eye, ExternalLink } from "lucide-react";
+import { Plus, Search, Edit, Eye } from "lucide-react";
 import DeleteProductButton from "@/components/admin/DeleteProductButton";
 
 interface ProductsAdminPageProps {
@@ -63,16 +63,16 @@ export default async function ProductsAdminPage({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Productos</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Productos</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Gestiona el catálogo de tu tienda
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/admin/productos/nuevo">
             <Plus className="mr-2 h-4 w-4" />
             Nuevo Producto
@@ -82,8 +82,8 @@ export default async function ProductsAdminPage({
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex gap-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -92,7 +92,7 @@ export default async function ProductsAdminPage({
                 defaultValue={search}
               />
             </div>
-            <select className="rounded-md border px-4">
+            <select className="rounded-md border px-4 py-2 sm:w-auto">
               <option value="">Todas las categorías</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
@@ -104,14 +104,14 @@ export default async function ProductsAdminPage({
         </CardContent>
       </Card>
 
-      {/* Products Table */}
+      {/* Products List */}
       <Card>
-        <CardHeader>
-          <CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">
             {products.length} producto{products.length !== 1 ? "s" : ""}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2 sm:p-6">
           {products.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-muted-foreground">No hay productos</p>
@@ -122,7 +122,7 @@ export default async function ProductsAdminPage({
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {products.map((product) => {
                 const totalStock = product.hasVariants
                   ? product.variants.reduce((sum, v) => sum + v.stock, 0)
@@ -131,10 +131,59 @@ export default async function ProductsAdminPage({
                 return (
                   <div
                     key={product.id}
-                    className="flex items-center gap-4 rounded-lg border p-4 hover:bg-slate-50"
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-lg border p-3 sm:p-4 hover:bg-slate-50"
                   >
-                    {/* Image */}
-                    <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
+                    {/* Mobile Layout */}
+                    <div className="flex gap-3 sm:hidden">
+                      {/* Image - Mobile */}
+                      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
+                        {getProductImageUrl(product.images as any) ? (
+                          <Image
+                            src={getProductImageUrl(product.images as any)!}
+                            alt={getProductImageAlt(product.images as any, product.name)}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                            Sin imagen
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info - Mobile */}
+                      <div className="flex-1 space-y-1 min-w-0">
+                        <div className="flex flex-col gap-1">
+                          <Link
+                            href={`/admin/productos/${product.id}`}
+                            className="font-semibold text-sm hover:underline line-clamp-2"
+                          >
+                            {product.name}
+                          </Link>
+                          <div className="flex flex-wrap gap-1">
+                            {!product.active && (
+                              <Badge variant="secondary" className="text-xs">Inactivo</Badge>
+                            )}
+                            {product.featured && (
+                              <Badge variant="default" className="text-xs">Destacado</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground line-clamp-1">
+                          {product.categories && product.categories.length > 0
+                            ? product.categories.map(pc => pc.category.name).join(", ")
+                            : "Sin categoría"}
+                        </div>
+                        {product.hasVariants && (
+                          <div className="text-xs text-muted-foreground">
+                            {product.variants.length} variantes
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Desktop Image */}
+                    <div className="hidden sm:block relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
                       {getProductImageUrl(product.images as any) ? (
                         <Image
                           src={getProductImageUrl(product.images as any)!}
@@ -149,8 +198,8 @@ export default async function ProductsAdminPage({
                       )}
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 space-y-1">
+                    {/* Desktop Info */}
+                    <div className="hidden sm:block flex-1 space-y-1">
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/admin/productos/${product.id}`}
@@ -174,18 +223,38 @@ export default async function ProductsAdminPage({
                       </div>
                     </div>
 
-                    {/* Price & Stock */}
-                    <div className="text-right">
-                      <p className="font-semibold">
-                        {formatPrice(Number(product.basePrice))}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Stock: {totalStock}
-                      </p>
+                    {/* Price & Stock - Combined for Mobile */}
+                    <div className="flex items-center justify-between sm:block sm:text-right">
+                      <div>
+                        <p className="font-semibold text-sm sm:text-base">
+                          {formatPrice(Number(product.basePrice))}
+                        </p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          Stock: {totalStock}
+                        </p>
+                      </div>
+
+                      {/* Actions - Mobile (right side) */}
+                      <div className="flex gap-2 sm:hidden">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/productos/${product.slug}`} target="_blank">
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/admin/productos/${product.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <DeleteProductButton 
+                          productId={product.id} 
+                          productName={product.name} 
+                        />
+                      </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2">
+                    {/* Actions - Desktop */}
+                    <div className="hidden sm:flex gap-2">
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/productos/${product.slug}`} target="_blank">
                           <Eye className="h-4 w-4" />

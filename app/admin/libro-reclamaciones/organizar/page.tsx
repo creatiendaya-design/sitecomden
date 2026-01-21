@@ -218,71 +218,79 @@ export default function OrganizarCamposPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-0">
+      {/* Header - RESPONSIVE */}
+      <div className="space-y-3 md:space-y-0 md:flex md:items-center md:justify-between">
+        <div className="flex items-center gap-2 md:gap-4">
           <Button variant="outline" size="sm" asChild>
             <Link href="/admin/libro-reclamaciones">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver
+              <ArrowLeft className="h-4 w-4 md:mr-2" />
+              <span className="hidden sm:inline">Volver</span>
             </Link>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Organizar Campos por Sección</h1>
-            <p className="text-muted-foreground">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl md:text-3xl font-bold">Organizar Secciones</h1>
+            <p className="text-xs md:text-sm text-muted-foreground hidden md:block">
               Cambia la sección de cada campo para organizar tu formulario
             </p>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={saving} size="lg">
+        <Button onClick={handleSave} disabled={saving} size="sm" className="w-full md:w-auto">
           {saving ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          Guardar Cambios
+          <span className="hidden sm:inline">Guardar Cambios</span>
+          <span className="sm:hidden">Guardar</span>
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Stats - RESPONSIVE */}
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{fields.length}</div>
-            <p className="text-xs text-muted-foreground">Campos totales</p>
+          <CardContent className="pt-4 md:pt-6">
+            <div className="text-xl md:text-2xl font-bold">{fields.length}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">
+              Campos totales
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{sections.length}</div>
-            <p className="text-xs text-muted-foreground">Secciones</p>
+          <CardContent className="pt-4 md:pt-6">
+            <div className="text-xl md:text-2xl font-bold">{sections.length}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">
+              Secciones
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">
+          <CardContent className="pt-4 md:pt-6">
+            <div className="text-xl md:text-2xl font-bold">
               {fieldsBySection["Sin sección"]?.length || 0}
             </div>
-            <p className="text-xs text-muted-foreground">Sin sección</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">
+              Sin sección
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Agregar nueva sección */}
+      {/* Agregar nueva sección - RESPONSIVE */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Agregar Nueva Sección</CardTitle>
+          <CardTitle className="text-base md:text-lg">Agregar Nueva Sección</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               placeholder="Ej: Datos Personales, Dirección..."
               value={newSectionName}
               onChange={(e) => setNewSectionName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddSection()}
+              className="flex-1"
             />
-            <Button onClick={handleAddSection}>
+            <Button onClick={handleAddSection} size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Agregar
             </Button>
@@ -290,12 +298,12 @@ export default function OrganizarCamposPage() {
         </CardContent>
       </Card>
 
-      {/* Campos agrupados por sección */}
+      {/* Campos agrupados por sección - RESPONSIVE */}
       {Object.keys(fieldsBySection).length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <p>No hay campos para organizar</p>
-            <Button asChild className="mt-4">
+          <CardContent className="py-8 md:py-12 text-center text-muted-foreground">
+            <p className="text-sm md:text-base">No hay campos para organizar</p>
+            <Button asChild className="mt-4" size="sm">
               <Link href="/admin/libro-reclamaciones/campos/nuevo">
                 Crear Primer Campo
               </Link>
@@ -303,7 +311,7 @@ export default function OrganizarCamposPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {Object.entries(fieldsBySection)
             .sort(([a], [b]) => {
               // "Sin sección" al final
@@ -313,12 +321,14 @@ export default function OrganizarCamposPage() {
             })
             .map(([sectionName, sectionFields]) => (
               <Card key={sectionName}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{sectionName}</CardTitle>
-                      <Badge variant="secondary">
-                        {sectionFields.length} campo{sectionFields.length !== 1 ? "s" : ""}
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <CardTitle className="text-base md:text-lg truncate">
+                        {sectionName}
+                      </CardTitle>
+                      <Badge variant="secondary" className="text-xs flex-shrink-0">
+                        {sectionFields.length}
                       </Badge>
                     </div>
                     {sectionName !== "Sin sección" && (
@@ -326,6 +336,7 @@ export default function OrganizarCamposPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setDeleteSection(sectionName)}
+                        className="flex-shrink-0 h-8 w-8 p-0"
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
@@ -336,37 +347,39 @@ export default function OrganizarCamposPage() {
                   {sectionFields.map((field) => (
                     <div
                       key={field.id}
-                      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-slate-50 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 transition-colors"
                     >
-                      {/* Drag handle */}
-                      <GripVertical className="h-5 w-5 text-muted-foreground" />
+                      {/* Drag handle - oculto en mobile */}
+                      <GripVertical className="hidden sm:block h-5 w-5 text-muted-foreground flex-shrink-0" />
 
                       {/* Información del campo */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium truncate">{field.label}</p>
+                        <div className="flex items-start gap-2 mb-1">
+                          <p className="font-medium text-sm truncate flex-1">
+                            {field.label}
+                          </p>
                           {field.required && (
-                            <Badge className="text-xs bg-red-100 text-red-700 hover:bg-red-100">
-                              Obligatorio
+                            <Badge className="text-[10px] bg-red-100 text-red-700 hover:bg-red-100 flex-shrink-0">
+                              Req
                             </Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="outline" className="text-xs">
+                        <div className="flex flex-wrap items-center gap-1 md:gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="text-[10px]">
                             {fieldTypeLabels[field.fieldType] || field.fieldType}
                           </Badge>
-                          <span>•</span>
-                          <Badge variant="secondary" className="text-xs">
+                          <span className="hidden sm:inline">•</span>
+                          <Badge variant="secondary" className="text-[10px]">
                             {widthLabels[field.width || "full"] || "100%"}
                           </Badge>
-                          <span>•</span>
-                          <span className="text-xs">Orden: {field.order}</span>
+                          <span className="hidden sm:inline">•</span>
+                          <span className="text-[10px]">Orden: {field.order}</span>
                         </div>
                       </div>
 
-                      {/* Selector de sección */}
-                      <div className="w-[220px]">
-                        <Label className="text-xs text-muted-foreground mb-1 block">
+                      {/* Selector de sección - RESPONSIVE */}
+                      <div className="w-full sm:w-[220px]">
+                        <Label className="text-xs text-muted-foreground mb-1 block sm:hidden">
                           Mover a sección
                         </Label>
                         <Select
@@ -375,12 +388,12 @@ export default function OrganizarCamposPage() {
                             handleChangeSection(field.id, value)
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             {sections.map((section) => (
-                              <SelectItem key={section} value={section}>
+                              <SelectItem key={section} value={section} className="text-sm">
                                 {section}
                               </SelectItem>
                             ))}
@@ -395,10 +408,10 @@ export default function OrganizarCamposPage() {
         </div>
       )}
 
-      {/* Tip */}
+      {/* Tip - RESPONSIVE */}
       <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="pt-6">
-          <p className="text-sm text-blue-900">
+        <CardContent className="pt-4 md:pt-6">
+          <p className="text-xs md:text-sm text-blue-900">
             💡 <strong>Tip:</strong> Usa secciones para organizar tu formulario
             de manera lógica. Por ejemplo: "Datos Personales", "Dirección",
             "Detalle de la Reclamación".
@@ -411,19 +424,21 @@ export default function OrganizarCamposPage() {
         open={deleteSection !== null}
         onOpenChange={() => setDeleteSection(null)}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar sección?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base md:text-lg">
+              ¿Eliminar sección?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
               Los campos de esta sección se moverán a "Sin sección". Podrás
               asignarles una nueva sección después.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteSection && handleDeleteSection(deleteSection)}
-              className="bg-red-500 hover:bg-red-600"
+              className="w-full sm:w-auto bg-red-500 hover:bg-red-600"
             >
               Eliminar
             </AlertDialogAction>

@@ -137,17 +137,18 @@ export default function NewFieldPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-0">
+      {/* Header - RESPONSIVE */}
+      <div className="flex items-center gap-2 md:gap-4">
         <Button variant="outline" size="sm" asChild>
           <Link href="/admin/libro-reclamaciones">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver
+            <ArrowLeft className="h-4 w-4 md:mr-2" />
+            <span className="hidden sm:inline">Volver</span>
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Agregar Campo</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl md:text-3xl font-bold">Agregar Campo</h1>
+          <p className="text-xs md:text-sm text-muted-foreground hidden md:block">
             Crea un nuevo campo para el formulario
           </p>
         </div>
@@ -155,12 +156,12 @@ export default function NewFieldPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Información del Campo</CardTitle>
+          <CardTitle className="text-base md:text-lg">Información del Campo</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              {/* Section */}
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+            {/* Section & Width - Grid en desktop */}
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="section">Sección *</Label>
                 <Input
@@ -172,12 +173,11 @@ export default function NewFieldPage() {
                   placeholder="Ej: Datos Personales"
                   required
                 />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Agrupa campos bajo un título
                 </p>
               </div>
 
-              {/* Width */}
               <div className="space-y-2">
                 <Label htmlFor="width">Ancho del Campo *</Label>
                 <Select
@@ -200,6 +200,7 @@ export default function NewFieldPage() {
               </div>
             </div>
 
+            {/* Label */}
             <div className="space-y-2">
               <Label htmlFor="label">Label / Etiqueta *</Label>
               <Input
@@ -213,6 +214,7 @@ export default function NewFieldPage() {
               />
             </div>
 
+            {/* Field Type */}
             <div className="space-y-2">
               <Label htmlFor="fieldType">Tipo de Campo *</Label>
               <Select
@@ -233,17 +235,17 @@ export default function NewFieldPage() {
                 </SelectContent>
               </Select>
               
-              {/* Explicación de select_with_other */}
               {showOtherLabel && (
                 <Alert>
                   <Info className="h-4 w-4" />
-                  <AlertDescription>
+                  <AlertDescription className="text-xs md:text-sm">
                     Este tipo muestra un selector normal + una opción "Otro" que abre un campo de texto adicional
                   </AlertDescription>
                 </Alert>
               )}
             </div>
 
+            {/* Placeholder & Help Text */}
             <div className="space-y-2">
               <Label htmlFor="placeholder">Placeholder (opcional)</Label>
               <Input
@@ -266,9 +268,11 @@ export default function NewFieldPage() {
                 }
                 placeholder="Ej: Texto que aparece debajo del campo"
                 rows={2}
+                className="text-sm"
               />
             </div>
 
+            {/* Required Checkbox */}
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="required"
@@ -277,12 +281,12 @@ export default function NewFieldPage() {
                   setFormData({ ...formData, required: checked as boolean })
                 }
               />
-              <Label htmlFor="required" className="cursor-pointer">
+              <Label htmlFor="required" className="cursor-pointer text-sm">
                 Campo obligatorio
               </Label>
             </div>
 
-            {/* Opciones (select, select_with_other, radio) */}
+            {/* Options (select, radio) */}
             {needsOptions && (
               <div className="space-y-2">
                 <Label>Opciones *</Label>
@@ -302,6 +306,8 @@ export default function NewFieldPage() {
                     type="button"
                     onClick={handleAddOption}
                     disabled={!newOption.trim()}
+                    size="sm"
+                    className="flex-shrink-0"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -311,14 +317,15 @@ export default function NewFieldPage() {
                     {options.map((option, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between rounded-lg border p-2"
+                        className="flex items-center justify-between rounded-lg border p-2 gap-2"
                       >
-                        <span>{option}</span>
+                        <span className="text-sm truncate flex-1">{option}</span>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveOption(index)}
+                          className="flex-shrink-0 h-8 w-8 p-0"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -327,14 +334,14 @@ export default function NewFieldPage() {
                   </div>
                 )}
                 {showOtherLabel && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     La opción "Otro" se agregará automáticamente al final
                   </p>
                 )}
               </div>
             )}
 
-            {/* Etiqueta personalizada para "Otro" */}
+            {/* Other Label (only for select_with_other) */}
             {showOtherLabel && (
               <div className="space-y-2">
                 <Label htmlFor="otherLabel">Texto para opción "Otro"</Label>
@@ -346,16 +353,16 @@ export default function NewFieldPage() {
                   }
                   placeholder="Ej: Otro (especificar)"
                 />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Este texto aparecerá como última opción en el select
                 </p>
               </div>
             )}
 
-            {/* Validaciones (text, textarea, tel) */}
+            {/* Validations (text, textarea, tel) */}
             {["text", "textarea", "tel"].includes(formData.fieldType) && (
               <>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="minLength">Longitud Mínima</Label>
                     <Input
@@ -396,15 +403,17 @@ export default function NewFieldPage() {
               </>
             )}
 
-            <div className="flex gap-2 pt-4">
+            {/* Submit Buttons - Stack en mobile */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
+                className="w-full sm:flex-1"
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading} className="w-full sm:flex-1">
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Crear Campo
               </Button>
