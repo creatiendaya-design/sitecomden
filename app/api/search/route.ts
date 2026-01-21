@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getAllProductImages } from "@/lib/image-utils";
 
 export async function GET(request: Request) {
   try {
@@ -38,15 +39,21 @@ export async function GET(request: Request) {
       },
     });
 
-    // Serializar precios y categorías
-    const serializedProducts = products.map((product) => ({
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
-      basePrice: Number(product.basePrice),
-      images: product.images,
-      category: product.categories[0]?.category || null, // Primera categoría
-    }));
+    // Serializar precios y extraer URLs de imágenes usando image-utils
+    const serializedProducts = products.map((product) => {
+      // ✅ Usar la utilidad existente que ya maneja todos los casos
+      const imageData = getAllProductImages(product.images);
+      const imageUrls = imageData.map(img => img.url);
+
+      return {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        basePrice: Number(product.basePrice),
+        images: imageUrls, // Array de strings (URLs)
+        category: product.categories[0]?.category || null,
+      };
+    });
 
     return NextResponse.json({ products: serializedProducts });
   } catch (error) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,21 +13,34 @@ interface SearchResult {
   name: string;
   slug: string;
   basePrice: number;
-  images: string[];
+  images: string[]; // Array de URLs (strings)
   category: {
     name: string;
     slug: string;
   } | null;
 }
 
-export default function SearchBar() {
+interface SearchBarProps {
+  onResultClick?: () => void;
+  autoFocus?: boolean;
+}
+
+export default function SearchBar({ onResultClick, autoFocus = false }: SearchBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const debouncedQuery = useDebounce(query, 300);
+
+  // Auto focus si se especifica
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
 
   // Cerrar resultados al hacer clic fuera
   useEffect(() => {
@@ -75,6 +88,7 @@ export default function SearchBar() {
       router.push(`/productos?search=${encodeURIComponent(query.trim())}`);
       setShowResults(false);
       setQuery("");
+      onResultClick?.();
     }
   };
 
@@ -84,12 +98,19 @@ export default function SearchBar() {
     setShowResults(false);
   };
 
+  const handleResultClick = () => {
+    setShowResults(false);
+    setQuery("");
+    onResultClick?.();
+  };
+
   return (
-    <div ref={searchRef} className="relative w-full max-w-md">
+    <div ref={searchRef} className="relative w-full">
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
+            ref={inputRef}
             type="search"
             placeholder="Buscar productos..."
             className="pl-9 pr-9"
@@ -118,50 +139,53 @@ export default function SearchBar() {
       {showResults && results.length > 0 && (
         <div className="absolute top-full mt-2 w-full rounded-lg border bg-background shadow-lg z-50 max-h-[400px] overflow-y-auto">
           <div className="p-2">
-            {results.map((product) => (
-              <Link
-                key={product.id}
-                href={`/productos/${product.slug}`}
-                onClick={() => {
-                  setShowResults(false);
-                  setQuery("");
-                }}
-                className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted transition-colors"
-              >
-                {/* Image */}
-                <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border bg-slate-100">
-                  {product.images[0] ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                      Sin imagen
-                    </div>
-                  )}
-                </div>
+            {results.map((product) => {
+              const imageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
+              
+              return (
+                <Link
+                  key={product.id}
+                  href={`/productos/${product.slug}`}
+                  onClick={handleResultClick}
+                  className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted transition-colors"
+                >
+                  {/* Image */}
+                  <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border bg-slate-100">
+                    {imageUrl ? (
+                      <Image
+                        src={imageUrl}
+                        alt={product.name}
+                        fill
+                        sizes="48px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Package className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{product.name}</p>
-                  {product.category && (
-                    <p className="text-xs text-muted-foreground">
-                      {product.category.name}
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{product.name}</p>
+                    {product.category && (
+                      <p className="text-xs text-muted-foreground">
+                        {product.category.name}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Price */}
+                  <div className="text-right">
+                    <p className="font-semibold text-sm">
+                      S/ {product.basePrice.toFixed(2)}
                     </p>
-                  )}
-                </div>
-
-                {/* Price */}
-                <div className="text-right">
-                  <p className="font-semibold text-sm">
-                    S/ {product.basePrice.toFixed(2)}
-                  </p>
-                </div>
-              </Link>
-            ))}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
           {/* Ver todos los resultados */}
@@ -169,10 +193,7 @@ export default function SearchBar() {
             <div className="border-t p-2">
               <Link
                 href={`/productos?search=${encodeURIComponent(query)}`}
-                onClick={() => {
-                  setShowResults(false);
-                  setQuery("");
-                }}
+                onClick={handleResultClick}
                 className="block w-full rounded-lg p-2 text-center text-sm font-medium text-primary hover:bg-muted transition-colors"
               >
                 Ver todos los resultados ({results.length})

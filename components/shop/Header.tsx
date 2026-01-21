@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, Search } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CartCounter from "./CartCounter";
 import MobileMenu from "./MobileMenu";
@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import SearchBar from "./SearchBar";
 import { HeaderAuth } from "./HeaderAuth";
 import { getSiteSettings } from "@/lib/site-settings";
+import MobileSearch from "./MobileSearch";
 
 export default async function Header() {
   // Obtener categorías activas
@@ -56,9 +57,7 @@ export default async function Header() {
         {/* Actions */}
         <div className="flex items-center gap-2">
           {/* Search Button - Mobile */}
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Search className="h-5 w-5" />
-          </Button>
+          <MobileSearch />
 
           {/* Auth Components - Client Side */}
           <HeaderAuth />
