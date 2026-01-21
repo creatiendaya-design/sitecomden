@@ -100,7 +100,7 @@ export default function DeleteCategoryButton({
             disabled={isDeleting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? "Eliminando..." : "Eliminar categoría"}
+            {isDeleting ? "Eliminando..." : "Eliminar categoríaa"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
