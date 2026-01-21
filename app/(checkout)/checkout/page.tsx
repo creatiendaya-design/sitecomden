@@ -25,7 +25,7 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { AlertTriangle, CheckCircle2, ChevronUp, ShoppingBag } from "lucide-react";
+import { AlertTriangle, ChevronUp, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -531,23 +531,12 @@ export default function CheckoutPage() {
       </div>
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
-        <h1 className="mb-8 text-3xl font-bold hidden lg:block">Finalizar Compra</h1>
-
         <form onSubmit={handleSubmit}>
           {/* Messages */}
           {error && (
             <Alert variant="destructive" className="mb-6">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {stockVerified && !error && (
-            <Alert className="mb-6 border-green-500 bg-green-50 dark:bg-green-950">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-600 dark:text-green-400">
-                Stock verificado. Todos los productos están disponibles.
-              </AlertDescription>
             </Alert>
           )}
 
