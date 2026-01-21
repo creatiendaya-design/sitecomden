@@ -23,6 +23,7 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Toaster } from "sonner";
 
 interface NavItem {
   href?: string;
@@ -65,28 +66,26 @@ export default function AdminLayout({
       icon: Package,
       label: "Categorías",
     },
-      {
-    href: "/admin/inventario",
-    icon: Package2,
-    label: "Inventario",
-  },
+    {
+      href: "/admin/inventario",
+      icon: Package2,
+      label: "Inventario",
+    },
     {
       href: "/admin/cupones",
       icon: Ticket,
       label: "Cupones",
     },
-     {
+    {
       href: "/admin/lealtad",
       icon: Trophy,
       label: "Lealtad",
     },
-    // ⭐ PAGOS PENDIENTES - NIVEL PRINCIPAL (operativo)
     {
       href: "/admin/pagos-pendientes",
       icon: Clock,
       label: "Pagos Pendientes",
     },
-    // ⭐ CONFIGURACIÓN CON SUBMENU
     {
       icon: Settings,
       label: "Configuración",
@@ -98,20 +97,19 @@ export default function AdminLayout({
         },
         {
           href: "/admin/configuracion/emails",
-          icon:  Mail,
+          icon: Mail,
           label: "Emails",
         },
-       
         {
           href: "/admin/configuracion/pagos",
           icon: CreditCard,
           label: "Métodos de Pago",
         },
-         {
-    href: "/admin/libro-reclamaciones",
-    icon: FileText,
-    label: "Libro de Reclamaciones",
-  }
+        {
+          href: "/admin/libro-reclamaciones",
+          icon: FileText,
+          label: "Libro de Reclamaciones",
+        }
       ],
     },
   ];
@@ -145,7 +143,6 @@ export default function AdminLayout({
             const Icon = item.icon;
 
             if (item.items) {
-              // Item con submenu
               return (
                 <div key={item.label}>
                   <button
@@ -164,7 +161,6 @@ export default function AdminLayout({
                     )}
                   </button>
 
-                  {/* Submenu */}
                   {isExpanded(item.label) && (
                     <div className="ml-4 mt-1 space-y-1">
                       {item.items.map((subItem) => {
@@ -191,7 +187,6 @@ export default function AdminLayout({
               );
             }
 
-            // Item simple
             return (
               <Link
                 key={item.href}
@@ -239,6 +234,9 @@ export default function AdminLayout({
         </div>
         <div className="mx-auto max-w-7xl p-6">{children}</div>
       </main>
+
+      {/* Toast Notifications */}
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

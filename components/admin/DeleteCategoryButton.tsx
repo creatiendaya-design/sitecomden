@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,8 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface DeleteCategoryButtonProps {
   categoryId: string;
@@ -28,14 +29,11 @@ export default function DeleteCategoryButton({
   productCount,
 }: DeleteCategoryButtonProps) {
   const router = useRouter();
+  const [isDeleting, setIsDeleting] = useState(false);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleDelete = async () => {
-    setLoading(true);
-    setError(null);
-
+    setIsDeleting(true);
     try {
       const response = await fetch(`/api/admin/categories/${categoryId}/delete`, {
         method: "DELETE",
@@ -44,16 +42,27 @@ export default function DeleteCategoryButton({
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Error al eliminar categoría");
+        toast.error(data.error || "Error al eliminar categoría");
         return;
       }
 
+      // Toast de éxito
+      if (productCount > 0) {
+        toast.success("Categoría eliminada", {
+          description: `${productCount} producto(s) desasociado(s) correctamente`,
+        });
+      } else {
+        toast.success("Categoría eliminada correctamente");
+      }
+
       setOpen(false);
+      router.push("/admin/categorias");
       router.refresh();
-    } catch (err) {
-      setError("Error al eliminar categoría");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al eliminar categoría");
     } finally {
-      setLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -71,44 +80,28 @@ export default function DeleteCategoryButton({
             <p>
               Estás a punto de eliminar la categoría <strong>{categoryName}</strong>.
             </p>
-            {productCount > 0 ? (
-              <p className="text-destructive">
-                Esta categoría tiene {productCount} producto(s) asociado(s). No se
-                puede eliminar. Puedes desactivarla en su lugar.
-              </p>
-            ) : (
-              <p className="text-destructive">
-                Esta acción no se puede deshacer.
-              </p>
+            {productCount > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-medium">⚠️ Esta categoría tiene {productCount} producto(s) asociado(s)</p>
+                <p className="mt-1 text-amber-800">
+                  Los productos NO se eliminarán, solo se desasociarán de esta categoría.
+                </p>
+              </div>
             )}
-            {error && (
-              <p className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </p>
-            )}
+            <p className="text-muted-foreground">
+              Esta acción no se puede deshacer.
+            </p>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
-          {productCount === 0 && (
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
-              disabled={loading}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                "Eliminar"
-              )}
-            </AlertDialogAction>
-          )}
+          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isDeleting ? "Eliminando..." : "Eliminar categoría"}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

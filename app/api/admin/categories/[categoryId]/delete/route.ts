@@ -24,20 +24,19 @@ export async function DELETE(
       );
     }
 
-    if (category._count.products > 0) {
-      return NextResponse.json(
-        {
-          error: `No se puede eliminar la categoría porque tiene ${category._count.products} producto(s) asociado(s).`,
-        },
-        { status: 400 }
-      );
-    }
-
+    // Eliminar la categoría
+    // Las relaciones en ProductCategory se eliminan automáticamente por onDelete: Cascade
+    // Los productos NO se eliminan, solo se desasocian de esta categoría
     await prisma.category.delete({
       where: { id: categoryId },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      message: category._count.products > 0 
+        ? `Categoría eliminada. ${category._count.products} producto(s) desasociado(s).`
+        : "Categoría eliminada correctamente."
+    });
   } catch (error) {
     console.error("Error al eliminar categoría:", error);
     return NextResponse.json(

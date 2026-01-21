@@ -83,7 +83,7 @@ export default async function ProductDetailPage({
   }));
 
   return (
-    <div className="container py-8">
+    <div className="container py-8 mx-auto">
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Images */}
         <ProductImageGallery images={product.images} name={product.name} />
