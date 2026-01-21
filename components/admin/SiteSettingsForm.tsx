@@ -19,7 +19,7 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({
-    // General - EXCLUIR site_logo y site_favicon
+    // General
     site_name: initialSettings.site_name || "ShopGood Perú",
     site_url: initialSettings.site_url || "https://shopgood.pe",
 
@@ -27,7 +27,6 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
     seo_home_title: initialSettings.seo_home_title || "",
     seo_home_description: initialSettings.seo_home_description || "",
     seo_home_keywords: initialSettings.seo_home_keywords || "",
-    seo_home_og_image: initialSettings.seo_home_og_image || "",
 
     // Contact
     contact_email: initialSettings.contact_email || "",
@@ -76,7 +75,6 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
         seo_home_title: "ShopGood Perú - Los Mejores Productos con Envío a Todo el País",
         seo_home_description: "Compra en línea con envío a todo el Perú. Múltiples métodos de pago: tarjeta, Yape, Plin, PayPal. Los mejores productos al mejor precio.",
         seo_home_keywords: "tienda online Perú, comprar en línea, envío Perú, Yape, Plin, e-commerce",
-        seo_home_og_image: "/og-image.jpg",
         contact_email: "contacto@shopgood.pe",
         contact_phone: "+51 999 999 999",
         contact_address: "Lima, Perú",
@@ -188,7 +186,13 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
                 </p>
               </div>
 
-              
+              {/* ℹ️ Nota para el usuario */}
+              <div className="rounded-lg border bg-blue-50 dark:bg-blue-950 p-4">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  💡 <strong>Nota:</strong> La imagen Open Graph se configura en la sección 
+                  "Imágenes del Sitio" al inicio de esta página.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

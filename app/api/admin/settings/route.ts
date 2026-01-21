@@ -34,23 +34,32 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
 
-    // Actualizar o crear cada setting
-    const updates = Object.entries(data).map(([key, value]) => {
-      const category = getCategoryFromKey(key);
-      
-      return prisma.setting.upsert({
-        where: { key },
-        update: {
-          value: value as any,
-          category,
-        },
-        create: {
-          key,
-          value: value as any,
-          category,
-        },
+    // ✅ KEYS QUE SE MANEJAN POR SEPARADO (no actualizar aquí)
+    const excludedKeys = [
+      'site_logo',
+      'site_favicon', 
+      'seo_home_og_image'
+    ];
+
+    // Actualizar o crear cada setting (excepto las imágenes)
+    const updates = Object.entries(data)
+      .filter(([key]) => !excludedKeys.includes(key)) // ✅ Filtrar keys excluidas
+      .map(([key, value]) => {
+        const category = getCategoryFromKey(key);
+        
+        return prisma.setting.upsert({
+          where: { key },
+          update: {
+            value: value as any,
+            category,
+          },
+          create: {
+            key,
+            value: value as any,
+            category,
+          },
+        });
       });
-    });
 
     await Promise.all(updates);
 
