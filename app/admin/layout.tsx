@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
@@ -21,6 +21,8 @@ import {
   Trophy,
   Mail,
   FileText,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -39,6 +41,24 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Configuración"]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Cerrar sidebar al cambiar de ruta en móvil
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  // Prevenir scroll del body cuando el sidebar está abierto en móvil
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [sidebarOpen]);
 
   const navItems: NavItem[] = [
     {
@@ -127,15 +147,36 @@ export default function AdminLayout({
 
   return (
     <div className="flex min-h-screen">
+      {/* Overlay móvil */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-slate-50">
-        <div className="flex h-16 items-center border-b px-6">
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 h-screen w-64 border-r bg-slate-50 transition-transform duration-300 lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex h-16 items-center justify-between border-b px-6">
           <Link href="/admin/dashboard" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <Store className="h-5 w-5" />
             </div>
             <span className="font-bold">Admin Panel</span>
           </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
         <nav className="space-y-1 p-4 overflow-y-auto h-[calc(100vh-13rem)]">
@@ -226,13 +267,26 @@ export default function AdminLayout({
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-64">
-        <div className="border-b bg-white p-6">
-          <div className="mx-auto max-w-7xl">
+      <main className="flex-1 lg:ml-64">
+        {/* Header móvil */}
+        <div className="border-b bg-white">
+          <div className="flex items-center justify-between p-4 lg:justify-center lg:p-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
             <h2 className="text-sm text-muted-foreground">ShopGood Perú</h2>
+            <div className="w-10 lg:hidden" /> {/* Spacer para centrar */}
           </div>
         </div>
-        <div className="mx-auto max-w-7xl p-6">{children}</div>
+        
+        <div className="p-4 lg:p-6">
+          <div className="mx-auto max-w-7xl">{children}</div>
+        </div>
       </main>
 
       {/* Toast Notifications */}
