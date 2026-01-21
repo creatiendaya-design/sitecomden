@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, getTotalPrice, getTotalItems } =
@@ -294,9 +295,29 @@ export default function CartPage() {
               </p>
             )}
 
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              Métodos de pago: Yape, Plin, Tarjeta, PayPal
-            </p>
+            {/* Payment Methods Icons */}
+            <div className="mt-6 pt-4 border-t">
+              <p className="text-xs text-muted-foreground text-center mb-3">
+                Métodos de pago aceptados
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <div className="flex items-center justify-center h-10 px-2 bg-white rounded border">
+                  <YapeIcon width={40} height={40} />
+                </div>
+                <div className="flex items-center justify-center h-10 px-2 bg-white rounded border">
+                  <PlinIcon width={40} height={40} />
+                </div>
+                <div className="flex items-center justify-center h-10 px-2 bg-white rounded border">
+                  <VisaIcon width={45} height={28} />
+                </div>
+                <div className="flex items-center justify-center h-10 px-2 bg-white rounded border">
+                  <MastercardIcon width={38} height={24} />
+                </div>
+                <div className="flex items-center justify-center h-10 px-2 bg-white rounded border">
+                  <PayPalIcon width={38} height={24} />
+                </div>
+              </div>
+            </div>
           </Card>
         </div>
       </div>

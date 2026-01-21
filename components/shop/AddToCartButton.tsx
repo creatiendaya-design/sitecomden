@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Check, AlertCircle } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
 import { getProductImageUrl } from "@/lib/image-utils";
+import { useRouter } from "next/navigation";
 
 interface AddToCartButtonProps {
   product: any;
@@ -20,7 +20,7 @@ export default function AddToCartButton({
   selectedVariant,
   disabled,
 }: AddToCartButtonProps) {
-  const [added, setAdded] = useState(false);
+  const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
 
   const handleAddToCart = () => {
@@ -53,13 +53,15 @@ export default function AddToCartButton({
         name: product.name,
         variantName,
         price: Number(selectedVariant.price),
-        // ⭐ FIX: Convertir null a undefined
         image: imageUrl ?? undefined,
         maxStock: selectedVariant.stock,
         options: variantOptions,
       });
 
       toast.success("Producto agregado al carrito");
+      
+      // Redirigir al carrito inmediatamente
+      router.push('/carrito');
     } else {
       // Producto simple sin variantes
       if (product.stock <= 0) {
@@ -75,21 +77,19 @@ export default function AddToCartButton({
         productId: product.id,
         name: product.name,
         price: Number(product.basePrice),
-        // ⭐ FIX: Convertir null a undefined
         image: imageUrl ?? undefined,
         maxStock: product.stock,
       });
 
       toast.success("Producto agregado al carrito");
+      
+      // Redirigir al carrito inmediatamente
+      router.push('/carrito');
     }
-
-    // Mostrar feedback visual
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
   };
 
   // Determinar si el botón debe estar deshabilitado
-  const isDisabled = disabled || added || 
+  const isDisabled = disabled || 
     (product.hasVariants && !selectedVariant) ||
     (selectedVariant && selectedVariant.stock <= 0) ||
     (!product.hasVariants && product.stock <= 0);
@@ -101,17 +101,8 @@ export default function AddToCartButton({
       onClick={handleAddToCart}
       disabled={isDisabled}
     >
-      {added ? (
-        <>
-          <Check className="mr-2 h-5 w-5" />
-          Agregado al Carrito
-        </>
-      ) : (
-        <>
-          <ShoppingCart className="mr-2 h-5 w-5" />
-          Agregar al Carrito
-        </>
-      )}
+      <ShoppingCart className="mr-2 h-5 w-5" />
+      Agregar al Carrito
     </Button>
   );
 }
