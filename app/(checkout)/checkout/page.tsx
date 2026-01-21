@@ -25,8 +25,15 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronUp, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const initialFormData = {
   customerName: "",
@@ -61,6 +68,9 @@ export default function CheckoutPage() {
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [stockVerified, setStockVerified] = useState(false);
   const [stockCheckLoading, setStockCheckLoading] = useState(false);
+  
+  // Estado para el Sheet del resumen en móvil
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   
   // Estado de método de envío seleccionado
   const [selectedShippingRate, setSelectedShippingRate] = useState<ShippingRate | null>(null);
@@ -387,450 +397,549 @@ export default function CheckoutPage() {
     );
   }
 
-  return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-      <h1 className="mb-8 text-3xl font-bold">Finalizar Compra</h1>
-
-      <form onSubmit={handleSubmit}>
-        {/* Messages */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {stockVerified && !error && (
-          <Alert className="mb-6 border-green-500 bg-green-50 dark:bg-green-950">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-600 dark:text-green-400">
-              Stock verificado. Todos los productos están disponibles.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Formulario */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Información del Cliente */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Información de Contacto</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="customerName">
-                      Nombre Completo <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="customerName"
-                      name="customerName"
-                      value={formData.customerName}
-                      onChange={handleInputChange}
-                      placeholder="Juan Pérez"
-                      className={validationErrors.customerName ? "border-destructive" : ""}
-                    />
-                    {validationErrors.customerName && (
-                      <p className="text-xs text-destructive mt-1">
-                        {validationErrors.customerName}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="customerDni">
-                      DNI (opcional)
-                    </Label>
-                    <Input
-                      id="customerDni"
-                      name="customerDni"
-                      value={formData.customerDni}
-                      onChange={handleInputChange}
-                      placeholder="12345678"
-                      maxLength={8}
-                      className={validationErrors.customerDni ? "border-destructive" : ""}
-                    />
-                    {validationErrors.customerDni && (
-                      <p className="text-xs text-destructive mt-1">
-                        {validationErrors.customerDni}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="customerEmail">
-                      Email <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="customerEmail"
-                      name="customerEmail"
-                      type="email"
-                      value={formData.customerEmail}
-                      onChange={handleInputChange}
-                      placeholder="juan@example.com"
-                      className={validationErrors.customerEmail ? "border-destructive" : ""}
-                    />
-                    {validationErrors.customerEmail && (
-                      <p className="text-xs text-destructive mt-1">
-                        {validationErrors.customerEmail}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="customerPhone">
-                      Teléfono/WhatsApp <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="customerPhone"
-                      name="customerPhone"
-                      type="tel"
-                      value={formData.customerPhone}
-                      onChange={handleInputChange}
-                      placeholder="+51 987654321"
-                      className={validationErrors.customerPhone ? "border-destructive" : ""}
-                    />
-                    {validationErrors.customerPhone && (
-                      <p className="text-xs text-destructive mt-1">
-                        {validationErrors.customerPhone}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Ejemplo: +51 987654321 o 987654321
-                    </p>
-                  </div>
-                </div>
-
-                {/* WhatsApp Opt-in */}
-                <div className="flex items-start space-x-2 pt-2">
-                  <Checkbox
-                    id="acceptWhatsApp"
-                    checked={formData.acceptWhatsApp}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, acceptWhatsApp: checked === true })
-                    }
-                  />
-                  <div className="grid gap-1.5 leading-none">
-                    <Label
-                      htmlFor="acceptWhatsApp"
-                      className="text-sm font-normal cursor-pointer"
-                    >
-                      Acepto recibir actualizaciones de mi pedido por WhatsApp
-                    </Label>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Dirección de Envío */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Dirección de Envío</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Selector de Ubicación */}
-                <LocationSelector
-                  value={{
-                    departmentId: formData.departmentId,
-                    provinceId: formData.provinceId,
-                    districtCode: formData.districtCode,
-                  }}
-                  onChange={handleLocationChange}
-                  errors={{
-                    department: validationErrors.department,
-                    province: validationErrors.city,
-                    district: validationErrors.district,
-                  }}
+  // Componente de resumen reutilizable
+  const OrderSummaryContent = () => (
+    <>
+      {/* Items */}
+      <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+        {items.map((item) => (
+          <div key={item.id} className="flex gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors">
+            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
+              {item.image && (
+                <Image
+                  src={item.image}
+                  alt={item.name}
+                  fill
+                  className="object-cover"
                 />
-
-                {/* ShippingOptions - Solo se muestra cuando hay distrito */}
-                {formData.districtCode && (
-                  <div className="pt-4 border-t">
-                    <ShippingOptions
-                      districtCode={formData.districtCode}
-                      subtotal={subtotal}
-                      onSelect={handleShippingRateSelect}
-                      selectedRateId={selectedShippingRate?.id}
-                    />
-                  </div>
-                )}
-
-                {/* Dirección */}
-                <div>
-                  <Label htmlFor="address">
-                    Dirección <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    placeholder="Av. Larco 123, Dpto 501"
-                    className={validationErrors.address ? "border-destructive" : ""}
-                  />
-                  {validationErrors.address && (
-                    <p className="text-xs text-destructive mt-1">
-                      {validationErrors.address}
-                    </p>
-                  )}
-                </div>
-
-                {/* Referencia (opcional) */}
-                <div>
-                  <Label htmlFor="reference">Referencia (opcional)</Label>
-                  <Input
-                    id="reference"
-                    name="reference"
-                    value={formData.reference}
-                    onChange={handleInputChange}
-                    placeholder="Edificio blanco al lado del banco"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Método de Pago */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Método de Pago</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup
-                  value={formData.paymentMethod}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, paymentMethod: value as any })
-                  }
-                >
-                  <div className="flex items-center space-x-2 rounded-lg border p-4">
-                    <RadioGroupItem value="YAPE" id="yape" />
-                    <Label htmlFor="yape" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">Yape</div>
-                      <div className="text-sm text-muted-foreground">
-                        Transferencia instantánea • 0% comisión
-                      </div>
-                    </Label>
-                    <Badge variant="secondary">Recomendado</Badge>
-                  </div>
-
-                  <div className="flex items-center space-x-2 rounded-lg border p-4">
-                    <RadioGroupItem value="PLIN" id="plin" />
-                    <Label htmlFor="plin" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">Plin</div>
-                      <div className="text-sm text-muted-foreground">
-                        Transferencia instantánea • 0% comisión
-                      </div>
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2 rounded-lg border p-4">
-                    <RadioGroupItem value="CARD" id="card" />
-                    <Label htmlFor="card" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">Tarjeta de Crédito/Débito</div>
-                      <div className="text-sm text-muted-foreground">
-                        Visa, Mastercard (Culqi)
-                      </div>
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2 rounded-lg border p-4">
-                    <RadioGroupItem value="PAYPAL" id="paypal" />
-                    <Label htmlFor="paypal" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">PayPal</div>
-                      <div className="text-sm text-muted-foreground">
-                        Pago internacional seguro
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-
-            {/* Notas Adicionales */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Notas Adicionales (opcional)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  name="customerNotes"
-                  value={formData.customerNotes}
-                  onChange={handleInputChange}
-                  placeholder="Instrucciones especiales de entrega, etc."
-                  rows={4}
-                />
-              </CardContent>
-            </Card>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 text-sm">
+              <p className="font-medium line-clamp-2 leading-snug">{item.name}</p>
+              {item.variantName && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {item.variantName}
+                </p>
+              )}
+              <p className="mt-1.5 text-muted-foreground font-medium">
+                {item.quantity} × {formatPrice(item.price)}
+              </p>
+            </div>
           </div>
+        ))}
+      </div>
 
-          {/* Resumen de Orden */}
-          <div>
-            <Card className="sticky top-24">
-              <CardHeader>
-                <CardTitle>Resumen del Pedido</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Items */}
-                <div className="space-y-3 max-h-60 overflow-y-auto">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex gap-3">
-                      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded bg-slate-100">
-                        {item.image && (
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            fill
-                            className="object-cover"
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1 text-sm">
-                        <p className="font-medium line-clamp-1">{item.name}</p>
-                        {item.variantName && (
-                          <p className="text-xs text-muted-foreground">
-                            {item.variantName}
-                          </p>
-                        )}
-                        <p className="mt-1 text-muted-foreground">
-                          {item.quantity} × {formatPrice(item.price)}
+      <Separator className="my-4" />
+
+      {/* Cupón de descuento */}
+      <div className="px-1">
+        <ApplyCoupon
+          subtotal={subtotal}
+          onCouponApplied={setAppliedCoupon}
+          onCouponRemoved={() => setAppliedCoupon(null)}
+          currentCoupon={
+            appliedCoupon
+              ? { code: appliedCoupon.code, discount: appliedCoupon.discount }
+              : null
+          }
+        />
+      </div>
+
+      <Separator className="my-4" />
+
+      {/* Totales */}
+      <div className="space-y-2.5 px-1">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Subtotal</span>
+          <span className="font-medium">{formatPrice(subtotal)}</span>
+        </div>
+        {discount > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Descuento</span>
+            <span className="text-green-600 font-medium">-{formatPrice(discount)}</span>
+          </div>
+        )}
+        <div className="flex justify-between text-sm">
+          <div className="flex-1">
+            <span className="text-muted-foreground">Envío</span>
+            {selectedShippingRate && (
+              <span className="text-xs text-muted-foreground block mt-0.5">
+                {selectedShippingRate.name}
+                {selectedShippingRate.estimatedDays && (
+                  <> • {selectedShippingRate.estimatedDays}</>
+                )}
+              </span>
+            )}
+          </div>
+          <span className="font-medium">
+            {appliedCoupon?.type === "FREE_SHIPPING" || selectedShippingRate?.isFree ? (
+              <span className="text-green-600">¡Gratis!</span>
+            ) : selectedShippingRate ? (
+              formatPrice(selectedShippingRate.finalCost)
+            ) : (
+              <span className="text-xs text-muted-foreground">Pendiente</span>
+            )}
+          </span>
+        </div>
+      </div>
+
+      <Separator className="my-4" />
+
+      <div className="flex justify-between text-lg font-bold px-1">
+        <span>Total</span>
+        <span className="text-primary">{formatPrice(total)}</span>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* 📱 HEADER FLOTANTE SUPERIOR - SOLO MÓVIL */}
+      <div className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-sm">
+        <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+          <SheetTrigger asChild>
+            <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-accent/50 active:bg-accent transition-colors">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-md bg-primary/10">
+                  <ShoppingBag className="h-4 w-4 text-primary" />
+                </div>
+                <div className="text-left">
+                  <span className="text-xs text-muted-foreground block">
+                    {getTotalItems()} {getTotalItems() === 1 ? 'producto' : 'productos'}
+                  </span>
+                  <span className="text-sm font-semibold block">
+                    Ver resumen
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-lg">{formatPrice(total)}</span>
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="top" className="h-[85vh] overflow-y-auto px-4 sm:px-6">
+            <SheetHeader className="text-left mb-6">
+              <SheetTitle>Resumen del Pedido</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 pb-6">
+              <OrderSummaryContent />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
+        <h1 className="mb-8 text-3xl font-bold hidden lg:block">Finalizar Compra</h1>
+
+        <form onSubmit={handleSubmit}>
+          {/* Messages */}
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {stockVerified && !error && (
+            <Alert className="mb-6 border-green-500 bg-green-50 dark:bg-green-950">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-600 dark:text-green-400">
+                Stock verificado. Todos los productos están disponibles.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid gap-8 lg:grid-cols-3">
+            {/* Formulario */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Información del Cliente */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Información de Contacto</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="customerName">
+                        Nombre Completo <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="customerName"
+                        name="customerName"
+                        value={formData.customerName}
+                        onChange={handleInputChange}
+                        placeholder="Juan Pérez"
+                        className={validationErrors.customerName ? "border-destructive" : ""}
+                      />
+                      {validationErrors.customerName && (
+                        <p className="text-xs text-destructive mt-1">
+                          {validationErrors.customerName}
                         </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Separator />
-
-                {/* Cupón de descuento */}
-                <ApplyCoupon
-                  subtotal={subtotal}
-                  onCouponApplied={setAppliedCoupon}
-                  onCouponRemoved={() => setAppliedCoupon(null)}
-                  currentCoupon={
-                    appliedCoupon
-                      ? { code: appliedCoupon.code, discount: appliedCoupon.discount }
-                      : null
-                  }
-                />
-
-                <Separator />
-
-                {/* Totales */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>{formatPrice(subtotal)}</span>
-                  </div>
-                  {discount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Descuento</span>
-                      <span className="text-green-600">-{formatPrice(discount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Envío
-                      {selectedShippingRate && (
-                        <span className="text-xs block">
-                          {selectedShippingRate.name}
-                          {selectedShippingRate.estimatedDays && (
-                            <> • {selectedShippingRate.estimatedDays}</>
-                          )}
-                        </span>
                       )}
-                    </span>
-                    <span>
-                      {appliedCoupon?.type === "FREE_SHIPPING" || selectedShippingRate?.isFree ? (
-                        <span className="text-green-600">¡Gratis!</span>
-                      ) : selectedShippingRate ? (
-                        formatPrice(selectedShippingRate.finalCost)
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Selecciona método</span>
+                    </div>
+                    <div>
+                      <Label htmlFor="customerDni">
+                        DNI (opcional)
+                      </Label>
+                      <Input
+                        id="customerDni"
+                        name="customerDni"
+                        value={formData.customerDni}
+                        onChange={handleInputChange}
+                        placeholder="12345678"
+                        maxLength={8}
+                        className={validationErrors.customerDni ? "border-destructive" : ""}
+                      />
+                      {validationErrors.customerDni && (
+                        <p className="text-xs text-destructive mt-1">
+                          {validationErrors.customerDni}
+                        </p>
                       )}
-                    </span>
+                    </div>
                   </div>
-                </div>
 
-                <Separator />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="customerEmail">
+                        Email <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="customerEmail"
+                        name="customerEmail"
+                        type="email"
+                        value={formData.customerEmail}
+                        onChange={handleInputChange}
+                        placeholder="juan@example.com"
+                        className={validationErrors.customerEmail ? "border-destructive" : ""}
+                      />
+                      {validationErrors.customerEmail && (
+                        <p className="text-xs text-destructive mt-1">
+                          {validationErrors.customerEmail}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="customerPhone">
+                        Teléfono/WhatsApp <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="customerPhone"
+                        name="customerPhone"
+                        type="tel"
+                        value={formData.customerPhone}
+                        onChange={handleInputChange}
+                        placeholder="+51 987654321"
+                        className={validationErrors.customerPhone ? "border-destructive" : ""}
+                      />
+                      {validationErrors.customerPhone && (
+                        <p className="text-xs text-destructive mt-1">
+                          {validationErrors.customerPhone}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Ejemplo: +51 987654321 o 987654321
+                      </p>
+                    </div>
+                  </div>
 
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total</span>
-                  <span>{formatPrice(total)}</span>
-                </div>
-
-                {/* ✅ TÉRMINOS Y CONDICIONES - MOVIDO AQUÍ, ARRIBA DEL BOTÓN */}
-                <div className="pt-2">
-                  <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
+                  {/* WhatsApp Opt-in */}
+                  <div className="flex items-start space-x-2 pt-2">
                     <Checkbox
-                      id="acceptTerms"
-                      checked={formData.acceptTerms}
+                      id="acceptWhatsApp"
+                      checked={formData.acceptWhatsApp}
                       onCheckedChange={(checked) =>
-                        setFormData({ ...formData, acceptTerms: checked === true })
+                        setFormData({ ...formData, acceptWhatsApp: checked === true })
                       }
-                      className={validationErrors.acceptTerms ? "border-destructive mt-0.5" : "mt-0.5"}
                     />
                     <div className="grid gap-1.5 leading-none">
                       <Label
-                        htmlFor="acceptTerms"
-                        className="text-sm font-normal cursor-pointer leading-relaxed"
+                        htmlFor="acceptWhatsApp"
+                        className="text-sm font-normal cursor-pointer"
                       >
-                        He leído y acepto los{" "}
-                        <TermsAndConditions>
-                          <span className="text-primary underline cursor-pointer font-medium">
-                            términos y condiciones
-                          </span>
-                        </TermsAndConditions>
-                        {" "}de compra <span className="text-destructive">*</span>
+                        Acepto recibir actualizaciones de mi pedido por WhatsApp
                       </Label>
-                      {validationErrors.acceptTerms && (
-                        <p className="text-xs text-destructive mt-1">
-                          {validationErrors.acceptTerms}
-                        </p>
-                      )}
                     </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                {/* Botón de pago */}
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full"
-                  disabled={
-                    loading || 
-                    showPaymentForm || 
-                    !stockVerified || 
-                    stockCheckLoading || 
-                    !selectedShippingRate
-                  }
-                >
-                  {loading ? "Procesando..." : 
-                   stockCheckLoading ? "Verificando stock..." :
-                   !selectedShippingRate ? "Selecciona método de envío" :
-                   "Confirmar Pedido"}
-                </Button>
+              {/* Dirección de Envío */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dirección de Envío</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Selector de Ubicación */}
+                  <LocationSelector
+                    value={{
+                      departmentId: formData.departmentId,
+                      provinceId: formData.provinceId,
+                      districtCode: formData.districtCode,
+                    }}
+                    onChange={handleLocationChange}
+                    errors={{
+                      department: validationErrors.department,
+                      province: validationErrors.city,
+                      district: validationErrors.district,
+                    }}
+                  />
 
-                {/* Mostrar formulario de pago con tarjeta si corresponde */}
-                {showPaymentForm && createdOrderId && (
-                  <div className="mt-6">
-                    <CulqiPaymentForm
-                      amount={total}
-                      email={formData.customerEmail}
-                      orderId={createdOrderId}
-                      onSuccess={handlePaymentSuccess}
-                      onError={handlePaymentError}
+                  {/* ShippingOptions - Solo se muestra cuando hay distrito */}
+                  {formData.districtCode && (
+                    <div className="pt-4 border-t">
+                      <ShippingOptions
+                        districtCode={formData.districtCode}
+                        subtotal={subtotal}
+                        onSelect={handleShippingRateSelect}
+                        selectedRateId={selectedShippingRate?.id}
+                      />
+                    </div>
+                  )}
+
+                  {/* Dirección */}
+                  <div>
+                    <Label htmlFor="address">
+                      Dirección <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="address"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      placeholder="Av. Larco 123, Dpto 501"
+                      className={validationErrors.address ? "border-destructive" : ""}
+                    />
+                    {validationErrors.address && (
+                      <p className="text-xs text-destructive mt-1">
+                        {validationErrors.address}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Referencia (opcional) */}
+                  <div>
+                    <Label htmlFor="reference">Referencia (opcional)</Label>
+                    <Input
+                      id="reference"
+                      name="reference"
+                      value={formData.reference}
+                      onChange={handleInputChange}
+                      placeholder="Edificio blanco al lado del banco"
                     />
                   </div>
-                )}
+                </CardContent>
+              </Card>
 
-                <p className="text-center text-xs text-muted-foreground">
-                  🔒 Pago 100% seguro y encriptado
-                </p>
-              </CardContent>
-            </Card>
+              {/* Método de Pago */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Método de Pago</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup
+                    value={formData.paymentMethod}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, paymentMethod: value as any })
+                    }
+                  >
+                    <div className="flex items-center space-x-2 rounded-lg border p-4">
+                      <RadioGroupItem value="YAPE" id="yape" />
+                      <Label htmlFor="yape" className="flex-1 cursor-pointer">
+                        <div className="font-semibold">Yape</div>
+                        <div className="text-sm text-muted-foreground">
+                          Transferencia instantánea • 0% comisión
+                        </div>
+                      </Label>
+                      <Badge variant="secondary">Recomendado</Badge>
+                    </div>
+
+                    <div className="flex items-center space-x-2 rounded-lg border p-4">
+                      <RadioGroupItem value="PLIN" id="plin" />
+                      <Label htmlFor="plin" className="flex-1 cursor-pointer">
+                        <div className="font-semibold">Plin</div>
+                        <div className="text-sm text-muted-foreground">
+                          Transferencia instantánea • 0% comisión
+                        </div>
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2 rounded-lg border p-4">
+                      <RadioGroupItem value="CARD" id="card" />
+                      <Label htmlFor="card" className="flex-1 cursor-pointer">
+                        <div className="font-semibold">Tarjeta de Crédito/Débito</div>
+                        <div className="text-sm text-muted-foreground">
+                          Visa, Mastercard (Culqi)
+                        </div>
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2 rounded-lg border p-4">
+                      <RadioGroupItem value="PAYPAL" id="paypal" />
+                      <Label htmlFor="paypal" className="flex-1 cursor-pointer">
+                        <div className="font-semibold">PayPal</div>
+                        <div className="text-sm text-muted-foreground">
+                          Pago internacional seguro
+                        </div>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+
+              {/* Notas Adicionales */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notas Adicionales (opcional)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    name="customerNotes"
+                    value={formData.customerNotes}
+                    onChange={handleInputChange}
+                    placeholder="Instrucciones especiales de entrega, etc."
+                    rows={4}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 🖥️ RESUMEN DE ORDEN - SOLO DESKTOP */}
+            <div className="hidden lg:block">
+              <Card className="sticky top-24">
+                <CardHeader>
+                  <CardTitle>Resumen del Pedido</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <OrderSummaryContent />
+
+                  {/* Términos y Condiciones */}
+                  <div className="pt-2">
+                    <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
+                      <Checkbox
+                        id="acceptTerms"
+                        checked={formData.acceptTerms}
+                        onCheckedChange={(checked) =>
+                          setFormData({ ...formData, acceptTerms: checked === true })
+                        }
+                        className={validationErrors.acceptTerms ? "border-destructive mt-1 flex-shrink-0" : "mt-1 flex-shrink-0"}
+                      />
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="acceptTerms"
+                          className="text-sm font-normal cursor-pointer leading-relaxed block"
+                        >
+                          He leído y acepto los <TermsAndConditions>
+                            <span className="text-primary underline cursor-pointer font-medium hover:text-primary/80">
+                              términos y condiciones
+                            </span>
+                          </TermsAndConditions> de compra <span className="text-destructive">*</span>
+                        </Label>
+                        {validationErrors.acceptTerms && (
+                          <p className="text-xs text-destructive mt-1">
+                            {validationErrors.acceptTerms}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botón de pago */}
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full"
+                    disabled={
+                      loading || 
+                      showPaymentForm || 
+                      !stockVerified || 
+                      stockCheckLoading || 
+                      !selectedShippingRate
+                    }
+                  >
+                    {loading ? "Procesando..." : 
+                     stockCheckLoading ? "Verificando stock..." :
+                     !selectedShippingRate ? "Selecciona método de envío" :
+                     "Confirmar Pedido"}
+                  </Button>
+
+                  {/* Mostrar formulario de pago con tarjeta si corresponde */}
+                  {showPaymentForm && createdOrderId && (
+                    <div className="mt-6">
+                      <CulqiPaymentForm
+                        amount={total}
+                        email={formData.customerEmail}
+                        orderId={createdOrderId}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
+                      />
+                    </div>
+                  )}
+
+                  <p className="text-center text-xs text-muted-foreground">
+                    🔒 Pago 100% seguro y encriptado
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
+        </form>
+      </div>
+
+      {/* 📱 BOTÓN FLOTANTE INFERIOR - SOLO MÓVIL */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
+        <div className="px-4 py-3 space-y-3">
+          {/* Términos en móvil - más compacto pero legible */}
+          <div className="flex items-start space-x-2 py-1">
+            <Checkbox
+              id="acceptTermsMobile"
+              checked={formData.acceptTerms}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, acceptTerms: checked === true })
+              }
+              className={validationErrors.acceptTerms ? "border-destructive mt-1 flex-shrink-0" : "mt-1 flex-shrink-0"}
+            />
+            <Label
+              htmlFor="acceptTermsMobile"
+              className="text-xs leading-relaxed cursor-pointer flex-1 block"
+            >
+              He leído y acepto los <TermsAndConditions>
+                <span className="text-primary underline font-medium">
+                  términos y condiciones
+                </span>
+              </TermsAndConditions> de compra <span className="text-destructive">*</span>
+            </Label>
+          </div>
+
+          {/* Botón de pago con precio */}
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full text-base font-semibold h-12"
+            disabled={
+              loading || 
+              showPaymentForm || 
+              !stockVerified || 
+              stockCheckLoading || 
+              !selectedShippingRate
+            }
+            onClick={handleSubmit}
+          >
+            {loading ? (
+              "Procesando..."
+            ) : stockCheckLoading ? (
+              "Verificando stock..."
+            ) : !selectedShippingRate ? (
+              "Selecciona método de envío"
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <span>Pagar</span>
+                <span className="font-bold">{formatPrice(total)}</span>
+              </span>
+            )}
+          </Button>
         </div>
-      </form>
-    </div>
+      </div>
+    </>
   );
 }
