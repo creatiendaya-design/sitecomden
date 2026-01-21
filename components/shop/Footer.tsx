@@ -1,16 +1,39 @@
 import Link from "next/link";
 import { Facebook, Instagram, Twitter } from "lucide-react";
+import { getSiteSettings } from "@/lib/site-settings";
 
-export default function Footer() {
+export default async function Footer() {
+  // Obtener settings usando tu sistema existente
+  const settings = await getSiteSettings();
+
+  // Filtrar solo las redes sociales que tienen URL
+  const socialLinks = [
+    { 
+      href: settings.social_facebook, 
+      Icon: Facebook, 
+      label: "Facebook" 
+    },
+    { 
+      href: settings.social_instagram, 
+      Icon: Instagram, 
+      label: "Instagram" 
+    },
+    { 
+      href: settings.social_twitter, 
+      Icon: Twitter, 
+      label: "Twitter" 
+    },
+  ].filter((link) => link.href); // Solo mostrar las que tienen URL
+
   return (
     <footer className="border-t bg-muted/40">
       <div className="container py-12 mx-auto">
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
-          {/* About */}
+          {/* About - Ahora usa settings.site_name */}
           <div>
-            <h3 className="mb-4 text-lg font-semibold">ShopGood Perú</h3>
+            <h3 className="mb-4 text-lg font-semibold">{settings.site_name}</h3>
             <p className="text-sm text-muted-foreground">
-              Tu tienda online de confianza con envío a todo el Perú.
+              {settings.seo_home_description}
             </p>
           </div>
 
@@ -71,53 +94,48 @@ export default function Footer() {
                   className="text-muted-foreground hover:text-foreground"
                 >
                   Devoluciones
-                </Link> 
+                </Link>
               </li>
-               <li>
+              <li>
                 <Link
                   href="/libro-reclamaciones"
                   className="text-muted-foreground hover:text-foreground"
                 >
-                 Libro de reclamaciones
+                  Libro de reclamaciones
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Social */}
+          {/* Social - Dinámico con tus settings */}
           <div>
             <h3 className="mb-4 text-lg font-semibold">Síguenos</h3>
-            <div className="flex space-x-4">
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Twitter className="h-5 w-5" />
-              </a>
-            </div>
+            {socialLinks.length > 0 ? (
+              <div className="flex space-x-4">
+                {socialLinks.map(({ href, Icon, label }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={label}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Próximamente en redes sociales
+              </p>
+            )}
           </div>
         </div>
 
+        {/* Copyright - Dinámico con settings.site_name */}
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>© 2024 ShopGood Perú. Todos los derechos reservados.</p>
+          <p>© {new Date().getFullYear()} {settings.site_name}. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>

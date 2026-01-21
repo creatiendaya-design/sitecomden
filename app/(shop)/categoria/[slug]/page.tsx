@@ -64,7 +64,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   }));
 
   return (
-    <div className="container py-8">
+    <div className="container py-8 mx-auto">
       {/* Header de categoría */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">{category.name}</h1>

@@ -88,7 +88,7 @@ export default async function HomePage() {
       <div className="flex flex-col">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-slate-50 to-slate-100 py-20">
-        <div className="container">
+        <div className="container mx-auto">
           <div className="mx-auto max-w-3xl text-center">
             <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
               Encuentra los mejores productos
@@ -192,7 +192,7 @@ export default async function HomePage() {
 
       {/* Features */}
       <section className="border-t bg-muted/40 py-16">
-        <div className="container">
+        <div className="container mx-auto">
           <div className="grid gap-8 md:grid-cols-3">
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
