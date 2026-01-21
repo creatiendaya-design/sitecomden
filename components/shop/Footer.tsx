@@ -27,7 +27,7 @@ export default async function Footer() {
 
   return (
     <footer className="border-t bg-muted/40">
-      <div className="container py-12 mx-auto">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
           {/* About - Ahora usa settings.site_name */}
           <div>

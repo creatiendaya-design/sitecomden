@@ -95,7 +95,7 @@ export default function CartPage() {
   const canProceedToCheckout = !hasStockErrors && !stockCheck.loading;
 
   return (
-    <div className="container py-8 mx-auto">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <h1 className="mb-8 text-3xl font-bold">Carrito de Compras</h1>
 
       {/* Alertas de stock */}

@@ -388,7 +388,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="container py-8 mx-auto">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <h1 className="mb-8 text-3xl font-bold">Finalizar Compra</h1>
 
       <form onSubmit={handleSubmit}>

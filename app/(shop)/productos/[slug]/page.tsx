@@ -89,7 +89,7 @@ export default async function ProductDetailPage({
         <ProductImageGallery images={product.images} name={product.name} />
 
         {/* Product Info */}
-        <div className="space-y-6">
+        <div className="space-y-6  px-4 sm:px-6 lg:px-8">
           {/* Categories */}
           {product.categories && product.categories.length > 0 && (
             <div className="flex flex-wrap gap-2">

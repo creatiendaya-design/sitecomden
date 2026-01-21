@@ -8,7 +8,7 @@ export default async function CheckoutHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
           {settings.site_logo ? (
