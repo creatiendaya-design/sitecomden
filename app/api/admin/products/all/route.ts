@@ -1,21 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-export async function POST(request: Request) {
+export async function GET() {
   try {
-    const { ids } = await request.json();
-
-    if (!Array.isArray(ids)) {
-      return NextResponse.json(
-        { error: "IDs debe ser un array" },
-        { status: 400 }
-      );
-    }
-
     const products = await prisma.product.findMany({
-      where: {
-        id: { in: ids },
-      },
       select: {
         id: true,
         name: true,
@@ -24,7 +12,10 @@ export async function POST(request: Request) {
         images: true,
         active: true,
       },
-      orderBy: { name: "asc" },
+      orderBy: [
+        { active: "desc" }, // Activos primero
+        { name: "asc" },
+      ],
     });
 
     // Serializar precios
@@ -35,7 +26,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ products: serializedProducts });
   } catch (error) {
-    console.error("Error fetching products by ids:", error);
+    console.error("Error fetching products:", error);
     return NextResponse.json(
       { error: "Error al cargar productos" },
       { status: 500 }

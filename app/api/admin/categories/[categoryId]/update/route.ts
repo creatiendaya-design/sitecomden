@@ -52,14 +52,19 @@ export async function PUT(
       });
 
       // 2. Si es MANUAL, actualizar productos
-      if (data.collectionType === "MANUAL" && data.selectedProductIds) {
-        // Eliminar todas las relaciones actuales de esta categoría
+      if (data.collectionType === "MANUAL") {
+        // MEJORA: Limpiar condiciones SMART si existían
+        await tx.categoryCondition.deleteMany({
+          where: { categoryId },
+        });
+
+        // Eliminar todas las relaciones actuales de productos
         await tx.productCategory.deleteMany({
           where: { categoryId },
         });
 
         // Crear nuevas relaciones para los productos seleccionados
-        if (data.selectedProductIds.length > 0) {
+        if (data.selectedProductIds && data.selectedProductIds.length > 0) {
           await tx.productCategory.createMany({
             data: data.selectedProductIds.map((productId: string) => ({
               productId,
@@ -72,6 +77,11 @@ export async function PUT(
 
       // 3. Si es SMART, actualizar condiciones
       if (data.collectionType === "SMART") {
+        // MEJORA: Limpiar productos MANUALES si existían
+        await tx.productCategory.deleteMany({
+          where: { categoryId },
+        });
+
         // Eliminar condiciones anteriores
         await tx.categoryCondition.deleteMany({
           where: { categoryId },

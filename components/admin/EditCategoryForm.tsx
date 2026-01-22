@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import ManualProductSelector from "@/components/admin/ManualProductSelector";
@@ -23,7 +23,7 @@ interface Condition {
 }
 
 interface EditCategoryFormProps {
-  category: any;
+  category: any; // Mantener any por compatibilidad, o puedes hacer un tipo más específico
 }
 
 export default function EditCategoryForm({ category }: EditCategoryFormProps) {
@@ -43,10 +43,20 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
     order: category.order,
   });
 
-  // Estado para productos manuales
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
-    category.products?.map((p: any) => p.id) || []
-  );
+  // Estado para productos manuales - MEJORADO para compatibilidad
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() => {
+    // Soporta tanto category.products directo como category.products.product
+    if (Array.isArray(category.products)) {
+      return category.products.map((p: any) => {
+        // Si tiene estructura anidada (product.product.id)
+        if (p.product && p.product.id) return p.product.id;
+        // Si es directa (product.id)
+        if (p.id) return p.id;
+        return null;
+      }).filter(Boolean);
+    }
+    return [];
+  });
 
   // Estado para condiciones inteligentes
   const [conditions, setConditions] = useState<Condition[]>(
@@ -57,8 +67,9 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
       value: c.value,
     })) || []
   );
+  
   const [conditionRelation, setConditionRelation] = useState<"AND" | "OR">(
-    (category.conditions?.[0]?.relation as "AND" | "OR") || "AND"
+    (category.conditionRelation as "AND" | "OR") || "AND"
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +78,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
     setError(null);
 
     try {
+      // MANTENER tu ruta actual de API
       const response = await fetch(`/api/admin/categories/${category.id}/update`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -90,6 +102,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
       router.refresh();
     } catch (err) {
       setError("Error al actualizar categoría");
+      console.error("Error:", err);
     } finally {
       setLoading(false);
     }
@@ -108,6 +121,21 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
         .replace(/^-|-$/g, "");
       setFormData((prev) => ({ ...prev, slug }));
     }
+  };
+
+  // Extraer URL de imagen si es objeto
+  const getImageForUpload = () => {
+    if (!formData.image) return [];
+    
+    if (typeof formData.image === "string") {
+      return [{ url: formData.image, alt: "", name: "" }];
+    }
+    
+    if (typeof formData.image === "object" && formData.image.url) {
+      return [formData.image];
+    }
+    
+    return [];
   };
 
   return (
@@ -297,17 +325,18 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
               </CardHeader>
               <CardContent>
                 <ImageUpload
-                  images={formData.image ? (
-                    typeof formData.image === "string" 
-                      ? [{ url: formData.image, alt: "", name: "" }]
-                      : [formData.image]
-                  ) : []}
+                  images={getImageForUpload()}
                   onChange={(images) => {
                     const img = images[0];
-                    setFormData({ 
-                      ...formData, 
-                      image: img || ""
-                    });
+                    if (img) {
+                      // Guardar como objeto o string dependiendo de lo que devuelva ImageUpload
+                      setFormData({ 
+                        ...formData, 
+                        image: typeof img === "string" ? img : img.url || ""
+                      });
+                    } else {
+                      setFormData({ ...formData, image: "" });
+                    }
                   }}
                   maxImages={1}
                 />
@@ -349,25 +378,29 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
               </CardContent>
             </Card>
 
-            {category._count && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Estadísticas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center">
-                    <p className="text-3xl font-bold">
-                      {formData.collectionType === "MANUAL" 
-                        ? selectedProductIds.length 
-                        : category._count.products}
+            {/* Estadísticas - MEJORADO */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Estadísticas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center">
+                  <p className="text-3xl font-bold">
+                    {formData.collectionType === "MANUAL" 
+                      ? selectedProductIds.length 
+                      : (category._count?.products || 0)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    producto{selectedProductIds.length !== 1 ? 's' : ''} en esta categoría
+                  </p>
+                  {formData.collectionType === "MANUAL" && selectedProductIds.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Agrega productos usando el selector de arriba
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      producto(s) en esta categoría
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardContent className="space-y-2 p-6">
