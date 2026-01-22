@@ -5,7 +5,7 @@ import { esES } from "@clerk/localizations";
 import { Toaster } from "sonner";
 import { getSiteSettings } from "@/lib/site-settings";
 import "./globals.css";
-
+import "@/app/styles/prose-content.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

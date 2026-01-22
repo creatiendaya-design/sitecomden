@@ -1,0 +1,195 @@
+/* Estilos para contenido de editor de texto enriquecido */
+.prose-content {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: rgb(55 65 81);
+}
+
+.prose-content h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  margin-top: 2rem;
+  color: rgb(17 24 39);
+}
+
+.prose-content h2 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  margin-top: 1.5rem;
+  color: rgb(17 24 39);
+}
+
+.prose-content h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  margin-top: 1.25rem;
+  color: rgb(17 24 39);
+}
+
+.prose-content h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+  color: rgb(17 24 39);
+}
+
+.prose-content h5 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 0.75rem;
+  color: rgb(17 24 39);
+}
+
+.prose-content h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 0.5rem;
+  color: rgb(17 24 39);
+}
+
+.prose-content p {
+  margin-bottom: 1rem;
+}
+
+.prose-content ul {
+  list-style-type: disc;
+  list-style-position: inside;
+  margin-bottom: 1rem;
+  margin-left: 1rem;
+}
+
+.prose-content ul li {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-content ol {
+  list-style-type: decimal;
+  list-style-position: inside;
+  margin-bottom: 1rem;
+  margin-left: 1rem;
+}
+
+.prose-content ol li {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-content li {
+  color: rgb(55 65 81);
+}
+
+.prose-content ul ul,
+.prose-content ol ol,
+.prose-content ul ol,
+.prose-content ol ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-content a {
+  color: rgb(37 99 235);
+  text-decoration: underline;
+}
+
+.prose-content a:hover {
+  color: rgb(29 78 216);
+}
+
+.prose-content strong {
+  font-weight: 700;
+  color: rgb(17 24 39);
+}
+
+.prose-content em {
+  font-style: italic;
+}
+
+.prose-content u {
+  text-decoration: underline;
+}
+
+.prose-content s {
+  text-decoration: line-through;
+}
+
+.prose-content code {
+  background-color: rgb(243 244 246);
+  color: rgb(220 38 38);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.prose-content pre {
+  background-color: rgb(243 244 246);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.prose-content pre code {
+  background-color: transparent;
+  color: rgb(31 41 55);
+  padding: 0;
+}
+
+.prose-content blockquote {
+  border-left-width: 4px;
+  border-left-color: rgb(209 213 219);
+  padding-left: 1rem;
+  font-style: italic;
+  color: rgb(75 85 99);
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.prose-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.prose-content hr {
+  border-color: rgb(209 213 219);
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+/* Alineación de texto */
+.prose-content [style*="text-align: center"] {
+  text-align: center;
+}
+
+.prose-content [style*="text-align: right"] {
+  text-align: right;
+}
+
+.prose-content [style*="text-align: justify"] {
+  text-align: justify;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .prose-content h1 {
+    font-size: 1.875rem;
+  }
+
+  .prose-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .prose-content h3 {
+    font-size: 1.25rem;
+  }
+}

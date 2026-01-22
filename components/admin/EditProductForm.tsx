@@ -13,6 +13,7 @@ import { ArrowLeft, Save, Plus, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import BulkEditModal from "@/components/admin/BulkEditModal";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 
 interface ProductOption {
   name: string;
@@ -211,7 +212,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
           : null,
         stock: formData.hasVariants ? 0 : parseInt(formData.stock),
         hasVariants: formData.hasVariants,
-        categoryId: selectedCategoryId || null, // ✅ AGREGAR ESTO
+        categoryId: selectedCategoryId || null,
         options: formData.hasVariants ? options : [],
         variants: formData.hasVariants
           ? variants.map((v) => ({
@@ -328,19 +329,22 @@ export default function EditProductForm({ product, categories }: EditProductForm
                 </div>
 
                 <div>
-                  <Label htmlFor="description">Descripción</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows={6}
+                  <Label htmlFor="description">Descripción Completa</Label>
+                  <RichTextEditor
+                    content={formData.description}
+                    onChange={(content) =>
+                      setFormData((prev) => ({ ...prev, description: content }))
+                    }
+                    placeholder="Describe tu producto en detalle. Usa el editor para dar formato al texto..."
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Usa el editor para agregar formato, imágenes, listas y más
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* ✅ CATEGORÍA - AGREGADO */}
+            {/* ✅ CATEGORÍA */}
             <Card>
               <CardHeader>
                 <CardTitle>Categoría</CardTitle>

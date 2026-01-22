@@ -20,6 +20,7 @@ import { ArrowLeft, Save, Plus, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import ImageUpload from "@/components/admin/ImageUpload";
+import RichTextEditor from "./RichTextEditor"; // ← NUEVO
 
 interface ProductOption {
   name: string;
@@ -325,17 +326,24 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                     onChange={handleInputChange}
                     rows={2}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Aparece en listados y tarjetas de producto (máx. 160 caracteres)
+                  </p>
                 </div>
 
+                {/* ⭐ CAMBIO AQUÍ: Reemplazar Textarea con RichTextEditor ⭐ */}
                 <div>
-                  <Label htmlFor="description">Descripción</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows={6}
+                  <Label htmlFor="description">Descripción Completa</Label>
+                  <RichTextEditor
+                    content={formData.description}
+                    onChange={(content) =>
+                      setFormData((prev) => ({ ...prev, description: content }))
+                    }
+                    placeholder="Describe tu producto en detalle. Usa el editor para dar formato al texto..."
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Usa el editor para agregar formato, imágenes, listas y más
+                  </p>
                 </div>
               </CardContent>
             </Card>
