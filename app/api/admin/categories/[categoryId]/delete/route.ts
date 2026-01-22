@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function DELETE(
@@ -30,6 +31,11 @@ export async function DELETE(
     await prisma.category.delete({
       where: { id: categoryId },
     });
+
+    // ✅ CRÍTICO: Revalidar la caché en producción
+    // Esto fuerza a Next.js a regenerar la página en el próximo request
+    revalidatePath("/admin/categorias");
+    revalidatePath("/admin/categorias/[categoryId]", "page");
 
     return NextResponse.json({ 
       success: true,

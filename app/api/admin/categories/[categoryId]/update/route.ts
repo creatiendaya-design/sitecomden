@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { applySmartCollectionConditions } from "@/lib/smart-collections";
 
@@ -112,6 +113,11 @@ export async function PUT(
         data.conditionRelation || "AND"
       );
     }
+
+    // ✅ CRÍTICO: Revalidar la caché en producción
+    revalidatePath("/admin/categorias");
+    revalidatePath(`/admin/categorias/${categoryId}`);
+    revalidatePath("/admin/categorias/[categoryId]", "page");
 
     return NextResponse.json({ success: true, category });
   } catch (error) {

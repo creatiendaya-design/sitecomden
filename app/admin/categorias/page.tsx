@@ -6,6 +6,11 @@ import Link from "next/link";
 import Image from "next/image";
 import DeleteCategoryButton from "@/components/admin/DeleteCategoryButton";
 
+// ✅ CRÍTICO: Forzar renderizado dinámico en producción
+// Esto previene que Next.js cachee esta página
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function CategoriesPage() {
   const categories = await prisma.category.findMany({
     include: {
