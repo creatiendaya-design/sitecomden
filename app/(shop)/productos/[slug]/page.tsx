@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import ProductImageGallery from "@/components/shop/ProductImageGallery";
 import ProductActions from "@/components/shop/ProductActions";
+import RichTextContent from "@/components/RichTextContent"; // ← NUEVO
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -149,22 +150,19 @@ export default async function ProductDetailPage({
 
           <Separator />
 
-  <ProductActions
-  product={serializedProduct}
-  variants={serializedVariants}
-  options={product.options}
-/>
+          <ProductActions
+            product={serializedProduct}
+            variants={serializedVariants}
+            options={product.options}
+          />
 
           <Separator />
 
-          {/* Description */}
+          {/* ⭐ CAMBIO AQUÍ: Usar RichTextContent en lugar de dangerouslySetInnerHTML ⭐ */}
           {product.description && (
             <div>
               <h2 className="mb-3 text-xl font-semibold">Descripción</h2>
-              <div
-                className="prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: product.description }}
-              />
+              <RichTextContent content={product.description} />
             </div>
           )}
 
