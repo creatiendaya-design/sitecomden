@@ -34,7 +34,6 @@ interface EditProductFormProps {
   categories: Array<{
     id: string;
     name: string;
-    slug: string;
   }>;
 }
 
@@ -42,6 +41,11 @@ export default function EditProductForm({ product, categories }: EditProductForm
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ Estado para categoría seleccionada
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+    product.categories?.[0]?.category?.id || ""
+  );
 
   const [formData, setFormData] = useState({
     name: product.name,
@@ -207,6 +211,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
           : null,
         stock: formData.hasVariants ? 0 : parseInt(formData.stock),
         hasVariants: formData.hasVariants,
+        categoryId: selectedCategoryId || null, // ✅ AGREGAR ESTO
         options: formData.hasVariants ? options : [],
         variants: formData.hasVariants
           ? variants.map((v) => ({
@@ -331,6 +336,34 @@ export default function EditProductForm({ product, categories }: EditProductForm
                     onChange={handleInputChange}
                     rows={6}
                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ✅ CATEGORÍA - AGREGADO */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Categoría</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="categoryId">Categoría del producto</Label>
+                  <select
+                    id="categoryId"
+                    value={selectedCategoryId}
+                    onChange={(e) => setSelectedCategoryId(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">Sin categoría</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Selecciona la categoría principal de este producto
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -690,8 +723,6 @@ export default function EditProductForm({ product, categories }: EditProductForm
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Note: Las categorías ahora se gestionan mediante Colecciones (Manuales o Inteligentes) */}
-            
             <Card>
               <CardHeader>
                 <CardTitle>Estado</CardTitle>

@@ -42,7 +42,17 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
   const categories = await prisma.category.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+    },
   });
+
+  // ✅ Serializar categorías (igual que en NewProductPage)
+  const serializedCategories = categories.map(cat => ({
+    id: cat.id,
+    name: cat.name,
+  }));
 
   // Serializar datos para el cliente
   const serializedProduct = {
@@ -58,5 +68,5 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     })),
   };
 
-  return <EditProductForm product={serializedProduct} categories={categories} />;
+  return <EditProductForm product={serializedProduct} categories={serializedCategories} />;
 }
