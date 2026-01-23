@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: '5mb', // ✅ Agregado para subir imágenes OG
+      bodySizeLimit: '10mb', // ✅ Agregado para subir imágenes OG
     },
   },
   images: {
@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'public.blob.vercel-storage.com',
+      },
+         {
+        protocol: 'https',
+        hostname: 'primedecor.pk',
       },
     ],
   },
