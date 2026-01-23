@@ -1,7 +1,7 @@
 import CheckoutHeader from "@/components/shop/CheckoutHeader";
 import CheckoutFooter from "@/components/shop/CheckoutFooter";
 import { getSiteSettings } from "@/lib/site-settings";
-
+import Script from "next/script";
 export default async function CheckoutLayout({
   children,
 }: {
@@ -32,7 +32,10 @@ export default async function CheckoutLayout({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
-      
+      <Script
+        src="https://checkout.culqi.com/js/v4"
+        strategy="lazyOnload"
+      />
       <div className="flex min-h-screen flex-col">
         <CheckoutHeader />
         <main className="flex-1 bg-slate-50/50">{children}</main>
