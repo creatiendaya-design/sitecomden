@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { applySmartCollectionConditions } from "@/lib/smart-collections";
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
 
+    // Validaciones básicas
     if (!data.name || !data.slug) {
       return NextResponse.json(
         { error: "Nombre y slug son requeridos" },
@@ -26,78 +26,70 @@ export async function POST(request: Request) {
       );
     }
 
-    // Extraer URL de imagen si viene como objeto
-    let imageUrl = null;
-    if (data.image) {
-      if (typeof data.image === "string") {
-        imageUrl = data.image;
-      } else if (typeof data.image === "object" && data.image.url) {
-        imageUrl = data.image.url;
-      }
-    }
-
-    // Crear categoría con transacción
+    // Crear categoría en transacción
     const category = await prisma.$transaction(async (tx) => {
-      // 1. Crear categoría
+      // 1. Crear categoría base
       const newCategory = await tx.category.create({
         data: {
           name: data.name,
           slug: data.slug,
           description: data.description || null,
-          image: imageUrl,
+          image: data.image || null,
           metaTitle: data.metaTitle || null,
           metaDescription: data.metaDescription || null,
           collectionType: data.collectionType || "MANUAL",
-          parentId: data.parentId || null,
           active: data.active ?? true,
-          order: parseInt(data.order) || 0,
+          order: data.order || 0,
         },
       });
 
-      // 2. Si es MANUAL, asignar productos
-      if (data.collectionType === "MANUAL" && data.selectedProductIds && data.selectedProductIds.length > 0) {
+      // 2. Si es colección MANUAL, agregar productos
+      if (
+        data.collectionType === "MANUAL" &&
+        data.selectedProductIds &&
+        data.selectedProductIds.length > 0
+      ) {
         await tx.productCategory.createMany({
           data: data.selectedProductIds.map((productId: string) => ({
-            productId,
             categoryId: newCategory.id,
+            productId,
           })),
-          skipDuplicates: true,
         });
       }
 
-      // 3. Si es SMART, crear condiciones
-      if (data.collectionType === "SMART" && data.conditions && data.conditions.length > 0) {
+      // 3. Si es colección SMART, crear condiciones
+      if (
+        data.collectionType === "SMART" &&
+        data.conditions &&
+        data.conditions.length > 0
+      ) {
         await tx.categoryCondition.createMany({
           data: data.conditions.map((condition: any) => ({
             categoryId: newCategory.id,
             field: condition.field,
             operator: condition.operator,
             value: condition.value,
-            relation: data.conditionRelation || "AND",
           })),
         });
+
+        // TODO: Evaluar condiciones y agregar productos automáticamente
       }
 
       return newCategory;
     });
 
-    // 4. Si es SMART, aplicar condiciones DESPUÉS de la transacción
-    if (data.collectionType === "SMART" && data.conditions && data.conditions.length > 0) {
-      await applySmartCollectionConditions(
-        category.id,
-        data.conditions,
-        data.conditionRelation || "AND"
-      );
-    }
-
-    // ✅ CRÍTICO: Revalidar la caché en producción
+    // ✅ CRÍTICO: Revalidar rutas para actualizar cache
+    revalidatePath("/");  // Home page
     revalidatePath("/admin/categorias");
+    revalidatePath(`/productos`);  // Página de productos
+    
+    console.log("✅ Categoría creada y cache revalidado:", category.name);
 
     return NextResponse.json({ success: true, category });
   } catch (error) {
     console.error("Error al crear categoría:", error);
     return NextResponse.json(
-      { error: "Error al crear categoría" },
+      { error: "Error al crear la categoría" },
       { status: 500 }
     );
   }

@@ -9,6 +9,9 @@ export async function DELETE(
   try {
     const { categoryId } = await params;
 
+    console.log("🗑️ Eliminando categoría:", categoryId);
+
+    // Verificar si existe la categoría
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
       include: {
@@ -25,28 +28,26 @@ export async function DELETE(
       );
     }
 
-    // Eliminar la categoría
-    // Las relaciones en ProductCategory se eliminan automáticamente por onDelete: Cascade
-    // Los productos NO se eliminan, solo se desasocian de esta categoría
+    // Eliminar categoría (las relaciones se eliminan por cascade)
     await prisma.category.delete({
       where: { id: categoryId },
     });
 
-    // ✅ CRÍTICO: Revalidar la caché en producción
-    // Esto fuerza a Next.js a regenerar la página en el próximo request
+    // ✅ CRÍTICO: Revalidar rutas para actualizar cache
+    revalidatePath("/");  // Home page
     revalidatePath("/admin/categorias");
-    revalidatePath("/admin/categorias/[categoryId]", "page");
+    revalidatePath(`/productos`);  // Página de productos
+    
+    console.log("✅ Categoría eliminada y cache revalidado:", category.name);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: category._count.products > 0 
-        ? `Categoría eliminada. ${category._count.products} producto(s) desasociado(s).`
-        : "Categoría eliminada correctamente."
+      message: "Categoría eliminada exitosamente",
     });
   } catch (error) {
     console.error("Error al eliminar categoría:", error);
     return NextResponse.json(
-      { error: "Error al eliminar categoría" },
+      { error: "Error al eliminar la categoría" },
       { status: 500 }
     );
   }
