@@ -47,6 +47,7 @@ export default async function EditCategoryPage({ params }: EditCategoryPageProps
     products: category.products.map((pc) => ({
       ...pc.product,
       basePrice: Number(pc.product.basePrice),
+      images: pc.product.images as string[], // Asegurar que sea string[]
     })),
   };
 

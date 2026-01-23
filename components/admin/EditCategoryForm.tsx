@@ -15,15 +15,48 @@ import ImageUpload from "@/components/admin/ImageUpload";
 import ManualProductSelector from "@/components/admin/ManualProductSelector";
 import SmartConditionsBuilder from "@/components/admin/SmartConditionsBuilder";
 
+interface Product {
+  id: string;
+  name: string;
+  sku: string | null;
+  basePrice: number;
+  images: string[]; // Array de URLs de imágenes
+  active: boolean;
+}
+
 interface Condition {
   id: string;
   field: string;
   operator: string;
   value: string;
+  relation: string;
+  categoryId: string;
+  createdAt: Date;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  collectionType: string;
+  active: boolean;
+  order: number;
+  products: Product[];
+  conditions: Condition[];
+  _count: {
+    products: number;
+  };
+  createdAt?: Date;
+  updatedAt?: Date;
+  parentId?: string | null;
 }
 
 interface EditCategoryFormProps {
-  category: any; // Mantener any por compatibilidad, o puedes hacer un tipo más específico
+  category: Category;
 }
 
 export default function EditCategoryForm({ category }: EditCategoryFormProps) {
@@ -31,7 +64,18 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
+  // ✅ Tipo explícito para evitar confusión de TypeScript
+  const [formData, setFormData] = useState<{
+    name: string;
+    slug: string;
+    description: string;
+    image: string; // Solo string, no objeto
+    metaTitle: string;
+    metaDescription: string;
+    collectionType: string;
+    active: boolean;
+    order: number;
+  }>({
     name: category.name,
     slug: category.slug,
     description: category.description || "",
@@ -43,33 +87,22 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
     order: category.order,
   });
 
-  // Estado para productos manuales - MEJORADO para compatibilidad
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() => {
-    // Soporta tanto category.products directo como category.products.product
-    if (Array.isArray(category.products)) {
-      return category.products.map((p: any) => {
-        // Si tiene estructura anidada (product.product.id)
-        if (p.product && p.product.id) return p.product.id;
-        // Si es directa (product.id)
-        if (p.id) return p.id;
-        return null;
-      }).filter(Boolean);
-    }
-    return [];
-  });
+  // Estado para productos manuales
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
+    category.products.map((p) => p.id)
+  );
 
   // Estado para condiciones inteligentes
-  const [conditions, setConditions] = useState<Condition[]>(
-    category.conditions?.map((c: any) => ({
+  const [conditions, setConditions] = useState(
+    category.conditions.map((c) => ({
       id: c.id,
       field: c.field,
       operator: c.operator,
       value: c.value,
-    })) || []
+    }))
   );
-  
   const [conditionRelation, setConditionRelation] = useState<"AND" | "OR">(
-    (category.conditionRelation as "AND" | "OR") || "AND"
+    (category.conditions[0]?.relation as "AND" | "OR") || "AND"
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,18 +111,20 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
     setError(null);
 
     try {
-      // MANTENER tu ruta actual de API
-      const response = await fetch(`/api/admin/categories/${category.id}/update`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          selectedProductIds:
-            formData.collectionType === "MANUAL" ? selectedProductIds : [],
-          conditions: formData.collectionType === "SMART" ? conditions : [],
-          conditionRelation,
-        }),
-      });
+      const response = await fetch(
+        `/api/admin/categories/${category.id}/update`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData,
+            selectedProductIds:
+              formData.collectionType === "MANUAL" ? selectedProductIds : [],
+            conditions: formData.collectionType === "SMART" ? conditions : [],
+            conditionRelation,
+          }),
+        }
+      );
 
       const data = await response.json();
 
@@ -102,7 +137,6 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
       router.refresh();
     } catch (err) {
       setError("Error al actualizar categoría");
-      console.error("Error:", err);
     } finally {
       setLoading(false);
     }
@@ -123,21 +157,6 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
     }
   };
 
-  // Extraer URL de imagen si es objeto
-  const getImageForUpload = () => {
-    if (!formData.image) return [];
-    
-    if (typeof formData.image === "string") {
-      return [{ url: formData.image, alt: "", name: "" }];
-    }
-    
-    if (typeof formData.image === "object" && formData.image.url) {
-      return [formData.image];
-    }
-    
-    return [];
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -148,7 +167,9 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Editar Categoría</h1>
-          <p className="text-muted-foreground">{category.name}</p>
+          <p className="text-muted-foreground">
+            Actualiza la información de la categoría
+          </p>
         </div>
       </div>
 
@@ -217,11 +238,15 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
                   <div className="flex items-start space-x-3 rounded-lg border p-4">
                     <RadioGroupItem value="MANUAL" id="manual" />
                     <div className="space-y-1">
-                      <Label htmlFor="manual" className="font-semibold cursor-pointer">
+                      <Label
+                        htmlFor="manual"
+                        className="font-semibold cursor-pointer"
+                      >
                         Manual
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Agrega productos a esta colección uno por uno. Tendrás control total sobre qué productos se muestran.
+                        Agrega productos a esta colección uno por uno. Tendrás
+                        control total sobre qué productos se muestran.
                       </p>
                     </div>
                   </div>
@@ -229,11 +254,16 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
                   <div className="flex items-start space-x-3 rounded-lg border p-4">
                     <RadioGroupItem value="SMART" id="smart" />
                     <div className="space-y-1">
-                      <Label htmlFor="smart" className="font-semibold cursor-pointer">
+                      <Label
+                        htmlFor="smart"
+                        className="font-semibold cursor-pointer"
+                      >
                         Inteligente
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Los productos existentes y futuros que cumplan las condiciones que definas se añadirán automáticamente a esta colección.
+                        Los productos existentes y futuros que cumplan las
+                        condiciones que definas se añadirán automáticamente a
+                        esta colección.
                       </p>
                     </div>
                   </div>
@@ -247,7 +277,8 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
                 <CardHeader>
                   <CardTitle>Productos</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Busca y selecciona los productos que deseas agregar a esta colección
+                    Busca y selecciona los productos que deseas agregar a esta
+                    colección
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -265,7 +296,8 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
                 <CardHeader>
                   <CardTitle>Condiciones</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Define las reglas para que los productos se agreguen automáticamente
+                    Define las reglas para que los productos se agreguen
+                    automáticamente
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -292,11 +324,14 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
                     name="metaTitle"
                     value={formData.metaTitle}
                     onChange={handleInputChange}
-                    placeholder={formData.name || "Título para motores de búsqueda"}
+                    placeholder={
+                      formData.name || "Título para motores de búsqueda"
+                    }
                     maxLength={60}
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formData.metaTitle.length}/60 caracteres. Si está vacío, se usará el nombre de la categoría.
+                    {formData.metaTitle.length}/60 caracteres. Si está vacío, se
+                    usará el nombre de la categoría.
                   </p>
                 </div>
 
@@ -307,45 +342,51 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
                     name="metaDescription"
                     value={formData.metaDescription}
                     onChange={handleInputChange}
-                    placeholder={formData.description || "Descripción para motores de búsqueda"}
+                    placeholder={
+                      formData.description ||
+                      "Descripción para motores de búsqueda"
+                    }
                     rows={3}
                     maxLength={160}
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formData.metaDescription.length}/160 caracteres. Si está vacío, se usará la descripción.
+                    {formData.metaDescription.length}/160 caracteres. Si está
+                    vacío, se usará la descripción.
                   </p>
                 </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Imagen */}
+          {/* Sidebar Derecho */}
+          <div className="space-y-6">
+            {/* Imagen de Categoría */}
             <Card>
               <CardHeader>
                 <CardTitle>Imagen</CardTitle>
               </CardHeader>
               <CardContent>
                 <ImageUpload
-                  images={getImageForUpload()}
+                  images={
+                    formData.image
+                      ? typeof formData.image === "string"
+                        ? [{ url: formData.image, alt: "", name: "" }]
+                        : [formData.image]
+                      : []
+                  }
                   onChange={(images) => {
                     const img = images[0];
-                    if (img) {
-                      // Guardar como objeto o string dependiendo de lo que devuelva ImageUpload
-                      setFormData({ 
-                        ...formData, 
-                        image: typeof img === "string" ? img : img.url || ""
-                      });
-                    } else {
-                      setFormData({ ...formData, image: "" });
-                    }
+                    setFormData({
+                      ...formData,
+                      image: img ? img.url : "",
+                    });
                   }}
                   maxImages={1}
                 />
               </CardContent>
             </Card>
-          </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+            {/* Configuración */}
             <Card>
               <CardHeader>
                 <CardTitle>Configuración</CardTitle>
@@ -378,30 +419,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
               </CardContent>
             </Card>
 
-            {/* Estadísticas - MEJORADO */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Estadísticas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center">
-                  <p className="text-3xl font-bold">
-                    {formData.collectionType === "MANUAL" 
-                      ? selectedProductIds.length 
-                      : (category._count?.products || 0)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    producto{selectedProductIds.length !== 1 ? 's' : ''} en esta categoría
-                  </p>
-                  {formData.collectionType === "MANUAL" && selectedProductIds.length === 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Agrega productos usando el selector de arriba
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
+            {/* Botones de Acción */}
             <Card>
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>

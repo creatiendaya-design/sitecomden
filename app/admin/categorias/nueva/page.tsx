@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, Save, Info } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import ManualProductSelector from "@/components/admin/ManualProductSelector";
@@ -27,11 +27,12 @@ export default function NewCategoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Tipo explícito para evitar confusión de TypeScript
   const [formData, setFormData] = useState<{
     name: string;
     slug: string;
     description: string;
-    image: string | { url: string; alt?: string; name?: string } | "";
+    image: string; // Solo string, no objeto
     metaTitle: string;
     metaDescription: string;
     collectionType: string;
@@ -284,8 +285,11 @@ export default function NewCategoryPage() {
                 </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Imagen */}
+          {/* Sidebar Derecho */}
+          <div className="space-y-6">
+            {/* Imagen de Categoría */}
             <Card>
               <CardHeader>
                 <CardTitle>Imagen</CardTitle>
@@ -301,17 +305,15 @@ export default function NewCategoryPage() {
                     const img = images[0];
                     setFormData({ 
                       ...formData, 
-                      image: img || ""
+                      image: img ? img.url : ""
                     });
                   }}
                   maxImages={1}
                 />
               </CardContent>
             </Card>
-          </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+            {/* Configuración */}
             <Card>
               <CardHeader>
                 <CardTitle>Configuración</CardTitle>
@@ -344,6 +346,7 @@ export default function NewCategoryPage() {
               </CardContent>
             </Card>
 
+            {/* Botones de Acción */}
             <Card>
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>
