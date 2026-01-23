@@ -112,4 +112,4 @@ export async function POST(request: Request) {
 // ⚠️ IMPORTANTE: Edge Runtime tiene límites más estrictos
 // Si tienes problemas con archivos >4.5MB, considera remover esta línea
 // y usar Node.js runtime por defecto (más lento pero sin límites)
-export const runtime = "edge";
+export const maxDuration = 60;
