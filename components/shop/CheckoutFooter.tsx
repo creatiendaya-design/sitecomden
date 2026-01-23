@@ -45,21 +45,21 @@ export default async function CheckoutFooter() {
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
             <Link
-              href="/terminos-y-condiciones"
+              href="/terminos"
               className="text-muted-foreground hover:text-primary"
             >
               Términos y Condiciones
             </Link>
             <span className="text-muted-foreground">•</span>
             <Link
-              href="/politica-de-privacidad"
+              href="/privacidad"
               className="text-muted-foreground hover:text-primary"
             >
               Política de Privacidad
             </Link>
             <span className="text-muted-foreground">•</span>
             <Link
-              href="/politica-de-cambios"
+              href="/devoluciones"
               className="text-muted-foreground hover:text-primary"
             >
               Cambios y Devoluciones

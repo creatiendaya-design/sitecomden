@@ -43,7 +43,7 @@ const initialFormData = {
   customerDni: "",
   address: "",
   reference: "",
-  paymentMethod: "YAPE" as const,
+  paymentMethod: "YAPE" as "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO",
   customerNotes: "",
   acceptTerms: false,
   acceptWhatsApp: false,
@@ -65,10 +65,9 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [stockVerified, setStockVerified] = useState(false);
   const [stockCheckLoading, setStockCheckLoading] = useState(false);
+  const [culqiToken, setCulqiToken] = useState<string | null>(null);
   
   // Estado para el Sheet del resumen en móvil
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
@@ -204,6 +203,13 @@ export default function CheckoutPage() {
         return;
       }
 
+      // Si es pago con tarjeta, validar que tenga token
+      if (formData.paymentMethod === "CARD" && !culqiToken) {
+        setError("Por favor completa los datos de tu tarjeta");
+        setLoading(false);
+        return;
+      }
+
       // Verificar stock una última vez
       const stockItems = items.map((item) => ({
         id: item.id,
@@ -275,20 +281,26 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Guardar ID de orden
-      setCreatedOrderId(result.orderId || null);
+      // Si es pago con tarjeta, procesar el pago con el token
+      if (result.paymentMethod === "CARD" && culqiToken) {
+        const paymentResult = await processCardPayment({
+          orderId: result.orderId!,
+          culqiToken,
+          email: formData.customerEmail,
+        });
 
-      // Si es pago con tarjeta, mostrar formulario inline
-      if (result.paymentMethod === "CARD") {
-        setShowPaymentForm(true);
-        setLoading(false);
-        return;
+        if (!paymentResult.success) {
+          setError(paymentResult.error || "Error al procesar el pago");
+          setLoading(false);
+          return;
+        }
       }
 
-      // Para otros métodos, limpiar carrito y datos persistidos
+      // Limpiar carrito y datos persistidos
       clearCart();
       clearPersistedData();
 
+      // Redirigir según método de pago
       if (result.paymentMethod === "YAPE" || result.paymentMethod === "PLIN") {
         router.push(`/orden/${result.orderId}/pago-pendiente`);
       } else if (result.paymentMethod === "PAYPAL") {
@@ -301,39 +313,6 @@ export default function CheckoutPage() {
       setError("Error inesperado. Por favor intenta nuevamente.");
       setLoading(false);
     }
-  };
-
-  const handlePaymentSuccess = async (culqiToken: string) => {
-    if (!createdOrderId) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await processCardPayment({
-        orderId: createdOrderId,
-        culqiToken,
-        email: formData.customerEmail,
-      });
-
-      if (!result.success) {
-        setError(result.error || "Error al procesar el pago");
-        setLoading(false);
-        return;
-      }
-
-      clearCart();
-      clearPersistedData();
-      router.push(`/orden/${createdOrderId}/confirmacion`);
-    } catch (error) {
-      setError("Error al procesar el pago");
-      setLoading(false);
-    }
-  };
-
-  const handlePaymentError = (errorMessage: string) => {
-    setError(errorMessage);
-    setLoading(false);
   };
 
   const handleInputChange = (
@@ -378,6 +357,18 @@ export default function CheckoutPage() {
     setSelectedShippingRate(rate);
   };
 
+  // Handler cuando Culqi obtiene el token (success)
+  const handleCulqiSuccess = (token: string) => {
+    setCulqiToken(token);
+    setError(null);
+  };
+
+  // Handler cuando Culqi tiene un error
+  const handleCulqiError = (errorMessage: string) => {
+    setError(errorMessage);
+    setCulqiToken(null);
+  };
+
   const subtotal = getTotalPrice();
   const discount = appliedCoupon?.discount || 0;
   
@@ -397,6 +388,17 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
+  // Texto del botón según el método de pago
+  const getButtonText = () => {
+    if (loading) return "Procesando...";
+    if (stockCheckLoading) return "Verificando stock...";
+    if (!selectedShippingRate) return "Selecciona método de envío";
+    if (formData.paymentMethod === "CARD") {
+      return culqiToken ? "Procesar Pago" : "Completa datos de tarjeta";
+    }
+    return "Confirmar Pedido";
+  };
 
   // Componente de resumen reutilizable
   const OrderSummaryContent = () => (
@@ -726,12 +728,14 @@ export default function CheckoutPage() {
                 <CardHeader>
                   <CardTitle>Método de Pago</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <RadioGroup
                     value={formData.paymentMethod}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, paymentMethod: value as any })
-                    }
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, paymentMethod: value as any });
+                      // Resetear token cuando cambia método
+                      setCulqiToken(null);
+                    }}
                   >
                     <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="YAPE" id="yape" />
@@ -764,20 +768,35 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                      <RadioGroupItem value="CARD" id="card" />
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <VisaIcon width={40} height={26} />
-                          <MastercardIcon width={32} height={20} />
-                        </div>
-                        <Label htmlFor="card" className="flex-1 cursor-pointer">
-                          <div className="font-semibold">Tarjeta de Crédito/Débito</div>
-                          <div className="text-sm text-muted-foreground">
-                            Visa, Mastercard • Pago seguro
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
+                        <RadioGroupItem value="CARD" id="card" />
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <VisaIcon width={40} height={26} />
+                            <MastercardIcon width={32} height={20} />
                           </div>
-                        </Label>
+                          <Label htmlFor="card" className="flex-1 cursor-pointer">
+                            <div className="font-semibold">Tarjeta de Crédito/Débito</div>
+                            <div className="text-sm text-muted-foreground">
+                              Visa, Mastercard • Pago seguro
+                            </div>
+                          </Label>
+                        </div>
                       </div>
+
+                      {/* Formulario de tarjeta - aparece cuando se selecciona CARD */}
+                      {formData.paymentMethod === "CARD" && (
+                        <div className="pl-11 pr-4 pb-4">
+                          <CulqiPaymentForm
+                            amount={total}
+                            email={formData.customerEmail}
+                            orderId="temp" // Se actualizará después
+                            onSuccess={handleCulqiSuccess}
+                            onError={handleCulqiError}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
@@ -862,30 +881,14 @@ export default function CheckoutPage() {
                     className="w-full"
                     disabled={
                       loading || 
-                      showPaymentForm || 
                       !stockVerified || 
                       stockCheckLoading || 
-                      !selectedShippingRate
+                      !selectedShippingRate ||
+                      (formData.paymentMethod === "CARD" && !culqiToken)
                     }
                   >
-                    {loading ? "Procesando..." : 
-                     stockCheckLoading ? "Verificando stock..." :
-                     !selectedShippingRate ? "Selecciona método de envío" :
-                     "Confirmar Pedido"}
+                    {getButtonText()}
                   </Button>
-
-                  {/* Mostrar formulario de pago con tarjeta si corresponde */}
-                  {showPaymentForm && createdOrderId && (
-                    <div className="mt-6">
-                      <CulqiPaymentForm
-                        amount={total}
-                        email={formData.customerEmail}
-                        orderId={createdOrderId}
-                        onSuccess={handlePaymentSuccess}
-                        onError={handlePaymentError}
-                      />
-                    </div>
-                  )}
 
                   {/* Métodos de pago aceptados */}
                   <div className="space-y-2">
@@ -942,10 +945,10 @@ export default function CheckoutPage() {
             className="w-full text-base font-semibold h-12"
             disabled={
               loading || 
-              showPaymentForm || 
               !stockVerified || 
               stockCheckLoading || 
-              !selectedShippingRate
+              !selectedShippingRate ||
+              (formData.paymentMethod === "CARD" && !culqiToken)
             }
             onClick={handleSubmit}
           >
@@ -957,7 +960,7 @@ export default function CheckoutPage() {
               "Selecciona método de envío"
             ) : (
               <span className="flex items-center justify-center gap-2">
-                <span>Pagar</span>
+                <span>{formData.paymentMethod === "CARD" ? "Pagar" : "Confirmar"}</span>
                 <span className="font-bold">{formatPrice(total)}</span>
               </span>
             )}
