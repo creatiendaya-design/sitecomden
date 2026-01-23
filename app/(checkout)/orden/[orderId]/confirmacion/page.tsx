@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getSiteSettings } from "@/lib/site-settings";
 import { notFound, redirect } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +42,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function OrderConfirmationPage({ params }: PageProps) {
   const { orderId } = await params;
 
+  // Obtener configuraciones del sitio
+  const siteSettings = await getSiteSettings();
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -67,6 +71,9 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
   }
 
   const isPaid = order.paymentStatus === "PAID";
+
+  // Formatear número de WhatsApp (quitar espacios y caracteres especiales)
+  const whatsappNumber = siteSettings.contact_phone.replace(/\D/g, '');
 
   return (
     <div className="container py-8 md:py-16">
@@ -274,13 +281,16 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
             <p className="mt-1 text-sm">
               Contáctanos por WhatsApp:{" "}
               <a
-                href={`https://wa.me/51${order.customerPhone.replace(/\D/g, '')}?text=Hola, tengo una consulta sobre mi orden ${order.orderNumber}`}
+                href={`https://wa.me/${whatsappNumber}?text=Hola, tengo una consulta sobre mi orden ${order.orderNumber}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary underline"
               >
-                +51 {order.customerPhone}
+                {siteSettings.contact_phone}
               </a>
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              También puedes escribirnos a: {siteSettings.contact_email}
             </p>
           </AlertDescription>
         </Alert>
