@@ -97,6 +97,11 @@ export default function AdminLayout({
       label: "Cupones",
     },
     {
+  href: "/admin/newsletter",
+  icon: Mail,
+  label: "Newsletter",
+},
+    {
       href: "/admin/lealtad",
       icon: Trophy,
       label: "Lealtad",
