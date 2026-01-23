@@ -107,7 +107,7 @@ export default async function Header() {
               </Link>
             ))}
             <Link
-              href="/sobre-nosotros"
+              href="/nosotros"
               className="transition-colors hover:text-foreground/80 whitespace-nowrap"
             >
               Nosotros
