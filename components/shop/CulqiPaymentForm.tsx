@@ -26,8 +26,7 @@ export default function CulqiPaymentForm({
   const [formData, setFormData] = useState({
     cardNumber: "",
     cvv: "",
-    expirationMonth: "",
-    expirationYear: "",
+    expirationDate: "",  // Formato: MM/AA
     email: email,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -44,21 +43,32 @@ export default function CulqiPaymentForm({
     return /^\d{3,4}$/.test(cvv);
   };
 
-  const validateMonth = (month: string) => {
+  const validateExpirationDate = (date: string) => {
+    // Formato: MM/AA
+    if (!/^\d{2}\/\d{2}$/.test(date)) return false;
+    
+    const [month, year] = date.split('/');
     const m = parseInt(month);
-    return m >= 1 && m <= 12;
-  };
-
-  const validateYear = (year: string) => {
     const currentYear = new Date().getFullYear() % 100;
     const y = parseInt(year);
-    return y >= currentYear && y <= currentYear + 20;
+    
+    return m >= 1 && m <= 12 && y >= currentYear && y <= currentYear + 20;
   };
 
+  // Formatear número de tarjeta
   const formatCardNumber = (value: string) => {
     const cleaned = value.replace(/\s/g, '');
     const groups = cleaned.match(/.{1,4}/g);
     return groups ? groups.join(' ') : cleaned;
+  };
+
+  // Formatear fecha de expiración MM/AA
+  const formatExpirationDate = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length >= 2) {
+      return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`;
+    }
+    return cleaned;
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -69,10 +79,9 @@ export default function CulqiPaymentForm({
       formattedValue = formatCardNumber(formattedValue);
     } else if (field === 'cvv') {
       formattedValue = value.replace(/\D/g, '').slice(0, 4);
-    } else if (field === 'expirationMonth') {
-      formattedValue = value.replace(/\D/g, '').slice(0, 2);
-    } else if (field === 'expirationYear') {
-      formattedValue = value.replace(/\D/g, '').slice(0, 2);
+    } else if (field === 'expirationDate') {
+      formattedValue = value.replace(/\D/g, '').slice(0, 4);
+      formattedValue = formatExpirationDate(formattedValue);
     }
 
     setFormData((prev) => ({ ...prev, [field]: formattedValue }));
@@ -99,12 +108,8 @@ export default function CulqiPaymentForm({
       newErrors.cvv = 'CVV inválido (3-4 dígitos)';
     }
 
-    if (!validateMonth(formData.expirationMonth)) {
-      newErrors.expirationMonth = 'Mes inválido (01-12)';
-    }
-
-    if (!validateYear(formData.expirationYear)) {
-      newErrors.expirationYear = 'Año inválido';
+    if (!validateExpirationDate(formData.expirationDate)) {
+      newErrors.expirationDate = 'Fecha inválida (MM/AA)';
     }
 
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -135,11 +140,14 @@ export default function CulqiPaymentForm({
     console.log('📤 Generando token con API de Culqi...');
 
     try {
+      // Extraer mes y año del campo combinado
+      const [month, year] = formData.expirationDate.split('/');
+      
       // Convertir año de 2 dígitos a 4 dígitos (28 → 2028)
-      const fullYear = `20${formData.expirationYear}`;
+      const fullYear = `20${year}`;
       
       // Asegurar que el mes tenga 2 dígitos (9 → 09)
-      const paddedMonth = formData.expirationMonth.padStart(2, '0');
+      const paddedMonth = month.padStart(2, '0');
       
       console.log('📤 Enviando a Culqi:', {
         card_number: `****${formData.cardNumber.slice(-4)}`,
@@ -197,8 +205,7 @@ export default function CulqiPaymentForm({
       !processing &&
       formData.cardNumber.replace(/\s/g, '').length >= 13 &&
       formData.cvv.length >= 3 &&
-      formData.expirationMonth.length === 2 &&
-      formData.expirationYear.length === 2 &&
+      formData.expirationDate.length === 5 &&  // MM/AA = 5 caracteres
       formData.email
     ) {
       generateToken();
@@ -241,59 +248,25 @@ export default function CulqiPaymentForm({
         )}
       </div>
 
-      {/* Email */}
-      <div>
-        <Label htmlFor="email">Email *</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="tu@email.com"
-          value={formData.email}
-          onChange={(e) => handleInputChange('email', e.target.value)}
-          disabled={processing || tokenGenerated}
-          className={errors.email ? 'border-red-500' : ''}
-        />
-        {errors.email && (
-          <p className="text-sm text-red-500 mt-1">{errors.email}</p>
-        )}
-      </div>
-
-      {/* Fecha y CVV */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Fecha de Expiración y CVV */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="expirationMonth">Mes *</Label>
+          <Label htmlFor="expirationDate">Fecha de Expiración *</Label>
           <Input
-            id="expirationMonth"
+            id="expirationDate"
             type="text"
-            placeholder="MM"
-            maxLength={2}
-            value={formData.expirationMonth}
-            onChange={(e) => handleInputChange('expirationMonth', e.target.value)}
+            placeholder="MM/AA"
+            maxLength={5}
+            value={formData.expirationDate}
+            onChange={(e) => handleInputChange('expirationDate', e.target.value)}
             onBlur={handleBlur}
             disabled={processing || tokenGenerated}
-            className={errors.expirationMonth ? 'border-red-500' : ''}
+            className={errors.expirationDate ? 'border-red-500' : ''}
           />
-          {errors.expirationMonth && (
-            <p className="text-xs text-red-500 mt-1">{errors.expirationMonth}</p>
+          {errors.expirationDate && (
+            <p className="text-xs text-red-500 mt-1">{errors.expirationDate}</p>
           )}
-        </div>
-
-        <div>
-          <Label htmlFor="expirationYear">Año *</Label>
-          <Input
-            id="expirationYear"
-            type="text"
-            placeholder="AA"
-            maxLength={2}
-            value={formData.expirationYear}
-            onChange={(e) => handleInputChange('expirationYear', e.target.value)}
-            onBlur={handleBlur}
-            disabled={processing || tokenGenerated}
-            className={errors.expirationYear ? 'border-red-500' : ''}
-          />
-          {errors.expirationYear && (
-            <p className="text-xs text-red-500 mt-1">{errors.expirationYear}</p>
-          )}
+          <p className="text-xs text-muted-foreground mt-1">Ejemplo: 12/28</p>
         </div>
 
         <div>
@@ -312,7 +285,25 @@ export default function CulqiPaymentForm({
           {errors.cvv && (
             <p className="text-xs text-red-500 mt-1">{errors.cvv}</p>
           )}
+          <p className="text-xs text-muted-foreground mt-1">3-4 dígitos</p>
         </div>
+      </div>
+
+      {/* Email */}
+      <div>
+        <Label htmlFor="email">Correo Electrónico *</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="tu@email.com"
+          value={formData.email}
+          onChange={(e) => handleInputChange('email', e.target.value)}
+          disabled={processing || tokenGenerated}
+          className={errors.email ? 'border-red-500' : ''}
+        />
+        {errors.email && (
+          <p className="text-sm text-red-500 mt-1">{errors.email}</p>
+        )}
       </div>
 
       {/* Status */}
@@ -351,22 +342,20 @@ export default function CulqiPaymentForm({
             <strong>✅ Pago Exitoso:</strong>
             <div className="font-mono bg-white p-2 rounded mt-1">
               4111 1111 1111 1111<br />
-              CVV: 123<br />
-              Mes: 12 (Diciembre)<br />
-              Año: 28 (2028)
+              Fecha: 12/28<br />
+              CVV: 123
             </div>
           </div>
           <div className="mt-2">
             <strong>❌ Pago Rechazado:</strong>
             <div className="font-mono bg-white p-2 rounded mt-1">
               4000 0000 0000 0002<br />
-              CVV: 123<br />
-              Mes: 12 (Diciembre)<br />
-              Año: 28 (2028)
+              Fecha: 12/28<br />
+              CVV: 123
             </div>
           </div>
           <p className="text-xs text-blue-700 mt-2 italic">
-            * Ingresa solo 2 dígitos para el año (28 = 2028)
+            * La barra "/" se agrega automáticamente al escribir
           </p>
         </div>
       </div>
