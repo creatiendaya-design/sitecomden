@@ -81,12 +81,22 @@ export default async function AdminDashboardPage() {
     take: 5,
   });
 
+  // ✅ CORREGIDO: Manejar productId nullable
   const topProductsWithDetails = await Promise.all(
     topProducts.map(async (item) => {
+      // Si productId es null, retornar sin hacer query
+      if (!item.productId) {
+        return {
+          ...item,
+          product: null,
+        };
+      }
+
       const product = await prisma.product.findUnique({
         where: { id: item.productId },
         select: { name: true, images: true },
       });
+      
       return {
         ...item,
         product,
@@ -302,7 +312,7 @@ export default async function AdminDashboardPage() {
               ) : (
                 topProductsWithDetails.map((item, index) => (
                   <div
-                    key={item.productId}
+                    key={item.productId || `deleted-${index}`}
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">

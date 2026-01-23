@@ -243,12 +243,22 @@ export default async function OrderDetailPage({
                       />
                     )}
                     <div className="flex-1">
-                      <Link
-                        href={`/producto/${item.product.slug}`}
-                        className="font-medium hover:underline"
-                      >
-                        {item.name}
-                      </Link>
+                      {/* ✅ CAMBIO: Verificar que product existe antes de acceder a .slug */}
+                      {item.product ? (
+                        <Link
+                          href={`/producto/${item.product.slug}`}
+                          className="font-medium hover:underline"
+                        >
+                          {item.name}
+                        </Link>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="font-medium">{item.name}</p>
+                          <Badge variant="secondary" className="text-xs">
+                            Producto no disponible
+                          </Badge>
+                        </div>
+                      )}
                       {item.variantName && (
                         <p className="text-sm text-muted-foreground">
                           {item.variantName}

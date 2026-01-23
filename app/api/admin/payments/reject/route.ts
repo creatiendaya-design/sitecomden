@@ -38,7 +38,11 @@ export async function POST(request: Request) {
 
     if (order) {
       for (const item of order.items) {
+        // ✅ IMPORTANTE: Solo restaurar stock si el producto/variante aún existe
+        // Si fue eliminado, no hay stock que restaurar
+        
         if (item.variantId) {
+          // Restaurar stock de variante
           await prisma.productVariant.update({
             where: { id: item.variantId },
             data: { stock: { increment: item.quantity } },
@@ -53,7 +57,8 @@ export async function POST(request: Request) {
               reference: order.id,
             },
           });
-        } else {
+        } else if (item.productId) {  // ✅ CAMBIO: Verificar que productId exista
+          // Restaurar stock de producto simple
           await prisma.product.update({
             where: { id: item.productId },
             data: { stock: { increment: item.quantity } },
@@ -68,6 +73,11 @@ export async function POST(request: Request) {
               reference: order.id,
             },
           });
+        } else {
+          // ✅ NUEVO: Producto fue eliminado, no hay stock que restaurar
+          console.log(
+            `⚠️ Item de orden sin producto: ${item.name} - Producto fue eliminado, no se restaura stock`
+          );
         }
       }
     }

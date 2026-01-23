@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function DELETE(
@@ -12,7 +13,12 @@ export async function DELETE(
     const product = await prisma.product.findUnique({
       where: { id: productId },
       include: {
-        orderItems: true,
+        orderItems: {
+          select: { id: true },
+        },
+        variants: {
+          select: { id: true },
+        },
       },
     });
 
@@ -23,25 +29,51 @@ export async function DELETE(
       );
     }
 
-    // Verificar si tiene órdenes asociadas
-    if (product.orderItems.length > 0) {
-      return NextResponse.json(
-        {
-          error:
-            "No se puede eliminar el producto porque tiene órdenes asociadas. Puedes desactivarlo en su lugar.",
-        },
-        { status: 400 }
-      );
-    }
+    // ✅ YA NO BLOQUEAMOS LA ELIMINACIÓN SI HAY ÓRDENES
+    // Los OrderItems ahora tienen onDelete: SetNull, entonces:
+    // - productId y variantId se ponen NULL automáticamente
+    // - El snapshot (name, price, image, etc.) permanece intacto
+    
+    // Info para logging
+    const hasOrders = product.orderItems.length > 0;
+    const variantsCount = product.variants.length;
 
-    // Eliminar producto (las variantes se eliminan automáticamente por onDelete: Cascade)
+    console.log("🗑️ Eliminando producto:", {
+      id: productId,
+      name: product.name,
+      hasOrders,
+      ordersCount: product.orderItems.length,
+      variantsCount,
+    });
+
+    // Eliminar producto
+    // Las variantes se eliminan por onDelete: Cascade
+    // Los OrderItems se desvinculan por onDelete: SetNull
     await prisma.product.delete({
       where: { id: productId },
     });
 
-    return NextResponse.json({ success: true });
+    console.log("✅ Producto eliminado exitosamente");
+
+    if (hasOrders) {
+      console.log(
+        `ℹ️ ${product.orderItems.length} órdenes desvinculadas (snapshot preservado)`
+      );
+    }
+
+    // ✅ Revalidar rutas para actualizar caché
+    revalidatePath("/admin/productos");
+    revalidatePath(`/admin/productos/${productId}`);
+    revalidatePath(`/productos/${product.slug}`);
+
+    return NextResponse.json({
+      success: true,
+      message: hasOrders
+        ? `Producto eliminado. ${product.orderItems.length} órdenes mantienen su historial.`
+        : "Producto eliminado exitosamente.",
+    });
   } catch (error) {
-    console.error("Error al eliminar producto:", error);
+    console.error("❌ Error al eliminar producto:", error);
     return NextResponse.json(
       { error: "Error al eliminar producto" },
       { status: 500 }
