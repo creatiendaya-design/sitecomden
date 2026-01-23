@@ -386,45 +386,6 @@ export default function EditProductForm({ product, categories }: EditProductForm
               </CardContent>
             </Card>
 
-            {/* SEO */}
-            <Card>
-              <CardHeader>
-                <CardTitle>SEO (Optimización para Motores de Búsqueda)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="metaTitle">Meta Título</Label>
-                  <Input
-                    id="metaTitle"
-                    name="metaTitle"
-                    value={formData.metaTitle}
-                    onChange={handleInputChange}
-                    placeholder={formData.name}
-                    maxLength={60}
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formData.metaTitle.length}/60 caracteres. Si está vacío, se usará el nombre del producto.
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="metaDescription">Meta Descripción</Label>
-                  <Textarea
-                    id="metaDescription"
-                    name="metaDescription"
-                    value={formData.metaDescription}
-                    onChange={handleInputChange}
-                    placeholder={formData.shortDescription || "Descripción para motores de búsqueda"}
-                    rows={3}
-                    maxLength={160}
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formData.metaDescription.length}/160 caracteres. Si está vacío, se usará la descripción corta.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Pricing - Solo si NO tiene variantes */}
             {!formData.hasVariants && (
               <Card>
@@ -723,6 +684,45 @@ export default function EditProductForm({ product, categories }: EditProductForm
                 </CardContent>
               </Card>
             )}
+
+            {/* ✅ SEO - MOVIDO AL FINAL */}
+            <Card>
+              <CardHeader>
+                <CardTitle>SEO (Optimización para Motores de Búsqueda)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="metaTitle">Meta Título</Label>
+                  <Input
+                    id="metaTitle"
+                    name="metaTitle"
+                    value={formData.metaTitle}
+                    onChange={handleInputChange}
+                    placeholder={formData.name}
+                    maxLength={60}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formData.metaTitle.length}/60 caracteres. Si está vacío, se usará el nombre del producto.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="metaDescription">Meta Descripción</Label>
+                  <Textarea
+                    id="metaDescription"
+                    name="metaDescription"
+                    value={formData.metaDescription}
+                    onChange={handleInputChange}
+                    placeholder={formData.shortDescription || "Descripción para motores de búsqueda"}
+                    rows={3}
+                    maxLength={160}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formData.metaDescription.length}/160 caracteres. Si está vacío, se usará la descripción corta.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, DragEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Upload, Loader2, Edit2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { X, Upload, Loader2, Edit2, AlertCircle, CheckCircle2, Image as ImageIcon } from "lucide-react";
 import Image from "next/image";
 import ImageMetadataEditor from "./ImageMetadataEditor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 interface ImageMetadata {
   url: string;
@@ -28,7 +29,7 @@ interface UploadProgress {
   error?: string;
 }
 
-export default function ImageUploadWithProgress({
+export default function ImageUpload({
   images,
   onChange,
   maxImages = 5,
@@ -38,14 +39,16 @@ export default function ImageUploadWithProgress({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const normalizedImages: ImageMetadata[] = images.map((img) =>
     typeof img === "string" ? { url: img } : img
   );
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handleFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
 
     setUploading(true);
     setError(null);
@@ -53,18 +56,17 @@ export default function ImageUploadWithProgress({
 
     try {
       // Validaciones previas
-      const totalImages = normalizedImages.length + files.length;
+      const totalImages = normalizedImages.length + fileArray.length;
       if (totalImages > maxImages) {
         setError(
           `Solo puedes subir ${maxImages} imágenes. Actualmente tienes ${normalizedImages.length}.`
         );
         setUploading(false);
-        e.target.value = "";
         return;
       }
 
       const maxSizeBytes = maxSizeMB * 1024 * 1024;
-      const oversizedFiles = files.filter((file) => file.size > maxSizeBytes);
+      const oversizedFiles = fileArray.filter((file) => file.size > maxSizeBytes);
 
       if (oversizedFiles.length > 0) {
         const fileList = oversizedFiles
@@ -77,30 +79,26 @@ export default function ImageUploadWithProgress({
           } el límite de ${maxSizeMB}MB.`
         );
         setUploading(false);
-        e.target.value = "";
         return;
       }
 
       // Inicializar progreso para cada archivo
-      const initialProgress: UploadProgress[] = files.map((file) => ({
+      const initialProgress: UploadProgress[] = fileArray.map((file) => ({
         fileName: file.name,
         progress: 0,
         status: "uploading",
       }));
       setUploadProgress(initialProgress);
 
-      // Subir archivos uno por uno (para mostrar progreso individual)
+      // Subir archivos uno por uno
       const newImages: ImageMetadata[] = [];
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
 
         try {
-          // Simular progreso (XMLHttpRequest para progreso real requiere más complejidad)
           setUploadProgress((prev) =>
-            prev.map((p, idx) =>
-              idx === i ? { ...p, progress: 30 } : p
-            )
+            prev.map((p, idx) => (idx === i ? { ...p, progress: 30 } : p))
           );
 
           const formData = new FormData();
@@ -112,9 +110,7 @@ export default function ImageUploadWithProgress({
           });
 
           setUploadProgress((prev) =>
-            prev.map((p, idx) =>
-              idx === i ? { ...p, progress: 80 } : p
-            )
+            prev.map((p, idx) => (idx === i ? { ...p, progress: 80 } : p))
           );
 
           if (!response.ok) {
@@ -130,14 +126,12 @@ export default function ImageUploadWithProgress({
             name: file.name.replace(/\.[^/.]+$/, ""),
           });
 
-          // Marcar como completado
           setUploadProgress((prev) =>
             prev.map((p, idx) =>
               idx === i ? { ...p, progress: 100, status: "success" } : p
             )
           );
         } catch (err) {
-          // Marcar como error
           setUploadProgress((prev) =>
             prev.map((p, idx) =>
               idx === i
@@ -150,13 +144,11 @@ export default function ImageUploadWithProgress({
                 : p
             )
           );
-
           throw err;
         }
       }
 
       onChange([...normalizedImages, ...newImages].slice(0, maxImages));
-      e.target.value = "";
 
       // Limpiar progreso después de 2 segundos
       setTimeout(() => {
@@ -175,6 +167,38 @@ export default function ImageUploadWithProgress({
     }
   };
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      await handleFiles(files);
+      e.target.value = "";
+    }
+  };
+
+  // Drag & Drop handlers
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await handleFiles(files);
+    }
+  };
+
   const removeImage = (index: number) => {
     onChange(normalizedImages.filter((_, i) => i !== index));
     setError(null);
@@ -184,6 +208,10 @@ export default function ImageUploadWithProgress({
     const newImages = [...normalizedImages];
     newImages[index] = metadata;
     onChange(newImages);
+  };
+
+  const openFileDialog = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -202,14 +230,10 @@ export default function ImageUploadWithProgress({
           {uploadProgress.map((progress, index) => (
             <div key={index} className="space-y-1">
               <div className="flex items-center justify-between text-sm">
-                <span className="truncate max-w-[200px]">
-                  {progress.fileName}
-                </span>
+                <span className="truncate max-w-[200px]">{progress.fileName}</span>
                 <div className="flex items-center gap-2">
                   {progress.status === "uploading" && (
-                    <span className="text-muted-foreground">
-                      {progress.progress}%
-                    </span>
+                    <span className="text-muted-foreground">{progress.progress}%</span>
                   )}
                   {progress.status === "success" && (
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -220,69 +244,28 @@ export default function ImageUploadWithProgress({
                 </div>
               </div>
               <Progress value={progress.progress} className="h-2" />
-              {progress.error && (
-                <p className="text-xs text-red-500">{progress.error}</p>
-              )}
+              {progress.error && <p className="text-xs text-red-500">{progress.error}</p>}
             </div>
           ))}
         </div>
       )}
 
-      {/* Image Grid */}
-      {normalizedImages.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {normalizedImages.map((image, index) => (
-            <div
-              key={index}
-              className="group relative aspect-square overflow-hidden rounded-lg border bg-slate-100"
-            >
-              <Image
-                src={image.url}
-                alt={image.alt || `Imagen ${index + 1}`}
-                fill
-                className="object-cover"
-              />
-
-              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  onClick={() => setEditingIndex(index)}
-                  className="h-8 w-8"
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="destructive"
-                  onClick={() => removeImage(index)}
-                  className="h-8 w-8"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {index === 0 && (
-                <div className="absolute bottom-2 left-2 rounded bg-primary px-2 py-1 text-xs text-primary-foreground">
-                  Principal
-                </div>
-              )}
-              {image.alt && (
-                <div className="absolute top-2 left-2 rounded bg-green-500 px-2 py-1 text-xs text-white">
-                  SEO ✓
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Upload Button */}
+      {/* Drag & Drop Zone */}
       {normalizedImages.length < maxImages && (
-        <div>
+        <div
+          className={cn(
+            "relative rounded-lg border-2 border-dashed transition-all duration-200",
+            isDragging
+              ? "border-primary bg-primary/5 scale-[1.02]"
+              : "border-slate-300 bg-slate-50 hover:bg-slate-100",
+            uploading && "opacity-50 cursor-not-allowed"
+          )}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <input
+            ref={fileInputRef}
             type="file"
             id="image-upload"
             accept="image/*"
@@ -291,36 +274,131 @@ export default function ImageUploadWithProgress({
             disabled={uploading}
             className="hidden"
           />
-          <label htmlFor="image-upload">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={uploading}
-              className="w-full"
-              onClick={() => {
-                setError(null);
-                document.getElementById("image-upload")?.click();
-              }}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Subiendo...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Subir Imágenes ({normalizedImages.length}/{maxImages})
-                </>
-              )}
-            </Button>
-          </label>
-          <p className="mt-2 text-xs text-muted-foreground">
-            La primera imagen será la principal. Haz clic en{" "}
-            <Edit2 className="inline h-3 w-3" /> para editar SEO.
-            <br />
-            <strong>Máximo: {maxSizeMB}MB por imagen.</strong> Formatos: JPG,
-            PNG, WebP, GIF, SVG.
+
+          <div
+            className="flex flex-col items-center justify-center py-12 px-6 cursor-pointer"
+            onClick={openFileDialog}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+                <p className="text-sm font-medium text-slate-700">Subiendo imágenes...</p>
+                <p className="text-xs text-slate-500 mt-1">Por favor espera</p>
+              </>
+            ) : isDragging ? (
+              <>
+                <Upload className="h-12 w-12 text-primary mb-4" />
+                <p className="text-sm font-medium text-slate-700">
+                  Suelta las imágenes aquí
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Se subirán automáticamente
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="rounded-full bg-primary/10 p-4 mb-4">
+                  <ImageIcon className="h-8 w-8 text-primary" />
+                </div>
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Arrastra y suelta tus imágenes aquí
+                </p>
+                <p className="text-xs text-slate-500 mb-4">
+                  o haz click para seleccionar archivos
+                </p>
+                <div className="flex items-center gap-4 text-xs text-slate-400">
+                  <span>PNG, JPG, WebP, GIF, SVG</span>
+                  <span>•</span>
+                  <span>Máx. {maxSizeMB}MB por imagen</span>
+                  <span>•</span>
+                  <span>
+                    {normalizedImages.length}/{maxImages} imágenes
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Image Grid */}
+      {normalizedImages.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-slate-700">
+              Imágenes ({normalizedImages.length}/{maxImages})
+            </p>
+            {normalizedImages.length < maxImages && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={openFileDialog}
+                disabled={uploading}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Agregar más
+              </Button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {normalizedImages.map((image, index) => (
+              <div
+                key={index}
+                className="group relative aspect-square overflow-hidden rounded-lg border-2 bg-slate-100 transition-all hover:border-primary"
+              >
+                <Image
+                  src={image.url}
+                  alt={image.alt || `Imagen ${index + 1}`}
+                  fill
+                  className="object-cover"
+                />
+
+                {/* Overlay con botones */}
+                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="secondary"
+                    onClick={() => setEditingIndex(index)}
+                    className="h-9 w-9 shadow-lg"
+                    title="Editar metadatos SEO"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    onClick={() => removeImage(index)}
+                    className="h-9 w-9 shadow-lg"
+                    title="Eliminar imagen"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Badge Principal */}
+                {index === 0 && (
+                  <div className="absolute bottom-2 left-2 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground shadow-lg">
+                    Principal
+                  </div>
+                )}
+
+                {/* Badge SEO */}
+                {image.alt && (
+                  <div className="absolute top-2 left-2 rounded-md bg-green-500 px-2 py-1 text-xs font-medium text-white shadow-lg">
+                    SEO ✓
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-3 text-xs text-slate-500">
+            💡 <strong>Tip:</strong> La primera imagen será la principal. Haz click en{" "}
+            <Edit2 className="inline h-3 w-3" /> para agregar texto alternativo (SEO).
           </p>
         </div>
       )}

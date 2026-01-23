@@ -20,7 +20,7 @@ import { ArrowLeft, Save, Plus, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import ImageUpload from "@/components/admin/ImageUpload";
-import RichTextEditor from "./RichTextEditor"; // ← NUEVO
+import RichTextEditor from "./RichTextEditor";
 
 interface ProductOption {
   name: string;
@@ -331,7 +331,6 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                   </p>
                 </div>
 
-                {/* ⭐ CAMBIO AQUÍ: Reemplazar Textarea con RichTextEditor ⭐ */}
                 <div>
                   <Label htmlFor="description">Descripción Completa</Label>
                   <RichTextEditor
@@ -354,7 +353,6 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                 <CardTitle>Imágenes del Producto</CardTitle>
               </CardHeader>
               <CardContent>
-                {/* ⭐ FIX: Convertir ImageMetadata[] a string[] ⭐ */}
                 <ImageUpload
                   images={formData.images}
                   onChange={(images) => {
@@ -366,45 +364,6 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                   }}
                   maxImages={5}
                 />
-              </CardContent>
-            </Card>
-
-            {/* SEO */}
-            <Card>
-              <CardHeader>
-                <CardTitle>SEO (Optimización para Motores de Búsqueda)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="metaTitle">Meta Título</Label>
-                  <Input
-                    id="metaTitle"
-                    name="metaTitle"
-                    value={formData.metaTitle}
-                    onChange={handleInputChange}
-                    placeholder={formData.name || "Título para motores de búsqueda"}
-                    maxLength={60}
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formData.metaTitle.length}/60 caracteres. Si está vacío, se usará el nombre del producto.
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="metaDescription">Meta Descripción</Label>
-                  <Textarea
-                    id="metaDescription"
-                    name="metaDescription"
-                    value={formData.metaDescription}
-                    onChange={handleInputChange}
-                    placeholder={formData.shortDescription || "Descripción para motores de búsqueda"}
-                    rows={3}
-                    maxLength={160}
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formData.metaDescription.length}/160 caracteres. Si está vacío, se usará la descripción corta.
-                  </p>
-                </div>
               </CardContent>
             </Card>
 
@@ -656,6 +615,45 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                   )}
                 </CardContent>
               )}
+            </Card>
+
+            {/* ✅ SEO - MOVIDO AL FINAL */}
+            <Card>
+              <CardHeader>
+                <CardTitle>SEO (Optimización para Motores de Búsqueda)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="metaTitle">Meta Título</Label>
+                  <Input
+                    id="metaTitle"
+                    name="metaTitle"
+                    value={formData.metaTitle}
+                    onChange={handleInputChange}
+                    placeholder={formData.name || "Título para motores de búsqueda"}
+                    maxLength={60}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formData.metaTitle.length}/60 caracteres. Si está vacío, se usará el nombre del producto.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="metaDescription">Meta Descripción</Label>
+                  <Textarea
+                    id="metaDescription"
+                    name="metaDescription"
+                    value={formData.metaDescription}
+                    onChange={handleInputChange}
+                    placeholder={formData.shortDescription || "Descripción para motores de búsqueda"}
+                    rows={3}
+                    maxLength={160}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formData.metaDescription.length}/160 caracteres. Si está vacío, se usará la descripción corta.
+                  </p>
+                </div>
+              </CardContent>
             </Card>
           </div>
 
