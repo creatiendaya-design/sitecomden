@@ -104,12 +104,12 @@ export function TestimonialsSection({
                 <div className="flex items-center gap-3">
                   {testimonial.avatar && (
                     <div className="relative h-10 w-10 overflow-hidden rounded-full">
-                      <Image
+                   {/*    <Image
                         src={testimonial.avatar}
                         alt={testimonial.name}
                         fill
                         className="object-cover"
-                      />
+                      /> */}
                     </div>
                   )}
                   <div>
