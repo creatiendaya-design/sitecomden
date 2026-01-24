@@ -8,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FormFieldsList from "@/components/admin/complaints/FormFieldsList";
 import ComplaintsList from "@/components/admin/complaints/ComplaintsList";
 import ComplaintsConfig from "@/components/admin/complaints/ComplaintsConfig";
-
+import { protectRoute } from "@/lib/protect-route";
 export default async function ComplaintsManagementPage() {
+   await protectRoute("complaints:view");
   const fieldsResult = await getAllFormFields();
   const fields = fieldsResult.success ? fieldsResult.data : [];
 

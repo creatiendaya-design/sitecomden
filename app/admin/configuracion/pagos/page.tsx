@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, Upload, CheckCircle2, AlertCircle, Smartphone } from "lucide-react";
 import Image from "next/image";
-
+import ProtectedRoute from "@/components/admin/ProtectedRoute"; 
 export default function PaymentSettingsPage() {
   const [settings, setSettings] = useState<PaymentMethodSettings>({
     yape: {
@@ -108,6 +108,7 @@ export default function PaymentSettingsPage() {
   }
 
   return (
+    <ProtectedRoute permission="settings:configure">
     <div className="space-y-6">
       {/* Header */}
       <div>
@@ -434,5 +435,6 @@ export default function PaymentSettingsPage() {
         </Button>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

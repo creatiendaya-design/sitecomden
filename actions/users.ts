@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
-import { requirePermission, isSuperAdmin } from "@/lib/permissions";
+import { requirePermission, isSuperAdmin, hasPermission } from "@/lib/permissions"; // ← CAMBIO 1: Agregar hasPermission
 import bcrypt from "bcryptjs";
 
 // ============================================================
@@ -428,5 +428,31 @@ export async function removeCustomPermission(userId: string, permissionId: strin
   } catch (error) {
     console.error("Error removing custom permission:", error);
     return { success: false, error: "Error al eliminar permiso personalizado" };
+  }
+}
+
+// ============================================================
+// VERIFICAR PERMISO (PARA CLIENT COMPONENTS)
+// ============================================================
+
+/**
+ * Verifica si el usuario actual tiene un permiso específico
+ * (Para usar desde client components)
+ */
+export async function checkPermission(permission: string) {
+  try {
+    const userId = await getCurrentUserId();
+    const has = await hasPermission(userId, permission);
+    
+    return {
+      success: true,
+      hasPermission: has,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      hasPermission: false,
+      error: "Error al verificar permisos",
+    };
   }
 }

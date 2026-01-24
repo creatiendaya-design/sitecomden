@@ -13,8 +13,12 @@ import {
   Settings,
 } from "lucide-react";
 import { getLoyaltyProgramStats, getLoyaltySettings } from "@/actions/loyalty";
+import { protectRoute } from "@/lib/protect-route"; // ← AGREGAR
 
 export default async function AdminLealtadPage() {
+  // ✅ PROTEGER la página ANTES de cargar datos
+  await protectRoute("loyalty:view");
+
   const stats = await getLoyaltyProgramStats();
   const settings = await getLoyaltySettings();
 
