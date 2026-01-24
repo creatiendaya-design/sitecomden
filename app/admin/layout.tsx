@@ -23,6 +23,8 @@ import {
   FileText,
   Menu,
   X,
+  Shield,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -127,6 +129,16 @@ export default function AdminLayout({
           href: "/admin/configuracion/emails",
           icon: Mail,
           label: "Emails",
+        },
+        {
+          href: "/admin/configuracion/usuarios",
+          icon: Users,
+          label: "Usuarios",
+        },
+        {
+          href: "/admin/configuracion/roles",
+          icon: Shield,
+          label: "Roles",
         },
         {
           icon: CreditCard,

@@ -33,17 +33,41 @@ export async function POST(request: Request) {
       );
     }
 
+    // ⭐ NUEVO: Buscar rol por defecto (Admin o Staff)
+    const defaultRole = await prisma.role.findFirst({
+      where: {
+        OR: [
+          { slug: "admin" },      // Intentar Admin primero
+          { slug: "staff" },      // Si no existe, Staff
+        ],
+        active: true,
+      },
+      orderBy: {
+        level: "desc", // Obtener el de mayor nivel disponible
+      },
+    });
+
+    if (!defaultRole) {
+      return NextResponse.json(
+        { error: "No hay roles disponibles. Ejecuta el seed primero." },
+        { status: 500 }
+      );
+    }
+
     // Hashear contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear usuario
+    // ⭐ CAMBIO: Crear usuario con roleId
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role: "ADMIN",
+        roleId: defaultRole.id, // ⭐ Usar roleId en lugar de role
         active: true,
+      },
+      include: {
+        role: true, // ⭐ Incluir role en la respuesta
       },
     });
 
@@ -53,7 +77,13 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        roleId: user.roleId,
+        role: user.role ? {
+          id: user.role.id,
+          name: user.role.name,
+          slug: user.role.slug,
+          level: user.role.level,
+        } : null,
       },
     });
   } catch (error) {

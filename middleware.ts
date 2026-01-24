@@ -1,3 +1,4 @@
+// middleware.ts
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -21,7 +22,6 @@ function handleAdminRoutes(req: NextRequest) {
   }
 
   // ✅ Redirect pages (admin/login → admin-auth/login)
-  // Dejar que Next.js maneje estos redirects
   if (pathname === "/admin/login" || pathname === "/admin/register") {
     return NextResponse.next();
   }
@@ -37,7 +37,10 @@ function handleAdminRoutes(req: NextRequest) {
     return NextResponse.redirect(new URL("/admin-auth/login", req.url));
   }
 
-  return NextResponse.next();
+  // ⭐ NUEVO: Agregar userId al header para verificación de permisos
+  const response = NextResponse.next();
+  response.headers.set("x-user-id", adminSession.value);
+  return response;
 }
 
 // 🛍️ Lógica de Shop (Clerk) - rutas públicas

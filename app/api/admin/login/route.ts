@@ -14,9 +14,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Buscar usuario admin
+    // ⭐ CAMBIO 1: Incluir relación role
     const user = await prisma.user.findUnique({
       where: { email, active: true },
+      include: {
+        role: true, // ⭐ AGREGAR ESTO
+      },
     });
 
     if (!user) {
@@ -51,13 +54,20 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 24 * 7, // 7 días
     });
 
+    // ⭐ CAMBIO 2: Actualizar respuesta con nuevo formato
     return NextResponse.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        roleId: user.roleId, // ⭐ Agregar roleId
+        role: user.role ? { // ⭐ Cambiar esto
+          id: user.role.id,
+          name: user.role.name,
+          slug: user.role.slug,
+          level: user.role.level,
+        } : null,
       },
     });
   } catch (error) {

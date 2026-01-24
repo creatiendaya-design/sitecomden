@@ -1,3 +1,4 @@
+// app/admin/productos/page.tsx
 import { prisma } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
 import { getProductImageUrl, getProductImageAlt } from "../../../lib/image-utils";
@@ -10,6 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Edit, Eye } from "lucide-react";
 import DeleteProductButton from "@/components/admin/DeleteProductButton";
 
+// ⭐ NUEVO: Importar sistema de permisos
+import { hasPermission } from "@/lib/permissions";
+import { getCurrentUserId } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
 interface ProductsAdminPageProps {
   searchParams: Promise<{
     search?: string;
@@ -20,6 +26,20 @@ interface ProductsAdminPageProps {
 export default async function ProductsAdminPage({
   searchParams,
 }: ProductsAdminPageProps) {
+  // ⭐ NUEVO: Verificar permisos
+  const userId = await getCurrentUserId();
+  
+  // Verificar acceso al módulo de productos
+  const canView = await hasPermission(userId, "products:view");
+  if (!canView) {
+    redirect("/admin/dashboard");
+  }
+
+  // Obtener permisos específicos
+  const canCreate = await hasPermission(userId, "products:create");
+  const canEdit = await hasPermission(userId, "products:edit");
+  const canDelete = await hasPermission(userId, "products:delete");
+
   const { search, category } = await searchParams;
 
   // Construir filtros
@@ -72,12 +92,15 @@ export default async function ProductsAdminPage({
             Gestiona el catálogo de tu tienda
           </p>
         </div>
-        <Button asChild className="w-full sm:w-auto">
-          <Link href="/admin/productos/nuevo">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Producto
-          </Link>
-        </Button>
+        {/* ⭐ CAMBIO: Solo mostrar si tiene permiso para crear */}
+        {canCreate && (
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/productos/nuevo">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Producto
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -115,11 +138,14 @@ export default async function ProductsAdminPage({
           {products.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-muted-foreground">No hay productos</p>
-              <Button asChild className="mt-4">
-                <Link href="/admin/productos/nuevo">
-                  Crear primer producto
-                </Link>
-              </Button>
+              {/* ⭐ CAMBIO: Solo mostrar si tiene permiso */}
+              {canCreate && (
+                <Button asChild className="mt-4">
+                  <Link href="/admin/productos/nuevo">
+                    Crear primer producto
+                  </Link>
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-4">
@@ -241,15 +267,21 @@ export default async function ProductsAdminPage({
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/admin/productos/${product.id}`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <DeleteProductButton 
-                          productId={product.id} 
-                          productName={product.name} 
-                        />
+                        {/* ⭐ CAMBIO: Solo mostrar si tiene permiso de editar */}
+                        {canEdit && (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/admin/productos/${product.id}`}>
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        )}
+                        {/* ⭐ CAMBIO: Solo mostrar si tiene permiso de eliminar */}
+                        {canDelete && (
+                          <DeleteProductButton 
+                            productId={product.id} 
+                            productName={product.name} 
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -260,15 +292,21 @@ export default async function ProductsAdminPage({
                           <Eye className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/admin/productos/${product.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <DeleteProductButton 
-                        productId={product.id} 
-                        productName={product.name} 
-                      />
+                      {/* ⭐ CAMBIO: Solo mostrar si tiene permiso de editar */}
+                      {canEdit && (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/admin/productos/${product.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      )}
+                      {/* ⭐ CAMBIO: Solo mostrar si tiene permiso de eliminar */}
+                      {canDelete && (
+                        <DeleteProductButton 
+                          productId={product.id} 
+                          productName={product.name} 
+                        />
+                      )}
                     </div>
                   </div>
                 );

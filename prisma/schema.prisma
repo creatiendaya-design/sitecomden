@@ -424,12 +424,114 @@ model ProductReview {
 }
 
 
+
+
+model Permission {
+  id          String   @id @default(cuid())
+  
+  key         String   @unique
+  
+
+  name        String    
+  description String?   
+  
+
+  module      String   
+  action      String   
+  
+
+  roles       RolePermission[]
+  users       UserPermission[]   
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([module])
+  @@index([action])
+  @@index([key])
+}
+
+
+model Role {
+  id          String   @id @default(cuid())
+  
+
+  name        String   @unique     
+  slug        String   @unique     
+  description String?              
+  
+
+  level       Int      @default(0) 
+  
+ 
+  color       String?  @default("#6366f1") 
+  
+
+  isSystem    Boolean  @default(false)     
+  active      Boolean  @default(true)
+  
+ 
+  permissions RolePermission[]
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([slug])
+  @@index([level])
+  @@index([active])
+}
+
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime   @default(now())
+  
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+
+model UserPermission {
+  id           String         @id @default(cuid())
+  userId       String
+  permissionId String
+  
+
+  type         PermissionType @default(GRANT) 
+  
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission     @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime       @default(now())
+  
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+}
+
+enum PermissionType {
+  GRANT  
+  DENY   
+}
+
+
+
 model User {
   id        String    @id @default(cuid())
   email     String    @unique
   password  String
   name      String
-  role      UserRole  @default(ADMIN)
+  roleId    String?
+  role      Role?     @relation(fields: [roleId], references: [id])
+  customPermissions UserPermission[]
   active    Boolean   @default(true)
   lastLogin DateTime?
   createdAt DateTime  @default(now())
@@ -437,13 +539,10 @@ model User {
 
   @@index([email])
   @@index([active])
+   @@index([roleId])
 }
 
-enum UserRole {
-  ADMIN
-  STAFF
-  INVENTORY
-}
+
 
 
 model Setting {
