@@ -112,8 +112,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-        {/* Sidebar - Filtros */}
-        <aside className="space-y-6">
+        {/* Sidebar - Filtros (oculto en móvil, visible en desktop) */}
+        <aside className="hidden lg:block space-y-6">
           <div>
             <h3 className="mb-4 font-semibold">Categorías</h3>
             <div className="space-y-2">
@@ -149,17 +149,31 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         {/* Products Grid */}
         <div>
           {/* Toolbar con ordenamiento */}
-          <div className="mb-6 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {category && (
-                <>
-                  Mostrando productos de{" "}
-                  <span className="font-medium">
-                    {categories.find((c) => c.slug === category)?.name}
-                  </span>
-                </>
-              )}
-            </p>
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* Categoría actual en móvil */}
+            <div className="flex items-center justify-between lg:justify-start">
+              <p className="text-sm text-muted-foreground">
+                {category ? (
+                  <>
+                    Mostrando{" "}
+                    <span className="font-medium">
+                      {categories.find((c) => c.slug === category)?.name}
+                    </span>
+                  </>
+                ) : (
+                  `${products.length} productos`
+                )}
+              </p>
+              
+              {/* Filtro de categorías en móvil (dropdown) */}
+              <div className="lg:hidden">
+                <CategoryMobileSelect 
+                  categories={categories} 
+                  currentCategory={category} 
+                />
+              </div>
+            </div>
+
             <SortSelect currentSort={sort} category={category} />
           </div>
 
@@ -173,7 +187,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               </Button>
             </div>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
               {serializedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
@@ -202,6 +216,33 @@ function SortSelect({ currentSort, category }: { currentSort: string; category?:
         </SelectContent>
       </Select>
       <Button type="submit" size="sm">Aplicar</Button>
+    </form>
+  );
+}
+
+// Selector de categorías para móvil
+function CategoryMobileSelect({ 
+  categories, 
+  currentCategory 
+}: { 
+  categories: any[]; 
+  currentCategory?: string;
+}) {
+  return (
+    <form action="/productos" method="get">
+      <Select name="category" defaultValue={currentCategory || "all"}>
+        <SelectTrigger className="w-[140px]">
+          <SelectValue placeholder="Categoría" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todas</SelectItem>
+          {categories.map((cat) => (
+            <SelectItem key={cat.id} value={cat.slug}>
+              {cat.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </form>
   );
 }
