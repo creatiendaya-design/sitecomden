@@ -171,14 +171,13 @@ export default function NewUserPage() {
             <div className="space-y-2">
               <Label htmlFor="role">Rol</Label>
               <Select
-                value={formData.roleId}
+                value={formData.roleId || undefined}
                 onValueChange={(value) => setFormData({ ...formData, roleId: value })}
               >
                 <SelectTrigger id="role">
                   <SelectValue placeholder="Seleccionar rol (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin rol asignado</SelectItem>
                   {roles.map((role) => (
                     <SelectItem key={role.id} value={role.id}>
                       <div className="flex items-center gap-2">
