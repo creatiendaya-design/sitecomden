@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, CheckCircle2, AlertCircle, Mail, Building2 } from "lucide-react";
-import ProtectedRoute from "@/components/admin/ProtectedRoute"; // ← CORRECTO
+import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 export default function EmailSettingsPage() {
   const [settings, setSettings] = useState<EmailSettings>({
@@ -67,7 +67,7 @@ export default function EmailSettingsPage() {
   }
 
   return (
-    <ProtectedRoute permission="settings:configure">
+    <ProtectedRoute permission="settings:edit_emails"> {/* ✅ CORREGIDO */}
       <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
         {/* Header */}
         <div>

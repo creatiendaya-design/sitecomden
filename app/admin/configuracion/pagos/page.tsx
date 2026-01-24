@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, Upload, CheckCircle2, AlertCircle, Smartphone } from "lucide-react";
 import Image from "next/image";
 import ProtectedRoute from "@/components/admin/ProtectedRoute"; 
+
 export default function PaymentSettingsPage() {
   const [settings, setSettings] = useState<PaymentMethodSettings>({
     yape: {
@@ -108,7 +109,7 @@ export default function PaymentSettingsPage() {
   }
 
   return (
-    <ProtectedRoute permission="settings:configure">
+    <ProtectedRoute permission="settings:edit_payments"> {/* ✅ CORREGIDO */}
     <div className="space-y-6">
       {/* Header */}
       <div>

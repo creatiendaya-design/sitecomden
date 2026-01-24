@@ -24,7 +24,7 @@ import {
   TestTube,
   Rocket
 } from "lucide-react";
-import ProtectedRoute from "@/components/admin/ProtectedRoute"; // ← AGREGAR
+import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 export default function CulqiSettingsPage() {
   const [settings, setSettings] = useState<CulqiSettings>({
@@ -86,7 +86,7 @@ export default function CulqiSettingsPage() {
   }
 
   return (
-    <ProtectedRoute permission="payments:configure"> {/* ← AGREGAR */}
+    <ProtectedRoute permission="settings:edit_payments"> {/* ✅ CORREGIDO */}
       <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
         {/* Header */}
         <div>
