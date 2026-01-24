@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function GET(request: Request) {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("products.view");
+  if (authResponse) return authResponse;
+
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q") || "";
@@ -28,14 +33,14 @@ export async function GET(request: Request) {
         basePrice: true,
         images: true,
         active: true,
-        hasVariants: true,  // ← NUEVO: necesario para inventario
-        variants: {         // ← NUEVO: necesario para inventario
+        hasVariants: true,
+        variants: {
           where: { active: true },
           select: {
             id: true,
             sku: true,
             options: true,
-            stock: true,      // ← Para mostrar stock actual
+            stock: true,
           },
         },
       },

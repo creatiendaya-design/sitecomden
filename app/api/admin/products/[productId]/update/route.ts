@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
+import { updateProductSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { normalizeImagesForSave } from "@/lib/image-utils";
@@ -7,35 +9,42 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ productId: string }> }
 ) {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("products.update");
+  if (authResponse) return authResponse;
+
   try {
     const { productId } = await params;
     const data = await request.json();
 
+    // ✅ VALIDACIÓN: Validar datos con Zod
+    const validatedData = updateProductSchema.parse(data);
+
     // Normalizar imágenes automáticamente
-    const normalizedImages = normalizeImagesForSave(data.images);
+    const normalizedImages = normalizeImagesForSave(validatedData.images);
 
     // ✅ Usar transacción para manejar producto + categorías + variantes de forma atómica
     const product = await prisma.$transaction(async (tx) => {
       // 1. Actualizar producto base
       const productUpdate: any = {
-        name: data.name,
-        slug: data.slug,
-        description: data.description || null,
-        shortDescription: data.shortDescription || null,
-        basePrice: data.basePrice,
-        compareAtPrice: data.compareAtPrice || null,
+        name: validatedData.name,
+        slug: validatedData.slug,
+        description: validatedData.description || null,
+        shortDescription: validatedData.shortDescription || null,
+        basePrice: validatedData.basePrice,
+        compareAtPrice: validatedData.compareAtPrice || null,
         images: normalizedImages,
-        active: data.active ?? true,
-        featured: data.featured ?? false,
-        hasVariants: data.hasVariants,
-        metaTitle: data.metaTitle || null,
-        metaDescription: data.metaDescription || null,
+        active: validatedData.active ?? true,
+        featured: validatedData.featured ?? false,
+        hasVariants: validatedData.hasVariants,
+        metaTitle: validatedData.metaTitle || null,
+        metaDescription: validatedData.metaDescription || null,
       };
 
       // Si no tiene variantes, actualizar stock y SKU del producto
-      if (!data.hasVariants) {
-        productUpdate.stock = data.stock;
-        productUpdate.sku = data.sku || null;
+      if (!validatedData.hasVariants) {
+        productUpdate.stock = validatedData.stock;
+        productUpdate.sku = validatedData.sku || null;
       } else {
         productUpdate.stock = 0;
         productUpdate.sku = null;
@@ -46,24 +55,22 @@ export async function PUT(
         data: productUpdate,
       });
 
-      // 2. ✅ NUEVO: Actualizar relación con categorías
-      // Eliminar relaciones existentes
+      // 2. Actualizar relación con categorías
       await tx.productCategory.deleteMany({
         where: { productId },
       });
 
-      // Crear nueva relación si hay categoryId
-      if (data.categoryId) {
+      if (validatedData.categoryId) {
         await tx.productCategory.create({
           data: {
             productId,
-            categoryId: data.categoryId,
+            categoryId: validatedData.categoryId,
           },
         });
       }
 
       // 3. Si tiene variantes, gestionar opciones y variantes
-      if (data.hasVariants && data.options && data.variants) {
+      if (validatedData.hasVariants && data.options && data.variants) {
         // Eliminar opciones y variantes existentes
         await tx.productVariant.deleteMany({
           where: { productId },
@@ -117,7 +124,9 @@ export async function PUT(
       return updatedProduct;
     });
 
-    // ✅ NUEVO: Revalidar rutas para actualizar caché en producción
+    console.log(`✅ Producto actualizado por usuario ${user.id}:`, product.name);
+
+    // Revalidar rutas para actualizar caché en producción
     revalidatePath("/admin/productos");
     revalidatePath(`/admin/productos/${productId}`);
     revalidatePath(`/productos/${product.slug}`);
@@ -125,6 +134,15 @@ export async function PUT(
     return NextResponse.json({ success: true, product });
   } catch (error) {
     console.error("Error al actualizar producto:", error);
+    
+    // Manejo de errores de validación Zod
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json(
+        { error: "Datos inválidos", details: error },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Error al actualizar producto" },
       { status: 500 }

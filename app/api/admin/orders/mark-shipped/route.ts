@@ -1,22 +1,28 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
+import { markOrderShippedSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
 import { sendOrderShippedEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
-  try {
-    const { orderId, trackingNumber, shippingCourier, estimatedDelivery } =
-      await request.json();
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("orders.update");
+  if (authResponse) return authResponse;
 
-    if (!orderId) {
-      return NextResponse.json(
-        { error: "Order ID requerido" },
-        { status: 400 }
-      );
-    }
+  try {
+    const data = await request.json();
+
+    // ✅ VALIDACIÓN: Validar datos con Zod
+    const validatedData = markOrderShippedSchema.parse({
+      orderId: data.orderId,
+      trackingNumber: data.trackingNumber,
+      shippingCourier: data.shippingCourier,
+      estimatedDelivery: data.estimatedDelivery,
+    });
 
     // Obtener orden
     const order = await prisma.order.findUnique({
-      where: { id: orderId },
+      where: { id: validatedData.orderId },
       select: {
         orderNumber: true,
         customerName: true,
@@ -44,18 +50,20 @@ export async function POST(request: Request) {
 
     // Actualizar orden
     await prisma.order.update({
-      where: { id: orderId },
+      where: { id: validatedData.orderId },
       data: {
         status: "SHIPPED",
         fulfillmentStatus: "FULFILLED",
-        trackingNumber: trackingNumber || null,
-        shippingCourier: shippingCourier || null,
-        estimatedDelivery: estimatedDelivery
-          ? new Date(estimatedDelivery)
+        trackingNumber: validatedData.trackingNumber || null,
+        shippingCourier: validatedData.shippingCourier || null,
+        estimatedDelivery: validatedData.estimatedDelivery
+          ? new Date(validatedData.estimatedDelivery)
           : null,
         shippedAt: new Date(),
       },
     });
+
+    console.log(`📦 Orden ${order.orderNumber} marcada como enviada por usuario ${user.id}`);
 
     // Generar link de visualización
     const viewOrderLink = order.viewToken
@@ -68,9 +76,9 @@ export async function POST(request: Request) {
         orderNumber: order.orderNumber,
         customerName: order.customerName,
         customerEmail: order.customerEmail,
-        trackingNumber: trackingNumber || '',
-        shippingCourier: shippingCourier || '',
-        estimatedDelivery: estimatedDelivery || '',
+        trackingNumber: validatedData.trackingNumber || '',
+        shippingCourier: validatedData.shippingCourier || '',
+        estimatedDelivery: validatedData.estimatedDelivery || '',
         viewOrderLink: viewOrderLink,
       });
     } catch (emailError) {
@@ -81,6 +89,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error al marcar como enviada:", error);
+    
+    // Manejo de errores de validación Zod
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json(
+        { error: "Datos inválidos", details: error },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Error del servidor" },
       { status: 500 }

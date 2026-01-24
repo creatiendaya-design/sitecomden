@@ -1,7 +1,9 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { put } from "@vercel/blob";
 
 // ============================================================
 // TIPOS
@@ -42,7 +44,7 @@ const DEFAULT_PAYMENT_SETTINGS: PaymentMethodSettings = {
 };
 
 // ============================================================
-// OBTENER CONFIGURACIÓN DE MÉTODOS DE PAGO
+// OBTENER CONFIGURACIÓN DE MÉTODOS DE PAGO (Público - NO proteger)
 // ============================================================
 
 export async function getPaymentMethodSettings(): Promise<PaymentMethodSettings> {
@@ -77,10 +79,13 @@ export async function getPaymentMethodSettings(): Promise<PaymentMethodSettings>
 }
 
 // ============================================================
-// GUARDAR CONFIGURACIÓN DE MÉTODOS DE PAGO
+// GUARDAR CONFIGURACIÓN DE MÉTODOS DE PAGO (Admin - PROTEGIDO)
 // ============================================================
 
 export async function savePaymentMethodSettings(settings: PaymentMethodSettings) {
+  // 🔐 PROTECCIÓN: Solo admins con permiso pueden cambiar configuración
+  const { user } = await requirePermission("settings.update");
+  
   try {
     // Validar que los números tengan formato correcto
     if (settings.yape.enabled && !settings.yape.phoneNumber) {
@@ -101,19 +106,24 @@ export async function savePaymentMethodSettings(settings: PaymentMethodSettings)
     await prisma.setting.upsert({
       where: { key: "payment_methods" },
       update: {
-        value: settings as any, // ✅ Cast a any para evitar error de tipos
+        value: settings as any,
         category: "payment",
         description: "Configuración de métodos de pago Yape y Plin",
       },
       create: {
         key: "payment_methods",
-        value: settings as any, // ✅ Cast a any para evitar error de tipos
+        value: settings as any,
         category: "payment",
         description: "Configuración de métodos de pago Yape y Plin",
       },
     });
 
-    console.log("Payment method settings saved:", settings);
+    console.log(`✅ Configuración de pagos actualizada por usuario ${user!.id}:`, {
+      yapeEnabled: settings.yape.enabled,
+      plinEnabled: settings.plin.enabled,
+      yapePhone: settings.yape.phoneNumber,
+      plinPhone: settings.plin.phoneNumber,
+    });
 
     // Revalidar páginas que usan esta configuración
     revalidatePath("/orden/[orderId]/pago-pendiente", "page");
@@ -133,12 +143,13 @@ export async function savePaymentMethodSettings(settings: PaymentMethodSettings)
 }
 
 // ============================================================
-// SUBIR IMAGEN DE QR
+// SUBIR IMAGEN DE QR (Admin - PROTEGIDO)
 // ============================================================
 
-import { put } from "@vercel/blob";
-
 export async function uploadQRImage(formData: FormData) {
+  // 🔐 PROTECCIÓN: Solo admins con permiso pueden subir QR codes
+  const { user } = await requirePermission("settings.update");
+  
   try {
     const file = formData.get("file") as File;
     const method = formData.get("method") as string; // "yape" o "plin"
@@ -178,7 +189,7 @@ export async function uploadQRImage(formData: FormData) {
       access: "public",
     });
 
-    console.log(`QR ${method} uploaded:`, blob.url);
+    console.log(`✅ QR ${method} subido por usuario ${user!.id}:`, blob.url);
 
     return {
       success: true,

@@ -1,51 +1,71 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
+import { updateOrderStatusSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
-  try {
-    const { orderId, status } = await request.json();
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("orders.update");
+  if (authResponse) return authResponse;
 
-    if (!orderId || !status) {
+  try {
+    const data = await request.json();
+
+    // ✅ VALIDACIÓN: Validar datos con Zod
+    const validatedData = updateOrderStatusSchema.parse({
+      orderId: data.orderId,
+      status: data.status,
+    });
+
+    // Obtener orden para logging
+    const order = await prisma.order.findUnique({
+      where: { id: validatedData.orderId },
+      select: {
+        orderNumber: true,
+        status: true,
+      },
+    });
+
+    if (!order) {
       return NextResponse.json(
-        { error: "Datos incompletos" },
-        { status: 400 }
+        { error: "Orden no encontrada" },
+        { status: 404 }
       );
     }
 
-    // Validar estado
-    const validStatuses = [
-      "PENDING",
-      "PAID",
-      "PROCESSING",
-      "SHIPPED",
-      "DELIVERED",
-      "CANCELLED",
-      "REFUNDED",
-    ];
-
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: "Estado inválido" }, { status: 400 });
-    }
-
-    // Actualizar orden
-    const updateData: any = { status };
+    // Preparar datos de actualización
+    const updateData: any = { status: validatedData.status };
 
     // Actualizar timestamps según el estado
-    if (status === "DELIVERED") {
+    if (validatedData.status === "DELIVERED") {
       updateData.deliveredAt = new Date();
       updateData.fulfillmentStatus = "FULFILLED";
-    } else if (status === "CANCELLED") {
+    } else if (validatedData.status === "CANCELLED") {
       updateData.cancelledAt = new Date();
     }
 
+    // Actualizar orden
     await prisma.order.update({
-      where: { id: orderId },
+      where: { id: validatedData.orderId },
       data: updateData,
     });
+
+    console.log(
+      `📝 Orden ${order.orderNumber}: ${order.status} → ${validatedData.status} (por usuario ${user.id})`
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error al actualizar estado:", error);
+    
+    // Manejo de errores de validación Zod
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json(
+        { error: "Datos inválidos", details: error },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Error del servidor" },
       { status: 500 }

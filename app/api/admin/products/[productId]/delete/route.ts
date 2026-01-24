@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
@@ -6,6 +7,10 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ productId: string }> }
 ) {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("products.delete");
+  if (authResponse) return authResponse;
+
   try {
     const { productId } = await params;
 
@@ -44,6 +49,8 @@ export async function DELETE(
       hasOrders,
       ordersCount: product.orderItems.length,
       variantsCount,
+      deletedBy: user.id,
+      deletedByEmail: user.email,
     });
 
     // Eliminar producto
@@ -53,7 +60,7 @@ export async function DELETE(
       where: { id: productId },
     });
 
-    console.log("✅ Producto eliminado exitosamente");
+    console.log(`✅ Producto eliminado exitosamente por usuario ${user.id}`);
 
     if (hasOrders) {
       console.log(
@@ -61,7 +68,7 @@ export async function DELETE(
       );
     }
 
-    // ✅ Revalidar rutas para actualizar caché
+    // Revalidar rutas para actualizar caché
     revalidatePath("/admin/productos");
     revalidatePath(`/admin/productos/${productId}`);
     revalidatePath(`/productos/${product.slug}`);

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 interface Condition {
@@ -19,6 +20,10 @@ const FIELD_MAPPING: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("categories.view");
+  if (authResponse) return authResponse;
+
   try {
     const { conditions, relation = "AND" } = await request.json();
 

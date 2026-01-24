@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
+import { updateCategorySchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
@@ -6,11 +8,18 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ categoryId: string }> }
 ) {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("categories.update");
+  if (authResponse) return authResponse;
+
   try {
     const { categoryId } = await params;
     const data = await request.json();
 
-    console.log("🔄 Actualizando categoría:", categoryId);
+    // ✅ VALIDACIÓN: Validar datos con Zod
+    const validatedData = updateCategorySchema.parse(data);
+
+    console.log(`🔄 Actualizando categoría ${categoryId} por usuario ${user.id}`);
 
     // Actualizar categoría en transacción
     const category = await prisma.$transaction(async (tx) => {
@@ -18,15 +27,15 @@ export async function PUT(
       const updated = await tx.category.update({
         where: { id: categoryId },
         data: {
-          name: data.name,
-          slug: data.slug,
-          description: data.description || null,
-          image: data.image || null,
-          metaTitle: data.metaTitle || null,
-          metaDescription: data.metaDescription || null,
-          collectionType: data.collectionType || "MANUAL",
-          active: data.active ?? true,
-          order: data.order || 0,
+          name: validatedData.name,
+          slug: validatedData.slug,
+          description: validatedData.description || null,
+          image: validatedData.image || null,
+          metaTitle: validatedData.metaTitle || null,
+          metaDescription: validatedData.metaDescription || null,
+          collectionType: validatedData.collectionType || "MANUAL",
+          active: validatedData.active ?? true,
+          order: validatedData.order || 0,
         },
       });
 
@@ -65,25 +74,32 @@ export async function PUT(
               value: condition.value,
             })),
           });
-
-          // TODO: Re-evaluar condiciones y actualizar productos
         }
       }
 
       return updated;
     });
 
-    // ✅ CRÍTICO: Revalidar rutas para actualizar cache
-    revalidatePath("/");  // Home page
+    console.log(`✅ Categoría actualizada por usuario ${user.id}:`, category.name);
+
+    // Revalidar rutas para actualizar cache
+    revalidatePath("/");
     revalidatePath("/admin/categorias");
     revalidatePath(`/admin/categorias/${categoryId}`);
-    revalidatePath(`/productos`);  // Página de productos
-    
-    console.log("✅ Categoría actualizada y cache revalidado:", category.name);
+    revalidatePath(`/productos`);
 
     return NextResponse.json({ success: true, category });
   } catch (error) {
     console.error("Error al actualizar categoría:", error);
+    
+    // Manejo de errores de validación Zod
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json(
+        { error: "Datos inválidos", details: error },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Error al actualizar la categoría" },
       { status: 500 }

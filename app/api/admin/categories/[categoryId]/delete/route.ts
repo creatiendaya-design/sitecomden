@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
@@ -6,10 +7,14 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ categoryId: string }> }
 ) {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("categories.delete");
+  if (authResponse) return authResponse;
+
   try {
     const { categoryId } = await params;
 
-    console.log("🗑️ Eliminando categoría:", categoryId);
+    console.log(`🗑️ Eliminando categoría ${categoryId} por usuario ${user.id}`);
 
     // Verificar si existe la categoría
     const category = await prisma.category.findUnique({
@@ -33,12 +38,16 @@ export async function DELETE(
       where: { id: categoryId },
     });
 
-    // ✅ CRÍTICO: Revalidar rutas para actualizar cache
-    revalidatePath("/");  // Home page
+    console.log(`✅ Categoría eliminada por usuario ${user.id}:`, category.name);
+
+    if (category._count.products > 0) {
+      console.log(`ℹ️ ${category._count.products} productos desvinculados de la categoría`);
+    }
+
+    // Revalidar rutas para actualizar cache
+    revalidatePath("/");
     revalidatePath("/admin/categorias");
-    revalidatePath(`/productos`);  // Página de productos
-    
-    console.log("✅ Categoría eliminada y cache revalidado:", category.name);
+    revalidatePath(`/productos`);
 
     return NextResponse.json({
       success: true,

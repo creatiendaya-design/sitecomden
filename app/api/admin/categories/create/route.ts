@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
+import { createCategorySchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("categories.create");
+  if (authResponse) return authResponse;
+
   try {
     const data = await request.json();
 
-    // Validaciones básicas
-    if (!data.name || !data.slug) {
-      return NextResponse.json(
-        { error: "Nombre y slug son requeridos" },
-        { status: 400 }
-      );
-    }
+    // ✅ VALIDACIÓN: Validar datos con Zod
+    const validatedData = createCategorySchema.parse(data);
 
     // Verificar que el slug no exista
     const existingCategory = await prisma.category.findUnique({
-      where: { slug: data.slug },
+      where: { slug: validatedData.slug },
     });
 
     if (existingCategory) {
@@ -31,15 +32,15 @@ export async function POST(request: Request) {
       // 1. Crear categoría base
       const newCategory = await tx.category.create({
         data: {
-          name: data.name,
-          slug: data.slug,
-          description: data.description || null,
-          image: data.image || null,
-          metaTitle: data.metaTitle || null,
-          metaDescription: data.metaDescription || null,
-          collectionType: data.collectionType || "MANUAL",
-          active: data.active ?? true,
-          order: data.order || 0,
+          name: validatedData.name,
+          slug: validatedData.slug,
+          description: validatedData.description || null,
+          image: validatedData.image || null,
+          metaTitle: validatedData.metaTitle || null,
+          metaDescription: validatedData.metaDescription || null,
+          collectionType: validatedData.collectionType || "MANUAL",
+          active: validatedData.active ?? true,
+          order: validatedData.order || 0,
         },
       });
 
@@ -71,23 +72,30 @@ export async function POST(request: Request) {
             value: condition.value,
           })),
         });
-
-        // TODO: Evaluar condiciones y agregar productos automáticamente
       }
 
       return newCategory;
     });
 
-    // ✅ CRÍTICO: Revalidar rutas para actualizar cache
-    revalidatePath("/");  // Home page
+    console.log(`✅ Categoría creada por usuario ${user.id}:`, category.name);
+
+    // Revalidar rutas para actualizar cache
+    revalidatePath("/");
     revalidatePath("/admin/categorias");
-    revalidatePath(`/productos`);  // Página de productos
-    
-    console.log("✅ Categoría creada y cache revalidado:", category.name);
+    revalidatePath(`/productos`);
 
     return NextResponse.json({ success: true, category });
   } catch (error) {
     console.error("Error al crear categoría:", error);
+    
+    // Manejo de errores de validación Zod
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json(
+        { error: "Datos inválidos", details: error },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Error al crear la categoría" },
       { status: 500 }

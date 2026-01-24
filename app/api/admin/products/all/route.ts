@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("products.view");
+  if (authResponse) return authResponse;
+
   try {
     const products = await prisma.product.findMany({
       select: {

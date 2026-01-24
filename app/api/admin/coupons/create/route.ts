@@ -1,28 +1,22 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
+import { createCouponSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
+  // 🔐 PROTECCIÓN: Verificar autenticación y permiso
+  const { user, response: authResponse } = await requirePermission("coupons.create");
+  if (authResponse) return authResponse;
+
   try {
     const data = await request.json();
 
-    // Validaciones
-    if (!data.code || !data.type) {
-      return NextResponse.json(
-        { error: "Código y tipo son requeridos" },
-        { status: 400 }
-      );
-    }
-
-    if (data.type !== "FREE_SHIPPING" && !data.value) {
-      return NextResponse.json(
-        { error: "El valor es requerido" },
-        { status: 400 }
-      );
-    }
+    // ✅ VALIDACIÓN: Validar datos con Zod
+    const validatedData = createCouponSchema.parse(data);
 
     // Verificar que el código no exista
     const existingCoupon = await prisma.coupon.findUnique({
-      where: { code: data.code },
+      where: { code: validatedData.code },
     });
 
     if (existingCoupon) {
@@ -35,23 +29,34 @@ export async function POST(request: Request) {
     // Crear cupón
     const coupon = await prisma.coupon.create({
       data: {
-        code: data.code,
-        description: data.description || null,
-        type: data.type,
-        value: data.type === "FREE_SHIPPING" ? 0 : data.value,
-        minPurchase: data.minPurchase || null,
-        maxDiscount: data.maxDiscount || null,
-        usageLimit: data.usageLimit || null,
-        usageLimitPerUser: data.usageLimitPerUser || null,
-        startsAt: data.startsAt || null,
-        expiresAt: data.expiresAt || null,
-        active: data.active ?? true,
+        code: validatedData.code,
+        description: validatedData.description || null,
+        type: validatedData.type,
+        value: validatedData.type === "FREE_SHIPPING" ? 0 : validatedData.value,
+        minPurchase: validatedData.minPurchase || null,
+        maxDiscount: validatedData.maxDiscount || null,
+        usageLimit: validatedData.usageLimit || null,
+        usageLimitPerUser: validatedData.usageLimitPerUser || null,
+        startsAt: validatedData.startsAt || null,
+        expiresAt: validatedData.expiresAt || null,
+        active: validatedData.active ?? true,
       },
     });
+
+    console.log(`✅ Cupón creado por usuario ${user.id}:`, coupon.code);
 
     return NextResponse.json({ success: true, coupon });
   } catch (error) {
     console.error("Error al crear cupón:", error);
+
+    // Manejo de errores de validación Zod
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json(
+        { error: "Datos inválidos", details: error },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Error al crear cupón" },
       { status: 500 }
