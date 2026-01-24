@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -23,6 +23,8 @@ export default function CulqiPaymentForm({
 }: CulqiPaymentFormProps) {
   const [processing, setProcessing] = useState(false);
   const [tokenGenerated, setTokenGenerated] = useState(false);
+  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [loadingKey, setLoadingKey] = useState(true);
   const [formData, setFormData] = useState({
     cardNumber: "",
     cvv: "",
@@ -31,7 +33,29 @@ export default function CulqiPaymentForm({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const publicKey = process.env.NEXT_PUBLIC_CULQI_PUBLIC_KEY;
+  // Cargar la clave pública al montar el componente
+  useEffect(() => {
+    loadPublicKey();
+  }, []);
+
+  const loadPublicKey = async () => {
+    try {
+      setLoadingKey(true);
+      const response = await fetch('/api/culqi/public-key');
+      const data = await response.json();
+      
+      if (data.success && data.publicKey) {
+        setPublicKey(data.publicKey);
+      } else {
+        onError('Error al cargar la configuración de pagos');
+      }
+    } catch (error) {
+      console.error('Error loading Culqi public key:', error);
+      onError('Error al cargar la configuración de pagos');
+    } finally {
+      setLoadingKey(false);
+    }
+  };
 
   // Validaciones
   const validateCardNumber = (number: string) => {
@@ -166,8 +190,8 @@ export default function CulqiPaymentForm({
         body: JSON.stringify({
           card_number: formData.cardNumber.replace(/\s/g, ''),
           cvv: formData.cvv,
-          expiration_month: paddedMonth,  // ← Con padding: "09" no "9"
-          expiration_year: fullYear,      // ← 4 dígitos: "2028" no "28"
+          expiration_month: paddedMonth,
+          expiration_year: fullYear,
           email: formData.email,
         }),
       });
@@ -205,18 +229,30 @@ export default function CulqiPaymentForm({
       !processing &&
       formData.cardNumber.replace(/\s/g, '').length >= 13 &&
       formData.cvv.length >= 3 &&
-      formData.expirationDate.length === 5 &&  // MM/AA = 5 caracteres
+      formData.expirationDate.length === 5 &&
       formData.email
     ) {
       generateToken();
     }
   };
 
+  if (loadingKey) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <span className="ml-2 text-sm text-muted-foreground">
+          Cargando configuración de pagos...
+        </span>
+      </div>
+    );
+  }
+
   if (!publicKey) {
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          Error: NEXT_PUBLIC_CULQI_PUBLIC_KEY no configurada
+          Error: El sistema de pagos no está configurado correctamente. 
+          Contacta al administrador.
         </AlertDescription>
       </Alert>
     );

@@ -40,7 +40,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [expandedItems, setExpandedItems] = useState<string[]>(["Configuración"]);
+  const [expandedItems, setExpandedItems] = useState<string[]>([
+    "Configuración",
+    "Métodos de Pago", // Expandir Métodos de Pago por defecto
+  ]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Cerrar sidebar al cambiar de ruta en móvil
@@ -97,10 +100,10 @@ export default function AdminLayout({
       label: "Cupones",
     },
     {
-  href: "/admin/newsletter",
-  icon: Mail,
-  label: "Newsletter",
-},
+      href: "/admin/newsletter",
+      icon: Mail,
+      label: "Newsletter",
+    },
     {
       href: "/admin/lealtad",
       icon: Trophy,
@@ -126,15 +129,26 @@ export default function AdminLayout({
           label: "Emails",
         },
         {
-          href: "/admin/configuracion/pagos",
           icon: CreditCard,
           label: "Métodos de Pago",
+          items: [
+            {
+              href: "/admin/configuracion/pagos",
+              icon: CreditCard,
+              label: "Yape / Plin",
+            },
+            {
+              href: "/admin/configuracion/culqi",
+              icon: CreditCard,
+              label: "Culqi",
+            },
+          ],
         },
         {
           href: "/admin/libro-reclamaciones",
           icon: FileText,
           label: "Libro de Reclamaciones",
-        }
+        },
       ],
     },
   ];
@@ -149,6 +163,57 @@ export default function AdminLayout({
 
   const isActive = (href: string) => pathname === href;
   const isExpanded = (label: string) => expandedItems.includes(label);
+
+  // Función recursiva para renderizar items con soporte para múltiples niveles
+  const renderNavItem = (item: NavItem, depth: number = 0) => {
+    const Icon = item.icon;
+
+    if (item.items) {
+      return (
+        <div key={item.label}>
+          <button
+            onClick={() => toggleItem(item.label)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-slate-100",
+              isExpanded(item.label) && "bg-slate-100"
+            )}
+            style={{ paddingLeft: `${12 + depth * 16}px` }}
+          >
+            <Icon className="h-5 w-5" />
+            <span className="flex-1 text-left">{item.label}</span>
+            {isExpanded(item.label) ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+
+          {isExpanded(item.label) && (
+            <div className="mt-1 space-y-1">
+              {item.items.map((subItem) => renderNavItem(subItem, depth + 1))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href!}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+          isActive(item.href!)
+            ? "bg-primary text-primary-foreground"
+            : "hover:bg-slate-100"
+        )}
+        style={{ paddingLeft: `${12 + depth * 16}px` }}
+      >
+        <Icon className="h-4 w-4" />
+        <span className="text-sm">{item.label}</span>
+      </Link>
+    );
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -185,70 +250,7 @@ export default function AdminLayout({
         </div>
 
         <nav className="space-y-1 p-4 overflow-y-auto h-[calc(100vh-13rem)]">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-
-            if (item.items) {
-              return (
-                <div key={item.label}>
-                  <button
-                    onClick={() => toggleItem(item.label)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-slate-100",
-                      isExpanded(item.label) && "bg-slate-100"
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {isExpanded(item.label) ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </button>
-
-                  {isExpanded(item.label) && (
-                    <div className="ml-4 mt-1 space-y-1">
-                      {item.items.map((subItem) => {
-                        const SubIcon = subItem.icon;
-                        return (
-                          <Link
-                            key={subItem.href}
-                            href={subItem.href!}
-                            className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                              isActive(subItem.href!)
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-slate-100"
-                            )}
-                          >
-                            <SubIcon className="h-4 w-4" />
-                            <span className="text-sm">{subItem.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href!}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                  isActive(item.href!)
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-slate-100"
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
+          {navItems.map((item) => renderNavItem(item))}
         </nav>
 
         <div className="absolute bottom-4 left-4 right-4 space-y-2">

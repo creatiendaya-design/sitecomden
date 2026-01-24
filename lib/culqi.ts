@@ -3,12 +3,9 @@
  * Documentación: https://docs.culqi.com/
  */
 
-const CULQI_API_URL = "https://api.culqi.com/v2";
-const CULQI_SECRET_KEY = process.env.CULQI_SECRET_KEY;
+import { getActiveCulqiKeys } from "@/actions/culqi-settings";
 
-if (!CULQI_SECRET_KEY) {
-  console.warn("⚠️ CULQI_SECRET_KEY no está configurada");
-}
+const CULQI_API_URL = "https://api.culqi.com/v2";
 
 interface CulqiChargeData {
   amount: number; // En centavos (ej: 10000 = S/. 100.00)
@@ -92,19 +89,47 @@ interface CulqiError {
 }
 
 /**
+ * Obtener la clave pública activa de Culqi
+ */
+export async function getCulqiPublicKey(): Promise<string | null> {
+  try {
+    const keys = await getActiveCulqiKeys();
+    
+    if (!keys || !keys.publicKey) {
+      console.error("❌ No se encontraron claves de Culqi configuradas");
+      return null;
+    }
+    
+    return keys.publicKey;
+  } catch (error) {
+    console.error("❌ Error obteniendo clave pública de Culqi:", error);
+    return null;
+  }
+}
+
+/**
  * Crear un cargo con tarjeta usando Culqi
  */
 export async function createCulqiCharge(
   data: CulqiChargeData
 ): Promise<{ success: boolean; data?: CulqiChargeResponse; error?: string }> {
-  if (!CULQI_SECRET_KEY) {
-    return {
-      success: false,
-      error: "Culqi no está configurado correctamente",
-    };
-  }
-
   try {
+    // Obtener la clave secreta activa
+    const keys = await getActiveCulqiKeys();
+    
+    if (!keys || !keys.secretKey) {
+      console.error("❌ Culqi no está configurado correctamente");
+      return {
+        success: false,
+        error: "El sistema de pagos no está configurado. Contacta al administrador.",
+      };
+    }
+
+    const CULQI_SECRET_KEY = keys.secretKey;
+    const mode = keys.mode;
+
+    console.log(`🔧 Procesando pago con Culqi en modo: ${mode}`);
+
     const response = await fetch(`${CULQI_API_URL}/charges`, {
       method: "POST",
       headers: {
@@ -139,7 +164,7 @@ export async function createCulqiCharge(
       };
     }
 
-    console.log("✅ Culqi charge successful:", charge.id);
+    console.log(`✅ Culqi charge successful (${mode}):`, charge.id);
 
     return {
       success: true,
@@ -158,15 +183,17 @@ export async function createCulqiCharge(
  * Obtener información de un cargo
  */
 export async function getCulqiCharge(chargeId: string) {
-  if (!CULQI_SECRET_KEY) {
-    throw new Error("Culqi no está configurado");
-  }
-
   try {
+    const keys = await getActiveCulqiKeys();
+    
+    if (!keys || !keys.secretKey) {
+      throw new Error("Culqi no está configurado");
+    }
+
     const response = await fetch(`${CULQI_API_URL}/charges/${chargeId}`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${CULQI_SECRET_KEY}`,
+        Authorization: `Bearer ${keys.secretKey}`,
       },
     });
 
