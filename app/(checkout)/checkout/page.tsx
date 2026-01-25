@@ -532,8 +532,9 @@ export default function CheckoutPage() {
         </Sheet>
       </div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
-        <form onSubmit={handleSubmit}>
+      {/* ✅ CONTENEDOR PRINCIPAL CON PADDING MÓVIL ARREGLADO */}
+      <div className="w-full px-4 sm:px-6 lg:container lg:mx-auto lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
+        <form onSubmit={handleSubmit} className="w-full">
           {/* Messages */}
           {error && (
             <Alert variant="destructive" className="mb-6">
@@ -542,9 +543,9 @@ export default function CheckoutPage() {
             </Alert>
           )}
 
-          <div className="grid gap-8 lg:grid-cols-3">
+          <div className="grid gap-6 lg:gap-8 lg:grid-cols-3">
             {/* Formulario */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-6 w-full">
               {/* Información del Cliente */}
               <Card>
                 <CardHeader>
@@ -739,7 +740,7 @@ export default function CheckoutPage() {
                   >
                     <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="YAPE" id="yape" />
-                      <div className="flex items-center gap-3 flex-1">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="flex-shrink-0">
                           <YapeIcon width={32} height={32} />
                         </div>
@@ -755,7 +756,7 @@ export default function CheckoutPage() {
 
                     <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="PLIN" id="plin" />
-                      <div className="flex items-center gap-3 flex-1">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="flex-shrink-0">
                           <PlinIcon width={32} height={32} />
                         </div>
@@ -771,7 +772,7 @@ export default function CheckoutPage() {
                     <div className="space-y-3">
                       <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                         <RadioGroupItem value="CARD" id="card" />
-                        <div className="flex items-center gap-3 flex-1">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <VisaIcon width={40} height={26} />
                             <MastercardIcon width={32} height={20} />
@@ -801,7 +802,7 @@ export default function CheckoutPage() {
 
                     <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="PAYPAL" id="paypal" />
-                      <div className="flex items-center gap-3 flex-1">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="flex-shrink-0">
                           <PayPalIcon width={32} height={20} />
                         </div>
