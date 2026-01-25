@@ -9,7 +9,11 @@
   overflow-x: hidden;
   box-sizing: border-box;
 }
-
+@media (max-width: 768px) {
+    .product-detail-container{
+        margin-bottom: 4rem;
+    }
+}
 .product-detail-grid {
   display: grid;
   gap: 1.5rem;
