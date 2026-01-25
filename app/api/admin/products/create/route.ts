@@ -17,20 +17,18 @@ export async function POST(request: Request) {
       hasVariants: data.hasVariants,
       basePrice: data.basePrice,
       variantsCount: data.variants?.length || 0,
+      optionsCount: data.options?.length || 0, // 🆕 Log de opciones
       imagesReceived: data.images?.length || 0,
-      categoryId: data.categoryId, // ✅ Log para debug
+      categoryId: data.categoryId,
     });
 
     // ✅ NORMALIZAR IMÁGENES ANTES DE VALIDAR
-    // Convertir objetos { url, alt, name } a strings (solo URL)
     let normalizedImages: string[] = [];
     if (data.images && Array.isArray(data.images)) {
       normalizedImages = data.images.map((img: any) => {
-        // Si es objeto con url, extraer la URL
         if (typeof img === "object" && img.url) {
           return img.url;
         }
-        // Si ya es string, dejarlo como está
         if (typeof img === "string") {
           return img;
         }
@@ -41,14 +39,12 @@ export async function POST(request: Request) {
     console.log("✅ Imágenes normalizadas para validación:", normalizedImages.length);
 
     // ✅ NORMALIZAR DATOS ANTES DE VALIDAR
-    // Si tiene variantes, el basePrice debe ser 0
     const normalizedData = {
       ...data,
-      images: normalizedImages,  // ✅ Usar imágenes normalizadas (strings)
+      images: normalizedImages,
       basePrice: data.hasVariants ? 0 : (data.basePrice || 0),
       stock: data.hasVariants ? 0 : (data.stock || 0),
       sku: data.hasVariants ? null : (data.sku || null),
-      // ✅ FIX: Normalizar categoryId - convertir string vacío a null
       categoryId: data.categoryId && data.categoryId.trim() !== "" ? data.categoryId : null,
     };
 
@@ -57,7 +53,7 @@ export async function POST(request: Request) {
       hasVariants: normalizedData.hasVariants,
     });
 
-    // ✅ VALIDACIÓN: Validar datos con Zod (ahora images son strings y categoryId normalizado)
+    // ✅ VALIDACIÓN
     const validatedData = createProductSchema.parse(normalizedData);
 
     // Verificar que el slug no exista
@@ -72,7 +68,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ Normalizar imágenes de nuevo para guardar con metadata
+    // ✅ Normalizar imágenes para guardar
     const imagesToSave = normalizeImagesForSave(validatedData.images);
 
     console.log("✅ Datos validados:", {
@@ -80,6 +76,7 @@ export async function POST(request: Request) {
       hasVariants: validatedData.hasVariants,
       basePrice: validatedData.basePrice,
       variantsToCreate: data.variants?.length || 0,
+      optionsToCreate: data.options?.length || 0, // 🆕
     });
 
     // ✅ Crear producto con transacción
@@ -95,7 +92,7 @@ export async function POST(request: Request) {
           compareAtPrice: validatedData.compareAtPrice || null,
           sku: validatedData.sku || null,
           stock: validatedData.stock || 0,
-          images: imagesToSave as any,  // ✅ Cast a any para compatibilidad con Prisma Json
+          images: imagesToSave as any,
           active: validatedData.active ?? true,
           featured: validatedData.featured ?? false,
           hasVariants: validatedData.hasVariants,
@@ -105,7 +102,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // 2. Relacionar con categoría si se especificó
+      // 2. Relacionar con categoría
       if (validatedData.categoryId) {
         await tx.productCategory.create({
           data: {
@@ -115,36 +112,44 @@ export async function POST(request: Request) {
         });
       }
 
-      // 3. Si tiene variantes, crear opciones y variantes
+      // 3. 🆕 Si tiene variantes, crear opciones CON SWATCHES y variantes
       if (validatedData.hasVariants && data.options && data.variants) {
-        console.log("📝 Creando opciones y variantes...");
+        console.log("📝 Creando opciones con swatches y variantes...");
 
-        // Crear opciones (Color, Talla, etc.)
+        // 🆕 Crear opciones con todos los campos de swatches
         for (let i = 0; i < data.options.length; i++) {
           const option = data.options[i];
-          await tx.productOption.create({
+          
+          const createdOption = await tx.productOption.create({
             data: {
               productId: newProduct.id,
               name: option.name,
+              displayStyle: option.displayStyle || "DROPDOWN", // 🆕 SWATCHES, BUTTONS, DROPDOWN
               position: i,
-              values: {
-                create: option.values.map((value: string, j: number) => ({
-                  value,
-                  position: j,
-                })),
-              },
             },
           });
+
+          // 🆕 Crear valores con swatches
+          if (option.values && option.values.length > 0) {
+            await tx.productOptionValue.createMany({
+              data: option.values.map((value: any, j: number) => ({
+                optionId: createdOption.id,
+                value: typeof value === 'string' ? value : value.value, // Soporte para string o objeto
+                position: j,
+                swatchType: value.swatchType || "NONE", // 🆕 NONE, COLOR, IMAGE
+                colorHex: value.colorHex || null, // 🆕 Color hex para swatches de color
+                swatchImage: value.swatchImage || null, // 🆕 URL de imagen para swatches de patrón
+              }))
+            });
+          }
         }
 
         // Crear variantes
         let createdVariants = 0;
         for (const variant of data.variants) {
-          // ✅ CONVERSIÓN EXPLÍCITA: Asegurar que price y stock sean números
           const variantPrice = parseFloat(variant.price);
           const variantStock = parseInt(variant.stock) || 0;
 
-          // ✅ VALIDACIÓN: El precio debe ser mayor a 0
           if (!variantPrice || variantPrice <= 0) {
             console.error("❌ Variante sin precio válido:", variant);
             throw new Error(`Variante ${JSON.stringify(variant.options)} debe tener un precio mayor a 0`);
@@ -152,7 +157,6 @@ export async function POST(request: Request) {
 
           console.log(`  ✅ Creando variante: ${JSON.stringify(variant.options)} - Precio: ${variantPrice}`);
 
-          // Generar SKU si no se proporcionó
           const sku = variant.sku || (() => {
             const optionValues = Object.values(variant.options).join("-");
             return `${newProduct.slug}-${optionValues}`.toUpperCase().replace(/\s+/g, "-");
@@ -162,7 +166,7 @@ export async function POST(request: Request) {
             data: {
               productId: newProduct.id,
               sku,
-              options: variant.options as any,  // ✅ Cast para compatibilidad con Prisma Json
+              options: variant.options as any,
               price: variantPrice,
               compareAtPrice: variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null,
               stock: variantStock,
@@ -183,7 +187,7 @@ export async function POST(request: Request) {
 
     console.log(`✅ Producto creado exitosamente por usuario ${user.id}:`, product.name);
 
-    // Obtener el producto completo con todas las relaciones
+    // Obtener el producto completo
     const completeProduct = await prisma.product.findUnique({
       where: { id: product.id },
       include: {
@@ -210,7 +214,6 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("❌ Error al crear producto:", error);
 
-    // Manejo de errores de validación Zod
     if (error instanceof Error && error.name === "ZodError") {
       return NextResponse.json(
         {
@@ -221,7 +224,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Errores personalizados (ej: variante sin precio)
     if (error instanceof Error) {
       return NextResponse.json(
         { error: error.message },

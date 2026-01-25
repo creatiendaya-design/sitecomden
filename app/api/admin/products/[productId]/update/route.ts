@@ -21,11 +21,12 @@ export async function PUT(
       productId,
       hasVariants: data.hasVariants,
       variantsCount: data.variants?.length || 0,
+      optionsCount: data.options?.length || 0, // 🆕
       imagesReceived: data.images?.length || 0,
       categoryId: data.categoryId,
     });
 
-    // ✅ NORMALIZAR IMÁGENES ANTES DE VALIDAR
+    // ✅ NORMALIZAR IMÁGENES
     let normalizedImages: string[] = [];
     if (data.images && Array.isArray(data.images)) {
       normalizedImages = data.images.map((img: any) => {
@@ -41,7 +42,7 @@ export async function PUT(
 
     console.log("✅ Imágenes normalizadas para validación:", normalizedImages.length);
 
-    // ✅ NORMALIZAR DATOS ANTES DE VALIDAR
+    // ✅ NORMALIZAR DATOS
     const normalizedData = {
       ...data,
       images: normalizedImages,
@@ -108,9 +109,9 @@ export async function PUT(
         });
       }
 
-      // 3. Si tiene variantes, gestionar INTELIGENTEMENTE
+      // 3. 🆕 Si tiene variantes, gestionar opciones CON SWATCHES y variantes
       if (validatedData.hasVariants && data.options && data.variants) {
-        console.log("🔄 Actualizando variantes de forma inteligente...");
+        console.log("🔄 Actualizando opciones con swatches y variantes...");
 
         // ✅ OBTENER VARIANTES EXISTENTES
         const existingVariants = await tx.productVariant.findMany({
@@ -149,7 +150,7 @@ export async function PUT(
           ])
         );
 
-        // ✅ ELIMINAR OPCIONES ANTIGUAS
+        // 🆕 ELIMINAR OPCIONES Y VALORES ANTIGUOS
         await tx.productOptionValue.deleteMany({
           where: {
             option: {
@@ -161,22 +162,32 @@ export async function PUT(
           where: { productId },
         });
 
-        // ✅ CREAR NUEVAS OPCIONES
+        // 🆕 CREAR NUEVAS OPCIONES CON SWATCHES
         for (let i = 0; i < data.options.length; i++) {
           const option = data.options[i];
-          await tx.productOption.create({
+          
+          const createdOption = await tx.productOption.create({
             data: {
               productId,
               name: option.name,
+              displayStyle: option.displayStyle || "DROPDOWN", // 🆕 SWATCHES, BUTTONS, DROPDOWN
               position: i,
-              values: {
-                create: option.values.map((value: string, j: number) => ({
-                  value,
-                  position: j,
-                })),
-              },
             },
           });
+
+          // 🆕 Crear valores con swatches
+          if (option.values && option.values.length > 0) {
+            await tx.productOptionValue.createMany({
+              data: option.values.map((value: any, j: number) => ({
+                optionId: createdOption.id,
+                value: typeof value === 'string' ? value : value.value,
+                position: j,
+                swatchType: value.swatchType || "NONE", // 🆕 NONE, COLOR, IMAGE
+                colorHex: value.colorHex || null, // 🆕 #FF0000
+                swatchImage: value.swatchImage || null, // 🆕 URL de imagen
+              }))
+            });
+          }
         }
 
         // ✅ CREAR CONJUNTO DE VARIANTES NUEVAS
@@ -206,11 +217,9 @@ export async function PUT(
           const variantKey = getVariantKey(newVariant.options);
           const existingVariant = existingVariantsMap.get(variantKey);
 
-          // ✅ CONVERSIÓN DE DATOS
           const variantPrice = parseFloat(newVariant.price);
           const variantStock = parseInt(newVariant.stock) || 0;
 
-          // ✅ VALIDACIÓN
           if (!variantPrice || variantPrice <= 0) {
             console.error("❌ Variante sin precio válido:", newVariant);
             throw new Error(
@@ -231,20 +240,19 @@ export async function PUT(
           };
 
           if (existingVariant) {
-            // ✅ ACTUALIZAR VARIANTE EXISTENTE
+            // ACTUALIZAR VARIANTE EXISTENTE
             console.log(`  🔄 Actualizando variante existente: ${JSON.stringify(newVariant.options)}`);
             
             await tx.productVariant.update({
               where: { id: existingVariant.id },
               data: {
                 ...variantData,
-                // Mantener SKU si no se envió uno nuevo
                 sku: newVariant.sku || existingVariant.sku,
               },
             });
             updatedCount++;
           } else {
-            // ✅ CREAR VARIANTE NUEVA
+            // CREAR VARIANTE NUEVA
             console.log(`  ➕ Creando variante nueva: ${JSON.stringify(newVariant.options)}`);
 
             const sku =
@@ -271,6 +279,21 @@ export async function PUT(
         console.log(`   - Actualizadas: ${updatedCount}`);
         console.log(`   - Creadas: ${createdCount}`);
         console.log(`   - Eliminadas: ${variantsToDelete.length}`);
+      } else if (!validatedData.hasVariants) {
+        // Si hasVariants es false, eliminar todas las opciones y variantes
+        await tx.productOptionValue.deleteMany({
+          where: {
+            option: {
+              productId,
+            },
+          },
+        });
+        await tx.productOption.deleteMany({
+          where: { productId },
+        });
+        await tx.productVariant.deleteMany({
+          where: { productId },
+        });
       }
 
       return updatedProduct;

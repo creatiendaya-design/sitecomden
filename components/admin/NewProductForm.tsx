@@ -15,16 +15,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Plus, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import ImageUpload from "@/components/admin/ImageUpload";
 import RichTextEditor from "./RichTextEditor";
+import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor"; // 🆕 IMPORTAR
+
+// 🆕 Tipos actualizados con swatches
+interface ProductOptionValue {
+  id: string;
+  value: string;
+  position: number;
+  swatchType: 'NONE' | 'COLOR' | 'IMAGE';
+  colorHex?: string;
+  swatchImage?: string;
+}
 
 interface ProductOption {
+  id: string;
   name: string;
-  values: string[];
+  displayStyle: 'DROPDOWN' | 'BUTTONS' | 'SWATCHES';
+  position: number;
+  values: ProductOptionValue[];
 }
 
 interface Variant {
@@ -63,11 +77,8 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     metaDescription: "",
   });
 
-  // Gestión de variantes
+  // 🆕 Estado para opciones con swatches
   const [options, setOptions] = useState<ProductOption[]>([]);
-  const [newOptionName, setNewOptionName] = useState("");
-  // ✅ FIX: Estado independiente por cada opción
-  const [newOptionValues, setNewOptionValues] = useState<Record<number, string>>({});
   const [variants, setVariants] = useState<Variant[]>([]);
 
   // Selección y edición masiva
@@ -99,37 +110,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     setSelectedVariants([]);
   };
 
-  const addOption = () => {
-    if (!newOptionName.trim()) return;
-    setOptions([...options, { name: newOptionName, values: [] }]);
-    setNewOptionName("");
-  };
-
-  const removeOption = (index: number) => {
-    setOptions(options.filter((_, i) => i !== index));
-    generateVariants(options.filter((_, i) => i !== index));
-  };
-
-  const addValueToOption = (optionIndex: number, value: string) => {
-    if (!value.trim()) return;
-    const newOptions = [...options];
-    newOptions[optionIndex].values.push(value);
-    setOptions(newOptions);
-    generateVariants(newOptions);
-    
-    // ✅ FIX: Limpiar solo el input de esta opción
-    setNewOptionValues(prev => ({ ...prev, [optionIndex]: "" }));
-  };
-
-  const removeValueFromOption = (optionIndex: number, valueIndex: number) => {
-    const newOptions = [...options];
-    newOptions[optionIndex].values = newOptions[optionIndex].values.filter(
-      (_, i) => i !== valueIndex
-    );
-    setOptions(newOptions);
-    generateVariants(newOptions);
-  };
-
+  // 🆕 Generar variantes cuando cambian las opciones
   const generateVariants = (opts: ProductOption[]) => {
     if (opts.length === 0 || opts.some((o) => o.values.length === 0)) {
       setVariants([]);
@@ -141,8 +122,8 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     opts.forEach((option) => {
       const newCombinations: Record<string, string>[] = [];
       combinations.forEach((combo) => {
-        option.values.forEach((value) => {
-          newCombinations.push({ ...combo, [option.name]: value });
+        option.values.forEach((valueObj) => {
+          newCombinations.push({ ...combo, [option.name]: valueObj.value });
         });
       });
       combinations.length = 0;
@@ -165,6 +146,12 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     });
 
     setVariants(newVariants);
+  };
+
+  // 🆕 Handler cuando cambian las opciones desde ProductOptionsEditor
+  const handleOptionsChange = (newOptions: ProductOption[]) => {
+    setOptions(newOptions);
+    generateVariants(newOptions);
   };
 
   const updateVariant = (
@@ -372,7 +359,6 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                 <ImageUpload
                   images={formData.images}
                   onChange={(images) => {
-                    // Si images es un array de objetos con url, extraer las URLs
                     const imageUrls = Array.isArray(images)
                       ? images.map((img: any) => (typeof img === 'string' ? img : img.url || img))
                       : [];
@@ -442,11 +428,16 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
               </Card>
             )}
 
-            {/* Variants */}
+            {/* Variants Toggle */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Variantes</CardTitle>
+                  <div>
+                    <CardTitle>Variantes</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Activa si tu producto tiene opciones como Color, Talla, etc.
+                    </p>
+                  </div>
                   <Switch
                     checked={formData.hasVariants}
                     onCheckedChange={(checked) => {
@@ -460,114 +451,41 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                   />
                 </div>
               </CardHeader>
-              {formData.hasVariants && (
-                <CardContent className="space-y-6">
-                  {/* Add Option */}
-                  <div>
-                    <Label>Nueva Opción (Color, Talla, etc.)</Label>
-                    <div className="mt-2 flex gap-2">
-                      <Input
-                        placeholder="Nombre"
-                        value={newOptionName}
-                        onChange={(e) => setNewOptionName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addOption();
-                          }
-                        }}
-                      />
-                      <Button type="button" onClick={addOption}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Options */}
-                  {options.map((option, optionIndex) => (
-                    <Card key={optionIndex} className="border-dashed">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">{option.name}</h4>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeOption(optionIndex)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Valor"
-                            value={newOptionValues[optionIndex] || ""}
-                            onChange={(e) => setNewOptionValues(prev => ({ 
-                              ...prev, 
-                              [optionIndex]: e.target.value 
-                            }))}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                addValueToOption(optionIndex, newOptionValues[optionIndex] || "");
-                              }
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              addValueToOption(optionIndex, newOptionValues[optionIndex] || "");
-                            }}
-                            disabled={!(newOptionValues[optionIndex] || "").trim()}
-                          >
-                            +
-                          </Button>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {option.values.map((value, valueIndex) => (
-                            <div
-                              key={valueIndex}
-                              className="flex items-center gap-1 rounded-md border px-3 py-1"
-                            >
-                              <span className="text-sm">{value}</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeValueFromOption(optionIndex, valueIndex)
-                                }
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-
-                  {/* ✅ NUEVA TABLA DE VARIANTES */}
-                  {variants.length > 0 && (
-                    <div>
-                      <VariantsTable
-                        variants={variants}
-                        selectedVariants={selectedVariants}
-                        onToggleSelect={toggleSelectVariant}
-                        onToggleSelectAll={toggleSelectAll}
-                        onUpdateVariant={updateVariant}
-                        onUpdateVariantImage={updateVariantImage}
-                        onRemoveVariantImage={removeVariantImage}
-                        onOpenBulkEdit={() => setShowBulkEdit(true)}
-                      />
-                    </div>
-                  )}
-                </CardContent>
-              )}
             </Card>
 
-            {/* ✅ SEO */}
+            {/* 🆕 OPCIONES CON SWATCHES - ProductOptionsEditor */}
+            {formData.hasVariants && (
+              <ProductOptionsEditor
+                options={options}
+                onChange={handleOptionsChange}
+              />
+            )}
+
+            {/* ✅ TABLA DE VARIANTES */}
+            {formData.hasVariants && variants.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Variantes del Producto</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Configura precio, stock e imágenes para cada variante
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <VariantsTable
+                    variants={variants}
+                    selectedVariants={selectedVariants}
+                    onToggleSelect={toggleSelectVariant}
+                    onToggleSelectAll={toggleSelectAll}
+                    onUpdateVariant={updateVariant}
+                    onUpdateVariantImage={updateVariantImage}
+                    onRemoveVariantImage={removeVariantImage}
+                    onOpenBulkEdit={() => setShowBulkEdit(true)}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* SEO */}
             <Card>
               <CardHeader>
                 <CardTitle>SEO (Optimización para Motores de Búsqueda)</CardTitle>
@@ -639,7 +557,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>
                   <Save className="mr-2 h-4 w-4" />
-                  {loading ? "Guardando..." : "Crear"}
+                  {loading ? "Guardando..." : "Crear Producto"}
                 </Button>
                 <Button
                   type="button"

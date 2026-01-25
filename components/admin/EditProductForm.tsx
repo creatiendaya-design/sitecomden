@@ -8,16 +8,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Save, Plus, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import RichTextEditor from "@/components/admin/RichTextEditor";
+import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor"; // 🆕 IMPORTAR
+
+// 🆕 Tipos actualizados con swatches
+interface ProductOptionValue {
+  id: string;
+  value: string;
+  position: number;
+  swatchType: 'NONE' | 'COLOR' | 'IMAGE';
+  colorHex?: string;
+  swatchImage?: string;
+}
 
 interface ProductOption {
+  id: string;
   name: string;
-  values: string[];
+  displayStyle: 'DROPDOWN' | 'BUTTONS' | 'SWATCHES';
+  position: number;
+  values: ProductOptionValue[];
 }
 
 interface Variant {
@@ -43,7 +57,6 @@ export default function EditProductForm({ product, categories }: EditProductForm
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Estado para categoría seleccionada
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
     product.categories?.[0]?.category?.id || ""
   );
@@ -65,20 +78,31 @@ export default function EditProductForm({ product, categories }: EditProductForm
     metaDescription: product.metaDescription || "",
   });
 
-  // Gestión de variantes
+  // 🆕 Estado para opciones con swatches
   const [options, setOptions] = useState<ProductOption[]>([]);
-  const [newOptionName, setNewOptionName] = useState("");
-  // ✅ FIX: Estado independiente por cada opción (objeto indexado)
-  const [newOptionValues, setNewOptionValues] = useState<Record<number, string>>({});
   const [variants, setVariants] = useState<Variant[]>([]);
 
-  // Cargar opciones y variantes existentes
+  // Selección y edición masiva
+  const [selectedVariants, setSelectedVariants] = useState<number[]>([]);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+
+  // 🆕 Cargar opciones con swatches y variantes existentes
   useEffect(() => {
     if (product.hasVariants) {
-      // Cargar opciones
+      // Cargar opciones CON todos los campos de swatches
       const loadedOptions: ProductOption[] = product.options.map((opt: any) => ({
+        id: opt.id,
         name: opt.name,
-        values: opt.values.map((v: any) => v.value),
+        displayStyle: opt.displayStyle || "DROPDOWN",
+        position: opt.position,
+        values: opt.values.map((v: any) => ({
+          id: v.id,
+          value: v.value,
+          position: v.position,
+          swatchType: v.swatchType || "NONE",
+          colorHex: v.colorHex || undefined,
+          swatchImage: v.swatchImage || undefined,
+        })),
       }));
       setOptions(loadedOptions);
 
@@ -95,10 +119,6 @@ export default function EditProductForm({ product, categories }: EditProductForm
       setVariants(loadedVariants);
     }
   }, [product]);
-
-  // Selección y edición masiva
-  const [selectedVariants, setSelectedVariants] = useState<number[]>([]);
-  const [showBulkEdit, setShowBulkEdit] = useState(false);
 
   const toggleSelectAll = () => {
     if (selectedVariants.length === variants.length) {
@@ -125,37 +145,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
     setSelectedVariants([]);
   };
 
-  const addOption = () => {
-    if (!newOptionName.trim()) return;
-    setOptions([...options, { name: newOptionName, values: [] }]);
-    setNewOptionName("");
-  };
-
-  const removeOption = (index: number) => {
-    setOptions(options.filter((_, i) => i !== index));
-    generateVariants(options.filter((_, i) => i !== index));
-  };
-
-  const addValueToOption = (optionIndex: number, value: string) => {
-    if (!value.trim()) return;
-    const newOptions = [...options];
-    newOptions[optionIndex].values.push(value);
-    setOptions(newOptions);
-    generateVariants(newOptions);
-    
-    // ✅ FIX: Limpiar solo el input de esta opción
-    setNewOptionValues(prev => ({ ...prev, [optionIndex]: "" }));
-  };
-
-  const removeValueFromOption = (optionIndex: number, valueIndex: number) => {
-    const newOptions = [...options];
-    newOptions[optionIndex].values = newOptions[optionIndex].values.filter(
-      (_, i) => i !== valueIndex
-    );
-    setOptions(newOptions);
-    generateVariants(newOptions);
-  };
-
+  // 🆕 Generar variantes cuando cambian las opciones
   const generateVariants = (opts: ProductOption[]) => {
     if (opts.length === 0 || opts.some((o) => o.values.length === 0)) {
       return;
@@ -166,8 +156,8 @@ export default function EditProductForm({ product, categories }: EditProductForm
     opts.forEach((option) => {
       const newCombinations: Record<string, string>[] = [];
       combinations.forEach((combo) => {
-        option.values.forEach((value) => {
-          newCombinations.push({ ...combo, [option.name]: value });
+        option.values.forEach((valueObj) => {
+          newCombinations.push({ ...combo, [option.name]: valueObj.value });
         });
       });
       combinations.length = 0;
@@ -190,6 +180,12 @@ export default function EditProductForm({ product, categories }: EditProductForm
     });
 
     setVariants(newVariants);
+  };
+
+  // 🆕 Handler cuando cambian las opciones desde ProductOptionsEditor
+  const handleOptionsChange = (newOptions: ProductOption[]) => {
+    setOptions(newOptions);
+    generateVariants(newOptions);
   };
 
   const updateVariant = (
@@ -360,7 +356,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
               </CardContent>
             </Card>
 
-            {/* ✅ CATEGORÍA */}
+            {/* Categoría */}
             <Card>
               <CardHeader>
                 <CardTitle>Categoría</CardTitle>
@@ -486,128 +482,15 @@ export default function EditProductForm({ product, categories }: EditProductForm
               </CardHeader>
             </Card>
 
-            {/* Options Management */}
+            {/* 🆕 OPCIONES CON SWATCHES - ProductOptionsEditor */}
             {formData.hasVariants && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Opciones del Producto</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Define las opciones (Color, Talla, etc.) para generar variantes
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Add New Option */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Nombre de opción (ej: Talla)"
-                      value={newOptionName}
-                      onChange={(e) => setNewOptionName(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addOption();
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      onClick={addOption}
-                      disabled={!newOptionName.trim()}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Existing Options */}
-                  <div className="space-y-4">
-                    {options.map((option, optionIndex) => (
-                      <div key={optionIndex} className="rounded-lg border p-4">
-                        <div className="mb-3 flex items-center justify-between">
-                          <h4 className="font-semibold">{option.name}</h4>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeOption(optionIndex)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-
-                        {/* Add Value to Option */}
-                        <div className="mb-2 flex gap-2">
-                          <Input
-                            placeholder={`Agregar valor (ej: ${
-                              option.name === "Talla" ? "22" : "Valor"
-                            })`}
-                            value={newOptionValues[optionIndex] || ""}
-                            onChange={(e) => setNewOptionValues(prev => ({ 
-                              ...prev, 
-                              [optionIndex]: e.target.value 
-                            }))}
-                            onKeyPress={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                addValueToOption(optionIndex, newOptionValues[optionIndex] || "");
-                              }
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              addValueToOption(optionIndex, newOptionValues[optionIndex] || "");
-                            }}
-                            disabled={!(newOptionValues[optionIndex] || "").trim()}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        {/* Option Values */}
-                        <div className="flex flex-wrap gap-2">
-                          {option.values.map((value, valueIndex) => (
-                            <div
-                              key={valueIndex}
-                              className="flex items-center gap-1 rounded-md bg-muted px-3 py-1 text-sm"
-                            >
-                              <span>{value}</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeValueFromOption(optionIndex, valueIndex)
-                                }
-                                className="ml-1 text-muted-foreground hover:text-foreground"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {options.length > 0 && (
-                    <div className="rounded-lg bg-muted p-3 text-sm">
-                      <p className="font-semibold">
-                        Se generarán{" "}
-                        {options.reduce(
-                          (acc, opt) => acc * (opt.values.length || 1),
-                          1
-                        )}{" "}
-                        variantes
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Cada combinación de opciones creará una variante
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <ProductOptionsEditor
+                options={options}
+                onChange={handleOptionsChange}
+              />
             )}
 
-            {/* ✅ NUEVA TABLA DE VARIANTES - ESTILO SHOPIFY */}
+            {/* ✅ TABLA DE VARIANTES */}
             {formData.hasVariants && variants.length > 0 && (
               <Card>
                 <CardHeader>
@@ -631,7 +514,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
               </Card>
             )}
 
-            {/* ✅ SEO */}
+            {/* SEO */}
             <Card>
               <CardHeader>
                 <CardTitle>SEO (Optimización para Motores de Búsqueda)</CardTitle>
