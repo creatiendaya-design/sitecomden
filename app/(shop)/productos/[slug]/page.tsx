@@ -13,6 +13,29 @@ interface ProductDetailPageProps {
   }>;
 }
 
+// 🆕 Función helper para combinar imágenes del producto y variantes
+function getAllProductImages(productImages: any, variants: any[]) {
+  // Normalizar imágenes del producto
+  let images: string[] = [];
+  
+  if (Array.isArray(productImages)) {
+    images = productImages.map((img: any) => 
+      typeof img === 'string' ? img : img?.url || img
+    ).filter(Boolean);
+  }
+
+  // Agregar imágenes únicas de variantes
+  if (variants && variants.length > 0) {
+    variants.forEach((variant) => {
+      if (variant.image && !images.includes(variant.image)) {
+        images.push(variant.image);
+      }
+    });
+  }
+
+  return images;
+}
+
 export default async function ProductDetailPage({
   params,
 }: ProductDetailPageProps) {
@@ -64,6 +87,9 @@ export default async function ProductDetailPage({
       : null;
   }
 
+  // 🆕 Combinar imágenes del producto y variantes
+  const allImages = getAllProductImages(product.images, product.variants);
+
   // Serializar producto para componentes cliente
   const serializedProduct = {
     id: product.id,
@@ -80,13 +106,13 @@ export default async function ProductDetailPage({
     weight: product.weight ? Number(product.weight) : null,
   };
 
-  // 🔧 FIX: Serializar variantes con conversión explícita de options
+  // Serializar variantes con conversión explícita de options
   const serializedVariants = product.variants.map((v) => ({
     id: v.id,
     productId: v.productId,
     sku: v.sku,
     barcode: v.barcode,
-    options: v.options as Record<string, string>, // ← Conversión explícita
+    options: v.options as Record<string, string>,
     price: Number(v.price),
     compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
     stock: v.stock,
@@ -99,8 +125,8 @@ export default async function ProductDetailPage({
   return (
     <div className="product-detail-container">
       <div className="product-detail-grid">
-        {/* Gallery Column */}
-        <ProductImageGallery images={product.images} name={product.name} />
+        {/* Gallery Column - 🆕 Usando imágenes combinadas */}
+        <ProductImageGallery images={allImages} name={product.name} />
 
         {/* Info Column */}
         <div className="product-info-wrapper">

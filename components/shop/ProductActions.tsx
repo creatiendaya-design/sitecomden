@@ -119,6 +119,19 @@ export default function ProductActions({
           },
         })
       );
+
+      // 🆕 Si la variante tiene imagen, notificar para cambiar la galería
+      if (selectedVariant.image) {
+        console.log("🖼️ Actualizando imagen de galería a:", selectedVariant.image);
+        
+        window.dispatchEvent(
+          new CustomEvent("variant-image-changed", {
+            detail: {
+              imageUrl: selectedVariant.image,
+            },
+          })
+        );
+      }
     }
   }, [selectedVariant]);
 

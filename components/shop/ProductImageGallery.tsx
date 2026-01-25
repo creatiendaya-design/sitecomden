@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { getAllProductImages } from "@/lib/image-utils";
 
@@ -17,6 +17,38 @@ export default function ProductImageGallery({
   
   // Normalizar imágenes a formato consistente
   const normalizedImages = getAllProductImages(images);
+
+  // 🆕 Escuchar cambios de imagen de variante
+  useEffect(() => {
+    const handleVariantImageChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const imageUrl = customEvent.detail?.imageUrl;
+
+      if (!imageUrl) return;
+
+      console.log("🖼️ Evento de cambio de imagen recibido:", imageUrl);
+
+      // Buscar el índice de la imagen en el array
+      const imageIndex = normalizedImages.findIndex(
+        (img) => img.url === imageUrl
+      );
+
+      if (imageIndex !== -1) {
+        console.log("✅ Imagen encontrada en índice:", imageIndex);
+        setSelectedImage(imageIndex);
+      } else {
+        console.log("⚠️ Imagen no encontrada en galería, agregándola temporalmente");
+        // Si la imagen no está en la galería, podríamos agregarla dinámicamente
+        // Por ahora, solo loguear que no se encontró
+      }
+    };
+
+    window.addEventListener("variant-image-changed", handleVariantImageChange);
+
+    return () => {
+      window.removeEventListener("variant-image-changed", handleVariantImageChange);
+    };
+  }, [normalizedImages]);
 
   if (normalizedImages.length === 0) {
     return (
