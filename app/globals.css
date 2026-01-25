@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-
+@import './styles/product-gallery.css';
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -199,3 +199,5 @@
 .category-filter:hover {
   transform: translateX(2px);
 }
+
+

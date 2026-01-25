@@ -20,43 +20,53 @@ export default function ProductImageGallery({
 
   if (normalizedImages.length === 0) {
     return (
-      <div className="aspect-square w-full rounded-lg bg-slate-100 flex items-center justify-center">
-        <span className="text-muted-foreground">Sin imagen</span>
+      <div className="product-gallery-wrapper">
+        <div className="product-gallery-main">
+          <div className="flex items-center justify-center h-full">
+            <span className="text-slate-400 text-sm">Sin imagen</span>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="product-gallery-wrapper">
       {/* Main Image */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-slate-100">
+      <div className="product-gallery-main">
         <Image
           src={normalizedImages[selectedImage].url}
           alt={normalizedImages[selectedImage].alt || `${name} - Imagen ${selectedImage + 1}`}
           fill
-          className="object-cover"
-          priority
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px"
+          priority={selectedImage === 0}
+          quality={90}
+          className="select-none"
+          style={{ objectFit: 'contain' }}
         />
       </div>
 
       {/* Thumbnails */}
       {normalizedImages.length > 1 && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="product-gallery-thumbnails">
           {normalizedImages.map((image, index) => (
             <button
               key={index}
               onClick={() => setSelectedImage(index)}
-              className={`relative aspect-square overflow-hidden rounded-lg bg-slate-100 ${
-                selectedImage === index
-                  ? "ring-2 ring-primary ring-offset-2"
-                  : "hover:opacity-75"
+              className={`product-gallery-thumbnail ${
+                selectedImage === index ? 'active' : ''
               }`}
+              type="button"
+              aria-label={`Ver imagen ${index + 1} de ${normalizedImages.length}`}
+              aria-pressed={selectedImage === index}
             >
               <Image
                 src={image.url}
                 alt={image.alt || `${name} - Miniatura ${index + 1}`}
                 fill
-                className="object-cover"
+                sizes="(max-width: 640px) 20vw, (max-width: 1024px) 15vw, 120px"
+                quality={60}
+                className="select-none"
               />
             </button>
           ))}

@@ -1,12 +1,11 @@
 import { prisma } from "@/lib/db";
-import { formatPrice } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import ProductImageGallery from "@/components/shop/ProductImageGallery";
 import ProductActions from "@/components/shop/ProductActions";
 import RichTextContent from "@/components/RichTextContent";
-import ProductPrice from "@/components/shop/ProductPrice"; // ✅ NUEVO
+import ProductPrice from "@/components/shop/ProductPrice";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -53,13 +52,12 @@ export default async function ProductDetailPage({
 
   const inStock = totalStock > 0;
 
-  // ✅ CALCULAR PRECIO INICIAL
+  // Calcular precio inicial
   let initialPrice = Number(product.basePrice);
   let initialComparePrice = product.compareAtPrice ? Number(product.compareAtPrice) : null;
 
   if (product.hasVariants && product.variants.length > 0) {
-    // Usar el precio de la variante más barata
-    const cheapestVariant = product.variants[0]; // Ya están ordenados por precio
+    const cheapestVariant = product.variants[0];
     initialPrice = Number(cheapestVariant.price);
     initialComparePrice = cheapestVariant.compareAtPrice
       ? Number(cheapestVariant.compareAtPrice)
@@ -98,94 +96,114 @@ export default async function ProductDetailPage({
   }));
 
   return (
-    <div className="container py-8 mx-auto">
-      <div className="grid gap-8 lg:grid-cols-2">
-        {/* Images */}
+    <div className="product-detail-container">
+      <div className="product-detail-grid">
+        {/* Gallery Column */}
         <ProductImageGallery images={product.images} name={product.name} />
 
-        {/* Product Info */}
-        <div className="space-y-6 px-4 sm:px-6 lg:px-8">
-          {/* Categories */}
-          {product.categories && product.categories.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {product.categories.map((pc) => (
-                <Badge key={pc.category.id} variant="secondary">
-                  {pc.category.name}
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          {/* Title */}
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {product.name}
-            </h1>
-            {product.shortDescription && (
-              <p className="mt-2 text-lg text-muted-foreground">
-                {product.shortDescription}
-              </p>
-            )}
-          </div>
-
-          {/* ✅ PRECIO DINÁMICO - Usa el componente cliente */}
-          <ProductPrice
-            initialPrice={initialPrice}
-            initialComparePrice={initialComparePrice}
-            hasVariants={product.hasVariants}
-          />
-
-          {/* Stock Status */}
-          <div>
-            {inStock ? (
-              <Badge variant="outline" className="text-green-600">
-                ✓ En stock ({totalStock} disponibles)
-              </Badge>
-            ) : (
-              <Badge variant="destructive">Agotado</Badge>
-            )}
-          </div>
-
-          <Separator />
-
-          <ProductActions
-            product={serializedProduct}
-            variants={serializedVariants}
-            options={product.options}
-          />
-
-          <Separator />
-
-          {product.description && (
-            <div>
-              <h2 className="mb-3 text-xl font-semibold">Descripción</h2>
-              <RichTextContent content={product.description} />
-            </div>
-          )}
-
-          {/* Specifications */}
-          <div className="rounded-lg bg-muted/50 p-4">
-            <h3 className="mb-3 font-semibold">Información del producto</h3>
-            <dl className="space-y-2 text-sm">
-              {product.sku && (
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">SKU:</dt>
-                  <dd className="font-medium">{product.sku}</dd>
-                </div>
-              )}
-              {product.weight && (
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Peso:</dt>
-                  <dd className="font-medium">{Number(product.weight)} kg</dd>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Disponibilidad:</dt>
-                <dd className="font-medium">
-                  {inStock ? "En stock" : "Agotado"}
-                </dd>
+        {/* Info Column */}
+        <div className="product-info-wrapper">
+          <div className="product-info-content">
+            {/* Categories */}
+            {product.categories && product.categories.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {product.categories.map((pc) => (
+                  <Badge 
+                    key={pc.category.id} 
+                    variant="secondary"
+                    className="text-xs sm:text-sm"
+                  >
+                    {pc.category.name}
+                  </Badge>
+                ))}
               </div>
-            </dl>
+            )}
+
+            {/* Title & Description */}
+            <div>
+              <h1 className="product-title">
+                {product.name}
+              </h1>
+              {product.shortDescription && (
+                <p className="product-description mt-2">
+                  {product.shortDescription}
+                </p>
+              )}
+            </div>
+
+            {/* Price */}
+            <ProductPrice
+              initialPrice={initialPrice}
+              initialComparePrice={initialComparePrice}
+              hasVariants={product.hasVariants}
+            />
+
+            {/* Stock Status */}
+            <div>
+              {inStock ? (
+                <Badge variant="outline" className="text-green-600 text-xs sm:text-sm border-green-600/20 bg-green-50">
+                  ✓ En stock ({totalStock} disponibles)
+                </Badge>
+              ) : (
+                <Badge variant="destructive" className="text-xs sm:text-sm">
+                  Agotado
+                </Badge>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Actions */}
+            <ProductActions
+              product={serializedProduct}
+              variants={serializedVariants}
+              options={product.options}
+            />
+
+            <Separator />
+
+            {/* Description */}
+            {product.description && (
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold mb-3">
+                  Descripción
+                </h2>
+                <div className="prose prose-sm sm:prose max-w-none">
+                  <RichTextContent content={product.description} />
+                </div>
+              </div>
+            )}
+
+            {/* Specifications */}
+            <div className="rounded-lg bg-slate-50 p-4 sm:p-6 space-y-3">
+              <h3 className="font-semibold text-base sm:text-lg">
+                Información del producto
+              </h3>
+              <dl className="space-y-2 text-sm sm:text-base">
+                {product.sku && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-slate-600">SKU:</dt>
+                    <dd className="font-medium text-right break-all">
+                      {product.sku}
+                    </dd>
+                  </div>
+                )}
+                {product.weight && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-slate-600">Peso:</dt>
+                    <dd className="font-medium">
+                      {Number(product.weight)} kg
+                    </dd>
+                  </div>
+                )}
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-600">Disponibilidad:</dt>
+                  <dd className="font-medium">
+                    {inStock ? "En stock" : "Agotado"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
           </div>
         </div>
       </div>
