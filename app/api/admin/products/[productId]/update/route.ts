@@ -22,19 +22,16 @@ export async function PUT(
       hasVariants: data.hasVariants,
       variantsCount: data.variants?.length || 0,
       imagesReceived: data.images?.length || 0,
-      categoryId: data.categoryId, // ✅ Log para debug
+      categoryId: data.categoryId,
     });
 
     // ✅ NORMALIZAR IMÁGENES ANTES DE VALIDAR
-    // Convertir objetos { url, alt, name } a strings (solo URL)
     let normalizedImages: string[] = [];
     if (data.images && Array.isArray(data.images)) {
       normalizedImages = data.images.map((img: any) => {
-        // Si es objeto con url, extraer la URL
         if (typeof img === "object" && img.url) {
           return img.url;
         }
-        // Si ya es string, dejarlo como está
         if (typeof img === "string") {
           return img;
         }
@@ -47,11 +44,10 @@ export async function PUT(
     // ✅ NORMALIZAR DATOS ANTES DE VALIDAR
     const normalizedData = {
       ...data,
-      images: normalizedImages,  // ✅ Usar imágenes normalizadas (strings)
+      images: normalizedImages,
       basePrice: data.hasVariants ? 0 : (parseFloat(data.basePrice) || 0),
       stock: data.hasVariants ? 0 : (parseInt(data.stock) || 0),
       sku: data.hasVariants ? null : (data.sku || null),
-      // ✅ FIX: Normalizar categoryId - convertir string vacío a null
       categoryId: data.categoryId && data.categoryId.trim() !== "" ? data.categoryId : null,
     };
 
@@ -60,13 +56,13 @@ export async function PUT(
       hasVariants: normalizedData.hasVariants,
     });
 
-    // ✅ VALIDACIÓN: Validar datos con Zod (ahora images son strings y categoryId normalizado)
+    // ✅ VALIDACIÓN
     const validatedData = updateProductSchema.parse(normalizedData);
 
-    // ✅ Normalizar imágenes de nuevo para guardar con metadata
+    // ✅ Normalizar imágenes para guardar
     const imagesToSave = normalizeImagesForSave(validatedData.images || []);
 
-    // ✅ Usar transacción para manejar producto + categorías + variantes de forma atómica
+    // ✅ Usar transacción
     const product = await prisma.$transaction(async (tx) => {
       // 1. Actualizar producto base
       const productUpdate: any = {
@@ -76,7 +72,7 @@ export async function PUT(
         shortDescription: validatedData.shortDescription || null,
         basePrice: validatedData.basePrice,
         compareAtPrice: validatedData.compareAtPrice || null,
-        images: imagesToSave as any,  // ✅ Cast a any para compatibilidad con Prisma Json
+        images: imagesToSave as any,
         active: validatedData.active ?? true,
         featured: validatedData.featured ?? false,
         hasVariants: validatedData.hasVariants,
@@ -85,7 +81,6 @@ export async function PUT(
         weight: validatedData.weight || null,
       };
 
-      // Si no tiene variantes, actualizar stock y SKU del producto
       if (!validatedData.hasVariants) {
         productUpdate.stock = validatedData.stock;
         productUpdate.sku = validatedData.sku || null;
@@ -113,14 +108,48 @@ export async function PUT(
         });
       }
 
-      // 3. Si tiene variantes, gestionar opciones y variantes
+      // 3. Si tiene variantes, gestionar INTELIGENTEMENTE
       if (validatedData.hasVariants && data.options && data.variants) {
-        console.log("🔄 Actualizando variantes...");
+        console.log("🔄 Actualizando variantes de forma inteligente...");
 
-        // Eliminar opciones y variantes existentes
-        await tx.productVariant.deleteMany({
+        // ✅ OBTENER VARIANTES EXISTENTES
+        const existingVariants = await tx.productVariant.findMany({
           where: { productId },
+          select: {
+            id: true,
+            options: true,
+            price: true,
+            compareAtPrice: true,
+            stock: true,
+            sku: true,
+            image: true,
+            weight: true,
+          },
         });
+
+        console.log(`📦 Variantes existentes: ${existingVariants.length}`);
+
+        // ✅ FUNCIÓN AUXILIAR: Generar clave única de opciones
+        const getVariantKey = (options: any) => {
+          return JSON.stringify(
+            Object.keys(options)
+              .sort()
+              .reduce((acc, key) => {
+                acc[key] = options[key];
+                return acc;
+              }, {} as any)
+          );
+        };
+
+        // ✅ CREAR MAPA DE VARIANTES EXISTENTES
+        const existingVariantsMap = new Map(
+          existingVariants.map((v) => [
+            getVariantKey(v.options),
+            v,
+          ])
+        );
+
+        // ✅ ELIMINAR OPCIONES ANTIGUAS
         await tx.productOptionValue.deleteMany({
           where: {
             option: {
@@ -132,7 +161,7 @@ export async function PUT(
           where: { productId },
         });
 
-        // Crear nuevas opciones
+        // ✅ CREAR NUEVAS OPCIONES
         for (let i = 0; i < data.options.length; i++) {
           const option = data.options[i];
           await tx.productOption.create({
@@ -150,39 +179,98 @@ export async function PUT(
           });
         }
 
-        // Crear nuevas variantes con conversión explícita de precios
-        let createdVariants = 0;
-        for (const variant of data.variants) {
-          // ✅ CONVERSIÓN EXPLÍCITA: Asegurar que price y stock sean números
-          const variantPrice = parseFloat(variant.price);
-          const variantStock = parseInt(variant.stock) || 0;
+        // ✅ CREAR CONJUNTO DE VARIANTES NUEVAS
+        const newVariantKeys = new Set(
+          data.variants.map((v: any) => getVariantKey(v.options))
+        );
 
-          // ✅ VALIDACIÓN: El precio debe ser mayor a 0
-          if (!variantPrice || variantPrice <= 0) {
-            console.error("❌ Variante sin precio válido:", variant);
-            throw new Error(`Variante ${JSON.stringify(variant.options)} debe tener un precio mayor a 0`);
-          }
+        // ✅ ELIMINAR VARIANTES QUE YA NO EXISTEN
+        const variantsToDelete = existingVariants
+          .filter((v) => !newVariantKeys.has(getVariantKey(v.options)))
+          .map((v) => v.id);
 
-          console.log(`  ✅ Creando variante: ${JSON.stringify(variant.options)} - Precio: ${variantPrice}`);
-
-          await tx.productVariant.create({
-            data: {
-              productId,
-              sku: variant.sku || `${updatedProduct.slug}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-              options: variant.options as any,  // ✅ Cast para compatibilidad con Prisma Json
-              price: variantPrice,
-              compareAtPrice: variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null,
-              stock: variantStock,
-              weight: variant.weight ? parseFloat(variant.weight) : null,
-              image: variant.image || null,
-              active: true,
+        if (variantsToDelete.length > 0) {
+          console.log(`🗑️ Eliminando ${variantsToDelete.length} variantes obsoletas`);
+          await tx.productVariant.deleteMany({
+            where: {
+              id: { in: variantsToDelete },
             },
           });
-
-          createdVariants++;
         }
 
-        console.log(`✅ ${createdVariants} variantes actualizadas correctamente`);
+        // ✅ ACTUALIZAR O CREAR VARIANTES
+        let updatedCount = 0;
+        let createdCount = 0;
+
+        for (const newVariant of data.variants) {
+          const variantKey = getVariantKey(newVariant.options);
+          const existingVariant = existingVariantsMap.get(variantKey);
+
+          // ✅ CONVERSIÓN DE DATOS
+          const variantPrice = parseFloat(newVariant.price);
+          const variantStock = parseInt(newVariant.stock) || 0;
+
+          // ✅ VALIDACIÓN
+          if (!variantPrice || variantPrice <= 0) {
+            console.error("❌ Variante sin precio válido:", newVariant);
+            throw new Error(
+              `Variante ${JSON.stringify(newVariant.options)} debe tener un precio mayor a 0`
+            );
+          }
+
+          const variantData = {
+            options: newVariant.options as any,
+            price: variantPrice,
+            compareAtPrice: newVariant.compareAtPrice
+              ? parseFloat(newVariant.compareAtPrice)
+              : null,
+            stock: variantStock,
+            weight: newVariant.weight ? parseFloat(newVariant.weight) : null,
+            image: newVariant.image || null,
+            active: true,
+          };
+
+          if (existingVariant) {
+            // ✅ ACTUALIZAR VARIANTE EXISTENTE
+            console.log(`  🔄 Actualizando variante existente: ${JSON.stringify(newVariant.options)}`);
+            
+            await tx.productVariant.update({
+              where: { id: existingVariant.id },
+              data: {
+                ...variantData,
+                // Mantener SKU si no se envió uno nuevo
+                sku: newVariant.sku || existingVariant.sku,
+              },
+            });
+            updatedCount++;
+          } else {
+            // ✅ CREAR VARIANTE NUEVA
+            console.log(`  ➕ Creando variante nueva: ${JSON.stringify(newVariant.options)}`);
+
+            const sku =
+              newVariant.sku ||
+              (() => {
+                const optionValues = Object.values(newVariant.options).join("-");
+                return `${updatedProduct.slug}-${optionValues}`
+                  .toUpperCase()
+                  .replace(/\s+/g, "-");
+              })();
+
+            await tx.productVariant.create({
+              data: {
+                productId,
+                sku,
+                ...variantData,
+              },
+            });
+            createdCount++;
+          }
+        }
+
+        console.log(`✅ Variantes procesadas:`);
+        console.log(`   - Actualizadas: ${updatedCount}`);
+        console.log(`   - Creadas: ${createdCount}`);
+        console.log(`   - Eliminadas: ${variantsToDelete.length}`);
       }
 
       return updatedProduct;
@@ -190,12 +278,12 @@ export async function PUT(
 
     console.log(`✅ Producto actualizado exitosamente por usuario ${user.id}:`, product.name);
 
-    // Revalidar rutas para actualizar caché en producción
+    // Revalidar rutas
     revalidatePath("/admin/productos");
     revalidatePath(`/admin/productos/${productId}`);
     revalidatePath(`/productos/${product.slug}`);
 
-    // Obtener producto completo con variantes para verificar
+    // Obtener producto completo
     const completeProduct = await prisma.product.findUnique({
       where: { id: productId },
       include: {
@@ -222,7 +310,6 @@ export async function PUT(
   } catch (error) {
     console.error("❌ Error al actualizar producto:", error);
 
-    // Manejo de errores de validación Zod
     if (error instanceof Error && error.name === "ZodError") {
       return NextResponse.json(
         {
@@ -233,7 +320,6 @@ export async function PUT(
       );
     }
 
-    // Errores personalizados (ej: variante sin precio)
     if (error instanceof Error) {
       return NextResponse.json(
         { error: error.message },

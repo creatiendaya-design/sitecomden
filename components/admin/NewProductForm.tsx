@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -19,6 +18,7 @@ import {
 import { ArrowLeft, Save, Plus, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import BulkEditModal from "@/components/admin/BulkEditModal";
+import VariantsTable from "@/components/admin/VariantsTable";
 import ImageUpload from "@/components/admin/ImageUpload";
 import RichTextEditor from "./RichTextEditor";
 
@@ -66,7 +66,8 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
   // Gestión de variantes
   const [options, setOptions] = useState<ProductOption[]>([]);
   const [newOptionName, setNewOptionName] = useState("");
-  const [newOptionValue, setNewOptionValue] = useState("");
+  // ✅ FIX: Estado independiente por cada opción
+  const [newOptionValues, setNewOptionValues] = useState<Record<number, string>>({});
   const [variants, setVariants] = useState<Variant[]>([]);
 
   // Selección y edición masiva
@@ -115,6 +116,9 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     newOptions[optionIndex].values.push(value);
     setOptions(newOptions);
     generateVariants(newOptions);
+    
+    // ✅ FIX: Limpiar solo el input de esta opción
+    setNewOptionValues(prev => ({ ...prev, [optionIndex]: "" }));
   };
 
   const removeValueFromOption = (optionIndex: number, valueIndex: number) => {
@@ -165,11 +169,23 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
 
   const updateVariant = (
     index: number,
-    field: "price" | "compareAtPrice" | "stock" | "sku",
+    field: Exclude<keyof Variant, 'id' | 'options'>,
     value: string
   ) => {
     const newVariants = [...variants];
-    newVariants[index][field] = value;
+    newVariants[index][field] = value as any;
+    setVariants(newVariants);
+  };
+
+  const updateVariantImage = (index: number, imageUrl: string) => {
+    const newVariants = [...variants];
+    newVariants[index].image = imageUrl;
+    setVariants(newVariants);
+  };
+
+  const removeVariantImage = (index: number) => {
+    const newVariants = [...variants];
+    newVariants[index].image = undefined;
     setVariants(newVariants);
   };
 
@@ -486,13 +502,15 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                         <div className="flex gap-2">
                           <Input
                             placeholder="Valor"
-                            value={newOptionValue}
-                            onChange={(e) => setNewOptionValue(e.target.value)}
+                            value={newOptionValues[optionIndex] || ""}
+                            onChange={(e) => setNewOptionValues(prev => ({ 
+                              ...prev, 
+                              [optionIndex]: e.target.value 
+                            }))}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 e.preventDefault();
-                                addValueToOption(optionIndex, newOptionValue);
-                                setNewOptionValue("");
+                                addValueToOption(optionIndex, newOptionValues[optionIndex] || "");
                               }
                             }}
                           />
@@ -500,9 +518,9 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                             type="button"
                             size="sm"
                             onClick={() => {
-                              addValueToOption(optionIndex, newOptionValue);
-                              setNewOptionValue("");
+                              addValueToOption(optionIndex, newOptionValues[optionIndex] || "");
                             }}
+                            disabled={!(newOptionValues[optionIndex] || "").trim()}
                           >
                             +
                           </Button>
@@ -530,94 +548,26 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                     </Card>
                   ))}
 
-                  {/* Variants Table */}
+                  {/* ✅ NUEVA TABLA DE VARIANTES */}
                   {variants.length > 0 && (
                     <div>
-                      <div className="mb-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={selectedVariants.length === variants.length}
-                            onCheckedChange={toggleSelectAll}
-                          />
-                          <h4 className="font-semibold">
-                            {selectedVariants.length > 0
-                              ? `Seleccionados: ${selectedVariants.length}`
-                              : `Variantes (${variants.length})`}
-                          </h4>
-                        </div>
-                        {selectedVariants.length > 0 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowBulkEdit(true)}
-                          >
-                            Edición masiva
-                          </Button>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        {variants.map((variant, index) => (
-                          <div
-                            key={index}
-                            className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[auto_1fr_repeat(4,minmax(0,1fr))]"
-                          >
-                            <div className="flex items-center">
-                              <Checkbox
-                                checked={selectedVariants.includes(index)}
-                                onCheckedChange={() => toggleSelectVariant(index)}
-                              />
-                            </div>
-                            <div className="flex items-center">
-                              <span className="text-sm font-medium">
-                                {Object.entries(variant.options)
-                                  .map(([k, v]) => `${k}: ${v}`)
-                                  .join(" / ")}
-                              </span>
-                            </div>
-                            <Input
-                              placeholder="SKU"
-                              value={variant.sku}
-                              onChange={(e) =>
-                                updateVariant(index, "sku", e.target.value)
-                              }
-                            />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Precio"
-                              value={variant.price}
-                              onChange={(e) =>
-                                updateVariant(index, "price", e.target.value)
-                              }
-                            />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Precio Anterior"
-                              value={variant.compareAtPrice}
-                              onChange={(e) =>
-                                updateVariant(index, "compareAtPrice", e.target.value)
-                              }
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Stock"
-                              value={variant.stock}
-                              onChange={(e) =>
-                                updateVariant(index, "stock", e.target.value)
-                              }
-                            />
-                          </div>
-                        ))}
-                      </div>
+                      <VariantsTable
+                        variants={variants}
+                        selectedVariants={selectedVariants}
+                        onToggleSelect={toggleSelectVariant}
+                        onToggleSelectAll={toggleSelectAll}
+                        onUpdateVariant={updateVariant}
+                        onUpdateVariantImage={updateVariantImage}
+                        onRemoveVariantImage={removeVariantImage}
+                        onOpenBulkEdit={() => setShowBulkEdit(true)}
+                      />
                     </div>
                   )}
                 </CardContent>
               )}
             </Card>
 
-            {/* ✅ SEO - MOVIDO AL FINAL */}
+            {/* ✅ SEO */}
             <Card>
               <CardHeader>
                 <CardTitle>SEO (Optimización para Motores de Búsqueda)</CardTitle>
@@ -634,7 +584,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                     maxLength={60}
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formData.metaTitle.length}/60 caracteres. Si está vacío, se usará el nombre del producto.
+                    {formData.metaTitle.length}/60 caracteres
                   </p>
                 </div>
 
@@ -650,7 +600,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                     maxLength={160}
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formData.metaDescription.length}/160 caracteres. Si está vacío, se usará la descripción corta.
+                    {formData.metaDescription.length}/160 caracteres
                   </p>
                 </div>
               </CardContent>
