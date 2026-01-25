@@ -555,7 +555,7 @@ export default function CheckoutPage() {
                   <CardContent className="space-y-4 min-w-0">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="min-w-0">
-                        <Label htmlFor="customerName">
+                        <Label htmlFor="customerName" className="block mb-2">
                           Nombre Completo <span className="text-destructive">*</span>
                         </Label>
                         <Input
@@ -573,7 +573,7 @@ export default function CheckoutPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <Label htmlFor="customerDni">
+                        <Label htmlFor="customerDni" className="block mb-2">
                           DNI (opcional)
                         </Label>
                         <Input
@@ -595,7 +595,7 @@ export default function CheckoutPage() {
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="min-w-0">
-                        <Label htmlFor="customerEmail">
+                        <Label htmlFor="customerEmail" className="block mb-2">
                           Email <span className="text-destructive">*</span>
                         </Label>
                         <Input
@@ -614,7 +614,7 @@ export default function CheckoutPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <Label htmlFor="customerPhone">
+                        <Label htmlFor="customerPhone" className="block mb-2">
                           Teléfono/WhatsApp <span className="text-destructive">*</span>
                         </Label>
                         <Input
@@ -693,7 +693,7 @@ export default function CheckoutPage() {
 
                     {/* Dirección */}
                     <div className="min-w-0">
-                      <Label htmlFor="address">
+                      <Label htmlFor="address" className="block mb-2">
                         Dirección <span className="text-destructive">*</span>
                       </Label>
                       <Input
@@ -713,7 +713,7 @@ export default function CheckoutPage() {
 
                     {/* Referencia (opcional) */}
                     <div className="min-w-0">
-                      <Label htmlFor="reference">Referencia (opcional)</Label>
+                      <Label htmlFor="reference" className="block mb-2">Referencia (opcional)</Label>
                       <Input
                         id="reference"
                         name="reference"
