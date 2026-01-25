@@ -532,8 +532,8 @@ export default function CheckoutPage() {
         </Sheet>
       </div>
 
-      {/* ✅ CONTENEDOR CON PADDING FIJO */}
-      <div className="w-full overflow-x-hidden bg-slate-50/50">
+      {/* ✅ CONTENEDOR PRINCIPAL - SIN overflow-x-hidden */}
+      <div className="w-full bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
           <form onSubmit={handleSubmit} className="w-full">
             {/* Messages */}
@@ -544,15 +544,15 @@ export default function CheckoutPage() {
               </Alert>
             )}
 
-            <div className="grid gap-6 lg:gap-8 lg:grid-cols-3">
+            <div className="grid gap-6 lg:gap-8 lg:grid-cols-3 w-full">
               {/* Formulario */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="lg:col-span-2 space-y-6 min-w-0">
                 {/* Información del Cliente */}
-                <Card className="overflow-hidden">
+                <Card className="min-w-0">
                   <CardHeader>
                     <CardTitle>Información de Contacto</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 min-w-0">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="min-w-0">
                         <Label htmlFor="customerName">
@@ -659,11 +659,11 @@ export default function CheckoutPage() {
                 </Card>
 
                 {/* Dirección de Envío */}
-                <Card className="overflow-hidden">
+                <Card className="min-w-0">
                   <CardHeader>
                     <CardTitle>Dirección de Envío</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 min-w-0">
                     {/* Selector de Ubicación */}
                     <LocationSelector
                       value={{
@@ -726,74 +726,84 @@ export default function CheckoutPage() {
                 </Card>
 
                 {/* Método de Pago */}
-                <Card className="overflow-hidden">
+                <Card className="min-w-0">
                   <CardHeader>
                     <CardTitle>Método de Pago</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3 min-w-0">
                     <RadioGroup
                       value={formData.paymentMethod}
                       onValueChange={(value) => {
                         setFormData({ ...formData, paymentMethod: value as any });
-                        // Resetear token cuando cambia método
                         setCulqiToken(null);
                       }}
+                      className="space-y-3 min-w-0"
                     >
-                      <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                        <RadioGroupItem value="YAPE" id="yape" />
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="flex-shrink-0">
-                            <YapeIcon width={32} height={32} />
-                          </div>
-                          <Label htmlFor="yape" className="flex-1 cursor-pointer min-w-0">
-                            <div className="font-semibold">Yape</div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              Transferencia instantánea • 0% comisión
-                            </div>
-                          </Label>
+                      {/* YAPE */}
+                      <label 
+                        htmlFor="yape" 
+                        className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
+                      >
+                        <RadioGroupItem value="YAPE" id="yape" className="flex-shrink-0" />
+                        <div className="flex-shrink-0 w-7 h-7">
+                          <YapeIcon width={28} height={28} />
                         </div>
-                        <Badge variant="secondary" className="flex-shrink-0 hidden sm:inline-flex">Recomendado</Badge>
-                      </div>
-
-                      <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                        <RadioGroupItem value="PLIN" id="plin" />
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="flex-shrink-0">
-                            <PlinIcon width={32} height={32} />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm leading-tight">Yape</div>
+                          <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                            Instantáneo • 0%
                           </div>
-                          <Label htmlFor="plin" className="flex-1 cursor-pointer min-w-0">
-                            <div className="font-semibold">Plin</div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              Transferencia instantánea • 0% comisión
-                            </div>
-                          </Label>
                         </div>
-                      </div>
+                        <Badge variant="secondary" className="flex-shrink-0 hidden sm:inline-flex text-xs px-2 py-0.5">
+                          Top
+                        </Badge>
+                      </label>
 
+                      {/* PLIN */}
+                      <label 
+                        htmlFor="plin" 
+                        className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
+                      >
+                        <RadioGroupItem value="PLIN" id="plin" className="flex-shrink-0" />
+                        <div className="flex-shrink-0 w-7 h-7">
+                          <PlinIcon width={28} height={28} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm leading-tight">Plin</div>
+                          <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                            Instantáneo • 0%
+                          </div>
+                        </div>
+                      </label>
+
+                      {/* TARJETA */}
                       <div className="space-y-3">
-                        <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                          <RadioGroupItem value="CARD" id="card" />
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <VisaIcon width={40} height={26} />
-                              <MastercardIcon width={32} height={20} />
-                            </div>
-                            <Label htmlFor="card" className="flex-1 cursor-pointer min-w-0">
-                              <div className="font-semibold">Tarjeta de Crédito/Débito</div>
-                              <div className="text-sm text-muted-foreground truncate">
-                                Visa, Mastercard • Pago seguro
-                              </div>
-                            </Label>
+                        <label 
+                          htmlFor="card" 
+                          className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
+                        >
+                          <RadioGroupItem value="CARD" id="card" className="flex-shrink-0" />
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <VisaIcon width={36} height={24} />
+                            <MastercardIcon width={28} height={18} />
                           </div>
-                        </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm leading-tight truncate">
+                              Tarjeta
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                              Crédito/Débito
+                            </div>
+                          </div>
+                        </label>
 
-                        {/* Formulario de tarjeta - aparece cuando se selecciona CARD */}
+                        {/* Formulario de tarjeta */}
                         {formData.paymentMethod === "CARD" && (
-                          <div className="pl-0 sm:pl-11 pr-0 sm:pr-4 pb-4">
+                          <div className="pl-0 sm:pl-10 pr-0 sm:pr-3">
                             <CulqiPaymentForm
                               amount={total}
                               email={formData.customerEmail}
-                              orderId="temp" // Se actualizará después
+                              orderId="temp"
                               onSuccess={handleCulqiSuccess}
                               onError={handleCulqiError}
                             />
@@ -801,26 +811,28 @@ export default function CheckoutPage() {
                         )}
                       </div>
 
-                      <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                        <RadioGroupItem value="PAYPAL" id="paypal" />
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="flex-shrink-0">
-                            <PayPalIcon width={32} height={20} />
-                          </div>
-                          <Label htmlFor="paypal" className="flex-1 cursor-pointer min-w-0">
-                            <div className="font-semibold">PayPal</div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              Pago internacional seguro
-                            </div>
-                          </Label>
+                      {/* PAYPAL */}
+                      <label 
+                        htmlFor="paypal" 
+                        className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
+                      >
+                        <RadioGroupItem value="PAYPAL" id="paypal" className="flex-shrink-0" />
+                        <div className="flex-shrink-0 w-7 h-7">
+                          <PayPalIcon width={28} height={18} />
                         </div>
-                      </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm leading-tight">PayPal</div>
+                          <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                            Internacional
+                          </div>
+                        </div>
+                      </label>
                     </RadioGroup>
                   </CardContent>
                 </Card>
 
                 {/* Notas Adicionales */}
-                <Card className="overflow-hidden">
+                <Card className="min-w-0">
                   <CardHeader>
                     <CardTitle>Notas Adicionales (opcional)</CardTitle>
                   </CardHeader>

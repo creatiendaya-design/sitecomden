@@ -201,3 +201,35 @@
 }
 
 
+@layer components {
+  /* Resetear cualquier padding del body/html en checkout */
+  body:has([data-checkout-page]) {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  /* Forzar padding en el contenedor de checkout móvil */
+  @media (max-width: 1023px) {
+    [data-checkout-page] {
+      padding-left: 1rem !important;
+      padding-right: 1rem !important;
+      box-sizing: border-box !important;
+    }
+    
+    /* Asegurar que los cards no se salgan */
+    [data-checkout-page] > * {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    
+    /* Asegurar que los inputs no se salgan */
+    [data-checkout-page] input,
+    [data-checkout-page] select,
+    [data-checkout-page] textarea {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+  }
+}
