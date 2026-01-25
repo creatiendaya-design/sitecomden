@@ -154,6 +154,24 @@ export default async function ProductsAdminPage({
                   ? product.variants.reduce((sum, v) => sum + v.stock, 0)
                   : product.stock;
 
+                // ✅ CALCULAR PRECIO A MOSTRAR
+                let displayPrice = Number(product.basePrice);
+                let pricePrefix = "";
+
+                if (product.hasVariants && product.variants.length > 0) {
+                  // Para productos con variantes, obtener el precio mínimo y máximo
+                  const prices = product.variants.map(v => Number(v.price));
+                  const minPrice = Math.min(...prices);
+                  const maxPrice = Math.max(...prices);
+                  
+                  displayPrice = minPrice;
+                  
+                  // Si hay diferentes precios, mostrar "Desde"
+                  if (minPrice !== maxPrice) {
+                    pricePrefix = "Desde ";
+                  }
+                }
+
                 return (
                   <div
                     key={product.id}
@@ -253,7 +271,7 @@ export default async function ProductsAdminPage({
                     <div className="flex items-center justify-between sm:block sm:text-right">
                       <div>
                         <p className="font-semibold text-sm sm:text-base">
-                          {formatPrice(Number(product.basePrice))}
+                          {pricePrefix}{formatPrice(displayPrice)}
                         </p>
                         <p className="text-xs sm:text-sm text-muted-foreground">
                           Stock: {totalStock}
