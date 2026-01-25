@@ -6,14 +6,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import Image from "next/image";
-import { X, Upload } from "lucide-react";
+import { GripVertical } from "lucide-react";
 
 interface Variant {
+  id?: string;
   options: Record<string, string>;
   price: string;
   compareAtPrice: string;
@@ -30,6 +30,8 @@ interface BulkEditModalProps {
   onUpdate: (updates: Array<{ index: number; data: Partial<Variant> }>) => void;
 }
 
+type DragField = 'price' | 'compareAtPrice' | 'stock' | 'sku';
+
 export default function BulkEditModal({
   open,
   onOpenChange,
@@ -37,11 +39,19 @@ export default function BulkEditModal({
   variants,
   onUpdate,
 }: BulkEditModalProps) {
-  // Estado local de las variantes que se están editando
   const [editedVariants, setEditedVariants] = useState<Array<{ index: number; data: Variant }>>([]);
-  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [dragState, setDragState] = useState<{
+    field: DragField | null;
+    startIndex: number | null;
+    endIndex: number | null;
+    value: string | null;
+  }>({
+    field: null,
+    startIndex: null,
+    endIndex: null,
+    value: null,
+  });
 
-  // Cargar variantes seleccionadas cuando se abre el modal
   useEffect(() => {
     if (open) {
       const selected = selectedVariants.map((index) => ({
@@ -52,51 +62,62 @@ export default function BulkEditModal({
     }
   }, [open, selectedVariants, variants]);
 
-  const updateEditedVariant = (
-    localIndex: number,
-    field: keyof Variant,
-    value: string
-  ) => {
+  const updateVariant = (localIndex: number, field: keyof Variant, value: string) => {
+    if (field === "options" || field === "id") return;
+    
     const newEdited = [...editedVariants];
-    if (field === "options") {
-      return;
-    }
     (newEdited[localIndex].data[field] as string) = value;
     setEditedVariants(newEdited);
   };
 
-  const handleImageUpload = async (localIndex: number, file: File) => {
-    setUploadingIndex(localIndex);
+  const handleDragStart = (field: DragField, localIndex: number, value: string) => {
+    setDragState({
+      field,
+      startIndex: localIndex,
+      endIndex: localIndex,
+      value,
+    });
+  };
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error("Error al subir imagen");
-
-      const data = await response.json();
-
-      // Actualizar solo esta variante
-      const newEdited = [...editedVariants];
-      newEdited[localIndex].data.image = data.url;
-      setEditedVariants(newEdited);
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      alert("Error al subir imagen");
-    } finally {
-      setUploadingIndex(null);
+  const handleDragEnter = (localIndex: number) => {
+    if (dragState.startIndex !== null) {
+      setDragState(prev => ({
+        ...prev,
+        endIndex: localIndex,
+      }));
     }
   };
 
-  const removeVariantImage = (localIndex: number) => {
-    const newEdited = [...editedVariants];
-    newEdited[localIndex].data.image = undefined;
-    setEditedVariants(newEdited);
+  const handleDragEnd = () => {
+    if (
+      dragState.field &&
+      dragState.startIndex !== null &&
+      dragState.endIndex !== null &&
+      dragState.value !== null
+    ) {
+      const start = Math.min(dragState.startIndex, dragState.endIndex);
+      const end = Math.max(dragState.startIndex, dragState.endIndex);
+
+      const newEdited = [...editedVariants];
+      for (let i = start; i <= end; i++) {
+        (newEdited[i].data[dragState.field] as string) = dragState.value;
+      }
+      setEditedVariants(newEdited);
+    }
+
+    setDragState({
+      field: null,
+      startIndex: null,
+      endIndex: null,
+      value: null,
+    });
+  };
+
+  const isCellInDragRange = (localIndex: number): boolean => {
+    if (dragState.startIndex === null || dragState.endIndex === null) return false;
+    const start = Math.min(dragState.startIndex, dragState.endIndex);
+    const end = Math.max(dragState.startIndex, dragState.endIndex);
+    return localIndex >= start && localIndex <= end;
   };
 
   const handleSave = () => {
@@ -108,163 +129,220 @@ export default function BulkEditModal({
     onOpenChange(false);
   };
 
+  // Estilos inline para forzar visibilidad
+  const inputStyle: React.CSSProperties = {
+    height: '70px',
+    fontSize: '20px',
+    padding: '0 20px',
+    border: '4px solid #64748b',
+    borderRadius: '10px',
+    width: '100%',
+    outline: 'none',
+    backgroundColor: 'white',
+    boxSizing: 'border-box',
+    fontWeight: '500',
+  };
+
+  const inputFocusStyle: React.CSSProperties = {
+    ...inputStyle,
+    borderColor: '#2563eb',
+    boxShadow: '0 0 0 5px rgba(37, 99, 235, 0.3)',
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent 
+        className="flex flex-col p-0"
+        style={{
+          maxWidth: '95vw',
+          width: '95vw',
+          maxHeight: '90vh',
+          height: '90vh',
+        }}
+      >
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <DialogTitle className="text-xl">
             Editando {selectedVariants.length} variante
             {selectedVariants.length !== 1 ? "s" : ""}
           </DialogTitle>
+          <DialogDescription className="text-base">
+            Edita los campos directamente. Arrastra el icono 
+            <GripVertical className="inline h-3 w-3 mx-1" /> 
+            hacia abajo para rellenar múltiples celdas
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="space-y-4">
-            {editedVariants.map((item, localIndex) => (
-              <div
-                key={item.index}
-                className="rounded-lg border p-4 space-y-3"
-              >
-                {/* Header con nombre de variante */}
-                <div className="flex items-center gap-4 border-b pb-3">
-                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded bg-slate-100">
-                    {item.data.image ? (
-                      <Image
-                        src={item.data.image}
-                        alt="Variante"
-                        width={64}
-                        height={64}
-                        className="object-cover h-full w-full"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                        Sin imagen
+        <div className="flex-1 overflow-auto px-6">
+          <div className="rounded-lg border overflow-hidden bg-white my-4">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  <th className="px-6 py-5 text-left text-base font-semibold text-slate-700 w-[400px] sticky top-0 bg-slate-50 z-10">
+                    Título
+                  </th>
+                  <th className="px-6 py-5 text-left text-base font-semibold text-slate-700 w-[280px] sticky top-0 bg-slate-50 z-10">
+                    Precio
+                  </th>
+                  <th className="px-6 py-5 text-left text-base font-semibold text-slate-700 w-[280px] sticky top-0 bg-slate-50 z-10">
+                    Precio Anterior
+                  </th>
+                  <th className="px-6 py-5 text-left text-base font-semibold text-slate-700 w-[300px] sticky top-0 bg-slate-50 z-10">
+                    SKU
+                  </th>
+                  <th className="px-6 py-5 text-left text-base font-semibold text-slate-700 w-[240px] sticky top-0 bg-slate-50 z-10">
+                    Stock
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {editedVariants.map((item, localIndex) => (
+                  <tr 
+                    key={item.index} 
+                    className={`hover:bg-slate-50/50 transition-colors ${
+                      isCellInDragRange(localIndex) ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    {/* Título */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded border-2 bg-slate-100">
+                          {item.data.image ? (
+                            <Image
+                              src={item.data.image}
+                              alt=""
+                              width={48}
+                              height={48}
+                              className="object-cover h-full w-full"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-sm text-slate-400 font-medium">
+                              —
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-lg font-medium text-slate-700">
+                          {Object.entries(item.data.options)
+                            .map(([k, v]) => v)
+                            .join(" / ")}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">
-                      {Object.entries(item.data.options)
-                        .map(([k, v]) => `${k}: ${v}`)
-                        .join(" / ")}
-                    </h4>
-                  </div>
-                </div>
+                    </td>
 
-                {/* Campos editables */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <Label className="text-xs">Precio (S/)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.data.price}
-                      onChange={(e) =>
-                        updateEditedVariant(localIndex, "price", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Precio Comparación (S/)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.data.compareAtPrice}
-                      onChange={(e) =>
-                        updateEditedVariant(
-                          localIndex,
-                          "compareAtPrice",
-                          e.target.value
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">SKU</Label>
-                    <Input
-                      value={item.data.sku}
-                      onChange={(e) =>
-                        updateEditedVariant(localIndex, "sku", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Stock</Label>
-                    <Input
-                      type="number"
-                      value={item.data.stock}
-                      onChange={(e) =>
-                        updateEditedVariant(localIndex, "stock", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Imagen de variante */}
-                <div className="col-span-full">
-                  <Label className="text-xs">Imagen de variante (opcional)</Label>
-                  <div className="mt-2">
-                    {item.data.image ? (
-                      <div className="relative inline-block">
-                        <Image
-                          src={item.data.image}
-                          alt="Variante"
-                          width={100}
-                          height={100}
-                          className="rounded-lg border object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeVariantImage(localIndex)}
-                          className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
+                    {/* Precio */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3 group">
                         <input
-                          type="file"
-                          id={`variant-image-${localIndex}`}
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleImageUpload(localIndex, file);
-                          }}
-                          className="hidden"
+                          type="number"
+                          step="0.01"
+                          value={item.data.price}
+                          onChange={(e) => updateVariant(localIndex, "price", e.target.value)}
+                          onDragEnter={() => handleDragEnter(localIndex)}
+                          style={inputStyle}
+                          onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+                          onBlur={(e) => Object.assign(e.target.style, inputStyle)}
                         />
-                        <label htmlFor={`variant-image-${localIndex}`}>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={uploadingIndex === localIndex}
-                            onClick={() =>
-                              document.getElementById(`variant-image-${localIndex}`)?.click()
-                            }
-                          >
-                            <Upload className="mr-2 h-4 w-4" />
-                            {uploadingIndex === localIndex ? "Subiendo..." : "Subir Imagen"}
-                          </Button>
-                        </label>
+                        <div
+                          draggable
+                          onDragStart={() => handleDragStart('price', localIndex, item.data.price)}
+                          onDragEnd={handleDragEnd}
+                          className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-100 rounded flex-shrink-0"
+                          title="Arrastra para rellenar"
+                        >
+                          <GripVertical className="h-6 w-6 text-slate-500" />
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+                    </td>
+
+                    {/* Precio Anterior */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3 group">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={item.data.compareAtPrice}
+                          onChange={(e) => updateVariant(localIndex, "compareAtPrice", e.target.value)}
+                          onDragEnter={() => handleDragEnter(localIndex)}
+                          placeholder="—"
+                          style={inputStyle}
+                          onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+                          onBlur={(e) => Object.assign(e.target.style, inputStyle)}
+                        />
+                        <div
+                          draggable
+                          onDragStart={() => handleDragStart('compareAtPrice', localIndex, item.data.compareAtPrice)}
+                          onDragEnd={handleDragEnd}
+                          className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-100 rounded flex-shrink-0"
+                          title="Arrastra para rellenar"
+                        >
+                          <GripVertical className="h-6 w-6 text-slate-500" />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* SKU */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3 group">
+                        <input
+                          type="text"
+                          value={item.data.sku}
+                          onChange={(e) => updateVariant(localIndex, "sku", e.target.value)}
+                          onDragEnter={() => handleDragEnter(localIndex)}
+                          placeholder="—"
+                          style={inputStyle}
+                          onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+                          onBlur={(e) => Object.assign(e.target.style, inputStyle)}
+                        />
+                        <div
+                          draggable
+                          onDragStart={() => handleDragStart('sku', localIndex, item.data.sku)}
+                          onDragEnd={handleDragEnd}
+                          className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-100 rounded flex-shrink-0"
+                          title="Arrastra para rellenar"
+                        >
+                          <GripVertical className="h-6 w-6 text-slate-500" />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Stock */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3 group">
+                        <input
+                          type="number"
+                          value={item.data.stock}
+                          onChange={(e) => updateVariant(localIndex, "stock", e.target.value)}
+                          onDragEnter={() => handleDragEnter(localIndex)}
+                          style={inputStyle}
+                          onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+                          onBlur={(e) => Object.assign(e.target.style, inputStyle)}
+                        />
+                        <div
+                          draggable
+                          onDragStart={() => handleDragStart('stock', localIndex, item.data.stock)}
+                          onDragEnd={handleDragEnd}
+                          className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-100 rounded flex-shrink-0"
+                          title="Arrastra para rellenar"
+                        >
+                          <GripVertical className="h-6 w-6 text-slate-500" />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 border-t pt-4">
-          <Button onClick={handleSave} className="flex-1">
+        <div className="flex gap-3 border-t px-6 py-4 bg-slate-50">
+          <Button onClick={handleSave} className="flex-1" size="lg">
             Guardar Cambios
           </Button>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="flex-1"
+            size="lg"
           >
             Cancelar
           </Button>
