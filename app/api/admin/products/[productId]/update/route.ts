@@ -22,6 +22,7 @@ export async function PUT(
       hasVariants: data.hasVariants,
       variantsCount: data.variants?.length || 0,
       imagesReceived: data.images?.length || 0,
+      categoryId: data.categoryId, // ✅ Log para debug
     });
 
     // ✅ NORMALIZAR IMÁGENES ANTES DE VALIDAR
@@ -50,9 +51,16 @@ export async function PUT(
       basePrice: data.hasVariants ? 0 : (parseFloat(data.basePrice) || 0),
       stock: data.hasVariants ? 0 : (parseInt(data.stock) || 0),
       sku: data.hasVariants ? null : (data.sku || null),
+      // ✅ FIX: Normalizar categoryId - convertir string vacío a null
+      categoryId: data.categoryId && data.categoryId.trim() !== "" ? data.categoryId : null,
     };
 
-    // ✅ VALIDACIÓN: Validar datos con Zod (ahora images son strings)
+    console.log("✅ Datos normalizados:", {
+      categoryId: normalizedData.categoryId,
+      hasVariants: normalizedData.hasVariants,
+    });
+
+    // ✅ VALIDACIÓN: Validar datos con Zod (ahora images son strings y categoryId normalizado)
     const validatedData = updateProductSchema.parse(normalizedData);
 
     // ✅ Normalizar imágenes de nuevo para guardar con metadata
