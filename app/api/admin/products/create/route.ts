@@ -17,18 +17,39 @@ export async function POST(request: Request) {
       hasVariants: data.hasVariants,
       basePrice: data.basePrice,
       variantsCount: data.variants?.length || 0,
+      imagesReceived: data.images?.length || 0,
     });
+
+    // ✅ NORMALIZAR IMÁGENES ANTES DE VALIDAR
+    // Convertir objetos { url, alt, name } a strings (solo URL)
+    let normalizedImages: string[] = [];
+    if (data.images && Array.isArray(data.images)) {
+      normalizedImages = data.images.map((img: any) => {
+        // Si es objeto con url, extraer la URL
+        if (typeof img === "object" && img.url) {
+          return img.url;
+        }
+        // Si ya es string, dejarlo como está
+        if (typeof img === "string") {
+          return img;
+        }
+        return "";
+      }).filter((url: string) => url !== "");
+    }
+
+    console.log("✅ Imágenes normalizadas para validación:", normalizedImages.length);
 
     // ✅ NORMALIZAR DATOS ANTES DE VALIDAR
     // Si tiene variantes, el basePrice debe ser 0
     const normalizedData = {
       ...data,
+      images: normalizedImages,  // ✅ Usar imágenes normalizadas (strings)
       basePrice: data.hasVariants ? 0 : (data.basePrice || 0),
       stock: data.hasVariants ? 0 : (data.stock || 0),
       sku: data.hasVariants ? null : (data.sku || null),
     };
 
-    // ✅ VALIDACIÓN: Validar datos con Zod
+    // ✅ VALIDACIÓN: Validar datos con Zod (ahora images son strings)
     const validatedData = createProductSchema.parse(normalizedData);
 
     // Verificar que el slug no exista
@@ -43,8 +64,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Normalizar imágenes automáticamente
-    const normalizedImages = normalizeImagesForSave(validatedData.images);
+    // ✅ Normalizar imágenes de nuevo para guardar con metadata
+    const imagesToSave = normalizeImagesForSave(validatedData.images);
 
     console.log("✅ Datos validados:", {
       name: validatedData.name,
@@ -64,31 +85,33 @@ export async function POST(request: Request) {
           shortDescription: validatedData.shortDescription || null,
           basePrice: validatedData.basePrice,
           compareAtPrice: validatedData.compareAtPrice || null,
-          sku: validatedData.hasVariants ? null : validatedData.sku || null,
-          stock: validatedData.hasVariants ? 0 : validatedData.stock || 0,
-          images: normalizedImages as any,
+          sku: validatedData.sku || null,
+          stock: validatedData.stock || 0,
+          images: imagesToSave as any,  // ✅ Cast a any para compatibilidad con Prisma Json
           active: validatedData.active ?? true,
           featured: validatedData.featured ?? false,
-          hasVariants: validatedData.hasVariants ?? false,
+          hasVariants: validatedData.hasVariants,
           metaTitle: validatedData.metaTitle || null,
           metaDescription: validatedData.metaDescription || null,
           weight: validatedData.weight || null,
-          // Relación con categorías (many-to-many)
-          categories: validatedData.categoryId
-            ? {
-                create: {
-                  categoryId: validatedData.categoryId,
-                },
-              }
-            : undefined,
         },
       });
 
-      // 2. Si tiene variantes, crear opciones y variantes
+      // 2. Relacionar con categoría si se especificó
+      if (validatedData.categoryId) {
+        await tx.productCategory.create({
+          data: {
+            productId: newProduct.id,
+            categoryId: validatedData.categoryId,
+          },
+        });
+      }
+
+      // 3. Si tiene variantes, crear opciones y variantes
       if (validatedData.hasVariants && data.options && data.variants) {
         console.log("📝 Creando opciones y variantes...");
 
-        // Crear opciones
+        // Crear opciones (Color, Talla, etc.)
         for (let i = 0; i < data.options.length; i++) {
           const option = data.options[i];
           await tx.productOption.create({
@@ -107,31 +130,44 @@ export async function POST(request: Request) {
         }
 
         // Crear variantes
+        let createdVariants = 0;
         for (const variant of data.variants) {
-          // Generar SKU automático si no se proporciona
-          const variantSku =
-            variant.sku ||
-            `${newProduct.slug}-${Object.values(variant.options)
-              .join("-")
-              .toLowerCase()
-              .replace(/\s+/g, "-")}`;
+          // ✅ CONVERSIÓN EXPLÍCITA: Asegurar que price y stock sean números
+          const variantPrice = parseFloat(variant.price);
+          const variantStock = parseInt(variant.stock) || 0;
+
+          // ✅ VALIDACIÓN: El precio debe ser mayor a 0
+          if (!variantPrice || variantPrice <= 0) {
+            console.error("❌ Variante sin precio válido:", variant);
+            throw new Error(`Variante ${JSON.stringify(variant.options)} debe tener un precio mayor a 0`);
+          }
+
+          console.log(`  ✅ Creando variante: ${JSON.stringify(variant.options)} - Precio: ${variantPrice}`);
+
+          // Generar SKU si no se proporcionó
+          const sku = variant.sku || (() => {
+            const optionValues = Object.values(variant.options).join("-");
+            return `${newProduct.slug}-${optionValues}`.toUpperCase().replace(/\s+/g, "-");
+          })();
 
           await tx.productVariant.create({
             data: {
               productId: newProduct.id,
-              sku: variantSku,
-              options: variant.options,
-              price: variant.price,
-              compareAtPrice: variant.compareAtPrice || null,
-              stock: variant.stock || 0,
-              weight: variant.weight || null,
+              sku,
+              options: variant.options as any,  // ✅ Cast para compatibilidad con Prisma Json
+              price: variantPrice,
+              compareAtPrice: variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null,
+              stock: variantStock,
+              weight: variant.weight ? parseFloat(variant.weight) : null,
               image: variant.image || null,
               active: true,
             },
           });
+
+          createdVariants++;
         }
 
-        console.log(`✅ Creadas ${data.variants.length} variantes`);
+        console.log(`✅ Creadas ${createdVariants} variantes`);
       }
 
       return newProduct;
@@ -139,7 +175,7 @@ export async function POST(request: Request) {
 
     console.log(`✅ Producto creado exitosamente por usuario ${user.id}:`, product.name);
 
-    // Obtener producto completo con relaciones
+    // Obtener el producto completo con todas las relaciones
     const completeProduct = await prisma.product.findUnique({
       where: { id: product.id },
       include: {
@@ -177,8 +213,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Errores personalizados (ej: variante sin precio)
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Error al crear el producto" },
+      { error: "Error al crear producto" },
       { status: 500 }
     );
   }

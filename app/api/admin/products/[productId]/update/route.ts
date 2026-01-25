@@ -21,21 +21,42 @@ export async function PUT(
       productId,
       hasVariants: data.hasVariants,
       variantsCount: data.variants?.length || 0,
+      imagesReceived: data.images?.length || 0,
     });
+
+    // ✅ NORMALIZAR IMÁGENES ANTES DE VALIDAR
+    // Convertir objetos { url, alt, name } a strings (solo URL)
+    let normalizedImages: string[] = [];
+    if (data.images && Array.isArray(data.images)) {
+      normalizedImages = data.images.map((img: any) => {
+        // Si es objeto con url, extraer la URL
+        if (typeof img === "object" && img.url) {
+          return img.url;
+        }
+        // Si ya es string, dejarlo como está
+        if (typeof img === "string") {
+          return img;
+        }
+        return "";
+      }).filter((url: string) => url !== "");
+    }
+
+    console.log("✅ Imágenes normalizadas para validación:", normalizedImages.length);
 
     // ✅ NORMALIZAR DATOS ANTES DE VALIDAR
     const normalizedData = {
       ...data,
+      images: normalizedImages,  // ✅ Usar imágenes normalizadas (strings)
       basePrice: data.hasVariants ? 0 : (parseFloat(data.basePrice) || 0),
       stock: data.hasVariants ? 0 : (parseInt(data.stock) || 0),
       sku: data.hasVariants ? null : (data.sku || null),
     };
 
-    // ✅ VALIDACIÓN: Validar datos con Zod
+    // ✅ VALIDACIÓN: Validar datos con Zod (ahora images son strings)
     const validatedData = updateProductSchema.parse(normalizedData);
 
-    // Normalizar imágenes automáticamente
-    const normalizedImages = normalizeImagesForSave(validatedData.images || data.images || []);
+    // ✅ Normalizar imágenes de nuevo para guardar con metadata
+    const imagesToSave = normalizeImagesForSave(validatedData.images || []);
 
     // ✅ Usar transacción para manejar producto + categorías + variantes de forma atómica
     const product = await prisma.$transaction(async (tx) => {
@@ -47,7 +68,7 @@ export async function PUT(
         shortDescription: validatedData.shortDescription || null,
         basePrice: validatedData.basePrice,
         compareAtPrice: validatedData.compareAtPrice || null,
-        images: normalizedImages,
+        images: imagesToSave as any,  // ✅ Cast a any para compatibilidad con Prisma Json
         active: validatedData.active ?? true,
         featured: validatedData.featured ?? false,
         hasVariants: validatedData.hasVariants,
@@ -140,7 +161,7 @@ export async function PUT(
             data: {
               productId,
               sku: variant.sku || `${updatedProduct.slug}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-              options: variant.options,
+              options: variant.options as any,  // ✅ Cast para compatibilidad con Prisma Json
               price: variantPrice,
               compareAtPrice: variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null,
               stock: variantStock,
