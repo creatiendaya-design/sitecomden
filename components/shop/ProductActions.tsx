@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import VariantSelector from "@/components/shop/VariantSelector";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 
@@ -16,6 +16,29 @@ export default function ProductActions({
   options,
 }: ProductActionsProps) {
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
+
+  // ✅ FUNCIÓN PARA NOTIFICAR CAMBIO DE PRECIO
+  const notifyPriceChange = (variant: any) => {
+    if (!variant || !variant.price) return;
+    
+    console.log("📢 Actualizando precio principal a:", variant.price);
+    
+    window.dispatchEvent(
+      new CustomEvent("variant-changed", {
+        detail: {
+          price: Number(variant.price),
+          compareAtPrice: variant.compareAtPrice ? Number(variant.compareAtPrice) : null,
+        },
+      })
+    );
+  };
+
+  // ✅ DISPARAR EVENTO CUANDO CAMBIE LA VARIANTE SELECCIONADA
+  useEffect(() => {
+    if (selectedVariant) {
+      notifyPriceChange(selectedVariant);
+    }
+  }, [selectedVariant]);
 
   // Calcular stock total
   const totalStock = product.hasVariants
