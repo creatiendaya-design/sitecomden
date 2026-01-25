@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getProductImageUrl, getProductImageAlt } from "@/lib/image-utils";
+import { getProductImageAlt } from "@/lib/image-utils";
 import { ShoppingCart, Heart } from "lucide-react";
 import { useState } from "react";
+import { useCartStore } from "@/store/cart";
+import { toast } from "sonner";
 
 interface ProductCardProps {
   product: {
@@ -19,61 +20,125 @@ interface ProductCardProps {
     images: any;
     hasVariants: boolean;
     featured: boolean;
+    stock?: number;
     category?: {
       name: string;
       slug: string;
     } | null;
     variants?: Array<{
+      id: string;
       price: number;
       compareAtPrice: number | null;
+      stock?: number;
+      options?: any;
+      [key: string]: any;
     }>;
+    [key: string]: any;
   };
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
   const [isWishlisted, setIsWishlisted] = useState(false);
+  
+  const addToCart = useCartStore((state) => state.addItem);
 
-  // Determinar precio a mostrar
-  const displayPrice = product.hasVariants && product.variants && product.variants.length > 0
-    ? product.variants[0].price
-    : product.basePrice;
+  const selectedVariant = product.hasVariants && product.variants && product.variants.length > 0
+    ? product.variants[0]
+    : null;
 
-  const comparePrice = product.hasVariants && product.variants && product.variants.length > 0
-    ? product.variants[0].compareAtPrice
-    : product.compareAtPrice;
+  const displayPrice = selectedVariant ? selectedVariant.price : product.basePrice;
+  const comparePrice = selectedVariant ? selectedVariant.compareAtPrice : product.compareAtPrice;
+  const displayStock = selectedVariant?.stock ?? product.stock ?? 999;
 
-  // Calcular descuento si existe
   const discount = comparePrice
     ? Math.round(((comparePrice - displayPrice) / comparePrice) * 100)
     : 0;
 
-  // Obtener imágenes
-  const mainImage = getProductImageUrl(product.images);
-  const imageAlt = getProductImageAlt(product.images, product.name);
+  // ✅ CORREGIDO: Extraer URLs de objetos
+  let mainImage: string | null = null;
+  let secondImage: string | null = null;
 
-  // Segunda imagen para efecto hover (si existe)
-  const secondImage = product.images && Array.isArray(product.images) && product.images.length > 1
-    ? product.images[1]
-    : null;
+  if (product.images && Array.isArray(product.images)) {
+    // Extraer URL del primer objeto
+    if (product.images[0]) {
+      mainImage = typeof product.images[0] === 'string' 
+        ? product.images[0] 
+        : product.images[0]?.url || null;
+    }
+
+    // Extraer URL del segundo objeto
+    if (product.images[1]) {
+      secondImage = typeof product.images[1] === 'string' 
+        ? product.images[1] 
+        : product.images[1]?.url || null;
+    }
+  }
+
+  const hasSecondImage = !!secondImage;
+  const imageAlt = getProductImageAlt(product.images, product.name);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // TODO: Implementar lógica de agregar al carrito
-    console.log("Agregar al carrito:", product.id);
+
+    if (displayStock <= 0) {
+      toast.error("Producto sin stock");
+      return;
+    }
+
+    let variantOptions: Record<string, string> | undefined;
+    if (selectedVariant?.options) {
+      try {
+        if (typeof selectedVariant.options === 'object' && selectedVariant.options !== null) {
+          variantOptions = Object.entries(selectedVariant.options).reduce((acc, [key, value]) => {
+            acc[key] = String(value);
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      } catch (error) {
+        console.warn('Error al procesar options:', error);
+      }
+    }
+
+    const cartItem = {
+      id: selectedVariant ? selectedVariant.id : product.id,
+      productId: product.id,
+      variantId: selectedVariant?.id,
+      slug: product.slug,
+      name: product.name,
+      variantName: variantOptions
+        ? Object.entries(variantOptions)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(", ")
+        : undefined,
+      price: displayPrice,
+      image: mainImage ?? undefined,
+      maxStock: displayStock,
+      options: variantOptions,
+    };
+
+    addToCart(cartItem);
+
+    toast.success("¡Agregado al carrito!", {
+      description: product.name,
+      action: {
+        label: "Ver carrito",
+        onClick: () => (window.location.href = "/carrito"),
+      },
+    });
   };
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsWishlisted(!isWishlisted);
-    // TODO: Implementar lógica de wishlist
-    console.log("Toggle wishlist:", product.id);
+    toast.info(isWishlisted ? "Removido de favoritos" : "Agregado a favoritos");
   };
 
+  const outOfStock = displayStock <= 0;
+
   return (
-    <Card className="group relative overflow-hidden rounded-xl border transition-all hover:shadow-xl">
-      {/* Badges superiores */}
+    <div className="group relative overflow-hidden rounded-xl bg-white shadow-sm transition-all hover:shadow-xl">
       <div className="absolute left-3 top-3 z-10 flex flex-col gap-2">
         {product.featured && (
           <Badge className="bg-primary text-primary-foreground shadow-md">
@@ -85,9 +150,13 @@ export default function ProductCard({ product }: ProductCardProps) {
             -{discount}%
           </Badge>
         )}
+        {outOfStock && (
+          <Badge variant="secondary" className="shadow-md">
+            Sin stock
+          </Badge>
+        )}
       </div>
 
-      {/* Botón Wishlist */}
       <button
         onClick={handleWishlist}
         className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-white"
@@ -100,9 +169,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         />
       </button>
 
-      {/* Link a página del producto */}
-      <Link href={`/productos/${product.slug}`} className="block">
-        {/* Imagen */}
+      <Link href={`/productos/${product.slug}`}>
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           {mainImage ? (
             <>
@@ -112,12 +179,14 @@ export default function ProductCard({ product }: ProductCardProps) {
                 alt={imageAlt}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover transition-opacity duration-300 group-hover:opacity-0"
+                className={`object-cover transition-opacity duration-300 ${
+                  hasSecondImage ? 'group-hover:opacity-0' : ''
+                }`}
                 priority={product.featured}
               />
               
-              {/* Segunda imagen para hover (si existe) */}
-              {secondImage && (
+              {/* Segunda imagen - Solo si existe */}
+              {hasSecondImage && secondImage && (
                 <Image
                   src={secondImage}
                   alt={`${product.name} - vista alternativa`}
@@ -136,22 +205,20 @@ export default function ProductCard({ product }: ProductCardProps) {
             </div>
           )}
 
-          {/* Quick Add Button - Solo desktop */}
           <div className="absolute inset-x-0 bottom-0 hidden translate-y-full bg-gradient-to-t from-black/60 to-transparent p-4 transition-transform duration-300 group-hover:translate-y-0 sm:block">
             <Button
               size="sm"
               className="w-full bg-white text-black hover:bg-gray-100"
               onClick={handleAddToCart}
+              disabled={outOfStock}
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
-              Agregar al carrito
+              {outOfStock ? "Sin stock" : "Agregar al carrito"}
             </Button>
           </div>
         </div>
 
-        {/* Contenido */}
-        <CardContent className="p-4">
-          {/* Categoría */}
+        <div className="p-4">
           {product.category && (
             <Link
               href={`/productos?category=${product.category.slug}`}
@@ -162,12 +229,10 @@ export default function ProductCard({ product }: ProductCardProps) {
             </Link>
           )}
 
-          {/* Nombre */}
           <h3 className="mb-2 line-clamp-2 font-semibold text-foreground transition-colors group-hover:text-primary">
             {product.name}
           </h3>
 
-          {/* Precio */}
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-bold text-foreground">
               S/ {displayPrice.toFixed(2)}
@@ -179,26 +244,31 @@ export default function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
 
-          {/* Indicador de variantes */}
           {product.hasVariants && product.variants && product.variants.length > 1 && (
             <p className="mt-1 text-xs text-muted-foreground">
               Desde S/ {displayPrice.toFixed(2)}
             </p>
           )}
-        </CardContent>
 
-        {/* Footer - Add to cart mobile */}
-        <CardFooter className="p-4 pt-0 sm:hidden">
+          {displayStock > 0 && displayStock <= 5 && (
+            <p className="mt-1 text-xs text-orange-600">
+              ¡Solo quedan {displayStock}!
+            </p>
+          )}
+        </div>
+
+        <div className="p-4 pt-0 sm:hidden">
           <Button
             size="sm"
             className="w-full"
             onClick={handleAddToCart}
+            disabled={outOfStock}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
-            Agregar
+            {outOfStock ? "Sin stock" : "Agregar"}
           </Button>
-        </CardFooter>
+        </div>
       </Link>
-    </Card>
+    </div>
   );
 }

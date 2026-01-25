@@ -50,6 +50,7 @@ export default function AddToCartButton({
         id: selectedVariant.id,
         productId: product.id,
         variantId: selectedVariant.id,
+        slug: product.slug, // ✅ AGREGADO
         name: product.name,
         variantName,
         price: Number(selectedVariant.price),
@@ -75,6 +76,7 @@ export default function AddToCartButton({
       addItem({
         id: product.id,
         productId: product.id,
+        slug: product.slug, // ✅ AGREGADO
         name: product.name,
         price: Number(product.basePrice),
         image: imageUrl ?? undefined,

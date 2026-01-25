@@ -7,6 +7,7 @@ export interface CartItem {
   variantId?: string
   name: string
   variantName?: string
+  slug: string // ✨ NUEVO: Para navegación directa al producto
   price: number
   quantity: number
   image?: string
@@ -22,6 +23,10 @@ interface CartStore {
   clearCart: () => void
   getTotalItems: () => number
   getTotalPrice: () => number
+  // ✨ NUEVOS helpers opcionales:
+  getItemCount: (id: string) => number
+  isInCart: (id: string) => boolean
+  canAddMore: (id: string) => boolean
 }
 
 export const useCartStore = create<CartStore>()(
@@ -34,6 +39,13 @@ export const useCartStore = create<CartStore>()(
         const existingItem = items.find((item) => item.id === newItem.id)
 
         if (existingItem) {
+          // Verificar si puede agregar más
+          if (existingItem.quantity >= existingItem.maxStock) {
+            // ✨ MEJORA: Retornar false cuando llegue al límite
+            console.warn(`Stock máximo alcanzado para ${newItem.name}`)
+            return false
+          }
+          
           // Incrementar cantidad si ya existe
           set({
             items: items.map((item) =>
@@ -45,7 +57,14 @@ export const useCartStore = create<CartStore>()(
                 : item
             ),
           })
+          return true
         } else {
+          // ✨ MEJORA: Validar stock antes de agregar
+          if (newItem.maxStock <= 0) {
+            console.warn(`No hay stock disponible para ${newItem.name}`)
+            return false
+          }
+          
           // Agregar nuevo item
           set({
             items: [
@@ -56,6 +75,7 @@ export const useCartStore = create<CartStore>()(
               },
             ],
           })
+          return true
         }
       },
 
@@ -93,6 +113,24 @@ export const useCartStore = create<CartStore>()(
           (total, item) => total + item.price * item.quantity,
           0
         )
+      },
+
+      // ✨ NUEVO: Obtener cantidad de un item específico
+      getItemCount: (id) => {
+        const item = get().items.find((item) => item.id === id)
+        return item?.quantity || 0
+      },
+
+      // ✨ NUEVO: Verificar si un item está en el carrito
+      isInCart: (id) => {
+        return get().items.some((item) => item.id === id)
+      },
+
+      // ✨ NUEVO: Verificar si se puede agregar más de un item
+      canAddMore: (id) => {
+        const item = get().items.find((item) => item.id === id)
+        if (!item) return true // Si no está en carrito, se puede agregar
+        return item.quantity < item.maxStock
       },
     }),
     {
