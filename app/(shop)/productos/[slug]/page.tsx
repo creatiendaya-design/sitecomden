@@ -13,29 +13,6 @@ interface ProductDetailPageProps {
   }>;
 }
 
-// 🆕 Función helper para combinar imágenes del producto y variantes
-function getAllProductImages(productImages: any, variants: any[]) {
-  // Normalizar imágenes del producto
-  let images: string[] = [];
-  
-  if (Array.isArray(productImages)) {
-    images = productImages.map((img: any) => 
-      typeof img === 'string' ? img : img?.url || img
-    ).filter(Boolean);
-  }
-
-  // Agregar imágenes únicas de variantes
-  if (variants && variants.length > 0) {
-    variants.forEach((variant) => {
-      if (variant.image && !images.includes(variant.image)) {
-        images.push(variant.image);
-      }
-    });
-  }
-
-  return images;
-}
-
 export default async function ProductDetailPage({
   params,
 }: ProductDetailPageProps) {
@@ -87,9 +64,6 @@ export default async function ProductDetailPage({
       : null;
   }
 
-  // 🆕 Combinar imágenes del producto y variantes
-  const allImages = getAllProductImages(product.images, product.variants);
-
   // Serializar producto para componentes cliente
   const serializedProduct = {
     id: product.id,
@@ -125,8 +99,8 @@ export default async function ProductDetailPage({
   return (
     <div className="product-detail-container">
       <div className="product-detail-grid">
-        {/* Gallery Column - 🆕 Usando imágenes combinadas */}
-        <ProductImageGallery images={allImages} name={product.name} />
+        {/* Gallery Column - 🆕 SOLO imágenes del producto */}
+        <ProductImageGallery images={product.images} name={product.name} />
 
         {/* Info Column */}
         <div className="product-info-wrapper">

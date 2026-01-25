@@ -80,6 +80,14 @@ export default function ProductActions({
     // Si no todas las opciones están seleccionadas, no buscar
     if (Object.keys(selectedOptions).length !== options.length) {
       setSelectedVariant(null);
+      
+      // 🆕 Resetear imagen de variante si no hay variante seleccionada
+      window.dispatchEvent(
+        new CustomEvent("variant-image-changed", {
+          detail: { imageUrl: null },
+        })
+      );
+      
       return;
     }
 
@@ -104,11 +112,14 @@ export default function ProductActions({
     setSelectedVariant(matchingVariant || null);
   }, [selectedOptions, options, variants]);
 
-  // ✅ Notificar cambio de precio cuando cambie la variante
+  // ✅ Notificar cambio de precio y/o imagen cuando cambie la variante
   useEffect(() => {
     if (selectedVariant) {
-      console.log("📢 Actualizando precio principal a:", selectedVariant.price);
+      console.log("📢 Variante seleccionada:", selectedVariant);
+      console.log("📢 Precio:", selectedVariant.price);
+      console.log("🖼️ Imagen:", selectedVariant.image || "Sin imagen");
 
+      // Actualizar precio
       window.dispatchEvent(
         new CustomEvent("variant-changed", {
           detail: {
@@ -120,18 +131,14 @@ export default function ProductActions({
         })
       );
 
-      // 🆕 Si la variante tiene imagen, notificar para cambiar la galería
-      if (selectedVariant.image) {
-        console.log("🖼️ Actualizando imagen de galería a:", selectedVariant.image);
-        
-        window.dispatchEvent(
-          new CustomEvent("variant-image-changed", {
-            detail: {
-              imageUrl: selectedVariant.image,
-            },
-          })
-        );
-      }
+      // 🆕 Actualizar imagen (o resetear si no tiene)
+      window.dispatchEvent(
+        new CustomEvent("variant-image-changed", {
+          detail: {
+            imageUrl: selectedVariant.image, // Puede ser string o null
+          },
+        })
+      );
     }
   }, [selectedVariant]);
 
