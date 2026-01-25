@@ -3,209 +3,184 @@
 import { useState } from "react";
 import Image from "next/image";
 
-// Tipos basados en el schema de Prisma
-type SwatchType = 'NONE' | 'COLOR' | 'IMAGE';
-type OptionDisplayStyle = 'DROPDOWN' | 'BUTTONS' | 'SWATCHES';
-
-interface ProductOptionValue {
+// 🔧 TIPOS EXPLÍCITOS
+interface OptionValue {
   id: string;
   value: string;
-  swatchType: SwatchType;
-  colorHex?: string | null;
-  swatchImage?: string | null;
   position: number;
+  swatchType: string;
+  colorHex: string | null;
+  swatchImage: string | null;
 }
 
-interface ProductOption {
+interface Option {
   id: string;
   name: string;
-  displayStyle: OptionDisplayStyle;
+  displayStyle: string;
   position: number;
-  values: ProductOptionValue[];
+  values: OptionValue[];
 }
 
-interface ProductOptionsProps {
-  options: ProductOption[];
-  selectedOptions: Record<string, string>; // { optionId: valueId }
+export interface ProductOptionsProps {
+  options: Option[];
+  selectedOptions: Record<string, string>;
   onOptionChange: (optionId: string, valueId: string) => void;
 }
 
-export default function ProductOptions({ 
-  options, 
-  selectedOptions, 
-  onOptionChange 
+export default function ProductOptions({
+  options,
+  selectedOptions,
+  onOptionChange,
 }: ProductOptionsProps) {
   return (
     <div className="space-y-6">
       {options.map((option) => (
         <div key={option.id} className="space-y-3">
-          <label className="text-sm font-semibold text-gray-700">
-            {option.name}
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-base font-semibold text-slate-900">
+              {option.name}
+            </label>
+            {selectedOptions[option.id] && (
+              <span className="text-sm text-slate-600">
+                {option.values.find((v) => v.id === selectedOptions[option.id])
+                  ?.value}
+              </span>
+            )}
+          </div>
 
-          {/* Renderizar según el displayStyle */}
-          {option.displayStyle === 'SWATCHES' && (
-            <SwatchesView
-              option={option}
-              selectedValueId={selectedOptions[option.id]}
-              onSelect={(valueId) => onOptionChange(option.id, valueId)}
-            />
+          {/* SWATCHES */}
+          {option.displayStyle === "SWATCHES" && (
+            <div className="flex flex-wrap gap-2">
+              {option.values.map((value) => {
+                const isSelected = selectedOptions[option.id] === value.id;
+
+                return (
+                  <button
+                    key={value.id}
+                    type="button"
+                    onClick={() => onOptionChange(option.id, value.id)}
+                    className={`
+                      group relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all
+                      ${
+                        isSelected
+                          ? "border-blue-600 bg-blue-50 shadow-md"
+                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                      }
+                    `}
+                    title={value.value}
+                  >
+                    {/* COLOR Swatch */}
+                    {value.swatchType === "COLOR" && value.colorHex && (
+                      <>
+                        <div
+                          className={`
+                            h-10 w-10 rounded-full border-2 border-slate-200 shadow-sm
+                            ${isSelected ? "ring-2 ring-blue-600 ring-offset-2" : ""}
+                          `}
+                          style={{ backgroundColor: value.colorHex }}
+                        />
+                        <span className="text-xs font-medium text-slate-700">
+                          {value.value}
+                        </span>
+                        {isSelected && (
+                          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
+                            ✓
+                          </span>
+                        )}
+                      </>
+                    )}
+
+                    {/* IMAGE Swatch */}
+                    {value.swatchType === "IMAGE" && value.swatchImage && (
+                      <>
+                        <div
+                          className={`
+                            relative h-10 w-10 overflow-hidden rounded-md border-2 border-slate-200 shadow-sm
+                            ${isSelected ? "ring-2 ring-blue-600 ring-offset-2" : ""}
+                          `}
+                        >
+                          <Image
+                            src={value.swatchImage}
+                            alt={value.value}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-slate-700">
+                          {value.value}
+                        </span>
+                        {isSelected && (
+                          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
+                            ✓
+                          </span>
+                        )}
+                      </>
+                    )}
+
+                    {/* NONE - Solo texto en swatch */}
+                    {value.swatchType === "NONE" && (
+                      <>
+                        <span className="text-sm font-medium text-slate-900">
+                          {value.value}
+                        </span>
+                        {isSelected && (
+                          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
+                            ✓
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           )}
 
-          {option.displayStyle === 'BUTTONS' && (
-            <ButtonsView
-              option={option}
-              selectedValueId={selectedOptions[option.id]}
-              onSelect={(valueId) => onOptionChange(option.id, valueId)}
-            />
+          {/* BUTTONS */}
+          {option.displayStyle === "BUTTONS" && (
+            <div className="flex flex-wrap gap-2">
+              {option.values.map((value) => {
+                const isSelected = selectedOptions[option.id] === value.id;
+
+                return (
+                  <button
+                    key={value.id}
+                    type="button"
+                    onClick={() => onOptionChange(option.id, value.id)}
+                    className={`
+                      rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all
+                      ${
+                        isSelected
+                          ? "border-blue-600 bg-blue-600 text-white shadow-md"
+                          : "border-slate-300 bg-white text-slate-900 hover:border-slate-400 hover:bg-slate-50"
+                      }
+                    `}
+                  >
+                    {value.value}
+                  </button>
+                );
+              })}
+            </div>
           )}
 
-          {option.displayStyle === 'DROPDOWN' && (
-            <DropdownView
-              option={option}
-              selectedValueId={selectedOptions[option.id]}
-              onSelect={(valueId) => onOptionChange(option.id, valueId)}
-            />
+          {/* DROPDOWN */}
+          {option.displayStyle === "DROPDOWN" && (
+            <select
+              value={selectedOptions[option.id] || ""}
+              onChange={(e) => onOptionChange(option.id, e.target.value)}
+              className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 transition-colors hover:border-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+            >
+              <option value="">Selecciona {option.name}</option>
+              {option.values.map((value) => (
+                <option key={value.id} value={value.id}>
+                  {value.value}
+                </option>
+              ))}
+            </select>
           )}
         </div>
       ))}
     </div>
-  );
-}
-
-// ========================================
-// VISTA: SWATCHES (Colores o Imágenes)
-// ========================================
-function SwatchesView({ 
-  option, 
-  selectedValueId, 
-  onSelect 
-}: {
-  option: ProductOption;
-  selectedValueId: string;
-  onSelect: (valueId: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {option.values.map((value) => {
-        const isSelected = selectedValueId === value.id;
-
-        return (
-          <button
-            key={value.id}
-            onClick={() => onSelect(value.id)}
-            className={`
-              group relative flex items-center gap-2 
-              px-3 py-2 rounded-lg border-2 transition-all
-              hover:border-gray-400
-              ${isSelected 
-                ? 'border-blue-500 bg-blue-50' 
-                : 'border-gray-300 bg-white'
-              }
-            `}
-            title={value.value}
-          >
-            {/* Renderizar swatch según tipo */}
-            {value.swatchType === 'COLOR' && value.colorHex && (
-              <div 
-                className="w-6 h-6 rounded-full border-2 border-gray-200"
-                style={{ backgroundColor: value.colorHex }}
-              />
-            )}
-
-            {value.swatchType === 'IMAGE' && value.swatchImage && (
-              <div className="relative w-6 h-6 rounded border-2 border-gray-200 overflow-hidden">
-                <Image
-                  src={value.swatchImage}
-                  alt={value.value}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            )}
-
-            {/* Texto del valor */}
-            <span className="text-sm font-medium">
-              {value.value}
-            </span>
-
-            {/* Indicador de selección */}
-            {isSelected && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ========================================
-// VISTA: BUTTONS (Botones simples)
-// ========================================
-function ButtonsView({ 
-  option, 
-  selectedValueId, 
-  onSelect 
-}: {
-  option: ProductOption;
-  selectedValueId: string;
-  onSelect: (valueId: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {option.values.map((value) => {
-        const isSelected = selectedValueId === value.id;
-
-        return (
-          <button
-            key={value.id}
-            onClick={() => onSelect(value.id)}
-            className={`
-              px-4 py-2 rounded-lg border-2 transition-all
-              hover:border-gray-400
-              ${isSelected 
-                ? 'border-blue-500 bg-blue-500 text-white' 
-                : 'border-gray-300 bg-white text-gray-700'
-              }
-            `}
-          >
-            {value.value}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ========================================
-// VISTA: DROPDOWN (Select tradicional)
-// ========================================
-function DropdownView({ 
-  option, 
-  selectedValueId, 
-  onSelect 
-}: {
-  option: ProductOption;
-  selectedValueId: string;
-  onSelect: (valueId: string) => void;
-}) {
-  return (
-    <select
-      value={selectedValueId || ''}
-      onChange={(e) => onSelect(e.target.value)}
-      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-    >
-      <option value="">Seleccionar {option.name}</option>
-      {option.values.map((value) => (
-        <option key={value.id} value={value.id}>
-          {value.value}
-        </option>
-      ))}
-    </select>
   );
 }

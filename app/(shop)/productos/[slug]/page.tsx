@@ -80,12 +80,13 @@ export default async function ProductDetailPage({
     weight: product.weight ? Number(product.weight) : null,
   };
 
+  // 🔧 FIX: Serializar variantes con conversión explícita de options
   const serializedVariants = product.variants.map((v) => ({
     id: v.id,
     productId: v.productId,
     sku: v.sku,
     barcode: v.barcode,
-    options: v.options,
+    options: v.options as Record<string, string>, // ← Conversión explícita
     price: Number(v.price),
     compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
     stock: v.stock,
