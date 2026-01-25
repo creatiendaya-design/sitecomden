@@ -165,7 +165,7 @@ export default function LocationSelector({
         {/* Departamento */}
         <div>
           <Label htmlFor="department">
-            Departamento <span className="text-destructive">*</span>
+            Departamento <span className="text-destructive mb-2">*</span>
           </Label>
           {loadingDepartments ? (
             <div className="flex items-center justify-center h-10 border rounded-md">
@@ -196,7 +196,7 @@ export default function LocationSelector({
         {/* Provincia */}
         <div>
           <Label htmlFor="province">
-            Provincia <span className="text-destructive">*</span>
+            Provincia <span className="text-destructive mb-2">*</span>
           </Label>
           {loadingProvinces ? (
             <div className="flex items-center justify-center h-10 border rounded-md">
@@ -237,7 +237,7 @@ export default function LocationSelector({
         {/* Distrito */}
         <div>
           <Label htmlFor="district">
-            Distrito <span className="text-destructive">*</span>
+            Distrito <span className="text-destructive mb-2">*</span>
           </Label>
           {loadingDistricts ? (
             <div className="flex items-center justify-center h-10 border rounded-md">

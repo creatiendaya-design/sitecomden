@@ -268,7 +268,7 @@ export default function CulqiPaymentForm({
 
       {/* Número de Tarjeta */}
       <div>
-        <Label htmlFor="cardNumber">Número de Tarjeta *</Label>
+        <Label htmlFor="cardNumber" className="mb-2">Número de Tarjeta *</Label>
         <Input
           id="cardNumber"
           type="text"
@@ -287,7 +287,7 @@ export default function CulqiPaymentForm({
       {/* Fecha de Expiración y CVV */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="expirationDate">Fecha de Expiración *</Label>
+          <Label htmlFor="expirationDate" className="mb-2">Fecha de Expiración *</Label>
           <Input
             id="expirationDate"
             type="text"
@@ -306,7 +306,7 @@ export default function CulqiPaymentForm({
         </div>
 
         <div>
-          <Label htmlFor="cvv">CVV *</Label>
+          <Label htmlFor="cvv" className="mb-2">CVV *</Label>
           <Input
             id="cvv"
             type="text"
@@ -327,7 +327,7 @@ export default function CulqiPaymentForm({
 
       {/* Email */}
       <div>
-        <Label htmlFor="email">Correo Electrónico *</Label>
+        <Label htmlFor="email" className="mb-2">Correo Electrónico *</Label>
         <Input
           id="email"
           type="email"
