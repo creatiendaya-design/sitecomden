@@ -17,11 +17,25 @@ export async function PUT(
     const { productId } = await params;
     const data = await request.json();
 
+    console.log("📝 Actualizando producto:", {
+      productId,
+      hasVariants: data.hasVariants,
+      variantsCount: data.variants?.length || 0,
+    });
+
+    // ✅ NORMALIZAR DATOS ANTES DE VALIDAR
+    const normalizedData = {
+      ...data,
+      basePrice: data.hasVariants ? 0 : (parseFloat(data.basePrice) || 0),
+      stock: data.hasVariants ? 0 : (parseInt(data.stock) || 0),
+      sku: data.hasVariants ? null : (data.sku || null),
+    };
+
     // ✅ VALIDACIÓN: Validar datos con Zod
-    const validatedData = updateProductSchema.parse(data);
+    const validatedData = updateProductSchema.parse(normalizedData);
 
     // Normalizar imágenes automáticamente
-    const normalizedImages = normalizeImagesForSave(validatedData.images);
+    const normalizedImages = normalizeImagesForSave(validatedData.images || data.images || []);
 
     // ✅ Usar transacción para manejar producto + categorías + variantes de forma atómica
     const product = await prisma.$transaction(async (tx) => {
@@ -39,6 +53,7 @@ export async function PUT(
         hasVariants: validatedData.hasVariants,
         metaTitle: validatedData.metaTitle || null,
         metaDescription: validatedData.metaDescription || null,
+        weight: validatedData.weight || null,
       };
 
       // Si no tiene variantes, actualizar stock y SKU del producto
@@ -71,6 +86,8 @@ export async function PUT(
 
       // 3. Si tiene variantes, gestionar opciones y variantes
       if (validatedData.hasVariants && data.options && data.variants) {
+        console.log("🔄 Actualizando variantes...");
+
         // Eliminar opciones y variantes existentes
         await tx.productVariant.deleteMany({
           where: { productId },
@@ -104,41 +121,93 @@ export async function PUT(
           });
         }
 
-        // Crear nuevas variantes
+        // Crear nuevas variantes con conversión explícita de precios
+        let createdVariants = 0;
         for (const variant of data.variants) {
+          // ✅ CONVERSIÓN EXPLÍCITA: Asegurar que price y stock sean números
+          const variantPrice = parseFloat(variant.price);
+          const variantStock = parseInt(variant.stock) || 0;
+
+          // ✅ VALIDACIÓN: El precio debe ser mayor a 0
+          if (!variantPrice || variantPrice <= 0) {
+            console.error("❌ Variante sin precio válido:", variant);
+            throw new Error(`Variante ${JSON.stringify(variant.options)} debe tener un precio mayor a 0`);
+          }
+
+          console.log(`  ✅ Creando variante: ${JSON.stringify(variant.options)} - Precio: ${variantPrice}`);
+
           await tx.productVariant.create({
             data: {
               productId,
-              sku: variant.sku || `${updatedProduct.slug}-${Date.now()}`,
+              sku: variant.sku || `${updatedProduct.slug}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
               options: variant.options,
-              price: variant.price,
-              compareAtPrice: variant.compareAtPrice || null,
-              stock: variant.stock,
+              price: variantPrice,
+              compareAtPrice: variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null,
+              stock: variantStock,
+              weight: variant.weight ? parseFloat(variant.weight) : null,
               image: variant.image || null,
               active: true,
             },
           });
+
+          createdVariants++;
         }
+
+        console.log(`✅ ${createdVariants} variantes actualizadas correctamente`);
       }
 
       return updatedProduct;
     });
 
-    console.log(`✅ Producto actualizado por usuario ${user.id}:`, product.name);
+    console.log(`✅ Producto actualizado exitosamente por usuario ${user.id}:`, product.name);
 
     // Revalidar rutas para actualizar caché en producción
     revalidatePath("/admin/productos");
     revalidatePath(`/admin/productos/${productId}`);
     revalidatePath(`/productos/${product.slug}`);
 
-    return NextResponse.json({ success: true, product });
+    // Obtener producto completo con variantes para verificar
+    const completeProduct = await prisma.product.findUnique({
+      where: { id: productId },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        options: {
+          include: {
+            values: {
+              orderBy: { position: "asc" },
+            },
+          },
+          orderBy: { position: "asc" },
+        },
+        variants: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    return NextResponse.json({ success: true, product: completeProduct });
   } catch (error) {
-    console.error("Error al actualizar producto:", error);
-    
+    console.error("❌ Error al actualizar producto:", error);
+
     // Manejo de errores de validación Zod
     if (error instanceof Error && error.name === "ZodError") {
       return NextResponse.json(
-        { error: "Datos inválidos", details: error },
+        {
+          error: "Datos inválidos",
+          details: JSON.parse(error.message),
+        },
+        { status: 400 }
+      );
+    }
+
+    // Errores personalizados (ej: variante sin precio)
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: error.message },
         { status: 400 }
       );
     }
