@@ -14,9 +14,9 @@ import ImageUpload from "@/components/admin/ImageUpload";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import RichTextEditor from "@/components/admin/RichTextEditor";
-import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor"; // 🆕 IMPORTAR
+import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
 
-// 🆕 Tipos actualizados con swatches
+// Tipos
 interface ProductOptionValue {
   id: string;
   value: string;
@@ -78,18 +78,19 @@ export default function EditProductForm({ product, categories }: EditProductForm
     metaDescription: product.metaDescription || "",
   });
 
-  // 🆕 Estado para opciones con swatches
   const [options, setOptions] = useState<ProductOption[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
+  
+  // 🆕 Guardar snapshot de opciones para detectar cambios reales
+  const [previousOptionsSnapshot, setPreviousOptionsSnapshot] = useState<string>("");
 
   // Selección y edición masiva
   const [selectedVariants, setSelectedVariants] = useState<number[]>([]);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
 
-  // 🆕 Cargar opciones con swatches y variantes existentes
+  // Cargar opciones y variantes existentes
   useEffect(() => {
     if (product.hasVariants) {
-      // Cargar opciones CON todos los campos de swatches
       const loadedOptions: ProductOption[] = product.options.map((opt: any) => ({
         id: opt.id,
         name: opt.name,
@@ -106,7 +107,9 @@ export default function EditProductForm({ product, categories }: EditProductForm
       }));
       setOptions(loadedOptions);
 
-      // Cargar variantes
+      // 🆕 Guardar snapshot inicial
+      setPreviousOptionsSnapshot(createOptionsSnapshot(loadedOptions));
+
       const loadedVariants: Variant[] = product.variants.map((v: any) => ({
         id: v.id,
         options: v.options as Record<string, string>,
@@ -145,11 +148,36 @@ export default function EditProductForm({ product, categories }: EditProductForm
     setSelectedVariants([]);
   };
 
-  // 🆕 Generar variantes cuando cambian las opciones
+  // 🆕 Crear snapshot solo de estructura (nombres y valores)
+  // Ignora swatchType, colorHex, swatchImage, displayStyle
+  const createOptionsSnapshot = (opts: ProductOption[]) => {
+    return JSON.stringify(
+      opts.map(opt => ({
+        name: opt.name,
+        values: opt.values.map(v => v.value).sort()
+      })).sort((a, b) => a.name.localeCompare(b.name))
+    );
+  };
+
+  // 🆕 Generar variantes SOLO si cambió la estructura
   const generateVariants = (opts: ProductOption[]) => {
     if (opts.length === 0 || opts.some((o) => o.values.length === 0)) {
       return;
     }
+
+    // 🆕 Crear snapshot de nueva estructura
+    const newSnapshot = createOptionsSnapshot(opts);
+    
+    // 🆕 Si NO cambió la estructura, NO regenerar variantes
+    if (newSnapshot === previousOptionsSnapshot) {
+      console.log("✅ Solo cambiaron swatches, NO regenerar variantes");
+      return; // ← NO hacer nada, preservar variantes
+    }
+
+    console.log("⚠️ Estructura de opciones cambió, regenerando variantes...");
+    
+    // Guardar nuevo snapshot
+    setPreviousOptionsSnapshot(newSnapshot);
 
     const combinations: Record<string, string>[] = [{}];
 
@@ -164,25 +192,33 @@ export default function EditProductForm({ product, categories }: EditProductForm
       combinations.push(...newCombinations);
     });
 
+    // 🆕 Preservar datos de variantes existentes
     const newVariants: Variant[] = combinations.map((combo) => {
       const existing = variants.find(
         (v) => JSON.stringify(v.options) === JSON.stringify(combo)
       );
-      return (
-        existing || {
+      
+      if (existing) {
+        // ✅ PRESERVAR todos los datos de la variante existente
+        console.log(`  ✅ Preservando datos de variante: ${JSON.stringify(combo)}`);
+        return existing;
+      } else {
+        // Crear nueva variante con valores por defecto
+        console.log(`  🆕 Creando nueva variante: ${JSON.stringify(combo)}`);
+        return {
           options: combo,
           price: formData.basePrice || "",
           compareAtPrice: "",
           stock: "0",
           sku: "",
-        }
-      );
+        };
+      }
     });
 
     setVariants(newVariants);
   };
 
-  // 🆕 Handler cuando cambian las opciones desde ProductOptionsEditor
+  // 🆕 Handler cuando cambian las opciones
   const handleOptionsChange = (newOptions: ProductOption[]) => {
     setOptions(newOptions);
     generateVariants(newOptions);
@@ -475,6 +511,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
                         setOptions([]);
                         setVariants([]);
                         setSelectedVariants([]);
+                        setPreviousOptionsSnapshot("");
                       }
                     }}
                   />
@@ -482,7 +519,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
               </CardHeader>
             </Card>
 
-            {/* 🆕 OPCIONES CON SWATCHES - ProductOptionsEditor */}
+            {/* OPCIONES CON SWATCHES */}
             {formData.hasVariants && (
               <ProductOptionsEditor
                 options={options}
@@ -490,7 +527,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
               />
             )}
 
-            {/* ✅ TABLA DE VARIANTES */}
+            {/* TABLA DE VARIANTES */}
             {formData.hasVariants && variants.length > 0 && (
               <Card>
                 <CardHeader>
