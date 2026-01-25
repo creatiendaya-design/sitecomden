@@ -161,7 +161,7 @@ export default function LocationSelector({
   return (
     <div className="space-y-4">
       {/* Grid responsive: 1 columna en mobile, 3 columnas en desktop */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {/* Departamento */}
         <div>
           <Label htmlFor="department">
