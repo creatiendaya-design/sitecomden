@@ -532,386 +532,389 @@ export default function CheckoutPage() {
         </Sheet>
       </div>
 
-      {/* ✅ CONTENEDOR PRINCIPAL CON PADDING MÓVIL ARREGLADO */}
-      <div className="w-full px-4 sm:px-6 lg:container lg:mx-auto lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
-        <form onSubmit={handleSubmit} className="w-full">
-          {/* Messages */}
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+      {/* ✅ CONTENEDOR CON PADDING FIJO */}
+      <div className="w-full overflow-x-hidden bg-slate-50/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
+          <form onSubmit={handleSubmit} className="w-full">
+            {/* Messages */}
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <div className="grid gap-6 lg:gap-8 lg:grid-cols-3">
-            {/* Formulario */}
-            <div className="lg:col-span-2 space-y-6 w-full">
-              {/* Información del Cliente */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Información de Contacto</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <Label htmlFor="customerName">
-                        Nombre Completo <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="customerName"
-                        name="customerName"
-                        value={formData.customerName}
-                        onChange={handleInputChange}
-                        placeholder="Juan Pérez"
-                        className={validationErrors.customerName ? "border-destructive" : ""}
-                      />
-                      {validationErrors.customerName && (
-                        <p className="text-xs text-destructive mt-1">
-                          {validationErrors.customerName}
-                        </p>
-                      )}
+            <div className="grid gap-6 lg:gap-8 lg:grid-cols-3">
+              {/* Formulario */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Información del Cliente */}
+                <Card className="overflow-hidden">
+                  <CardHeader>
+                    <CardTitle>Información de Contacto</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="min-w-0">
+                        <Label htmlFor="customerName">
+                          Nombre Completo <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="customerName"
+                          name="customerName"
+                          value={formData.customerName}
+                          onChange={handleInputChange}
+                          placeholder="Juan Pérez"
+                          className={validationErrors.customerName ? "border-destructive" : ""}
+                        />
+                        {validationErrors.customerName && (
+                          <p className="text-xs text-destructive mt-1">
+                            {validationErrors.customerName}
+                          </p>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <Label htmlFor="customerDni">
+                          DNI (opcional)
+                        </Label>
+                        <Input
+                          id="customerDni"
+                          name="customerDni"
+                          value={formData.customerDni}
+                          onChange={handleInputChange}
+                          placeholder="12345678"
+                          maxLength={8}
+                          className={validationErrors.customerDni ? "border-destructive" : ""}
+                        />
+                        {validationErrors.customerDni && (
+                          <p className="text-xs text-destructive mt-1">
+                            {validationErrors.customerDni}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="customerDni">
-                        DNI (opcional)
-                      </Label>
-                      <Input
-                        id="customerDni"
-                        name="customerDni"
-                        value={formData.customerDni}
-                        onChange={handleInputChange}
-                        placeholder="12345678"
-                        maxLength={8}
-                        className={validationErrors.customerDni ? "border-destructive" : ""}
-                      />
-                      {validationErrors.customerDni && (
-                        <p className="text-xs text-destructive mt-1">
-                          {validationErrors.customerDni}
-                        </p>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <Label htmlFor="customerEmail">
-                        Email <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="customerEmail"
-                        name="customerEmail"
-                        type="email"
-                        value={formData.customerEmail}
-                        onChange={handleInputChange}
-                        placeholder="juan@example.com"
-                        className={validationErrors.customerEmail ? "border-destructive" : ""}
-                      />
-                      {validationErrors.customerEmail && (
-                        <p className="text-xs text-destructive mt-1">
-                          {validationErrors.customerEmail}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="min-w-0">
+                        <Label htmlFor="customerEmail">
+                          Email <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="customerEmail"
+                          name="customerEmail"
+                          type="email"
+                          value={formData.customerEmail}
+                          onChange={handleInputChange}
+                          placeholder="juan@example.com"
+                          className={validationErrors.customerEmail ? "border-destructive" : ""}
+                        />
+                        {validationErrors.customerEmail && (
+                          <p className="text-xs text-destructive mt-1">
+                            {validationErrors.customerEmail}
+                          </p>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <Label htmlFor="customerPhone">
+                          Teléfono/WhatsApp <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="customerPhone"
+                          name="customerPhone"
+                          type="tel"
+                          value={formData.customerPhone}
+                          onChange={handleInputChange}
+                          placeholder="+51 987654321"
+                          className={validationErrors.customerPhone ? "border-destructive" : ""}
+                        />
+                        {validationErrors.customerPhone && (
+                          <p className="text-xs text-destructive mt-1">
+                            {validationErrors.customerPhone}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Ejemplo: +51 987654321 o 987654321
                         </p>
-                      )}
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="customerPhone">
-                        Teléfono/WhatsApp <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="customerPhone"
-                        name="customerPhone"
-                        type="tel"
-                        value={formData.customerPhone}
-                        onChange={handleInputChange}
-                        placeholder="+51 987654321"
-                        className={validationErrors.customerPhone ? "border-destructive" : ""}
-                      />
-                      {validationErrors.customerPhone && (
-                        <p className="text-xs text-destructive mt-1">
-                          {validationErrors.customerPhone}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Ejemplo: +51 987654321 o 987654321
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* WhatsApp Opt-in */}
-                  <div className="flex items-start space-x-2 pt-2">
-                    <Checkbox
-                      id="acceptWhatsApp"
-                      checked={formData.acceptWhatsApp}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, acceptWhatsApp: checked === true })
-                      }
+                    {/* WhatsApp Opt-in */}
+                    <div className="flex items-start space-x-2 pt-2">
+                      <Checkbox
+                        id="acceptWhatsApp"
+                        checked={formData.acceptWhatsApp}
+                        onCheckedChange={(checked) =>
+                          setFormData({ ...formData, acceptWhatsApp: checked === true })
+                        }
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <Label
+                          htmlFor="acceptWhatsApp"
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          Acepto recibir actualizaciones de mi pedido por WhatsApp
+                        </Label>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Dirección de Envío */}
+                <Card className="overflow-hidden">
+                  <CardHeader>
+                    <CardTitle>Dirección de Envío</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Selector de Ubicación */}
+                    <LocationSelector
+                      value={{
+                        departmentId: formData.departmentId,
+                        provinceId: formData.provinceId,
+                        districtCode: formData.districtCode,
+                      }}
+                      onChange={handleLocationChange}
+                      errors={{
+                        department: validationErrors.department,
+                        province: validationErrors.city,
+                        district: validationErrors.district,
+                      }}
                     />
-                    <div className="grid gap-1.5 leading-none">
-                      <Label
-                        htmlFor="acceptWhatsApp"
-                        className="text-sm font-normal cursor-pointer"
-                      >
-                        Acepto recibir actualizaciones de mi pedido por WhatsApp
-                      </Label>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              {/* Dirección de Envío */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Dirección de Envío</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Selector de Ubicación */}
-                  <LocationSelector
-                    value={{
-                      departmentId: formData.departmentId,
-                      provinceId: formData.provinceId,
-                      districtCode: formData.districtCode,
-                    }}
-                    onChange={handleLocationChange}
-                    errors={{
-                      department: validationErrors.department,
-                      province: validationErrors.city,
-                      district: validationErrors.district,
-                    }}
-                  />
-
-                  {/* ShippingOptions - Solo se muestra cuando hay distrito */}
-                  {formData.districtCode && (
-                    <div className="pt-4 border-t">
-                      <ShippingOptions
-                        districtCode={formData.districtCode}
-                        subtotal={subtotal}
-                        onSelect={handleShippingRateSelect}
-                        selectedRateId={selectedShippingRate?.id}
-                      />
-                    </div>
-                  )}
-
-                  {/* Dirección */}
-                  <div>
-                    <Label htmlFor="address">
-                      Dirección <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="address"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      placeholder="Av. Larco 123, Dpto 501"
-                      className={validationErrors.address ? "border-destructive" : ""}
-                    />
-                    {validationErrors.address && (
-                      <p className="text-xs text-destructive mt-1">
-                        {validationErrors.address}
-                      </p>
+                    {/* ShippingOptions - Solo se muestra cuando hay distrito */}
+                    {formData.districtCode && (
+                      <div className="pt-4 border-t">
+                        <ShippingOptions
+                          districtCode={formData.districtCode}
+                          subtotal={subtotal}
+                          onSelect={handleShippingRateSelect}
+                          selectedRateId={selectedShippingRate?.id}
+                        />
+                      </div>
                     )}
-                  </div>
 
-                  {/* Referencia (opcional) */}
-                  <div>
-                    <Label htmlFor="reference">Referencia (opcional)</Label>
-                    <Input
-                      id="reference"
-                      name="reference"
-                      value={formData.reference}
-                      onChange={handleInputChange}
-                      placeholder="Edificio blanco al lado del banco"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Método de Pago */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Método de Pago</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <RadioGroup
-                    value={formData.paymentMethod}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, paymentMethod: value as any });
-                      // Resetear token cuando cambia método
-                      setCulqiToken(null);
-                    }}
-                  >
-                    <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                      <RadioGroupItem value="YAPE" id="yape" />
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="flex-shrink-0">
-                          <YapeIcon width={32} height={32} />
-                        </div>
-                        <Label htmlFor="yape" className="flex-1 cursor-pointer">
-                          <div className="font-semibold">Yape</div>
-                          <div className="text-sm text-muted-foreground">
-                            Transferencia instantánea • 0% comisión
-                          </div>
-                        </Label>
-                      </div>
-                      <Badge variant="secondary" className="flex-shrink-0">Recomendado</Badge>
+                    {/* Dirección */}
+                    <div className="min-w-0">
+                      <Label htmlFor="address">
+                        Dirección <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="address"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        placeholder="Av. Larco 123, Dpto 501"
+                        className={validationErrors.address ? "border-destructive" : ""}
+                      />
+                      {validationErrors.address && (
+                        <p className="text-xs text-destructive mt-1">
+                          {validationErrors.address}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                      <RadioGroupItem value="PLIN" id="plin" />
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="flex-shrink-0">
-                          <PlinIcon width={32} height={32} />
-                        </div>
-                        <Label htmlFor="plin" className="flex-1 cursor-pointer">
-                          <div className="font-semibold">Plin</div>
-                          <div className="text-sm text-muted-foreground">
-                            Transferencia instantánea • 0% comisión
-                          </div>
-                        </Label>
-                      </div>
+                    {/* Referencia (opcional) */}
+                    <div className="min-w-0">
+                      <Label htmlFor="reference">Referencia (opcional)</Label>
+                      <Input
+                        id="reference"
+                        name="reference"
+                        value={formData.reference}
+                        onChange={handleInputChange}
+                        placeholder="Edificio blanco al lado del banco"
+                      />
                     </div>
+                  </CardContent>
+                </Card>
 
-                    <div className="space-y-3">
+                {/* Método de Pago */}
+                <Card className="overflow-hidden">
+                  <CardHeader>
+                    <CardTitle>Método de Pago</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <RadioGroup
+                      value={formData.paymentMethod}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, paymentMethod: value as any });
+                        // Resetear token cuando cambia método
+                        setCulqiToken(null);
+                      }}
+                    >
                       <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                        <RadioGroupItem value="CARD" id="card" />
+                        <RadioGroupItem value="YAPE" id="yape" />
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <VisaIcon width={40} height={26} />
-                            <MastercardIcon width={32} height={20} />
+                          <div className="flex-shrink-0">
+                            <YapeIcon width={32} height={32} />
                           </div>
-                          <Label htmlFor="card" className="flex-1 cursor-pointer">
-                            <div className="font-semibold">Tarjeta de Crédito/Débito</div>
-                            <div className="text-sm text-muted-foreground">
-                              Visa, Mastercard • Pago seguro
+                          <Label htmlFor="yape" className="flex-1 cursor-pointer min-w-0">
+                            <div className="font-semibold">Yape</div>
+                            <div className="text-sm text-muted-foreground truncate">
+                              Transferencia instantánea • 0% comisión
+                            </div>
+                          </Label>
+                        </div>
+                        <Badge variant="secondary" className="flex-shrink-0 hidden sm:inline-flex">Recomendado</Badge>
+                      </div>
+
+                      <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
+                        <RadioGroupItem value="PLIN" id="plin" />
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex-shrink-0">
+                            <PlinIcon width={32} height={32} />
+                          </div>
+                          <Label htmlFor="plin" className="flex-1 cursor-pointer min-w-0">
+                            <div className="font-semibold">Plin</div>
+                            <div className="text-sm text-muted-foreground truncate">
+                              Transferencia instantánea • 0% comisión
                             </div>
                           </Label>
                         </div>
                       </div>
 
-                      {/* Formulario de tarjeta - aparece cuando se selecciona CARD */}
-                      {formData.paymentMethod === "CARD" && (
-                        <div className="pl-11 pr-4 pb-4">
-                          <CulqiPaymentForm
-                            amount={total}
-                            email={formData.customerEmail}
-                            orderId="temp" // Se actualizará después
-                            onSuccess={handleCulqiSuccess}
-                            onError={handleCulqiError}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                      <RadioGroupItem value="PAYPAL" id="paypal" />
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="flex-shrink-0">
-                          <PayPalIcon width={32} height={20} />
-                        </div>
-                        <Label htmlFor="paypal" className="flex-1 cursor-pointer">
-                          <div className="font-semibold">PayPal</div>
-                          <div className="text-sm text-muted-foreground">
-                            Pago internacional seguro
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
+                          <RadioGroupItem value="CARD" id="card" />
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <VisaIcon width={40} height={26} />
+                              <MastercardIcon width={32} height={20} />
+                            </div>
+                            <Label htmlFor="card" className="flex-1 cursor-pointer min-w-0">
+                              <div className="font-semibold">Tarjeta de Crédito/Débito</div>
+                              <div className="text-sm text-muted-foreground truncate">
+                                Visa, Mastercard • Pago seguro
+                              </div>
+                            </Label>
                           </div>
-                        </Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                </CardContent>
-              </Card>
+                        </div>
 
-              {/* Notas Adicionales */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Notas Adicionales (opcional)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    name="customerNotes"
-                    value={formData.customerNotes}
-                    onChange={handleInputChange}
-                    placeholder="Instrucciones especiales de entrega, etc."
-                    rows={4}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* 🖥️ RESUMEN DE ORDEN - SOLO DESKTOP */}
-            <div className="hidden lg:block">
-              <Card className="sticky top-24">
-                <CardHeader>
-                  <CardTitle>Resumen del Pedido</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <OrderSummaryContent />
-
-                  {/* Términos y Condiciones */}
-                  <div className="pt-2">
-                    <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
-                      <Checkbox
-                        id="acceptTerms"
-                        checked={formData.acceptTerms}
-                        onCheckedChange={(checked) =>
-                          setFormData({ ...formData, acceptTerms: checked === true })
-                        }
-                        className={validationErrors.acceptTerms ? "border-destructive mt-1 flex-shrink-0" : "mt-1 flex-shrink-0"}
-                      />
-                      <div className="flex-1">
-                        <Label
-                          htmlFor="acceptTerms"
-                          className="text-sm font-normal cursor-pointer leading-relaxed block"
-                        >
-                          He leído y acepto los <TermsAndConditions>
-                            <span className="text-primary underline cursor-pointer font-medium hover:text-primary/80">
-                              términos y condiciones
-                            </span>
-                          </TermsAndConditions> de compra <span className="text-destructive">*</span>
-                        </Label>
-                        {validationErrors.acceptTerms && (
-                          <p className="text-xs text-destructive mt-1">
-                            {validationErrors.acceptTerms}
-                          </p>
+                        {/* Formulario de tarjeta - aparece cuando se selecciona CARD */}
+                        {formData.paymentMethod === "CARD" && (
+                          <div className="pl-0 sm:pl-11 pr-0 sm:pr-4 pb-4">
+                            <CulqiPaymentForm
+                              amount={total}
+                              email={formData.customerEmail}
+                              orderId="temp" // Se actualizará después
+                              onSuccess={handleCulqiSuccess}
+                              onError={handleCulqiError}
+                            />
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Botón de pago */}
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full"
-                    disabled={
-                      loading || 
-                      !stockVerified || 
-                      stockCheckLoading || 
-                      !selectedShippingRate ||
-                      (formData.paymentMethod === "CARD" && !culqiToken)
-                    }
-                  >
-                    {getButtonText()}
-                  </Button>
+                      <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
+                        <RadioGroupItem value="PAYPAL" id="paypal" />
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex-shrink-0">
+                            <PayPalIcon width={32} height={20} />
+                          </div>
+                          <Label htmlFor="paypal" className="flex-1 cursor-pointer min-w-0">
+                            <div className="font-semibold">PayPal</div>
+                            <div className="text-sm text-muted-foreground truncate">
+                              Pago internacional seguro
+                            </div>
+                          </Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
 
-                  {/* Métodos de pago aceptados */}
-                  <div className="space-y-2">
-                    <p className="text-center text-xs text-muted-foreground">
-                      🔒 Pago 100% seguro y encriptado
-                    </p>
-                    <div className="flex items-center justify-center gap-2 flex-wrap">
-                      <span className="text-xs text-muted-foreground">Aceptamos:</span>
-                      <div className="flex items-center gap-2">
-                        <VisaIcon width={28} height={18} className="opacity-70 hover:opacity-100 transition-opacity" />
-                        <MastercardIcon width={26} height={16} className="opacity-70 hover:opacity-100 transition-opacity" />
-                        <YapeIcon width={24} height={24} className="opacity-70 hover:opacity-100 transition-opacity" />
-                        <PlinIcon width={24} height={24} className="opacity-70 hover:opacity-100 transition-opacity" />
-                        <PayPalIcon width={26} height={16} className="opacity-70 hover:opacity-100 transition-opacity" />
+                {/* Notas Adicionales */}
+                <Card className="overflow-hidden">
+                  <CardHeader>
+                    <CardTitle>Notas Adicionales (opcional)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea
+                      name="customerNotes"
+                      value={formData.customerNotes}
+                      onChange={handleInputChange}
+                      placeholder="Instrucciones especiales de entrega, etc."
+                      rows={4}
+                      className="w-full"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* 🖥️ RESUMEN DE ORDEN - SOLO DESKTOP */}
+              <div className="hidden lg:block">
+                <Card className="sticky top-24">
+                  <CardHeader>
+                    <CardTitle>Resumen del Pedido</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <OrderSummaryContent />
+
+                    {/* Términos y Condiciones */}
+                    <div className="pt-2">
+                      <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
+                        <Checkbox
+                          id="acceptTerms"
+                          checked={formData.acceptTerms}
+                          onCheckedChange={(checked) =>
+                            setFormData({ ...formData, acceptTerms: checked === true })
+                          }
+                          className={validationErrors.acceptTerms ? "border-destructive mt-1 flex-shrink-0" : "mt-1 flex-shrink-0"}
+                        />
+                        <div className="flex-1">
+                          <Label
+                            htmlFor="acceptTerms"
+                            className="text-sm font-normal cursor-pointer leading-relaxed block"
+                          >
+                            He leído y acepto los <TermsAndConditions>
+                              <span className="text-primary underline cursor-pointer font-medium hover:text-primary/80">
+                                términos y condiciones
+                              </span>
+                            </TermsAndConditions> de compra <span className="text-destructive">*</span>
+                          </Label>
+                          {validationErrors.acceptTerms && (
+                            <p className="text-xs text-destructive mt-1">
+                              {validationErrors.acceptTerms}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+
+                    {/* Botón de pago */}
+                    <Button
+                      type="submit"
+                      size="lg"
+                      className="w-full"
+                      disabled={
+                        loading || 
+                        !stockVerified || 
+                        stockCheckLoading || 
+                        !selectedShippingRate ||
+                        (formData.paymentMethod === "CARD" && !culqiToken)
+                      }
+                    >
+                      {getButtonText()}
+                    </Button>
+
+                    {/* Métodos de pago aceptados */}
+                    <div className="space-y-2">
+                      <p className="text-center text-xs text-muted-foreground">
+                        🔒 Pago 100% seguro y encriptado
+                      </p>
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
+                        <span className="text-xs text-muted-foreground">Aceptamos:</span>
+                        <div className="flex items-center gap-2">
+                          <VisaIcon width={28} height={18} className="opacity-70 hover:opacity-100 transition-opacity" />
+                          <MastercardIcon width={26} height={16} className="opacity-70 hover:opacity-100 transition-opacity" />
+                          <YapeIcon width={24} height={24} className="opacity-70 hover:opacity-100 transition-opacity" />
+                          <PlinIcon width={24} height={24} className="opacity-70 hover:opacity-100 transition-opacity" />
+                          <PayPalIcon width={26} height={16} className="opacity-70 hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
 
       {/* 📱 BOTÓN FLOTANTE INFERIOR - SOLO MÓVIL */}
