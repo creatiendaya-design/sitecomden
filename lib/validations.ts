@@ -59,11 +59,11 @@ export const dniSchema = z
   .optional();
 
 /**
- * Precio válido
+ * ✅ CORREGIDO: Precio válido (puede ser 0 para productos con variantes)
  */
 export const priceSchema = z
   .number()
-  .positive("El precio debe ser mayor a 0")
+  .min(0, "El precio no puede ser negativo")
   .max(999999, "Precio máximo: S/ 999,999");
 
 /**
@@ -89,151 +89,193 @@ export const imageUrlSchema = z
 // ===================================================================
 
 /**
- * Schema para crear producto
+ * ✅ CORREGIDO: Schema para crear producto
+ * Permite basePrice = 0 cuando hasVariants = true
  */
-export const createProductSchema = z.object({
-  // Información básica
-  name: z
-    .string()
-    .min(3, "El nombre debe tener al menos 3 caracteres")
-    .max(200, "El nombre no puede exceder 200 caracteres")
-    .trim(),
+export const createProductSchema = z
+  .object({
+    // Información básica
+    name: z
+      .string()
+      .min(3, "El nombre debe tener al menos 3 caracteres")
+      .max(200, "El nombre no puede exceder 200 caracteres")
+      .trim(),
 
-  slug: slugSchema,
+    slug: slugSchema,
 
-  description: z
-    .string()
-    .max(10000, "La descripción es muy larga")
-    .optional()
-    .nullable(),
+    description: z
+      .string()
+      .max(10000, "La descripción es muy larga")
+      .optional()
+      .nullable(),
 
-  shortDescription: z
-    .string()
-    .max(500, "La descripción corta no puede exceder 500 caracteres")
-    .optional()
-    .nullable(),
+    shortDescription: z
+      .string()
+      .max(500, "La descripción corta no puede exceder 500 caracteres")
+      .optional()
+      .nullable(),
 
-  // Precios
-  basePrice: priceSchema,
+    // ✅ CORREGIDO: Precio base ahora puede ser 0
+    basePrice: z
+      .number()
+      .min(0, "El precio no puede ser negativo")
+      .max(999999, "Precio máximo: S/ 999,999")
+      .optional()
+      .default(0),
 
-  compareAtPrice: z
-    .number()
-    .positive()
-    .max(999999)
-    .optional()
-    .nullable(),
+    compareAtPrice: z
+      .number()
+      .positive()
+      .max(999999)
+      .optional()
+      .nullable(),
 
-  // Inventario (solo si no tiene variantes)
-  stock: z
-    .number()
-    .int("El stock debe ser un número entero")
-    .min(0, "El stock no puede ser negativo")
-    .max(999999, "Stock máximo: 999,999")
-    .optional()
-    .default(0),
+    // Inventario (solo si no tiene variantes)
+    stock: z
+      .number()
+      .int("El stock debe ser un número entero")
+      .min(0, "El stock no puede ser negativo")
+      .max(999999, "Stock máximo: 999,999")
+      .optional()
+      .default(0),
 
-  sku: z
-    .string()
-    .max(100, "SKU muy largo")
-    .optional()
-    .nullable(),
+    sku: z
+      .string()
+      .max(100, "SKU muy largo")
+      .optional()
+      .nullable(),
 
-  // Media
-  images: z
-    .array(imageUrlSchema)
-    .min(1, "Debe tener al menos una imagen")
-    .max(10, "Máximo 10 imágenes"),
+    // Media
+    images: z
+      .array(imageUrlSchema)
+      .min(1, "Debe tener al menos una imagen")
+      .max(10, "Máximo 10 imágenes"),
 
-  // Flags
-  active: z.boolean().optional().default(true),
-  featured: z.boolean().optional().default(false),
-  hasVariants: z.boolean().optional().default(false),
+    // Flags
+    active: z.boolean().optional().default(true),
+    featured: z.boolean().optional().default(false),
+    hasVariants: z.boolean().optional().default(false),
 
-  // Categoría
-  categoryId: z
-    .string()
-    .cuid("ID de categoría inválido")
-    .optional()
-    .nullable(),
+    // Categoría
+    categoryId: z
+      .string()
+      .cuid("ID de categoría inválido")
+      .optional()
+      .nullable(),
 
-  // SEO
-  metaTitle: z
-    .string()
-    .max(60, "El meta título no puede exceder 60 caracteres")
-    .optional()
-    .nullable(),
+    // SEO
+    metaTitle: z
+      .string()
+      .max(60, "El meta título no puede exceder 60 caracteres")
+      .optional()
+      .nullable(),
 
-  metaDescription: z
-    .string()
-    .max(160, "La meta descripción no puede exceder 160 caracteres")
-    .optional()
-    .nullable(),
+    metaDescription: z
+      .string()
+      .max(160, "La meta descripción no puede exceder 160 caracteres")
+      .optional()
+      .nullable(),
 
-  // Peso (para envío)
-  weight: z
-    .number()
-    .positive()
-    .max(9999, "Peso máximo: 9,999 kg")
-    .optional()
-    .nullable(),
-}).refine(
-  (data) => {
-    // Validar que compareAtPrice sea mayor que basePrice
-    if (
-      data.compareAtPrice !== undefined && 
-      data.compareAtPrice !== null && 
-      data.basePrice !== undefined && 
-      data.basePrice !== null
-    ) {
-      return data.compareAtPrice > data.basePrice;
+    // Peso (para envío)
+    weight: z
+      .number()
+      .positive()
+      .max(9999, "Peso máximo: 9,999 kg")
+      .optional()
+      .nullable(),
+  })
+  .refine(
+    (data) => {
+      // ✅ Si NO tiene variantes, el basePrice debe ser mayor a 0
+      if (!data.hasVariants && (!data.basePrice || data.basePrice <= 0)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "El precio base es requerido para productos sin variantes",
+      path: ["basePrice"],
     }
-    return true;
-  },
-  {
-    message: "El precio de comparación debe ser mayor al precio base",
-    path: ["compareAtPrice"], // Indica qué campo tiene el error
-  }
-);
+  )
+  .refine(
+    (data) => {
+      // Validar que compareAtPrice sea mayor que basePrice
+      if (
+        data.compareAtPrice !== undefined &&
+        data.compareAtPrice !== null &&
+        data.basePrice !== undefined &&
+        data.basePrice !== null &&
+        data.basePrice > 0 // Solo validar si basePrice > 0
+      ) {
+        return data.compareAtPrice > data.basePrice;
+      }
+      return true;
+    },
+    {
+      message: "El precio de comparación debe ser mayor al precio base",
+      path: ["compareAtPrice"],
+    }
+  );
 
 /**
  * Schema para actualizar producto
  * ✅ FIX: Crear explícitamente sin usar .partial() después de .refine()
  */
-export const updateProductSchema = z.object({
-  name: z.string().min(3).max(200).trim().optional(),
-  slug: slugSchema.optional(),
-  description: z.string().max(10000).optional().nullable(),
-  shortDescription: z.string().max(500).optional().nullable(),
-  basePrice: z.number().positive().max(999999).optional(),
-  compareAtPrice: z.number().positive().max(999999).optional().nullable(),
-  stock: z.number().int().min(0).max(999999).optional(),
-  sku: z.string().max(100).optional().nullable(),
-  images: z.array(imageUrlSchema).min(1).max(10).optional(),
-  active: z.boolean().optional(),
-  featured: z.boolean().optional(),
-  hasVariants: z.boolean().optional(),
-  categoryId: z.string().cuid().optional().nullable(),
-  metaTitle: z.string().max(60).optional().nullable(),
-  metaDescription: z.string().max(160).optional().nullable(),
-  weight: z.number().positive().max(9999).optional().nullable(),
-}).refine(
-  (data) => {
-    // Solo validar si ambos campos están presentes y no son null
-    if (
-      data.compareAtPrice !== undefined && 
-      data.compareAtPrice !== null && 
-      data.basePrice !== undefined && 
-      data.basePrice !== null
-    ) {
-      return data.compareAtPrice > data.basePrice;
+export const updateProductSchema = z
+  .object({
+    name: z.string().min(3).max(200).trim().optional(),
+    slug: slugSchema.optional(),
+    description: z.string().max(10000).optional().nullable(),
+    shortDescription: z.string().max(500).optional().nullable(),
+    basePrice: z.number().min(0).max(999999).optional(),
+    compareAtPrice: z.number().positive().max(999999).optional().nullable(),
+    stock: z.number().int().min(0).max(999999).optional(),
+    sku: z.string().max(100).optional().nullable(),
+    images: z.array(imageUrlSchema).min(1).max(10).optional(),
+    active: z.boolean().optional(),
+    featured: z.boolean().optional(),
+    hasVariants: z.boolean().optional(),
+    categoryId: z.string().cuid().optional().nullable(),
+    metaTitle: z.string().max(60).optional().nullable(),
+    metaDescription: z.string().max(160).optional().nullable(),
+    weight: z.number().positive().max(9999).optional().nullable(),
+  })
+  .refine(
+    (data) => {
+      // ✅ Si NO tiene variantes, el basePrice debe ser mayor a 0
+      if (
+        data.hasVariants === false &&
+        data.basePrice !== undefined &&
+        data.basePrice <= 0
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "El precio base es requerido para productos sin variantes",
+      path: ["basePrice"],
     }
-    return true;
-  },
-  {
-    message: "El precio de comparación debe ser mayor al precio base",
-    path: ["compareAtPrice"],
-  }
-);
+  )
+  .refine(
+    (data) => {
+      // Solo validar si ambos campos están presentes y no son null
+      if (
+        data.compareAtPrice !== undefined &&
+        data.compareAtPrice !== null &&
+        data.basePrice !== undefined &&
+        data.basePrice !== null &&
+        data.basePrice > 0
+      ) {
+        return data.compareAtPrice > data.basePrice;
+      }
+      return true;
+    },
+    {
+      message: "El precio de comparación debe ser mayor al precio base",
+      path: ["compareAtPrice"],
+    }
+  );
 
 /**
  * Schema para variante de producto
@@ -241,7 +283,7 @@ export const updateProductSchema = z.object({
 export const productVariantSchema = z.object({
   sku: z.string().max(100),
   options: z.record(z.string(), z.string()), // { "Color": "Rojo", "Talla": "M" }
-  price: priceSchema,
+  price: z.number().positive("El precio de la variante debe ser mayor a 0"),
   compareAtPrice: z.number().positive().optional().nullable(),
   stock: z.number().int().min(0).max(999999),
   image: imageUrlSchema.optional().nullable(),
@@ -327,74 +369,85 @@ export const updateCategorySchema = z.object({
 // CUPONES
 // ===================================================================
 
-export const createCouponSchema = z.object({
-  code: z
-    .string()
-    .min(3, "El código debe tener al menos 3 caracteres")
-    .max(50, "El código no puede exceder 50 caracteres")
-    .regex(/^[A-Z0-9-]+$/, "Solo mayúsculas, números y guiones")
-    .trim()
-    .toUpperCase(),
+export const createCouponSchema = z
+  .object({
+    code: z
+      .string()
+      .min(3, "El código debe tener al menos 3 caracteres")
+      .max(50, "El código no puede exceder 50 caracteres")
+      .regex(/^[A-Z0-9-]+$/, "Solo mayúsculas, números y guiones")
+      .trim()
+      .toUpperCase(),
 
-  description: z.string().max(200).optional().nullable(),
+    description: z.string().max(200).optional().nullable(),
 
-  type: z.enum(["PERCENTAGE", "FIXED_AMOUNT", "FREE_SHIPPING"]),
+    type: z.enum(["PERCENTAGE", "FIXED_AMOUNT", "FREE_SHIPPING"]),
 
-  value: z.number().min(0),
+    value: z.number().min(0),
 
-  minPurchase: z.number().positive().optional().nullable(),
-  maxDiscount: z.number().positive().optional().nullable(),
+    minPurchase: z.number().positive().optional().nullable(),
+    maxDiscount: z.number().positive().optional().nullable(),
 
-  usageLimit: z.number().int().positive().optional().nullable(),
-  usageLimitPerUser: z.number().int().positive().optional().nullable(),
+    usageLimit: z.number().int().positive().optional().nullable(),
+    usageLimitPerUser: z.number().int().positive().optional().nullable(),
 
-  startsAt: z.string().datetime().optional().nullable(),
-  expiresAt: z.string().datetime().optional().nullable(),
+    startsAt: z.string().datetime().optional().nullable(),
+    expiresAt: z.string().datetime().optional().nullable(),
 
-  active: z.boolean().optional().default(true),
-}).refine(
-  (data) => {
-    // Validar que si es PERCENTAGE, el valor no sea mayor a 100
-    if (data.type === "PERCENTAGE" && data.value > 100) {
-      return false;
+    active: z.boolean().optional().default(true),
+  })
+  .refine(
+    (data) => {
+      // Validar que si es PERCENTAGE, el valor no sea mayor a 100
+      if (data.type === "PERCENTAGE" && data.value > 100) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "El porcentaje no puede ser mayor a 100",
+      path: ["value"],
     }
-    return true;
-  },
-  {
-    message: "El porcentaje no puede ser mayor a 100",
-    path: ["value"],
-  }
-);
+  );
 
 /**
  * Schema para actualizar cupón
  * ✅ FIX: Crear explícitamente sin usar .partial() después de .refine()
  */
-export const updateCouponSchema = z.object({
-  code: z.string().min(3).max(50).regex(/^[A-Z0-9-]+$/).trim().toUpperCase().optional(),
-  description: z.string().max(200).optional().nullable(),
-  type: z.enum(["PERCENTAGE", "FIXED_AMOUNT", "FREE_SHIPPING"]).optional(),
-  value: z.number().min(0).optional(),
-  minPurchase: z.number().positive().optional().nullable(),
-  maxDiscount: z.number().positive().optional().nullable(),
-  usageLimit: z.number().int().positive().optional().nullable(),
-  usageLimitPerUser: z.number().int().positive().optional().nullable(),
-  startsAt: z.string().datetime().optional().nullable(),
-  expiresAt: z.string().datetime().optional().nullable(),
-  active: z.boolean().optional(),
-}).refine(
-  (data) => {
-    // Solo validar si ambos campos están presentes
-    if (data.type === "PERCENTAGE" && data.value !== undefined) {
-      return data.value <= 100;
+export const updateCouponSchema = z
+  .object({
+    code: z
+      .string()
+      .min(3)
+      .max(50)
+      .regex(/^[A-Z0-9-]+$/)
+      .trim()
+      .toUpperCase()
+      .optional(),
+    description: z.string().max(200).optional().nullable(),
+    type: z.enum(["PERCENTAGE", "FIXED_AMOUNT", "FREE_SHIPPING"]).optional(),
+    value: z.number().min(0).optional(),
+    minPurchase: z.number().positive().optional().nullable(),
+    maxDiscount: z.number().positive().optional().nullable(),
+    usageLimit: z.number().int().positive().optional().nullable(),
+    usageLimitPerUser: z.number().int().positive().optional().nullable(),
+    startsAt: z.string().datetime().optional().nullable(),
+    expiresAt: z.string().datetime().optional().nullable(),
+    active: z.boolean().optional(),
+  })
+  .refine(
+    (data) => {
+      // Solo validar si ambos campos están presentes
+      if (data.type === "PERCENTAGE" && data.value !== undefined) {
+        return data.value <= 100;
+      }
+      return true;
+    },
+    {
+      message: "El porcentaje no puede ser mayor a 100",
+      path: ["value"],
     }
-    return true;
-  },
-  {
-    message: "El porcentaje no puede ser mayor a 100",
-    path: ["value"],
-  }
-);
+  );
 
 /**
  * Schema para validar cupón (endpoint público)
