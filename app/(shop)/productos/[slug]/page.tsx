@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import ProductImageGallery from "@/components/shop/ProductImageGallery";
 import ProductActions from "@/components/shop/ProductActions";
-import RichTextContent from "@/components/RichTextContent"; // ← NUEVO
+import RichTextContent from "@/components/RichTextContent";
+import ProductPrice from "@/components/shop/ProductPrice"; // ✅ NUEVO
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -52,6 +53,19 @@ export default async function ProductDetailPage({
 
   const inStock = totalStock > 0;
 
+  // ✅ CALCULAR PRECIO INICIAL
+  let initialPrice = Number(product.basePrice);
+  let initialComparePrice = product.compareAtPrice ? Number(product.compareAtPrice) : null;
+
+  if (product.hasVariants && product.variants.length > 0) {
+    // Usar el precio de la variante más barata
+    const cheapestVariant = product.variants[0]; // Ya están ordenados por precio
+    initialPrice = Number(cheapestVariant.price);
+    initialComparePrice = cheapestVariant.compareAtPrice
+      ? Number(cheapestVariant.compareAtPrice)
+      : null;
+  }
+
   // Serializar producto para componentes cliente
   const serializedProduct = {
     id: product.id,
@@ -90,7 +104,7 @@ export default async function ProductDetailPage({
         <ProductImageGallery images={product.images} name={product.name} />
 
         {/* Product Info */}
-        <div className="space-y-6  px-4 sm:px-6 lg:px-8">
+        <div className="space-y-6 px-4 sm:px-6 lg:px-8">
           {/* Categories */}
           {product.categories && product.categories.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -114,28 +128,12 @@ export default async function ProductDetailPage({
             )}
           </div>
 
-          {/* Price */}
-          <div className="flex items-center gap-3">
-            <span className="text-3xl font-bold">
-              {formatPrice(Number(product.basePrice))}
-            </span>
-            {product.compareAtPrice && (
-              <>
-                <span className="text-xl text-muted-foreground line-through">
-                  {formatPrice(Number(product.compareAtPrice))}
-                </span>
-                <Badge variant="secondary">
-                  {Math.round(
-                    ((Number(product.compareAtPrice) -
-                      Number(product.basePrice)) /
-                      Number(product.compareAtPrice)) *
-                      100
-                  )}
-                  % OFF
-                </Badge>
-              </>
-            )}
-          </div>
+          {/* ✅ PRECIO DINÁMICO - Usa el componente cliente */}
+          <ProductPrice
+            initialPrice={initialPrice}
+            initialComparePrice={initialComparePrice}
+            hasVariants={product.hasVariants}
+          />
 
           {/* Stock Status */}
           <div>
@@ -158,7 +156,6 @@ export default async function ProductDetailPage({
 
           <Separator />
 
-          {/* ⭐ CAMBIO AQUÍ: Usar RichTextContent en lugar de dangerouslySetInnerHTML ⭐ */}
           {product.description && (
             <div>
               <h2 className="mb-3 text-xl font-semibold">Descripción</h2>
