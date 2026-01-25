@@ -170,6 +170,7 @@ export async function requireAuth(): Promise<AuthResult> {
  * - 3: Editor (escritura limitada)
  * - 5: Manager (escritura amplia)
  * - 10: Admin (todo)
+ * - 100+: Super Admin (todos los permisos)
  * 
  * @param minLevel - Nivel mínimo requerido
  * 
@@ -218,6 +219,8 @@ export async function requireRoleLevel(minLevel: number): Promise<AuthResult> {
 // ===================================================================
 
 /**
+ * ✅ VERSIÓN CORREGIDA CON SUPER ADMIN BYPASS
+ * 
  * Requiere que el usuario tenga un permiso específico
  * 
  * @param permissionSlug - Slug del permiso (ej: "products.create")
@@ -254,36 +257,52 @@ export async function requirePermission(permissionSlug: string): Promise<AuthRes
     };
   }
 
-  // Verificar si el rol tiene el permiso
-  // Hacemos la query inversa: buscar Permission que tenga el key
-  // y que tenga un RolePermission con el roleId del usuario
-  const permission = await prisma.permission.findFirst({
-    where: {
-      key: permissionSlug, // ← Cambiado de slug a key
-      roles: { // ← Cambiado de rolePermissions a roles
-        some: {
-          roleId: user.roleId, // ✅ Buscar permisos asociados a este rol
-        },
-      },
-    },
-  });
+  // ✅ CONVERSIÓN CRÍTICA: products.create → products:create
+  // Las API routes usan punto (.), pero lib/permissions usa dos puntos (:)
+  const normalizedPermissionKey = permissionSlug.replace(/\./g, ":");
 
-  if (!permission) {
+  // ✅ SUPER ADMIN BYPASS: Nivel 100+ tiene TODO permitido
+  if (user.role && user.role.level >= 100) {
+    console.log(`✅ Super Admin bypass: ${user.email} - ${permissionSlug}`);
+    return { user, response: null };
+  }
+
+  // ✅ Verificar permisos personalizados y del rol usando hasPermission
+  try {
+    // Importar hasPermission dinámicamente para evitar dependencia circular
+    const { hasPermission } = await import("./permissions");
+    
+    const allowed = await hasPermission(user.id, normalizedPermissionKey);
+
+    if (!allowed) {
+      console.warn(`❌ Permiso denegado: ${user.email} intentó ${permissionSlug}`);
+      return {
+        user: null,
+        response: NextResponse.json(
+          { 
+            error: "No tienes permisos para esta acción",
+            code: "FORBIDDEN",
+            required_permission: permissionSlug,
+            role: user.role.name
+          },
+          { status: 403 }
+        ),
+      };
+    }
+
+    console.log(`✅ Permiso concedido: ${user.email} - ${permissionSlug}`);
+    return { user, response: null };
+
+  } catch (error) {
+    console.error("Error verificando permiso:", error);
     return {
       user: null,
       response: NextResponse.json(
-        { 
-          error: "No tienes permisos para esta acción",
-          code: "FORBIDDEN",
-          required_permission: permissionSlug,
-          role: user.role.name
-        },
-        { status: 403 }
+        { error: "Error al verificar permisos" },
+        { status: 500 }
       ),
     };
   }
-
-  return { user, response: null };
 }
 
 // ===================================================================
@@ -331,14 +350,22 @@ export async function requireAnyPermission(permissionSlugs: string[]): Promise<A
     };
   }
 
+  // ✅ SUPER ADMIN BYPASS
+  if (user.role && user.role.level >= 100) {
+    console.log(`✅ Super Admin bypass: ${user.email} - any of ${permissionSlugs.join(", ")}`);
+    return { user, response: null };
+  }
+
+  // Convertir formato
+  const normalizedKeys = permissionSlugs.map(slug => slug.replace(/\./g, ":"));
+
   // Verificar si el rol tiene alguno de los permisos
-  // Query inversa: buscar Permission que cumpla las condiciones
   const permission = await prisma.permission.findFirst({
     where: {
-      key: { in: permissionSlugs }, // ← Cambiado de slug a key
-      roles: { // ← Cambiado de rolePermissions a roles
+      key: { in: normalizedKeys },
+      roles: {
         some: {
-          roleId: user.roleId, // ✅ Buscar permisos asociados a este rol
+          roleId: user.roleId,
         },
       },
     },
@@ -407,22 +434,30 @@ export async function requireAllPermissions(permissionSlugs: string[]): Promise<
     };
   }
 
+  // ✅ SUPER ADMIN BYPASS
+  if (user.role && user.role.level >= 100) {
+    console.log(`✅ Super Admin bypass: ${user.email} - all of ${permissionSlugs.join(", ")}`);
+    return { user, response: null };
+  }
+
+  // Convertir formato
+  const normalizedKeys = permissionSlugs.map(slug => slug.replace(/\./g, ":"));
+
   // Verificar si el rol tiene todos los permisos
-  // Query inversa: buscar Permissions que cumplan las condiciones
   const permissions = await prisma.permission.findMany({
     where: {
-      key: { in: permissionSlugs }, // ← Cambiado de slug a key
-      roles: { // ← Cambiado de rolePermissions a roles
+      key: { in: normalizedKeys },
+      roles: {
         some: {
-          roleId: user.roleId, // ✅ Buscar permisos asociados a este rol
+          roleId: user.roleId,
         },
       },
     },
   });
 
   if (permissions.length !== permissionSlugs.length) {
-    const foundSlugs = permissions.map(p => p.key); // ← Cambiado de slug a key
-    const missingPermissions = permissionSlugs.filter(
+    const foundSlugs = permissions.map(p => p.key);
+    const missingPermissions = normalizedKeys.filter(
       slug => !foundSlugs.includes(slug)
     );
 
@@ -433,7 +468,7 @@ export async function requireAllPermissions(permissionSlugs: string[]): Promise<
           error: "No tienes todos los permisos necesarios",
           code: "FORBIDDEN",
           required_permissions: permissionSlugs,
-          missing_permissions: missingPermissions,
+          missing_permissions: missingPermissions.map(key => key.replace(/:/g, ".")),
           role: user.role.name
         },
         { status: 403 }
@@ -526,13 +561,20 @@ export async function userHasPermission(
     return false;
   }
 
-  // Query inversa: buscar Permission que cumpla las condiciones
+  // ✅ SUPER ADMIN BYPASS
+  if (user.role && user.role.level >= 100) {
+    return true;
+  }
+
+  // Convertir formato
+  const normalizedKey = permissionSlug.replace(/\./g, ":");
+
   const permission = await prisma.permission.findFirst({
     where: {
-      key: permissionSlug, // ← Cambiado de slug a key
-      roles: { // ← Cambiado de rolePermissions a roles
+      key: normalizedKey,
+      roles: {
         some: {
-          roleId: user.roleId, // ✅ Buscar permisos asociados a este rol
+          roleId: user.roleId,
         },
       },
     },
@@ -612,103 +654,3 @@ export async function isAuthenticated(): Promise<boolean> {
   const userId = await getCurrentUserIdOrNull();
   return userId !== null;
 }
-
-// ===================================================================
-// EJEMPLO DE USO COMPLETO
-// ===================================================================
-
-/*
-// ========================================
-// EJEMPLO 1: API Route Protegida
-// ========================================
-// app/api/admin/products/create/route.ts
-
-import { requirePermission } from "@/lib/auth";
-import { withRateLimit, apiRateLimiter } from "@/lib/rate-limit";
-import { createProductSchema } from "@/lib/validations";
-import { z } from "zod";
-
-export async function POST(request: Request) {
-  // 1. ✅ Verificar autenticación y permisos
-  const { user, response: authResponse } = await requirePermission("products.create");
-  if (authResponse) return authResponse;
-
-  // 2. ✅ Rate limiting
-  const rateLimitResponse = await withRateLimit(request, apiRateLimiter);
-  if (rateLimitResponse) return rateLimitResponse;
-
-  try {
-    // 3. ✅ Validar datos
-    const body = await request.json();
-    const validatedData = createProductSchema.parse(body);
-
-    // 4. ✅ Crear producto
-    const product = await prisma.product.create({
-      data: validatedData,
-    });
-
-    console.log(`✅ Producto creado por ${user.email}:`, product.id);
-
-    return NextResponse.json({ success: true, product });
-
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Datos inválidos", details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error("Error creating product:", error);
-    return NextResponse.json(
-      { error: "Error del servidor" },
-      { status: 500 }
-    );
-  }
-}
-
-
-// ========================================
-// EJEMPLO 2: Server Component (legacy)
-// ========================================
-// app/admin/dashboard/page.tsx
-
-import { getCurrentUser } from "@/lib/auth";
-
-export default async function DashboardPage() {
-  const user = await getCurrentUser();
-  
-  // Si no hay usuario, getCurrentUser() redirige automáticamente a login
-  
-  return (
-    <div>
-      <h1>Dashboard</h1>
-      <p>Bienvenido, {user.name}</p>
-      <p>Rol: {user.role.name}</p>
-    </div>
-  );
-}
-
-
-// ========================================
-// EJEMPLO 3: Verificación condicional
-// ========================================
-// components/AdminButton.tsx
-
-import { getCurrentUser } from "@/lib/auth";
-import { userHasPermission } from "@/lib/auth";
-
-export default async function AdminButton() {
-  const user = await getCurrentUser();
-  
-  if (!user) return null;
-  
-  const canEdit = await userHasPermission(user, "products.update");
-  
-  if (!canEdit) {
-    return <p>No tienes permisos para editar</p>;
-  }
-  
-  return <button>Editar Producto</button>;
-}
-*/
