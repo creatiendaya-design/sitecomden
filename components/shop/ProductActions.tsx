@@ -115,9 +115,7 @@ export default function ProductActions({
   // ✅ Notificar cambio de precio y/o imagen cuando cambie la variante
   useEffect(() => {
     if (selectedVariant) {
-      console.log("📢 Variante seleccionada:", selectedVariant);
-      console.log("📢 Precio:", selectedVariant.price);
-      console.log("🖼️ Imagen:", selectedVariant.image || "Sin imagen");
+
 
       // Actualizar precio
       window.dispatchEvent(
