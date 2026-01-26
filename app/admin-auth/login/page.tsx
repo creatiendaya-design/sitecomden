@@ -101,11 +101,7 @@ export default function AdminLoginPage() {
               </Link>
             </div> */}
 
-            <div className="rounded-lg bg-muted p-3 text-xs">
-              <p className="font-semibold">Credenciales de prueba:</p>
-              <p className="mt-1">Email: admin@shopgood.pe</p>
-              <p>Contraseña: admin123</p>
-            </div>
+           
           </form>
         </CardContent>
       </Card>
