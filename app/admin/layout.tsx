@@ -25,6 +25,7 @@ import {
   X,
   Shield,
   Users,
+  Asterisk
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -129,6 +130,11 @@ export default function AdminLayout({
           href: "/admin/configuracion/emails",
           icon: Mail,
           label: "Emails",
+        },
+         {
+          href: "/admin/configuracion/pixeles",
+          icon: Asterisk,
+          label: "Pixeles",
         },
         {
           href: "/admin/configuracion/usuarios",
