@@ -94,12 +94,12 @@ export default function AdminLoginPage() {
               {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
 
-            <div className="text-center text-sm">
+           {/*  <div className="text-center text-sm">
               <span className="text-muted-foreground">¿No tienes cuenta? </span>
               <Link href="/admin-auth/register" className="text-primary hover:underline">
                 Regístrate aquí
               </Link>
-            </div>
+            </div> */}
 
             <div className="rounded-lg bg-muted p-3 text-xs">
               <p className="font-semibold">Credenciales de prueba:</p>
