@@ -147,7 +147,7 @@ export default function AdminLayout({
             {
               href: "/admin/configuracion/pagos",
               icon: CreditCard,
-              label: "Yape / Plin",
+              label: "General",
             },
             {
               href: "/admin/configuracion/culqi",

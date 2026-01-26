@@ -9,6 +9,7 @@ import { ShoppingCart, Heart } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
+import { useTracking } from "@/hooks/useTracking"; // ✅ Importar tracking
 
 interface ProductCardProps {
   product: {
@@ -41,6 +42,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const [isWishlisted, setIsWishlisted] = useState(false);
   
   const addToCart = useCartStore((state) => state.addItem);
+  const { trackEvent } = useTracking(); // ✅ Hook de tracking
 
   const selectedVariant = product.hasVariants && product.variants && product.variants.length > 0
     ? product.variants[0]
@@ -76,6 +78,27 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const hasSecondImage = !!secondImage;
   const imageAlt = getProductImageAlt(product.images, product.name);
+
+  // ✅ Tracking cuando hacen click en el producto para ver detalles
+  const handleProductClick = () => {
+    trackEvent("ViewContent", {
+      content_ids: [product.id],
+      content_name: product.name,
+      content_type: "product_list", // Desde lista de productos
+      content_category: product.category?.name,
+      value: displayPrice,
+      currency: "PEN",
+      contents: [
+        {
+          id: product.id,
+          quantity: 1,
+          item_price: displayPrice,
+        },
+      ],
+    });
+
+    console.log("📊 Product clicked from list:", product.name);
+  };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -118,6 +141,25 @@ export default function ProductCard({ product }: ProductCardProps) {
     };
 
     addToCart(cartItem);
+
+    // ✅ Track AddToCart
+    trackEvent("AddToCart", {
+      content_ids: [product.id],
+      content_name: product.name,
+      content_type: "product",
+      content_category: product.category?.name,
+      value: displayPrice,
+      currency: "PEN",
+      contents: [
+        {
+          id: selectedVariant?.id || product.id,
+          quantity: 1,
+          item_price: displayPrice,
+        },
+      ],
+    });
+
+    console.log("📊 AddToCart tracked from product card:", product.name);
 
     toast.success("¡Agregado al carrito!", {
       description: product.name,
@@ -169,7 +211,11 @@ export default function ProductCard({ product }: ProductCardProps) {
         />
       </button>
 
-      <Link href={`/productos/${product.slug}`}>
+      {/* ✅ Agregado onClick para tracking */}
+      <Link 
+        href={`/productos/${product.slug}`}
+        onClick={handleProductClick}
+      >
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           {mainImage ? (
             <>

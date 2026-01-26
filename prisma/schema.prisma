@@ -989,3 +989,33 @@ enum OptionDisplayStyle {
   BUTTONS
   SWATCHES
 }
+
+model TrackingPixel {
+  id          String        @id @default(cuid())
+  platform    PixelPlatform 
+  
+  
+  config      Json
+  
+
+  enabled     Boolean       @default(false)
+  
+
+  testMode    Boolean       @default(true)
+  
+
+  description String?       @db.Text
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  @@index([platform])
+  @@index([enabled])
+}
+
+enum PixelPlatform {
+  FACEBOOK          
+  TIKTOK            
+  GOOGLE_ADS        
+  GOOGLE_ANALYTICS  
+}

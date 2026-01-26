@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -27,6 +26,8 @@ import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
 import { AlertTriangle, ChevronUp, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useTracking } from "@/hooks/useTracking";
+
 import {
   Sheet,
   SheetContent,
@@ -35,6 +36,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
+import { PaymentMethodSelector } from "@/components/checkout/PaymentMethodSelector";
 
 const initialFormData = {
   customerName: "",
@@ -68,7 +70,7 @@ export default function CheckoutPage() {
   const [stockVerified, setStockVerified] = useState(false);
   const [stockCheckLoading, setStockCheckLoading] = useState(false);
   const [culqiToken, setCulqiToken] = useState<string | null>(null);
-  
+    const { trackEvent } = useTracking(); 
   // Estado para el Sheet del resumen en móvil
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   
@@ -86,9 +88,22 @@ export default function CheckoutPage() {
   // Verificar stock al cargar
   useEffect(() => {
     if (items.length > 0 && isLoaded) {
+      // Verificar stock
       verifyStockBeforeCheckout();
+
+      // Track InitiateCheckout
+      trackEvent("InitiateCheckout", {
+        value: getTotalPrice(),
+        currency: "PEN",
+        num_items: getTotalItems(),
+        contents: items.map((item) => ({
+          id: item.productId,
+          quantity: item.quantity,
+          item_price: item.price,
+        })),
+      });
     }
-  }, [items.length, isLoaded]);
+  }, [items.length, isLoaded]); 
 
   // Resetear método de envío cuando cambia distrito
   useEffect(() => {
@@ -225,7 +240,18 @@ export default function CheckoutPage() {
         setLoading(false);
         return;
       }
-
+   if (formData.paymentMethod) {
+        trackEvent("AddPaymentInfo", {
+          value: total,
+          currency: "PEN",
+          payment_type: formData.paymentMethod,
+          contents: items.map((item) => ({
+            id: item.productId,
+            quantity: item.quantity,
+            item_price: item.price,
+          })),
+        });
+      }
       // Preparar datos de la orden
       const orderData = {
         customerName: formData.customerName.trim(),
@@ -725,109 +751,34 @@ export default function CheckoutPage() {
                   </CardContent>
                 </Card>
 
-                {/* Método de Pago */}
+                {/* Método de Pago - ✅ ACTUALIZADO CON SELECTOR INTELIGENTE */}
                 <Card className="min-w-0">
                   <CardHeader>
                     <CardTitle>Método de Pago</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 min-w-0">
-                    <RadioGroup
-                      value={formData.paymentMethod}
-                      onValueChange={(value) => {
-                        setFormData({ ...formData, paymentMethod: value as any });
+                    {/* ✅ NUEVO: Selector inteligente que filtra métodos habilitados */}
+                    <PaymentMethodSelector
+                      selectedMethod={formData.paymentMethod}
+                      onMethodChange={(method) => {
+                        setFormData({ ...formData, paymentMethod: method });
                         setCulqiToken(null);
                       }}
-                      className="space-y-3 min-w-0"
-                    >
-                      {/* YAPE */}
-                      <label 
-                        htmlFor="yape" 
-                        className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-                      >
-                        <RadioGroupItem value="YAPE" id="yape" className="flex-shrink-0" />
-                        <div className="flex-shrink-0 w-7 h-7">
-                          <YapeIcon width={28} height={28} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm leading-tight">Yape</div>
-                          <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                            Instantáneo • 0%
-                          </div>
-                        </div>
-                        <Badge variant="secondary" className="flex-shrink-0 hidden sm:inline-flex text-xs px-2 py-0.5">
-                          Top
-                        </Badge>
-                      </label>
+                      disabled={loading}
+                    />
 
-                      {/* PLIN */}
-                      <label 
-                        htmlFor="plin" 
-                        className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-                      >
-                        <RadioGroupItem value="PLIN" id="plin" className="flex-shrink-0" />
-                        <div className="flex-shrink-0 w-7 h-7">
-                          <PlinIcon width={28} height={28} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm leading-tight">Plin</div>
-                          <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                            Instantáneo • 0%
-                          </div>
-                        </div>
-                      </label>
-
-                      {/* TARJETA */}
-                      <div className="space-y-3">
-                        <label 
-                          htmlFor="card" 
-                          className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-                        >
-                          <RadioGroupItem value="CARD" id="card" className="flex-shrink-0" />
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <VisaIcon width={36} height={24} />
-                            <MastercardIcon width={28} height={18} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-sm leading-tight truncate">
-                              Tarjeta
-                            </div>
-                            <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                              Crédito/Débito
-                            </div>
-                          </div>
-                        </label>
-
-                        {/* Formulario de tarjeta */}
-                        {formData.paymentMethod === "CARD" && (
-                          <div className="pl-0 sm:pl-10 pr-0 sm:pr-3">
-                            <CulqiPaymentForm
-                              amount={total}
-                              email={formData.customerEmail}
-                              orderId="temp"
-                              onSuccess={handleCulqiSuccess}
-                              onError={handleCulqiError}
-                            />
-                          </div>
-                        )}
+                    {/* Formulario de tarjeta - ahora FUERA del selector */}
+                    {formData.paymentMethod === "CARD" && (
+                      <div className="pl-0 sm:pl-10 pr-0 sm:pr-3 mt-3">
+                        <CulqiPaymentForm
+                          amount={total}
+                          email={formData.customerEmail}
+                          orderId="temp"
+                          onSuccess={handleCulqiSuccess}
+                          onError={handleCulqiError}
+                        />
                       </div>
-
-                      {/* PAYPAL */}
-                      <label 
-                        htmlFor="paypal" 
-                        className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-                      >
-                        <RadioGroupItem value="PAYPAL" id="paypal" className="flex-shrink-0" />
-                        <div className="flex-shrink-0 w-7 h-7">
-                          <PayPalIcon width={28} height={18} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm leading-tight">PayPal</div>
-                          <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                            Internacional
-                          </div>
-                        </div>
-                      </label>
-                    </RadioGroup>
+                    )}
                   </CardContent>
                 </Card>
 

@@ -6,6 +6,7 @@ import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
 import { getProductImageUrl } from "@/lib/image-utils";
 import { useRouter } from "next/navigation";
+import { useTracking } from "@/hooks/useTracking"; // ✅ Importar tracking
 
 interface AddToCartButtonProps {
   product: any;
@@ -22,6 +23,7 @@ export default function AddToCartButton({
 }: AddToCartButtonProps) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
+  const { trackEvent } = useTracking(); // ✅ Hook de tracking
 
   const handleAddToCart = () => {
     // Validar si el producto tiene variantes pero no hay ninguna seleccionada
@@ -50,7 +52,7 @@ export default function AddToCartButton({
         id: selectedVariant.id,
         productId: product.id,
         variantId: selectedVariant.id,
-        slug: product.slug, // ✅ AGREGADO
+        slug: product.slug,
         name: product.name,
         variantName,
         price: Number(selectedVariant.price),
@@ -58,6 +60,24 @@ export default function AddToCartButton({
         maxStock: selectedVariant.stock,
         options: variantOptions,
       });
+
+      // ✅ Track AddToCart para variante
+      trackEvent("AddToCart", {
+        content_ids: [product.id],
+        content_name: product.name,
+        content_type: "product",
+        value: Number(selectedVariant.price),
+        currency: "PEN",
+        contents: [
+          {
+            id: selectedVariant.sku || selectedVariant.id,
+            quantity: 1,
+            item_price: Number(selectedVariant.price),
+          },
+        ],
+      });
+
+      console.log("📊 AddToCart tracked (variant):", product.name, variantName);
 
       toast.success("Producto agregado al carrito");
       
@@ -76,12 +96,30 @@ export default function AddToCartButton({
       addItem({
         id: product.id,
         productId: product.id,
-        slug: product.slug, // ✅ AGREGADO
+        slug: product.slug,
         name: product.name,
         price: Number(product.basePrice),
         image: imageUrl ?? undefined,
         maxStock: product.stock,
       });
+
+      // ✅ Track AddToCart para producto simple
+      trackEvent("AddToCart", {
+        content_ids: [product.id],
+        content_name: product.name,
+        content_type: "product",
+        value: Number(product.basePrice),
+        currency: "PEN",
+        contents: [
+          {
+            id: product.sku || product.id,
+            quantity: 1,
+            item_price: Number(product.basePrice),
+          },
+        ],
+      });
+
+      console.log("📊 AddToCart tracked (simple):", product.name);
 
       toast.success("Producto agregado al carrito");
       

@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
+import { trackConversion } from "@/lib/conversion-api"; // ✅ Importar tracking
+import { headers } from "next/headers"; // ✅ Para obtener IP y User Agent
 
 // ============================================================
 // TIPOS (sin Zod)
@@ -258,7 +260,7 @@ export async function createOrder(data: OrderInput) {
         // Notas
         customerNotes: data.customerNotes,
 
-        // Items - ✅ CORREGIDO
+        // Items
         items: {
           create: data.items.map((item) => ({
             productId: item.productId,
@@ -268,7 +270,7 @@ export async function createOrder(data: OrderInput) {
             price: item.price,
             quantity: item.quantity,
             image: item.image || undefined,
-            variantOptions: item.options || undefined, // ✅ undefined en lugar de null
+            variantOptions: item.options || undefined,
           })),
         },
       },
@@ -612,7 +614,7 @@ export async function getOrderById(orderId: string) {
 }
 
 // ============================================================
-// ACTUALIZAR ESTADO DE ORDEN (Admin) - CON EMAILS AUTOMÁTICOS
+// ACTUALIZAR ESTADO DE ORDEN (Admin) - CON EMAILS Y TRACKING
 // ============================================================
 
 export async function updateOrderStatus(input: UpdateOrderStatusInput) {
@@ -624,18 +626,8 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
     // Obtener la orden actual antes de actualizar
     const currentOrder = await prisma.order.findUnique({
       where: { id: input.orderId },
-      select: {
-        status: true,
-        paymentStatus: true,
-        orderNumber: true,
-        viewToken: true,
-        customerName: true,
-        customerEmail: true,
-        total: true,
-        trackingNumber: true,
-        shippingCourier: true,
-        estimatedDelivery: true,
-        paidAt: true,
+      include: {
+        items: true, // ✅ Incluir items para tracking
       },
     });
 
@@ -747,6 +739,52 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       where: { id: input.orderId },
       data: updateData,
     });
+
+    // ============================================================
+    // ✅ TRACKING DE CONVERSIONES - SERVER SIDE
+    // ============================================================
+    if (input.paymentStatus === "PAID" && currentOrder.paymentStatus !== "PAID") {
+      console.log("🎯 Enviando conversión de compra...");
+      
+      try {
+        // ✅ Obtener headers para IP y User Agent (con await)
+        const headersList = await headers();
+        const clientIp = headersList.get("x-forwarded-for") || headersList.get("x-real-ip");
+        const clientUserAgent = headersList.get("user-agent");
+
+        // Preparar items para tracking
+        const trackingItems = currentOrder.items.map((item) => ({
+          id: item.sku || item.productId || "",
+          quantity: item.quantity,
+          item_price: Number(item.price),
+        }));
+
+        // Dividir nombre en firstName y lastName
+        const nameParts = currentOrder.customerName.split(" ");
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(" ");
+
+        // Enviar conversión a todas las plataformas (Facebook, TikTok, Google, GA4)
+        await trackConversion("Purchase", {
+          email: currentOrder.customerEmail,
+          phone: currentOrder.customerPhone,
+          firstName: firstName,
+          lastName: lastName || firstName, // Fallback si solo tiene un nombre
+          value: Number(currentOrder.total),
+          currency: "PEN",
+          transactionId: currentOrder.orderNumber,
+          items: trackingItems,
+          sourceUrl: `${process.env.NEXT_PUBLIC_URL || "https://nuejoy.online"}/orden/${currentOrder.id}/confirmacion`,
+          clientIp: clientIp || undefined,
+          clientUserAgent: clientUserAgent || undefined,
+        });
+
+        console.log("✅ Conversión enviada exitosamente para orden:", currentOrder.orderNumber);
+      } catch (trackingError) {
+        // No fallar la actualización si el tracking falla
+        console.error("❌ Error enviando conversión (no crítico):", trackingError);
+      }
+    }
 
     // ✅ ENVIAR EMAILS AUTOMÁTICOS según el cambio de estado
     const viewOrderLink = `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${currentOrder.viewToken}&email=${encodeURIComponent(currentOrder.customerEmail)}`;
