@@ -66,7 +66,7 @@ export default async function CheckoutFooter() {
             </Link>
             <span className="text-muted-foreground">•</span>
             <Link
-              href="/libro-de-reclamaciones"
+              href="/libro-reclamaciones"
               className="text-muted-foreground hover:text-primary"
             >
               Libro de Reclamaciones
