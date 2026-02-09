@@ -368,33 +368,7 @@ export default function CulqiPaymentForm({
         </AlertDescription>
       </Alert>
 
-      {/* Tarjetas de Prueba */}
-      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-        <p className="text-sm font-semibold text-blue-900 mb-2">
-          🧪 Tarjetas de Prueba
-        </p>
-        <div className="space-y-2 text-xs text-blue-800">
-          <div>
-            <strong>✅ Pago Exitoso:</strong>
-            <div className="font-mono bg-white p-2 rounded mt-1">
-              4111 1111 1111 1111<br />
-              Fecha: 12/28<br />
-              CVV: 123
-            </div>
-          </div>
-          <div className="mt-2">
-            <strong>❌ Pago Rechazado:</strong>
-            <div className="font-mono bg-white p-2 rounded mt-1">
-              4000 0000 0000 0002<br />
-              Fecha: 12/28<br />
-              CVV: 123
-            </div>
-          </div>
-          <p className="text-xs text-blue-700 mt-2 italic">
-            * La barra "/" se agrega automáticamente al escribir
-          </p>
-        </div>
-      </div>
+    
     </div>
   );
 }
