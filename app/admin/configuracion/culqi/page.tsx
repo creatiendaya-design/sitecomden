@@ -241,17 +241,7 @@ export default function CulqiSettingsPage() {
             </div>
 
             {/* Info de Tarjetas de Prueba */}
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-xs sm:text-sm">
-                <strong>Tarjetas de prueba:</strong>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Éxito: <code className="text-xs">4111 1111 1111 1111</code></li>
-                  <li>Rechazo: <code className="text-xs">4000 0000 0000 0002</code></li>
-                  <li>CVV: <code className="text-xs">123</code> | Fecha: <code className="text-xs">12/28</code></li>
-                </ul>
-              </AlertDescription>
-            </Alert>
+         
           </CardContent>
         </Card>
 
