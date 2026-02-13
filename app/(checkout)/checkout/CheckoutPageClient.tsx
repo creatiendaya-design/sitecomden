@@ -23,7 +23,7 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { AlertTriangle, ChevronUp, ShoppingBag, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronUp, ShoppingBag, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTracking } from "@/hooks/useTracking";
 import CulqiCheckoutButton from "@/components/shop/CulqiCheckoutButton";
@@ -89,7 +89,19 @@ export default function CheckoutPageClient({
     description: string | null;
   } | null>(null);
 
-  // Ref para evitar doble procesamiento
+  // ✅ NUEVO: Estado para mostrar qué falta para activar el botón de tarjeta
+  const [missingRequirements, setMissingRequirements] = useState<string[]>([]);
+  const [showMissingAlert, setShowMissingAlert] = useState(false);
+
+  // Refs para scroll automático
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLInputElement>(null);
+  const termsRef = useRef<HTMLDivElement>(null);
+  const locationRef = useRef<HTMLDivElement>(null);
+  const shippingRef = useRef<HTMLDivElement>(null);
+
   const processingRef = useRef(false);
 
   useEffect(() => {
@@ -114,7 +126,75 @@ export default function CheckoutPageClient({
     }
   }, [formData.districtCode]);
 
-  // 🚀 PROCESAR PAGO AUTOMÁTICAMENTE CUANDO SE OBTIENE EL TOKEN
+  // ✅ NUEVO: Validar requisitos para pago con tarjeta en tiempo real
+  useEffect(() => {
+    if (formData.paymentMethod === "CARD") {
+      const missing: string[] = [];
+      
+      if (!formData.customerName || formData.customerName.trim().length < 3) {
+        missing.push("Nombre completo");
+      }
+      if (!formData.customerEmail || !formData.customerEmail.includes("@")) {
+        missing.push("Email válido");
+      }
+      if (!formData.customerPhone || formData.customerPhone.length < 9) {
+        missing.push("Teléfono");
+      }
+      if (!formData.districtCode) {
+        missing.push("Ubicación (departamento, provincia, distrito)");
+      }
+      if (!selectedShippingRate) {
+        missing.push("Método de envío");
+      }
+      if (!formData.address || formData.address.trim().length < 10) {
+        missing.push("Dirección completa");
+      }
+      if (!formData.acceptTerms) {
+        missing.push("Aceptar términos y condiciones");
+      }
+
+      setMissingRequirements(missing);
+    }
+  }, [
+    formData.paymentMethod,
+    formData.customerName,
+    formData.customerEmail,
+    formData.customerPhone,
+    formData.districtCode,
+    formData.address,
+    formData.acceptTerms,
+    selectedShippingRate
+  ]);
+
+  // ✅ NUEVO: Función para hacer scroll al primer campo faltante
+  const scrollToFirstMissing = () => {
+    setShowMissingAlert(true);
+    
+    // Determinar el primer elemento faltante y hacer scroll
+    if (!formData.customerName || formData.customerName.trim().length < 3) {
+      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      nameRef.current?.focus();
+    } else if (!formData.customerEmail || !formData.customerEmail.includes("@")) {
+      emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      emailRef.current?.focus();
+    } else if (!formData.customerPhone || formData.customerPhone.length < 9) {
+      phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      phoneRef.current?.focus();
+    } else if (!formData.districtCode) {
+      locationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (!selectedShippingRate) {
+      shippingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (!formData.address || formData.address.trim().length < 10) {
+      addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      addressRef.current?.focus();
+    } else if (!formData.acceptTerms) {
+      termsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Auto-ocultar la alerta después de 5 segundos
+    setTimeout(() => setShowMissingAlert(false), 5000);
+  };
+
   useEffect(() => {
     if (culqiToken && !processingRef.current && formData.paymentMethod === "CARD") {
       console.log('🎯 Token detectado, procesando pago automáticamente...');
@@ -144,9 +224,7 @@ export default function CheckoutPageClient({
     setStockCheckLoading(false);
   };
 
-  // ✅ FUNCIÓN QUE SE EJECUTA AUTOMÁTICAMENTE AL OBTENER EL TOKEN
   const processPaymentAutomatically = async () => {
-    // Evitar doble procesamiento
     if (processingRef.current) {
       console.log('⚠️ Ya se está procesando un pago, saltando...');
       return;
@@ -159,16 +237,14 @@ export default function CheckoutPageClient({
     try {
       console.log('🚀 Iniciando proceso automático de pago...');
 
-      // Validaciones rápidas
       if (!formData.districtCode || !selectedShippingRate || !formData.acceptTerms) {
         setError("Por favor completa todos los campos requeridos");
         setIsProcessingPayment(false);
         processingRef.current = false;
-        setCulqiToken(null); // Reset token para permitir reintentar
+        setCulqiToken(null);
         return;
       }
 
-      // Verificar stock final
       const stockItems = items.map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -185,7 +261,6 @@ export default function CheckoutPageClient({
         return;
       }
 
-      // Track payment info
       trackEvent("AddPaymentInfo", {
         value: total,
         currency: "PEN",
@@ -197,7 +272,6 @@ export default function CheckoutPageClient({
         })),
       });
 
-      // Preparar datos de la orden
       const orderData = {
         customerName: formData.customerName.trim(),
         customerEmail: formData.customerEmail.trim().toLowerCase(),
@@ -260,11 +334,9 @@ export default function CheckoutPageClient({
 
       console.log('✅ Pago procesado exitosamente');
 
-      // Limpiar carrito y datos
       clearCart();
       clearPersistedData();
 
-      // Redirigir a confirmación
       router.push(`/orden/${result.orderId}/confirmacion`);
 
     } catch (err) {
@@ -276,14 +348,11 @@ export default function CheckoutPageClient({
     }
   };
 
-  // ✅ SUBMIT MANUAL PARA YAPE, PLIN, PAYPAL
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     console.log('🔵 handleSubmit llamado - método de pago:', formData.paymentMethod);
     
-    // Si es pago con tarjeta, solo validar y abrir Culqi
-    // El pago se procesará automáticamente cuando se obtenga el token
     if (formData.paymentMethod === "CARD") {
       console.log('ℹ️ Método de pago: TARJETA - esperando token de Culqi');
       return;
@@ -295,50 +364,59 @@ export default function CheckoutPageClient({
     setValidationErrors({});
 
     try {
-      // Validaciones
       if (!formData.districtCode) {
         setError("Por favor selecciona departamento, provincia y distrito");
+        locationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setLoading(false);
         return;
       }
 
       if (!selectedShippingRate) {
         setError("Por favor selecciona un método de envío");
+        shippingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setLoading(false);
         return;
       }
 
       if (!formData.acceptTerms) {
         setError("Debes aceptar los términos y condiciones");
+        termsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setLoading(false);
         return;
       }
 
       if (!formData.customerName || formData.customerName.trim().length < 3) {
         setError("El nombre debe tener al menos 3 caracteres");
+        nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameRef.current?.focus();
         setLoading(false);
         return;
       }
 
       if (!formData.customerEmail || !formData.customerEmail.includes("@")) {
         setError("Ingresa un email válido");
+        emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        emailRef.current?.focus();
         setLoading(false);
         return;
       }
 
       if (!formData.customerPhone || formData.customerPhone.length < 9) {
         setError("Ingresa un teléfono válido");
+        phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneRef.current?.focus();
         setLoading(false);
         return;
       }
 
       if (!formData.address || formData.address.trim().length < 10) {
         setError("La dirección debe tener al menos 10 caracteres");
+        addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        addressRef.current?.focus();
         setLoading(false);
         return;
       }
 
-      // Verificar stock
       const stockItems = items.map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -364,7 +442,6 @@ export default function CheckoutPageClient({
         })),
       });
 
-      // Crear orden para Yape/Plin/PayPal
       const orderData = {
         customerName: formData.customerName.trim(),
         customerEmail: formData.customerEmail.trim().toLowerCase(),
@@ -410,7 +487,6 @@ export default function CheckoutPageClient({
       clearCart();
       clearPersistedData();
 
-      // Redirigir según método de pago
       if (result.paymentMethod === "YAPE" || result.paymentMethod === "PLIN") {
         router.push(`/orden/${result.orderId}/pago-pendiente`);
       } else if (result.paymentMethod === "PAYPAL") {
@@ -438,6 +514,10 @@ export default function CheckoutPageClient({
       delete newErrors[name];
       setValidationErrors(newErrors);
     }
+    // Ocultar alerta cuando el usuario empieza a completar
+    if (showMissingAlert) {
+      setShowMissingAlert(false);
+    }
   };
 
   const handleLocationChange = (newLocation: {
@@ -460,18 +540,22 @@ export default function CheckoutPageClient({
       delete newErrors.city;
       setValidationErrors(newErrors);
     }
+    if (showMissingAlert) {
+      setShowMissingAlert(false);
+    }
   };
 
   const handleShippingRateSelect = (rate: ShippingRate | null) => {
     setSelectedShippingRate(rate);
+    if (showMissingAlert) {
+      setShowMissingAlert(false);
+    }
   };
 
-  // ✅ Handler cuando Culqi obtiene el token
   const handleCulqiSuccess = (token: string) => {
     console.log('🎯 Token recibido de Culqi:', token);
     setCulqiToken(token);
     setError(null);
-    // El useEffect se encargará de procesar el pago automáticamente
   };
 
   const handleCulqiError = (errorMessage: string) => {
@@ -512,7 +596,6 @@ export default function CheckoutPageClient({
     );
   }
 
-  // Componente de resumen reutilizable
   const OrderSummaryContent = () => (
     <>
       <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
@@ -606,7 +689,7 @@ export default function CheckoutPageClient({
 
   return (
     <>
-      {/* OVERLAY DE PROCESAMIENTO PARA TARJETA */}
+      {/* OVERLAY DE PROCESAMIENTO */}
       {isProcessingPayment && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
           <Card className="w-[90%] max-w-md">
@@ -626,7 +709,23 @@ export default function CheckoutPageClient({
         </div>
       )}
 
-      {/* ... resto del código igual ... */}
+      {/* ✅ ALERTA FLOTANTE CON REQUISITOS FALTANTES */}
+      {showMissingAlert && missingRequirements.length > 0 && formData.paymentMethod === "CARD" && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-lg animate-in slide-in-from-top-5">
+          <Alert variant="destructive" className="shadow-lg border-2">
+            <AlertCircle className="h-5 w-5" />
+            <AlertDescription className="ml-2">
+              <p className="font-semibold mb-2">Completa estos campos para continuar:</p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                {missingRequirements.map((req, i) => (
+                  <li key={i}>{req}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       <div className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-sm">
         <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
           <SheetTrigger asChild>
@@ -685,6 +784,7 @@ export default function CheckoutPageClient({
                           Nombre Completo <span className="text-destructive">*</span>
                         </Label>
                         <Input
+                          ref={nameRef}
                           id="customerName"
                           name="customerName"
                           value={formData.customerName}
@@ -714,6 +814,7 @@ export default function CheckoutPageClient({
                           Email <span className="text-destructive">*</span>
                         </Label>
                         <Input
+                          ref={emailRef}
                           id="customerEmail"
                           name="customerEmail"
                           type="email"
@@ -728,6 +829,7 @@ export default function CheckoutPageClient({
                           Teléfono/WhatsApp <span className="text-destructive">*</span>
                         </Label>
                         <Input
+                          ref={phoneRef}
                           id="customerPhone"
                           name="customerPhone"
                           type="tel"
@@ -763,22 +865,24 @@ export default function CheckoutPageClient({
                     <CardTitle>Dirección de Envío</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4 min-w-0">
-                    <LocationSelector
-                      value={{
-                        departmentId: formData.departmentId,
-                        provinceId: formData.provinceId,
-                        districtCode: formData.districtCode,
-                      }}
-                      onChange={handleLocationChange}
-                      errors={{
-                        department: validationErrors.department,
-                        province: validationErrors.city,
-                        district: validationErrors.district,
-                      }}
-                    />
+                    <div ref={locationRef}>
+                      <LocationSelector
+                        value={{
+                          departmentId: formData.departmentId,
+                          provinceId: formData.provinceId,
+                          districtCode: formData.districtCode,
+                        }}
+                        onChange={handleLocationChange}
+                        errors={{
+                          department: validationErrors.department,
+                          province: validationErrors.city,
+                          district: validationErrors.district,
+                        }}
+                      />
+                    </div>
 
                     {formData.districtCode && (
-                      <div className="pt-4 border-t">
+                      <div ref={shippingRef} className="pt-4 border-t">
                         <ShippingOptions
                           districtCode={formData.districtCode}
                           subtotal={subtotal}
@@ -793,6 +897,7 @@ export default function CheckoutPageClient({
                         Dirección <span className="text-destructive">*</span>
                       </Label>
                       <Input
+                        ref={addressRef}
                         id="address"
                         name="address"
                         value={formData.address}
@@ -827,13 +932,48 @@ export default function CheckoutPageClient({
                         setFormData({ ...formData, paymentMethod: method });
                         setCulqiToken(null);
                         processingRef.current = false;
+                        setShowMissingAlert(false);
                       }}
                       disabled={loading || isProcessingPayment}
                     />
 
-                    {/* ✅ SOLO MOSTRAR BOTÓN DE CULQI - SIN ESTADO DE TOKEN */}
+                    {/* ✅ SECCIÓN DE PAGO CON TARJETA CON FEEDBACK MEJORADO */}
                     {formData.paymentMethod === "CARD" && (
                       <div className="pl-0 sm:pl-10 pr-0 sm:pr-3 mt-4 space-y-3">
+                        {/* Mostrar requisitos faltantes ANTES del botón */}
+                        {missingRequirements.length > 0 && (
+                          <Alert className="bg-amber-50 border-amber-200">
+                            <AlertCircle className="h-4 w-4 text-amber-600" />
+                            <AlertDescription className="text-sm text-amber-800">
+                              <p className="font-semibold mb-1">Completa estos datos:</p>
+                              <ul className="list-disc list-inside space-y-0.5 text-xs">
+                                {missingRequirements.map((req, i) => (
+                                  <li key={i}>{req}</li>
+                                ))}
+                              </ul>
+                              <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 mt-2 text-amber-700 hover:text-amber-900"
+                                onClick={scrollToFirstMissing}
+                              >
+                                Ir al primer campo faltante →
+                              </Button>
+                            </AlertDescription>
+                          </Alert>
+                        )}
+
+                        {/* Indicador visual de completitud */}
+                        {missingRequirements.length === 0 && (
+                          <Alert className="bg-green-50 border-green-200">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-sm text-green-800">
+                              ¡Todo listo! Puedes ingresar los datos de tu tarjeta.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        
                         <CulqiCheckoutButton
                           key={`culqi-${formData.customerEmail}-${formData.acceptTerms}`}
                           amount={Math.round(total * 100)}
@@ -846,15 +986,16 @@ export default function CheckoutPageClient({
                             !formData.customerName || 
                             !formData.acceptTerms ||
                             !selectedShippingRate ||
-                            isProcessingPayment
+                            isProcessingPayment ||
+                            missingRequirements.length > 0
                           }
                           className="w-full"
                           siteName={siteName}
                           siteLogo={siteLogo}
                         />
                         
-                        <p className="text-xs text-muted-foreground">
-                          Al hacer clic se abrirá una ventana segura para ingresar los datos de tu tarjeta.
+                        <p className="text-xs text-muted-foreground text-center">
+                          🔒 Al hacer clic se abrirá una ventana segura para ingresar los datos de tu tarjeta.
                           Tu pago se procesará automáticamente.
                         </p>
                       </div>
@@ -889,14 +1030,17 @@ export default function CheckoutPageClient({
                   <CardContent className="space-y-4">
                     <OrderSummaryContent />
 
-                    <div className="pt-2">
+                    <div ref={termsRef} className="pt-2">
                       <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
                         <Checkbox
                           id="acceptTerms"
                           checked={formData.acceptTerms}
-                          onCheckedChange={(checked) =>
-                            setFormData({ ...formData, acceptTerms: checked === true })
-                          }
+                          onCheckedChange={(checked) => {
+                            setFormData({ ...formData, acceptTerms: checked === true });
+                            if (checked && showMissingAlert) {
+                              setShowMissingAlert(false);
+                            }
+                          }}
                           className="mt-1 flex-shrink-0"
                         />
                         <div className="flex-1">
@@ -914,7 +1058,6 @@ export default function CheckoutPageClient({
                       </div>
                     </div>
 
-                    {/* ✅ BOTÓN DE DESKTOP PARA YAPE/PLIN/PAYPAL */}
                     {formData.paymentMethod !== "CARD" && (
                       <Button
                         type="submit"
@@ -970,13 +1113,16 @@ export default function CheckoutPageClient({
       {/* Botón flotante móvil */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
         <div className="px-4 py-3 space-y-3">
-          <div className="flex items-start space-x-2 py-1">
+          <div ref={termsRef} className="flex items-start space-x-2 py-1">
             <Checkbox
               id="acceptTermsMobile"
               checked={formData.acceptTerms}
-              onCheckedChange={(checked) =>
-                setFormData({ ...formData, acceptTerms: checked === true })
-              }
+              onCheckedChange={(checked) => {
+                setFormData({ ...formData, acceptTerms: checked === true });
+                if (checked && showMissingAlert) {
+                  setShowMissingAlert(false);
+                }
+              }}
               className="mt-1 flex-shrink-0"
             />
             <Label
@@ -991,7 +1137,6 @@ export default function CheckoutPageClient({
             </Label>
           </div>
 
-          {/* ✅ BOTÓN SOLO PARA YAPE/PLIN/PAYPAL */}
           {formData.paymentMethod !== "CARD" && (
             <Button
               type="submit"
