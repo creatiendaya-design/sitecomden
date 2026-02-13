@@ -230,22 +230,7 @@ export default function CulqiCheckoutButton({
         <span>Pago procesado de forma segura por Culqi</span>
       </div>
 
-      {/* Información adicional */}
-      <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
-        <div className="flex items-start gap-2">
-          <div className="rounded-full bg-blue-100 p-1 mt-0.5">
-            <CreditCard className="h-3.5 w-3.5 text-blue-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-blue-900">
-              Tu pago se procesará automáticamente
-            </p>
-            <p className="text-xs text-blue-700 mt-1">
-              Se abrirá una ventana segura donde ingresarás los datos de tu tarjeta. Una vez confirmado, tu pedido se procesará inmediatamente.
-            </p>
-          </div>
-        </div>
-      </div>
+    
 
       {/* Botón de cancelar si está procesando */}
       {isProcessing && (
