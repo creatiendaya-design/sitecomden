@@ -27,7 +27,7 @@ export default function CulqiCheckoutButton({
   onError,
   disabled = false,
   className = '',
-  siteName = 'Mi Tienda',     // ✅ Fallback
+  siteName = 'nuejoy',     // ✅ Fallback
   siteLogo = '/logo.png'       // ✅ Fallback
 }: CulqiCheckoutButtonProps) {
   const [isLoaded, setIsLoaded] = useState(false);
