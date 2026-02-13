@@ -23,7 +23,7 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { AlertTriangle, ChevronUp, ShoppingBag, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ChevronUp, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTracking } from "@/hooks/useTracking";
 import CulqiCheckoutButton from "@/components/shop/CulqiCheckoutButton";
@@ -711,18 +711,42 @@ export default function CheckoutPageClient({
 
       {/* ✅ ALERTA FLOTANTE CON REQUISITOS FALTANTES */}
       {showMissingAlert && missingRequirements.length > 0 && formData.paymentMethod === "CARD" && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-lg animate-in slide-in-from-top-5">
-          <Alert variant="destructive" className="shadow-lg border-2">
-            <AlertCircle className="h-5 w-5" />
-            <AlertDescription className="ml-2">
-              <p className="font-semibold mb-2">Completa estos campos para continuar:</p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                {missingRequirements.map((req, i) => (
-                  <li key={i}>{req}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-lg animate-in slide-in-from-top-5">
+          <div className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-2xl border border-red-700 backdrop-blur-sm">
+            <div className="p-4 flex gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-base mb-2.5">Completa estos campos para continuar:</p>
+                <ul className="space-y-1.5 text-sm">
+                  {missingRequirements.map((req, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-red-200 mt-0.5">•</span>
+                      <span>{req}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3 bg-white/20 hover:bg-white/30 text-white border-white/30 h-8 text-xs font-semibold"
+                  onClick={scrollToFirstMissing}
+                >
+                  Ir al primer campo faltante →
+                </Button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMissingAlert(false)}
+                className="flex-shrink-0 text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -942,36 +966,46 @@ export default function CheckoutPageClient({
                       <div className="pl-0 sm:pl-10 pr-0 sm:pr-3 mt-4 space-y-3">
                         {/* Mostrar requisitos faltantes ANTES del botón */}
                         {missingRequirements.length > 0 && (
-                          <Alert className="bg-amber-50 border-amber-200">
-                            <AlertCircle className="h-4 w-4 text-amber-600" />
-                            <AlertDescription className="text-sm text-amber-800">
-                              <p className="font-semibold mb-1">Completa estos datos:</p>
-                              <ul className="list-disc list-inside space-y-0.5 text-xs">
-                                {missingRequirements.map((req, i) => (
-                                  <li key={i}>{req}</li>
-                                ))}
-                              </ul>
-                              <Button
-                                type="button"
-                                variant="link"
-                                size="sm"
-                                className="h-auto p-0 mt-2 text-amber-700 hover:text-amber-900"
-                                onClick={scrollToFirstMissing}
-                              >
-                                Ir al primer campo faltante →
-                              </Button>
-                            </AlertDescription>
-                          </Alert>
+                          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg p-4 shadow-md">
+                            <div className="flex gap-3">
+                              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-amber-900 mb-2">Completa estos datos:</p>
+                                <ul className="space-y-1 text-sm text-amber-800">
+                                  {missingRequirements.map((req, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <span className="text-amber-600 font-bold">•</span>
+                                      <span>{req}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-3 h-8 text-xs border-amber-400 text-amber-900 hover:bg-amber-100 hover:text-amber-950 font-semibold"
+                                  onClick={scrollToFirstMissing}
+                                >
+                                  Ir al primer campo faltante →
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
                         )}
 
                         {/* Indicador visual de completitud */}
                         {missingRequirements.length === 0 && (
-                          <Alert className="bg-green-50 border-green-200">
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            <AlertDescription className="text-sm text-green-800">
-                              ¡Todo listo! Puedes ingresar los datos de tu tarjeta.
-                            </AlertDescription>
-                          </Alert>
+                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-4 shadow-md">
+                            <div className="flex gap-3 items-start">
+                              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="font-bold text-green-900">¡Todo listo!</p>
+                                <p className="text-sm text-green-800 mt-1">
+                                  Puedes ingresar los datos de tu tarjeta de forma segura.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         )}
                         
                         <CulqiCheckoutButton
