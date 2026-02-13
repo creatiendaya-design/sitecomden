@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef  } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCartStore } from "@/store/cart";
 import { formatPrice } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -23,7 +23,7 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { AlertTriangle, ChevronUp, ShoppingBag } from "lucide-react";
+import { AlertTriangle, ChevronUp, ShoppingBag, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTracking } from "@/hooks/useTracking";
 import CulqiCheckoutButton from "@/components/shop/CulqiCheckoutButton";
@@ -48,7 +48,6 @@ const initialFormData = {
   customerNotes: "",
   acceptTerms: false,
   acceptWhatsApp: false,
-  // Ubicación
   departmentId: "",
   provinceId: "",
   districtCode: "",
@@ -56,11 +55,13 @@ const initialFormData = {
   provinceName: "",
   districtName: "",
 };
+
 interface CheckoutPageClientProps {
   siteName: string;
   siteLogo: string;
 }
-export default function  CheckoutPageClient({ 
+
+export default function CheckoutPageClient({ 
   siteName, 
   siteLogo 
 }: CheckoutPageClientProps) {
@@ -68,20 +69,18 @@ export default function  CheckoutPageClient({
   const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();
   const { formData, setFormData, isLoaded, clearPersistedData } = 
     usePersistedCheckoutForm(initialFormData);
-   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [stockVerified, setStockVerified] = useState(false);
   const [stockCheckLoading, setStockCheckLoading] = useState(false);
   const [culqiToken, setCulqiToken] = useState<string | null>(null);
-    const { trackEvent } = useTracking(); 
-  // Estado para el Sheet del resumen en móvil
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const { trackEvent } = useTracking(); 
+  
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
-  
-  // Estado de método de envío seleccionado
   const [selectedShippingRate, setSelectedShippingRate] = useState<ShippingRate | null>(null);
-  
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
     type: string;
@@ -89,14 +88,13 @@ export default function  CheckoutPageClient({
     discount: number;
     description: string | null;
   } | null>(null);
- const processingRef = useRef(false);
-  // Verificar stock al cargar
+
+  // Ref para evitar doble procesamiento
+  const processingRef = useRef(false);
+
   useEffect(() => {
     if (items.length > 0 && isLoaded) {
-      // Verificar stock
       verifyStockBeforeCheckout();
-
-      // Track InitiateCheckout
       trackEvent("InitiateCheckout", {
         value: getTotalPrice(),
         currency: "PEN",
@@ -110,12 +108,19 @@ export default function  CheckoutPageClient({
     }
   }, [items.length, isLoaded]); 
 
-  // Resetear método de envío cuando cambia distrito
   useEffect(() => {
     if (formData.districtCode) {
       setSelectedShippingRate(null);
     }
   }, [formData.districtCode]);
+
+  // 🚀 PROCESAR PAGO AUTOMÁTICAMENTE CUANDO SE OBTIENE EL TOKEN
+  useEffect(() => {
+    if (culqiToken && !processingRef.current && formData.paymentMethod === "CARD") {
+      console.log('🎯 Token detectado, procesando pago automáticamente...');
+      processPaymentAutomatically();
+    }
+  }, [culqiToken]);
 
   const verifyStockBeforeCheckout = async () => {
     setStockCheckLoading(true);
@@ -138,7 +143,8 @@ export default function  CheckoutPageClient({
     
     setStockCheckLoading(false);
   };
- // ✅ FUNCIÓN QUE SE EJECUTA AUTOMÁTICAMENTE AL OBTENER EL TOKEN
+
+  // ✅ FUNCIÓN QUE SE EJECUTA AUTOMÁTICAMENTE AL OBTENER EL TOKEN
   const processPaymentAutomatically = async () => {
     // Evitar doble procesamiento
     if (processingRef.current) {
@@ -269,98 +275,70 @@ export default function  CheckoutPageClient({
       setCulqiToken(null);
     }
   };
-  if (items.length === 0) {
-    return (
-      <div className="container py-16">
-        <div className="mx-auto max-w-md text-center">
-          <h1 className="text-2xl font-bold">Tu carrito está vacío</h1>
-          <Button asChild className="mt-4">
-            <Link href="/productos">Ver Productos</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
+  // ✅ SUBMIT MANUAL PARA YAPE, PLIN, PAYPAL
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('🔵 handleSubmit llamado - método de pago:', formData.paymentMethod);
+    
+    // Si es pago con tarjeta, solo validar y abrir Culqi
+    // El pago se procesará automáticamente cuando se obtenga el token
+    if (formData.paymentMethod === "CARD") {
+      console.log('ℹ️ Método de pago: TARJETA - esperando token de Culqi');
+      return;
+    }
+
+    console.log('📝 Procesando pedido para:', formData.paymentMethod);
     setLoading(true);
     setError(null);
     setValidationErrors({});
 
     try {
-      // Validar ubicación
+      // Validaciones
       if (!formData.districtCode) {
         setError("Por favor selecciona departamento, provincia y distrito");
-        setValidationErrors({
-          district: "Selecciona un distrito",
-        });
         setLoading(false);
         return;
       }
 
-      // Validar método de envío seleccionado
       if (!selectedShippingRate) {
         setError("Por favor selecciona un método de envío");
         setLoading(false);
         return;
       }
 
-      // Validar términos aceptados
       if (!formData.acceptTerms) {
         setError("Debes aceptar los términos y condiciones");
-        setValidationErrors({
-          acceptTerms: "Debes aceptar los términos y condiciones",
-        });
         setLoading(false);
         return;
       }
 
-      // Validaciones básicas antes de llamar a createOrder
       if (!formData.customerName || formData.customerName.trim().length < 3) {
         setError("El nombre debe tener al menos 3 caracteres");
-        setValidationErrors({
-          customerName: "El nombre debe tener al menos 3 caracteres",
-        });
         setLoading(false);
         return;
       }
 
       if (!formData.customerEmail || !formData.customerEmail.includes("@")) {
         setError("Ingresa un email válido");
-        setValidationErrors({
-          customerEmail: "Ingresa un email válido",
-        });
         setLoading(false);
         return;
       }
 
       if (!formData.customerPhone || formData.customerPhone.length < 9) {
         setError("Ingresa un teléfono válido");
-        setValidationErrors({
-          customerPhone: "Ingresa un teléfono válido",
-        });
         setLoading(false);
         return;
       }
 
       if (!formData.address || formData.address.trim().length < 10) {
         setError("La dirección debe tener al menos 10 caracteres");
-        setValidationErrors({
-          address: "La dirección debe tener al menos 10 caracteres",
-        });
         setLoading(false);
         return;
       }
 
-      // Si es pago con tarjeta, validar que tenga token
-      if (formData.paymentMethod === "CARD" && !culqiToken) {
-        setError("Por favor completa los datos de tu tarjeta");
-        setLoading(false);
-        return;
-      }
-
-      // Verificar stock una última vez
+      // Verificar stock
       const stockItems = items.map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -369,43 +347,38 @@ export default function  CheckoutPageClient({
       }));
 
       const stockResult = await checkCartStock(stockItems);
-
       if (!stockResult.success) {
-        setError("Algunos productos ya no tienen stock disponible. Por favor revisa tu carrito.");
+        setError("Algunos productos ya no tienen stock disponible.");
         setLoading(false);
         return;
       }
-   if (formData.paymentMethod) {
-        trackEvent("AddPaymentInfo", {
-          value: total,
-          currency: "PEN",
-          payment_type: formData.paymentMethod,
-          contents: items.map((item) => ({
-            id: item.productId,
-            quantity: item.quantity,
-            item_price: item.price,
-          })),
-        });
-      }
-      // Preparar datos de la orden
+
+      trackEvent("AddPaymentInfo", {
+        value: total,
+        currency: "PEN",
+        payment_type: formData.paymentMethod,
+        contents: items.map((item) => ({
+          id: item.productId,
+          quantity: item.quantity,
+          item_price: item.price,
+        })),
+      });
+
+      // Crear orden para Yape/Plin/PayPal
       const orderData = {
         customerName: formData.customerName.trim(),
         customerEmail: formData.customerEmail.trim().toLowerCase(),
         customerPhone: formData.customerPhone.trim(),
         customerDni: formData.customerDni.trim() || undefined,
-        
-        // Dirección
         address: formData.address.trim(),
         district: formData.districtName || formData.districtCode,
         city: formData.provinceName || "Lima",
         department: formData.departmentName || "Lima",
         districtCode: formData.districtCode,
         reference: formData.reference?.trim() || undefined,
-        
         paymentMethod: formData.paymentMethod,
         customerNotes: formData.customerNotes?.trim() || undefined,
         acceptWhatsApp: formData.acceptWhatsApp || false,
-        
         items: items.map((item) => ({
           id: item.id,
           productId: item.productId,
@@ -417,24 +390,16 @@ export default function  CheckoutPageClient({
           image: item.image || undefined,
           options: item.options || undefined,
         })),
-        
-        // Información de envío del método seleccionado
         shipping: appliedCoupon?.type === "FREE_SHIPPING" ? 0 : selectedShippingRate.finalCost,
         shippingRateId: selectedShippingRate.id,
         shippingMethod: selectedShippingRate.name,
         shippingCarrier: selectedShippingRate.carrier || undefined,
         shippingEstimatedDays: selectedShippingRate.estimatedDays || undefined,
-        
         couponCode: appliedCoupon?.code || undefined,
         couponDiscount: appliedCoupon?.discount || 0,
       };
 
-      console.log("Enviando orden:", orderData);
-
-      // Crear orden
       const result = await createOrder(orderData);
-
-      console.log("Resultado de createOrder:", result);
 
       if (!result.success) {
         setError(result.error || "Error al crear la orden");
@@ -442,22 +407,6 @@ export default function  CheckoutPageClient({
         return;
       }
 
-      // Si es pago con tarjeta, procesar el pago con el token
-      if (result.paymentMethod === "CARD" && culqiToken) {
-        const paymentResult = await processCardPayment({
-          orderId: result.orderId!,
-          culqiToken,
-          email: formData.customerEmail,
-        });
-
-        if (!paymentResult.success) {
-          setError(paymentResult.error || "Error al procesar el pago");
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Limpiar carrito y datos persistidos
       clearCart();
       clearPersistedData();
 
@@ -513,32 +462,45 @@ export default function  CheckoutPageClient({
     }
   };
 
-  // Handler para ShippingOptions
   const handleShippingRateSelect = (rate: ShippingRate | null) => {
     setSelectedShippingRate(rate);
   };
 
-  // Handler cuando Culqi obtiene el token (success)
+  // ✅ Handler cuando Culqi obtiene el token
   const handleCulqiSuccess = (token: string) => {
+    console.log('🎯 Token recibido de Culqi:', token);
     setCulqiToken(token);
     setError(null);
+    // El useEffect se encargará de procesar el pago automáticamente
   };
 
-  // Handler cuando Culqi tiene un error
   const handleCulqiError = (errorMessage: string) => {
+    console.error('❌ Error de Culqi:', errorMessage);
     setError(errorMessage);
     setCulqiToken(null);
+    setIsProcessingPayment(false);
+    processingRef.current = false;
   };
 
   const subtotal = getTotalPrice();
   const discount = appliedCoupon?.discount || 0;
-  
-  // Usar el costo del método seleccionado
   const finalShippingCost = selectedShippingRate 
     ? (appliedCoupon?.type === "FREE_SHIPPING" ? 0 : selectedShippingRate.finalCost)
     : 0;
-    
   const total = subtotal + finalShippingCost - discount;
+
+  if (items.length === 0) {
+    return (
+      <div className="container py-16">
+        <div className="mx-auto max-w-md text-center">
+          <h1 className="text-2xl font-bold">Tu carrito está vacío</h1>
+          <Button asChild className="mt-4">
+            <Link href="/productos">Ver Productos</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoaded) {
     return (
@@ -550,21 +512,9 @@ export default function  CheckoutPageClient({
     );
   }
 
-  // Texto del botón según el método de pago
-  const getButtonText = () => {
-    if (loading) return "Procesando...";
-    if (stockCheckLoading) return "Verificando stock...";
-    if (!selectedShippingRate) return "Selecciona método de envío";
-    if (formData.paymentMethod === "CARD") {
-      return culqiToken ? "Procesar Pago" : "Completa datos de tarjeta";
-    }
-    return "Confirmar Pedido";
-  };
-
   // Componente de resumen reutilizable
   const OrderSummaryContent = () => (
     <>
-      {/* Items */}
       <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
         {items.map((item) => (
           <div key={item.id} className="flex gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors">
@@ -595,7 +545,6 @@ export default function  CheckoutPageClient({
 
       <Separator className="my-4" />
 
-      {/* Cupón de descuento */}
       <div className="px-1">
         <ApplyCoupon
           subtotal={subtotal}
@@ -611,7 +560,6 @@ export default function  CheckoutPageClient({
 
       <Separator className="my-4" />
 
-      {/* Totales */}
       <div className="space-y-2.5 px-1">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>
@@ -658,7 +606,27 @@ export default function  CheckoutPageClient({
 
   return (
     <>
-      {/* 📱 HEADER FLOTANTE SUPERIOR - SOLO MÓVIL */}
+      {/* OVERLAY DE PROCESAMIENTO PARA TARJETA */}
+      {isProcessingPayment && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <Card className="w-[90%] max-w-md">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <div>
+                  <h3 className="text-lg font-semibold">Procesando tu pago...</h3>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Por favor espera mientras confirmamos tu pago con el banco.
+                    No cierres esta ventana.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ... resto del código igual ... */}
       <div className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-sm">
         <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
           <SheetTrigger asChild>
@@ -693,11 +661,9 @@ export default function  CheckoutPageClient({
         </Sheet>
       </div>
 
-      {/* ✅ CONTENEDOR PRINCIPAL - SIN overflow-x-hidden */}
       <div className="w-full bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
           <form onSubmit={handleSubmit} className="w-full">
-            {/* Messages */}
             {error && (
               <Alert variant="destructive" className="mb-6">
                 <AlertTriangle className="h-4 w-4" />
@@ -706,7 +672,6 @@ export default function  CheckoutPageClient({
             )}
 
             <div className="grid gap-6 lg:gap-8 lg:grid-cols-3 w-full">
-              {/* Formulario */}
               <div className="lg:col-span-2 space-y-6 min-w-0">
                 {/* Información del Cliente */}
                 <Card className="min-w-0">
@@ -727,11 +692,6 @@ export default function  CheckoutPageClient({
                           placeholder="Juan Pérez"
                           className={validationErrors.customerName ? "border-destructive" : ""}
                         />
-                        {validationErrors.customerName && (
-                          <p className="text-xs text-destructive mt-1">
-                            {validationErrors.customerName}
-                          </p>
-                        )}
                       </div>
                       <div className="min-w-0">
                         <Label htmlFor="customerDni" className="block mb-2">
@@ -744,13 +704,7 @@ export default function  CheckoutPageClient({
                           onChange={handleInputChange}
                           placeholder="12345678"
                           maxLength={8}
-                          className={validationErrors.customerDni ? "border-destructive" : ""}
                         />
-                        {validationErrors.customerDni && (
-                          <p className="text-xs text-destructive mt-1">
-                            {validationErrors.customerDni}
-                          </p>
-                        )}
                       </div>
                     </div>
 
@@ -768,11 +722,6 @@ export default function  CheckoutPageClient({
                           placeholder="juan@example.com"
                           className={validationErrors.customerEmail ? "border-destructive" : ""}
                         />
-                        {validationErrors.customerEmail && (
-                          <p className="text-xs text-destructive mt-1">
-                            {validationErrors.customerEmail}
-                          </p>
-                        )}
                       </div>
                       <div className="min-w-0">
                         <Label htmlFor="customerPhone" className="block mb-2">
@@ -787,18 +736,9 @@ export default function  CheckoutPageClient({
                           placeholder="+51 987654321"
                           className={validationErrors.customerPhone ? "border-destructive" : ""}
                         />
-                        {validationErrors.customerPhone && (
-                          <p className="text-xs text-destructive mt-1">
-                            {validationErrors.customerPhone}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Ejemplo: +51 987654321 o 987654321
-                        </p>
                       </div>
                     </div>
 
-                    {/* WhatsApp Opt-in */}
                     <div className="flex items-start space-x-2 pt-2">
                       <Checkbox
                         id="acceptWhatsApp"
@@ -807,14 +747,12 @@ export default function  CheckoutPageClient({
                           setFormData({ ...formData, acceptWhatsApp: checked === true })
                         }
                       />
-                      <div className="grid gap-1.5 leading-none">
-                        <Label
-                          htmlFor="acceptWhatsApp"
-                          className="text-sm font-normal cursor-pointer"
-                        >
-                          Acepto recibir actualizaciones de mi pedido por WhatsApp
-                        </Label>
-                      </div>
+                      <Label
+                        htmlFor="acceptWhatsApp"
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        Acepto recibir actualizaciones de mi pedido por WhatsApp
+                      </Label>
                     </div>
                   </CardContent>
                 </Card>
@@ -825,7 +763,6 @@ export default function  CheckoutPageClient({
                     <CardTitle>Dirección de Envío</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4 min-w-0">
-                    {/* Selector de Ubicación */}
                     <LocationSelector
                       value={{
                         departmentId: formData.departmentId,
@@ -840,7 +777,6 @@ export default function  CheckoutPageClient({
                       }}
                     />
 
-                    {/* ShippingOptions - Solo se muestra cuando hay distrito */}
                     {formData.districtCode && (
                       <div className="pt-4 border-t">
                         <ShippingOptions
@@ -852,7 +788,6 @@ export default function  CheckoutPageClient({
                       </div>
                     )}
 
-                    {/* Dirección */}
                     <div className="min-w-0">
                       <Label htmlFor="address" className="block mb-2">
                         Dirección <span className="text-destructive">*</span>
@@ -865,14 +800,8 @@ export default function  CheckoutPageClient({
                         placeholder="Av. Larco 123, Dpto 501"
                         className={validationErrors.address ? "border-destructive" : ""}
                       />
-                      {validationErrors.address && (
-                        <p className="text-xs text-destructive mt-1">
-                          {validationErrors.address}
-                        </p>
-                      )}
                     </div>
 
-                    {/* Referencia (opcional) */}
                     <div className="min-w-0">
                       <Label htmlFor="reference" className="block mb-2">Referencia (opcional)</Label>
                       <Input
@@ -886,26 +815,27 @@ export default function  CheckoutPageClient({
                   </CardContent>
                 </Card>
 
-             {/* Método de Pago */}
-<Card className="min-w-0">
-  <CardHeader>
-    <CardTitle>Método de Pago</CardTitle>
-  </CardHeader>
-  <CardContent className="space-y-3 min-w-0">
-    {/* ✅ Selector de métodos de pago (UNA SOLA VEZ) */}
-    <PaymentMethodSelector
-      selectedMethod={formData.paymentMethod}
-      onMethodChange={(method) => {
-        setFormData({ ...formData, paymentMethod: method });
-        setCulqiToken(null); // Reset token al cambiar método
-      }}
-      disabled={loading}
-    />
+                {/* Método de Pago */}
+                <Card className="min-w-0">
+                  <CardHeader>
+                    <CardTitle>Método de Pago</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 min-w-0">
+                    <PaymentMethodSelector
+                      selectedMethod={formData.paymentMethod}
+                      onMethodChange={(method) => {
+                        setFormData({ ...formData, paymentMethod: method });
+                        setCulqiToken(null);
+                        processingRef.current = false;
+                      }}
+                      disabled={loading || isProcessingPayment}
+                    />
 
- {/* ✅ SOLO MOSTRAR BOTÓN DE CULQI - SIN ESTADO DE TOKEN */}
+                    {/* ✅ SOLO MOSTRAR BOTÓN DE CULQI - SIN ESTADO DE TOKEN */}
                     {formData.paymentMethod === "CARD" && (
                       <div className="pl-0 sm:pl-10 pr-0 sm:pr-3 mt-4 space-y-3">
                         <CulqiCheckoutButton
+                          key={`culqi-${formData.customerEmail}-${formData.acceptTerms}`}
                           amount={Math.round(total * 100)}
                           email={formData.customerEmail}
                           customerName={formData.customerName}
@@ -929,8 +859,9 @@ export default function  CheckoutPageClient({
                         </p>
                       </div>
                     )}
-  </CardContent>
-</Card>
+                  </CardContent>
+                </Card>
+
                 {/* Notas Adicionales */}
                 <Card className="min-w-0">
                   <CardHeader>
@@ -949,7 +880,7 @@ export default function  CheckoutPageClient({
                 </Card>
               </div>
 
-              {/* 🖥️ RESUMEN DE ORDEN - SOLO DESKTOP */}
+              {/* Resumen Desktop */}
               <div className="hidden lg:block">
                 <Card className="sticky top-24">
                   <CardHeader>
@@ -958,7 +889,6 @@ export default function  CheckoutPageClient({
                   <CardContent className="space-y-4">
                     <OrderSummaryContent />
 
-                    {/* Términos y Condiciones */}
                     <div className="pt-2">
                       <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
                         <Checkbox
@@ -967,7 +897,7 @@ export default function  CheckoutPageClient({
                           onCheckedChange={(checked) =>
                             setFormData({ ...formData, acceptTerms: checked === true })
                           }
-                          className={validationErrors.acceptTerms ? "border-destructive mt-1 flex-shrink-0" : "mt-1 flex-shrink-0"}
+                          className="mt-1 flex-shrink-0"
                         />
                         <div className="flex-1">
                           <Label
@@ -980,19 +910,40 @@ export default function  CheckoutPageClient({
                               </span>
                             </TermsAndConditions> de compra <span className="text-destructive">*</span>
                           </Label>
-                          {validationErrors.acceptTerms && (
-                            <p className="text-xs text-destructive mt-1">
-                              {validationErrors.acceptTerms}
-                            </p>
-                          )}
                         </div>
                       </div>
                     </div>
 
-             
-   
+                    {/* ✅ BOTÓN DE DESKTOP PARA YAPE/PLIN/PAYPAL */}
+                    {formData.paymentMethod !== "CARD" && (
+                      <Button
+                        type="submit"
+                        size="lg"
+                        className="w-full"
+                        disabled={
+                          loading || 
+                          !stockVerified || 
+                          stockCheckLoading || 
+                          !selectedShippingRate ||
+                          !formData.acceptTerms
+                        }
+                        onClick={handleSubmit}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Procesando...
+                          </>
+                        ) : stockCheckLoading ? (
+                          "Verificando stock..."
+                        ) : !selectedShippingRate ? (
+                          "Selecciona método de envío"
+                        ) : (
+                          `Confirmar Pedido ${formatPrice(total)}`
+                        )}
+                      </Button>
+                    )}
 
-                    {/* Métodos de pago aceptados */}
                     <div className="space-y-2">
                       <p className="text-center text-xs text-muted-foreground">
                         🔒 Pago 100% seguro y encriptado
@@ -1000,11 +951,11 @@ export default function  CheckoutPageClient({
                       <div className="flex items-center justify-center gap-2 flex-wrap">
                         <span className="text-xs text-muted-foreground">Aceptamos:</span>
                         <div className="flex items-center gap-2">
-                          <VisaIcon width={28} height={18} className="opacity-70 hover:opacity-100 transition-opacity" />
-                          <MastercardIcon width={26} height={16} className="opacity-70 hover:opacity-100 transition-opacity" />
-                          <YapeIcon width={24} height={24} className="opacity-70 hover:opacity-100 transition-opacity" />
-                          <PlinIcon width={24} height={24} className="opacity-70 hover:opacity-100 transition-opacity" />
-                          <PayPalIcon width={26} height={16} className="opacity-70 hover:opacity-100 transition-opacity" />
+                          <VisaIcon width={28} height={18} className="opacity-70" />
+                          <MastercardIcon width={26} height={16} className="opacity-70" />
+                          <YapeIcon width={24} height={24} className="opacity-70" />
+                          <PlinIcon width={24} height={24} className="opacity-70" />
+                          <PayPalIcon width={26} height={16} className="opacity-70" />
                         </div>
                       </div>
                     </div>
@@ -1016,10 +967,9 @@ export default function  CheckoutPageClient({
         </div>
       </div>
 
-      {/* 📱 BOTÓN FLOTANTE INFERIOR - SOLO MÓVIL */}
+      {/* Botón flotante móvil */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
         <div className="px-4 py-3 space-y-3">
-          {/* Términos en móvil - más compacto pero legible */}
           <div className="flex items-start space-x-2 py-1">
             <Checkbox
               id="acceptTermsMobile"
@@ -1027,7 +977,7 @@ export default function  CheckoutPageClient({
               onCheckedChange={(checked) =>
                 setFormData({ ...formData, acceptTerms: checked === true })
               }
-              className={validationErrors.acceptTerms ? "border-destructive mt-1 flex-shrink-0" : "mt-1 flex-shrink-0"}
+              className="mt-1 flex-shrink-0"
             />
             <Label
               htmlFor="acceptTermsMobile"
@@ -1041,7 +991,7 @@ export default function  CheckoutPageClient({
             </Label>
           </div>
 
-         {/* ✅ BOTÓN SOLO PARA YAPE/PLIN/PAYPAL */}
+          {/* ✅ BOTÓN SOLO PARA YAPE/PLIN/PAYPAL */}
           {formData.paymentMethod !== "CARD" && (
             <Button
               type="submit"
@@ -1070,7 +1020,6 @@ export default function  CheckoutPageClient({
             </Button>
           )}
 
-          {/* Métodos de pago - versión móvil compacta */}
           <div className="flex items-center justify-center gap-1.5 flex-wrap pt-1">
             <VisaIcon width={24} height={16} className="opacity-60" />
             <MastercardIcon width={22} height={14} className="opacity-60" />
