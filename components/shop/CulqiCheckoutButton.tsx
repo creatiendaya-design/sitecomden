@@ -14,9 +14,8 @@ interface CulqiCheckoutButtonProps {
   onError: (error: string) => void;
   disabled?: boolean;
   className?: string;
-  // ✅ Props desde settings
-  siteName?: string;       // Nombre de la tienda
-  siteLogo?: string;       // Logo de la tienda
+  siteName?: string;
+  siteLogo?: string;
 }
 
 export default function CulqiCheckoutButton({ 
@@ -27,8 +26,8 @@ export default function CulqiCheckoutButton({
   onError,
   disabled = false,
   className = '',
-  siteName = 'nuejoy',     // ✅ Fallback
-  siteLogo = '/logo.png'       // ✅ Fallback
+  siteName = 'nuejoy',
+  siteLogo = '/logo.png'
 }: CulqiCheckoutButtonProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -40,20 +39,47 @@ export default function CulqiCheckoutButton({
         if ((window as any).Culqi.token) {
           // ✅ Token creado exitosamente
           const token = (window as any).Culqi.token.id;
-          console.log('Token Culqi creado:', token);
+          console.log('✅ Token Culqi recibido:', token);
+          
+          // 🔴 CERRAR EL POPUP DE CULQI
+          try {
+            (window as any).Culqi.close();
+            console.log('✅ Popup de Culqi cerrado');
+          } catch (e) {
+            console.warn('No se pudo cerrar el popup de Culqi:', e);
+          }
+          
           setIsProcessing(false);
+          
+          // ✅ Llamar al callback de éxito
           onSuccess(token);
+          
         } else if ((window as any).Culqi.order) {
           // Orden creada (para otros métodos de pago)
           const order = (window as any).Culqi.order;
           console.log('Orden Culqi creada:', order);
+          
+          try {
+            (window as any).Culqi.close();
+          } catch (e) {
+            console.warn('No se pudo cerrar el popup de Culqi:', e);
+          }
+          
           setIsProcessing(false);
+          
         } else {
           // ❌ Error
           const error = (window as any).Culqi.error;
-          console.error('Error Culqi:', error);
+          console.error('❌ Error Culqi:', error);
+          
+          try {
+            (window as any).Culqi.close();
+          } catch (e) {
+            console.warn('No se pudo cerrar el popup de Culqi:', e);
+          }
+          
           setIsProcessing(false);
-          onError(error?.user_message || 'Error al procesar el pago');
+          onError(error?.user_message || error?.merchant_message || 'Error al procesar el pago');
         }
       };
     }
@@ -63,17 +89,34 @@ export default function CulqiCheckoutButton({
     if (typeof window !== 'undefined' && (window as any).Culqi && isLoaded) {
       setIsProcessing(true);
       
-      // ✅ Configurar settings cada vez que se abre - DINÁMICO
-      (window as any).Culqi.settings({
-        title: siteName,                    // ✅ Desde settings
-        currency: 'PEN',
-        description: `Pago de ${customerName}`,
-        amount: amount,
-
-      });
-      
-      // Abrir el checkout
-      (window as any).Culqi.open();
+      try {
+        console.log('🎯 Abriendo Culqi Checkout con:', {
+          title: siteName,
+          amount: amount,
+          email: email,
+          name: customerName
+        });
+        
+        // ✅ CONFIGURACIÓN CORRECTA DE CULQI SETTINGS
+        (window as any).Culqi.settings({
+          title: siteName,
+          currency: 'PEN',
+          description: `Pago de ${customerName}`,
+          amount: amount
+        });
+        
+        // Abrir el checkout
+        (window as any).Culqi.open();
+        console.log('✅ Culqi checkout abierto');
+        
+      } catch (error) {
+        console.error('❌ Error al abrir Culqi:', error);
+        setIsProcessing(false);
+        onError('Error al abrir el formulario de pago');
+      }
+    } else {
+      console.error('❌ Culqi no está disponible');
+      onError('El sistema de pagos no está disponible');
     }
   };
 
@@ -84,29 +127,32 @@ export default function CulqiCheckoutButton({
         src="https://checkout.culqi.com/js/v4"
         onLoad={() => {
           if (typeof window !== 'undefined') {
+            console.log('📦 Script de Culqi cargado');
+            
             // Configurar Culqi con la clave pública
             (window as any).Culqi.publicKey = process.env.NEXT_PUBLIC_CULQI_PUBLIC_KEY;
+            console.log('🔑 Public key configurada');
             
             // ✅ Construir URL completa del logo
             const logoUrl = siteLogo.startsWith('http') 
               ? siteLogo 
               : `${window.location.origin}${siteLogo}`;
             
-            // Configurar opciones del checkout (personalización)
+            // Configurar opciones del checkout (personalización visual)
             (window as any).Culqi.options({
-              lang: 'auto', // auto, es, en
-              installments: false, // Cuotas desactivadas
+              lang: 'auto',
+              installments: false,
               paymentMethods: {
                 tarjeta: true,
-                yape: false,      // Solo tarjetas en este checkout
+                yape: false,
                 bancaMovil: false,
                 agente: false,
                 billetera: false,
                 cuotealo: false
               },
               style: {
-                logo: logoUrl,               // ✅ Logo desde settings
-                bannerColor: '#FF6B00',      // Color principal
+                logo: logoUrl,
+                bannerColor: '#FF6B00',
                 buttonBackground: '#FF6B00', 
                 menuColor: '#FF6B00',
                 linksColor: '#FF6B00',
@@ -116,11 +162,12 @@ export default function CulqiCheckoutButton({
               }
             });
             
+            console.log('🎨 Opciones de estilo configuradas');
             setIsLoaded(true);
           }
         }}
         onError={(e) => {
-          console.error('Error cargando Culqi:', e);
+          console.error('❌ Error cargando Culqi:', e);
           onError('Error al cargar el sistema de pagos');
         }}
       />

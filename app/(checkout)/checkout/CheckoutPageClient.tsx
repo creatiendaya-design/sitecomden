@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef  } from "react";
 import { useCartStore } from "@/store/cart";
 import { formatPrice } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -68,7 +68,7 @@ export default function  CheckoutPageClient({
   const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();
   const { formData, setFormData, isLoaded, clearPersistedData } = 
     usePersistedCheckoutForm(initialFormData);
-  
+   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -89,7 +89,7 @@ export default function  CheckoutPageClient({
     discount: number;
     description: string | null;
   } | null>(null);
-
+ const processingRef = useRef(false);
   // Verificar stock al cargar
   useEffect(() => {
     if (items.length > 0 && isLoaded) {
@@ -138,7 +138,137 @@ export default function  CheckoutPageClient({
     
     setStockCheckLoading(false);
   };
+ // ✅ FUNCIÓN QUE SE EJECUTA AUTOMÁTICAMENTE AL OBTENER EL TOKEN
+  const processPaymentAutomatically = async () => {
+    // Evitar doble procesamiento
+    if (processingRef.current) {
+      console.log('⚠️ Ya se está procesando un pago, saltando...');
+      return;
+    }
 
+    processingRef.current = true;
+    setIsProcessingPayment(true);
+    setError(null);
+
+    try {
+      console.log('🚀 Iniciando proceso automático de pago...');
+
+      // Validaciones rápidas
+      if (!formData.districtCode || !selectedShippingRate || !formData.acceptTerms) {
+        setError("Por favor completa todos los campos requeridos");
+        setIsProcessingPayment(false);
+        processingRef.current = false;
+        setCulqiToken(null); // Reset token para permitir reintentar
+        return;
+      }
+
+      // Verificar stock final
+      const stockItems = items.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        variantId: item.variantId || null,
+        quantity: item.quantity,
+      }));
+
+      const stockResult = await checkCartStock(stockItems);
+      if (!stockResult.success) {
+        setError("Algunos productos ya no tienen stock disponible.");
+        setIsProcessingPayment(false);
+        processingRef.current = false;
+        setCulqiToken(null);
+        return;
+      }
+
+      // Track payment info
+      trackEvent("AddPaymentInfo", {
+        value: total,
+        currency: "PEN",
+        payment_type: "CARD",
+        contents: items.map((item) => ({
+          id: item.productId,
+          quantity: item.quantity,
+          item_price: item.price,
+        })),
+      });
+
+      // Preparar datos de la orden
+      const orderData = {
+        customerName: formData.customerName.trim(),
+        customerEmail: formData.customerEmail.trim().toLowerCase(),
+        customerPhone: formData.customerPhone.trim(),
+        customerDni: formData.customerDni.trim() || undefined,
+        address: formData.address.trim(),
+        district: formData.districtName || formData.districtCode,
+        city: formData.provinceName || "Lima",
+        department: formData.departmentName || "Lima",
+        districtCode: formData.districtCode,
+        reference: formData.reference?.trim() || undefined,
+        paymentMethod: "CARD" as const,
+        customerNotes: formData.customerNotes?.trim() || undefined,
+        acceptWhatsApp: formData.acceptWhatsApp || false,
+        items: items.map((item) => ({
+          id: item.id,
+          productId: item.productId,
+          variantId: item.variantId || undefined,
+          name: item.name,
+          variantName: item.variantName || undefined,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image || undefined,
+          options: item.options || undefined,
+        })),
+        shipping: appliedCoupon?.type === "FREE_SHIPPING" ? 0 : selectedShippingRate.finalCost,
+        shippingRateId: selectedShippingRate.id,
+        shippingMethod: selectedShippingRate.name,
+        shippingCarrier: selectedShippingRate.carrier || undefined,
+        shippingEstimatedDays: selectedShippingRate.estimatedDays || undefined,
+        couponCode: appliedCoupon?.code || undefined,
+        couponDiscount: appliedCoupon?.discount || 0,
+      };
+
+      console.log("📋 Creando orden...");
+      const result = await createOrder(orderData);
+
+      if (!result.success) {
+        setError(result.error || "Error al crear la orden");
+        setIsProcessingPayment(false);
+        processingRef.current = false;
+        setCulqiToken(null);
+        return;
+      }
+
+      console.log('💳 Procesando pago con Culqi...');
+      const paymentResult = await processCardPayment({
+        orderId: result.orderId!,
+        culqiToken: culqiToken!,
+        email: formData.customerEmail,
+      });
+
+      if (!paymentResult.success) {
+        setError(paymentResult.error || "Error al procesar el pago con tarjeta");
+        setIsProcessingPayment(false);
+        processingRef.current = false;
+        setCulqiToken(null);
+        return;
+      }
+
+      console.log('✅ Pago procesado exitosamente');
+
+      // Limpiar carrito y datos
+      clearCart();
+      clearPersistedData();
+
+      // Redirigir a confirmación
+      router.push(`/orden/${result.orderId}/confirmacion`);
+
+    } catch (err) {
+      console.error("❌ Error en proceso automático:", err);
+      setError("Error inesperado al procesar el pago. Por favor intenta nuevamente.");
+      setIsProcessingPayment(false);
+      processingRef.current = false;
+      setCulqiToken(null);
+    }
+  };
   if (items.length === 0) {
     return (
       <div className="container py-16">
@@ -772,50 +902,33 @@ export default function  CheckoutPageClient({
       disabled={loading}
     />
 
-    {/* ✅ Botón de Culqi SOLO cuando se selecciona CARD */}
-    {formData.paymentMethod === "CARD" && (
-      <div className="pl-0 sm:pl-10 pr-0 sm:pr-3 mt-4 space-y-3">
-        {/* Mostrar estado del token */}
-        {culqiToken ? (
-          <div className="p-3 rounded-lg border border-green-200 bg-green-50">
-            <div className="flex items-center gap-2 text-sm text-green-800">
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="font-medium">Tarjeta validada correctamente</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCulqiToken(null)}
-              className="text-xs text-green-700 underline mt-1 hover:text-green-800"
-            >
-              Cambiar tarjeta
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Botón para abrir Culqi Checkout */}
-            <CulqiCheckoutButton
-              amount={Math.round(total * 100)} // Convertir a céntimos
-              email={formData.customerEmail}
-              customerName={formData.customerName}
-              onSuccess={handleCulqiSuccess}
-              onError={handleCulqiError}
-              disabled={!formData.customerEmail || !formData.customerName}
-              className="w-full"
-               siteName={siteName}    // ✅ Desde settings
-                    siteLogo={siteLogo}    // ✅ Desde settings
-            />
-            
-            {/* Mensaje informativo */}
-            <p className="text-xs text-muted-foreground">
-              Se abrirá una ventana segura para ingresar los datos de tu tarjeta.
-              Aceptamos Visa, Mastercard y American Express.
-            </p>
-          </>
-        )}
-      </div>
-    )}
+ {/* ✅ SOLO MOSTRAR BOTÓN DE CULQI - SIN ESTADO DE TOKEN */}
+                    {formData.paymentMethod === "CARD" && (
+                      <div className="pl-0 sm:pl-10 pr-0 sm:pr-3 mt-4 space-y-3">
+                        <CulqiCheckoutButton
+                          amount={Math.round(total * 100)}
+                          email={formData.customerEmail}
+                          customerName={formData.customerName}
+                          onSuccess={handleCulqiSuccess}
+                          onError={handleCulqiError}
+                          disabled={
+                            !formData.customerEmail || 
+                            !formData.customerName || 
+                            !formData.acceptTerms ||
+                            !selectedShippingRate ||
+                            isProcessingPayment
+                          }
+                          className="w-full"
+                          siteName={siteName}
+                          siteLogo={siteLogo}
+                        />
+                        
+                        <p className="text-xs text-muted-foreground">
+                          Al hacer clic se abrirá una ventana segura para ingresar los datos de tu tarjeta.
+                          Tu pago se procesará automáticamente.
+                        </p>
+                      </div>
+                    )}
   </CardContent>
 </Card>
                 {/* Notas Adicionales */}
@@ -928,33 +1041,34 @@ export default function  CheckoutPageClient({
             </Label>
           </div>
 
-          {/* Botón de pago con precio */}
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full text-base font-semibold h-12"
-            disabled={
-              loading || 
-              !stockVerified || 
-              stockCheckLoading || 
-              !selectedShippingRate ||
-              (formData.paymentMethod === "CARD" && !culqiToken)
-            }
-            onClick={handleSubmit}
-          >
-            {loading ? (
-              "Procesando..."
-            ) : stockCheckLoading ? (
-              "Verificando stock..."
-            ) : !selectedShippingRate ? (
-              "Selecciona método de envío"
-            ) : (
-              <span className="flex items-center justify-center gap-2">
-                <span>{formData.paymentMethod === "CARD" ? "Pagar" : "Confirmar"}</span>
-                <span className="font-bold">{formatPrice(total)}</span>
-              </span>
-            )}
-          </Button>
+         {/* ✅ BOTÓN SOLO PARA YAPE/PLIN/PAYPAL */}
+          {formData.paymentMethod !== "CARD" && (
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full text-base font-semibold h-12"
+              disabled={
+                loading || 
+                !stockVerified || 
+                stockCheckLoading || 
+                !selectedShippingRate
+              }
+              onClick={handleSubmit}
+            >
+              {loading ? (
+                "Procesando..."
+              ) : stockCheckLoading ? (
+                "Verificando stock..."
+              ) : !selectedShippingRate ? (
+                "Selecciona método de envío"
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <span>Confirmar Pedido</span>
+                  <span className="font-bold">{formatPrice(total)}</span>
+                </span>
+              )}
+            </Button>
+          )}
 
           {/* Métodos de pago - versión móvil compacta */}
           <div className="flex items-center justify-center gap-1.5 flex-wrap pt-1">
