@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Loader2 } from 'lucide-react';
+import { CreditCard, Loader2, Shield, Lock } from 'lucide-react';
 
 interface CulqiCheckoutButtonProps {
   amount: number;
@@ -35,7 +35,6 @@ export default function CulqiCheckoutButton({
   const scriptLoadedRef = useRef(false);
 
   const resetProcessingState = useCallback(() => {
-    console.log('🔄 Reseteando estado');
     setIsProcessing(false);
     if (processingTimeoutRef.current) {
       clearTimeout(processingTimeoutRef.current);
@@ -43,58 +42,39 @@ export default function CulqiCheckoutButton({
     }
   }, []);
 
-  // ✅ CARGAR SCRIPT MANUALMENTE
   useEffect(() => {
     if (scriptLoadedRef.current) {
-      console.log('Script ya cargado anteriormente');
       return;
     }
 
-    console.log('🚀 Iniciando carga de Culqi...');
-    
-    // Verificar si ya existe el script
     const existingScript = document.querySelector('script[src*="checkout.culqi.com"]');
     if (existingScript) {
-      console.log('⚠️ Script de Culqi ya existe en el DOM');
       existingScript.remove();
     }
 
-    // Crear script manualmente
     const script = document.createElement('script');
     script.src = 'https://checkout.culqi.com/js/v4';
     script.async = true;
     
     script.onload = () => {
-      console.log('✅ ========== SCRIPT CARGADO ==========');
-      
       if (typeof window === 'undefined' || !(window as any).Culqi) {
-        console.error('❌ Culqi no está disponible después de cargar el script');
-        setLoadError('Error: Culqi no se cargó correctamente');
+        setLoadError('Error al cargar el sistema de pagos');
         return;
       }
 
-      console.log('✅ Culqi disponible en window');
-
-      // Verificar public key
       const publicKey = process.env.NEXT_PUBLIC_CULQI_PUBLIC_KEY;
-      console.log('🔑 Public key:', publicKey ? `${publicKey.substring(0, 15)}...` : '❌ NO DEFINIDA');
       
       if (!publicKey) {
-        console.error('❌ CRITICAL: Public key no definida');
         setLoadError('Error de configuración');
         return;
       }
 
-      // Configurar Culqi
       try {
         (window as any).Culqi.publicKey = publicKey;
-        console.log('✅ Public key asignada');
 
         const logoUrl = siteLogo.startsWith('http') 
           ? siteLogo 
           : `${window.location.origin}${siteLogo}`;
-        
-        console.log('🎨 Logo URL:', logoUrl);
 
         (window as any).Culqi.options({
           lang: 'auto',
@@ -118,22 +98,15 @@ export default function CulqiCheckoutButton({
             priceColor: '#000000'
           }
         });
-        
-        console.log('✅ Opciones configuradas');
 
-        // Configurar handler
         (window as any).culqi = () => {
-          console.log('🎯 ========== HANDLER EJECUTADO ==========');
-          
           resetProcessingState();
           
           if ((window as any).Culqi.token) {
             const token = (window as any).Culqi.token.id;
-            console.log('✅ Token recibido:', token);
             
             try {
               (window as any).Culqi.close();
-              console.log('✅ Popup cerrado');
             } catch (e) {
               console.warn('Error cerrando popup:', e);
             }
@@ -142,7 +115,6 @@ export default function CulqiCheckoutButton({
             
           } else if ((window as any).Culqi.error) {
             const error = (window as any).Culqi.error;
-            console.error('❌ Error Culqi:', error);
             
             try {
               (window as any).Culqi.close();
@@ -154,28 +126,21 @@ export default function CulqiCheckoutButton({
           }
         };
         
-        console.log('✅ Handler configurado');
-        console.log('🟢 TODO LISTO - Cambiando isLoaded a TRUE');
-        
         scriptLoadedRef.current = true;
         setIsLoaded(true);
         
       } catch (err) {
-        console.error('❌ Error configurando Culqi:', err);
         setLoadError('Error al configurar el sistema de pagos');
       }
     };
     
-    script.onerror = (error) => {
-      console.error('❌ Error cargando script:', error);
+    script.onerror = () => {
       setLoadError('Error al cargar el sistema de pagos');
     };
     
-    console.log('📦 Agregando script al DOM...');
     document.head.appendChild(script);
     
     return () => {
-      console.log('🧹 Limpiando componente');
       if (processingTimeoutRef.current) {
         clearTimeout(processingTimeoutRef.current);
       }
@@ -183,29 +148,18 @@ export default function CulqiCheckoutButton({
   }, [onSuccess, onError, resetProcessingState, siteLogo, siteName]);
 
   const openCulqiCheckout = () => {
-    console.log('🚀 ========== ABRIENDO CHECKOUT ==========');
-    console.log('Estado:', { isLoaded, isProcessing, email, amount });
-    
-    if (!isLoaded) {
-      console.error('❌ No está cargado');
-      return;
-    }
-    
-    if (!(window as any).Culqi) {
-      console.error('❌ Culqi no disponible');
+    if (!isLoaded || !(window as any).Culqi) {
       onError('Sistema de pagos no disponible');
       return;
     }
     
     processingTimeoutRef.current = setTimeout(() => {
-      console.warn('⏱️ Timeout de 30 segundos');
       resetProcessingState();
     }, 30000);
     
     setIsProcessing(true);
     
     try {
-      console.log('📝 Configurando settings...');
       (window as any).Culqi.settings({
         title: siteName,
         currency: 'PEN',
@@ -213,12 +167,9 @@ export default function CulqiCheckoutButton({
         amount: amount
       });
       
-      console.log('🎨 Abriendo Culqi.open()...');
       (window as any).Culqi.open();
-      console.log('✅ Popup abierto');
       
     } catch (error) {
-      console.error('❌ Error:', error);
       resetProcessingState();
       onError('Error al abrir el formulario de pago');
     }
@@ -226,59 +177,88 @@ export default function CulqiCheckoutButton({
 
   if (loadError) {
     return (
-      <div className="text-sm text-destructive">
-        {loadError}
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-full bg-destructive/10 p-2">
+            <CreditCard className="h-4 w-4 text-destructive" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-destructive">
+              {loadError}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Por favor recarga la página o contacta con soporte.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Botón principal de pago */}
       <Button
         type="button"
         onClick={openCulqiCheckout}
         disabled={disabled || !isLoaded || !email || isProcessing}
-        className={className}
-        variant="outline"
+        className={`relative overflow-hidden group ${className}`}
+        size="lg"
       >
         {isProcessing ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Procesando...
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Abriendo ventana segura...
           </>
         ) : !isLoaded ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Cargando...
           </>
         ) : (
           <>
-            <CreditCard className="mr-2 h-4 w-4" />
-            Ingresar datos de tarjeta
+            <Lock className="mr-2 h-5 w-5" />
+            Pagar con Tarjeta
+            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500" />
           </>
         )}
       </Button>
-      
+
+      {/* Indicadores de seguridad */}
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <Shield className="h-3.5 w-3.5 text-green-600" />
+        <span>Pago procesado de forma segura por Culqi</span>
+      </div>
+
+      {/* Información adicional */}
+      <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+        <div className="flex items-start gap-2">
+          <div className="rounded-full bg-blue-100 p-1 mt-0.5">
+            <CreditCard className="h-3.5 w-3.5 text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-blue-900">
+              Tu pago se procesará automáticamente
+            </p>
+            <p className="text-xs text-blue-700 mt-1">
+              Se abrirá una ventana segura donde ingresarás los datos de tu tarjeta. Una vez confirmado, tu pedido se procesará inmediatamente.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Botón de cancelar si está procesando */}
       {isProcessing && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={resetProcessingState}
-          className="text-xs text-muted-foreground underline hover:text-foreground"
+          className="w-full text-xs"
         >
           Cancelar
-        </button>
+        </Button>
       )}
-      
-      {!email && isLoaded && (
-        <p className="text-xs text-destructive">
-          Por favor completa tu email primero
-        </p>
-      )}
-      
-      <div className="text-xs text-muted-foreground">
-        Debug: {isLoaded ? '✅ Listo' : '⏳ Cargando'} | 
-        {isProcessing ? ' 🔄 Procesando' : ' ⚪ Esperando'}
-      </div>
     </div>
   );
 }

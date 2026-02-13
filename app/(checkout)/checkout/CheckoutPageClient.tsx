@@ -961,16 +961,16 @@ export default function CheckoutPageClient({
                       disabled={loading || isProcessingPayment}
                     />
 
-                    {/* ✅ SECCIÓN DE PAGO CON TARJETA CON FEEDBACK MEJORADO */}
+                    {/* ✅ SECCIÓN DE PAGO CON TARJETA - DISEÑO MEJORADO */}
                     {formData.paymentMethod === "CARD" && (
-                      <div className="pl-0 sm:pl-10 pr-0 sm:pr-3 mt-4 space-y-3">
+                      <div className="mt-6 space-y-4">
                         {/* Mostrar requisitos faltantes ANTES del botón */}
-                        {missingRequirements.length > 0 && (
+                        {missingRequirements.length > 0 ? (
                           <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg p-4 shadow-md">
                             <div className="flex gap-3">
                               <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                               <div className="flex-1 min-w-0">
-                                <p className="font-bold text-amber-900 mb-2">Completa estos datos:</p>
+                                <p className="font-bold text-amber-900 mb-2">Para continuar, completa:</p>
                                 <ul className="space-y-1 text-sm text-amber-800">
                                   {missingRequirements.map((req, i) => (
                                     <li key={i} className="flex items-start gap-2">
@@ -991,23 +991,21 @@ export default function CheckoutPageClient({
                               </div>
                             </div>
                           </div>
-                        )}
-
-                        {/* Indicador visual de completitud */}
-                        {missingRequirements.length === 0 && (
+                        ) : (
                           <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-4 shadow-md">
                             <div className="flex gap-3 items-start">
                               <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                               <div className="flex-1">
                                 <p className="font-bold text-green-900">¡Todo listo!</p>
                                 <p className="text-sm text-green-800 mt-1">
-                                  Puedes ingresar los datos de tu tarjeta de forma segura.
+                                  Haz clic en el botón de abajo para pagar de forma segura.
                                 </p>
                               </div>
                             </div>
                           </div>
                         )}
                         
+                        {/* Botón de Culqi */}
                         <CulqiCheckoutButton
                           key={`culqi-${formData.customerEmail}-${formData.acceptTerms}`}
                           amount={Math.round(total * 100)}
@@ -1027,11 +1025,6 @@ export default function CheckoutPageClient({
                           siteName={siteName}
                           siteLogo={siteLogo}
                         />
-                        
-                        <p className="text-xs text-muted-foreground text-center">
-                          🔒 Al hacer clic se abrirá una ventana segura para ingresar los datos de tu tarjeta.
-                          Tu pago se procesará automáticamente.
-                        </p>
                       </div>
                     )}
                   </CardContent>
