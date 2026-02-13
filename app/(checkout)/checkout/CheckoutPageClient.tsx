@@ -960,73 +960,6 @@ export default function CheckoutPageClient({
                       }}
                       disabled={loading || isProcessingPayment}
                     />
-
-                    {/* ✅ SECCIÓN DE PAGO CON TARJETA - DISEÑO MEJORADO */}
-                    {formData.paymentMethod === "CARD" && (
-                      <div className="mt-6 space-y-4">
-                        {/* Mostrar requisitos faltantes ANTES del botón */}
-                        {missingRequirements.length > 0 ? (
-                          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg p-4 shadow-md">
-                            <div className="flex gap-3">
-                              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-amber-900 mb-2">Para continuar, completa:</p>
-                                <ul className="space-y-1 text-sm text-amber-800">
-                                  {missingRequirements.map((req, i) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                      <span className="text-amber-600 font-bold">•</span>
-                                      <span>{req}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="mt-3 h-8 text-xs border-amber-400 text-amber-900 hover:bg-amber-100 hover:text-amber-950 font-semibold"
-                                  onClick={scrollToFirstMissing}
-                                >
-                                  Ir al primer campo faltante →
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-4 shadow-md">
-                            <div className="flex gap-3 items-start">
-                              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                              <div className="flex-1">
-                                <p className="font-bold text-green-900">¡Todo listo!</p>
-                                <p className="text-sm text-green-800 mt-1">
-                                  Haz clic en el botón de abajo para pagar de forma segura.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Botón de Culqi */}
-                        <CulqiCheckoutButton
-                          key={`culqi-${formData.customerEmail}-${formData.acceptTerms}`}
-                          amount={Math.round(total * 100)}
-                          email={formData.customerEmail}
-                          customerName={formData.customerName}
-                          onSuccess={handleCulqiSuccess}
-                          onError={handleCulqiError}
-                          disabled={
-                            !formData.customerEmail || 
-                            !formData.customerName || 
-                            !formData.acceptTerms ||
-                            !selectedShippingRate ||
-                            isProcessingPayment ||
-                            missingRequirements.length > 0
-                          }
-                          className="w-full"
-                          siteName={siteName}
-                          siteLogo={siteLogo}
-                        />
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
 
@@ -1085,7 +1018,73 @@ export default function CheckoutPageClient({
                       </div>
                     </div>
 
-                    {formData.paymentMethod !== "CARD" && (
+                    {/* ✅ BOTÓN DE PAGO CON TARJETA - DESKTOP */}
+                    {formData.paymentMethod === "CARD" ? (
+                      <div className="space-y-3 pt-2">
+                        {/* Alertas de validación */}
+                        {missingRequirements.length > 0 ? (
+                          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg p-3 shadow-md">
+                            <div className="flex gap-2">
+                              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-amber-900 text-sm mb-1.5">Para continuar:</p>
+                                <ul className="space-y-0.5 text-xs text-amber-800">
+                                  {missingRequirements.map((req, i) => (
+                                    <li key={i} className="flex items-start gap-1.5">
+                                      <span className="text-amber-600 font-bold">•</span>
+                                      <span>{req}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-2 h-7 text-xs border-amber-400 text-amber-900 hover:bg-amber-100 hover:text-amber-950 font-semibold"
+                                  onClick={scrollToFirstMissing}
+                                >
+                                  Ir al primer campo →
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-3 shadow-md">
+                            <div className="flex gap-2 items-start">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="font-bold text-green-900 text-sm">¡Todo listo!</p>
+                                <p className="text-xs text-green-800 mt-1">
+                                  Completa tu pago de forma segura.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Botón de Culqi */}
+                        <CulqiCheckoutButton
+                          key={`culqi-desktop-${formData.customerEmail}-${formData.acceptTerms}`}
+                          amount={Math.round(total * 100)}
+                          email={formData.customerEmail}
+                          customerName={formData.customerName}
+                          onSuccess={handleCulqiSuccess}
+                          onError={handleCulqiError}
+                          disabled={
+                            !formData.customerEmail || 
+                            !formData.customerName || 
+                            !formData.acceptTerms ||
+                            !selectedShippingRate ||
+                            isProcessingPayment ||
+                            missingRequirements.length > 0
+                          }
+                          className="w-full"
+                          siteName={siteName}
+                          siteLogo={siteLogo}
+                        />
+                      </div>
+                    ) : (
+                      /* Botón para Yape/Plin/PayPal - Desktop */
                       <Button
                         type="submit"
                         size="lg"
@@ -1164,7 +1163,53 @@ export default function CheckoutPageClient({
             </Label>
           </div>
 
-          {formData.paymentMethod !== "CARD" && (
+          {/* ✅ BOTÓN DE PAGO CON TARJETA - MÓVIL */}
+          {formData.paymentMethod === "CARD" ? (
+            <div className="space-y-2">
+              {/* Alertas compactas para móvil */}
+              {missingRequirements.length > 0 ? (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-lg p-2.5 text-xs">
+                  <div className="flex gap-2">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-bold text-amber-900 mb-1">Falta completar:</p>
+                      <p className="text-amber-800">
+                        {missingRequirements.join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-300 rounded-lg p-2.5 text-xs">
+                  <div className="flex gap-2 items-center">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                    <p className="font-bold text-green-900">¡Listo para pagar!</p>
+                  </div>
+                </div>
+              )}
+              
+              <CulqiCheckoutButton
+                key={`culqi-mobile-${formData.customerEmail}-${formData.acceptTerms}`}
+                amount={Math.round(total * 100)}
+                email={formData.customerEmail}
+                customerName={formData.customerName}
+                onSuccess={handleCulqiSuccess}
+                onError={handleCulqiError}
+                disabled={
+                  !formData.customerEmail || 
+                  !formData.customerName || 
+                  !formData.acceptTerms ||
+                  !selectedShippingRate ||
+                  isProcessingPayment ||
+                  missingRequirements.length > 0
+                }
+                className="w-full"
+                siteName={siteName}
+                siteLogo={siteLogo}
+              />
+            </div>
+          ) : (
+            /* Botón para Yape/Plin/PayPal - Móvil */
             <Button
               type="submit"
               size="lg"
