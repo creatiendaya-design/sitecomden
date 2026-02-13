@@ -16,27 +16,7 @@ export default async function CheckoutFooter() {
   return (
     <footer className="border-t bg-muted/40">
       <div className="container py-8">
-        {/* Métodos de pago */}
-        <div className="mb-6 flex flex-wrap items-center justify-center gap-4">
-          <p className="text-sm text-muted-foreground">Métodos de pago:</p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
-              <VisaIcon width={40} height={26} />
-            </div>
-            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
-              <MastercardIcon width={34} height={22} />
-            </div>
-            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
-              <YapeIcon width={32} height={32} />
-            </div>
-            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
-              <PlinIcon width={32} height={32} />
-            </div>
-            <div className="flex h-10 items-center justify-center rounded-lg border bg-white px-4 shadow-sm hover:shadow-md transition-shadow">
-              <PayPalIcon width={34} height={22} />
-            </div>
-          </div>
-        </div>
+       
 
         {/* Separador */}
         <div className="mb-6 border-t" />
