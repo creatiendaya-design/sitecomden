@@ -69,7 +69,7 @@ export default function CulqiCheckoutButton({
         currency: 'PEN',
         description: `Pago de ${customerName}`,
         amount: amount,
-        order: `ORD-${Date.now()}`
+
       });
       
       // Abrir el checkout

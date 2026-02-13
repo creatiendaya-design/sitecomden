@@ -8,7 +8,6 @@ import { createOrder } from "@/actions/orders";
 import { processCardPayment } from "@/actions/payments";
 import { checkCartStock } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
-import { getSiteSettings } from "@/lib/site-settings";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
