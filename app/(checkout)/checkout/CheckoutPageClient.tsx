@@ -1124,7 +1124,7 @@ export default function CheckoutPageClient({
                           <MastercardIcon width={26} height={16} className="opacity-70" />
                           <YapeIcon width={24} height={24} className="opacity-70" />
                           <PlinIcon width={24} height={24} className="opacity-70" />
-                          <PayPalIcon width={26} height={16} className="opacity-70" />
+                          <PayPalIcon width={66} height={40} className="opacity-70" />
                         </div>
                       </div>
                     </div>
@@ -1242,7 +1242,7 @@ export default function CheckoutPageClient({
             <MastercardIcon width={22} height={14} className="opacity-60" />
             <YapeIcon width={20} height={20} className="opacity-60" />
             <PlinIcon width={20} height={20} className="opacity-60" />
-            <PayPalIcon width={22} height={14} className="opacity-60" />
+            <PayPalIcon width={52} height={30} className="opacity-60" />
             <span className="text-[10px] text-muted-foreground ml-1">🔒 Seguro</span>
           </div>
         </div>

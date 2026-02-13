@@ -6,8 +6,8 @@ interface PayPalIconProps {
 
 export default function PayPalIcon({ 
   className = "", 
-  width = 38, 
-  height = 24 
+  width = 58, 
+  height = 34 
 }: PayPalIconProps) {
   return (
     <svg 
