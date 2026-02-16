@@ -148,6 +148,18 @@ export default function EditProductForm({ product, categories }: EditProductForm
     setSelectedVariants([]);
   };
 
+  // 🔑 SOLUCIÓN: Crear clave normalizada de opciones (orden consistente)
+  const getVariantKey = (options: Record<string, string>) => {
+    return JSON.stringify(
+      Object.keys(options)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = options[key];
+          return acc;
+        }, {} as Record<string, string>)
+    );
+  };
+
   // 🆕 Crear snapshot solo de estructura (nombres y valores)
   // Ignora swatchType, colorHex, swatchImage, displayStyle
   const createOptionsSnapshot = (opts: ProductOption[]) => {
@@ -192,15 +204,21 @@ export default function EditProductForm({ product, categories }: EditProductForm
       combinations.push(...newCombinations);
     });
 
+    // 🔑 SOLUCIÓN: CREAR MAPA DE VARIANTES EXISTENTES usando clave normalizada
+    const existingVariantsMap = new Map(
+      variants.map((v) => [getVariantKey(v.options), v])
+    );
+
+    console.log(`📦 Variantes existentes en mapa: ${existingVariantsMap.size}`);
+
     // 🆕 Preservar datos de variantes existentes
     const newVariants: Variant[] = combinations.map((combo) => {
-      const existing = variants.find(
-        (v) => JSON.stringify(v.options) === JSON.stringify(combo)
-      );
+      const variantKey = getVariantKey(combo);
+      const existing = existingVariantsMap.get(variantKey);
       
       if (existing) {
         // ✅ PRESERVAR todos los datos de la variante existente
-        console.log(`  ✅ Preservando datos de variante: ${JSON.stringify(combo)}`);
+        console.log(`  ✅ Preservando datos de variante: ${JSON.stringify(combo)} (precio: ${existing.price}, stock: ${existing.stock})`);
         return existing;
       } else {
         // Crear nueva variante con valores por defecto
@@ -214,6 +232,10 @@ export default function EditProductForm({ product, categories }: EditProductForm
         };
       }
     });
+
+    console.log(`✅ Total variantes después de regenerar: ${newVariants.length}`);
+    console.log(`   - Preservadas: ${newVariants.filter(v => existingVariantsMap.has(getVariantKey(v.options))).length}`);
+    console.log(`   - Nuevas: ${newVariants.filter(v => !existingVariantsMap.has(getVariantKey(v.options))).length}`);
 
     setVariants(newVariants);
   };

@@ -21,7 +21,7 @@ import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import ImageUpload from "@/components/admin/ImageUpload";
 import RichTextEditor from "./RichTextEditor";
-import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor"; // 🆕 IMPORTAR
+import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
 
 // 🆕 Tipos actualizados con swatches
 interface ProductOptionValue {
@@ -110,6 +110,18 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     setSelectedVariants([]);
   };
 
+  // 🔑 SOLUCIÓN: Crear clave normalizada de opciones (orden consistente)
+  const getVariantKey = (options: Record<string, string>) => {
+    return JSON.stringify(
+      Object.keys(options)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = options[key];
+          return acc;
+        }, {} as Record<string, string>)
+    );
+  };
+
   // 🆕 Generar variantes cuando cambian las opciones
   const generateVariants = (opts: ProductOption[]) => {
     if (opts.length === 0 || opts.some((o) => o.values.length === 0)) {
@@ -130,19 +142,30 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
       combinations.push(...newCombinations);
     });
 
+    // 🔑 SOLUCIÓN: CREAR MAPA DE VARIANTES EXISTENTES usando clave normalizada
+    const existingVariantsMap = new Map(
+      variants.map((v) => [getVariantKey(v.options), v])
+    );
+
     const newVariants: Variant[] = combinations.map((combo) => {
-      const existing = variants.find(
-        (v) => JSON.stringify(v.options) === JSON.stringify(combo)
-      );
-      return (
-        existing || {
+      const variantKey = getVariantKey(combo);
+      const existing = existingVariantsMap.get(variantKey);
+      
+      if (existing) {
+        // ✅ PRESERVAR todos los datos de la variante existente
+        console.log(`  ✅ Preservando datos de variante: ${JSON.stringify(combo)} (precio: ${existing.price}, stock: ${existing.stock})`);
+        return existing;
+      } else {
+        // Crear nueva variante con valores por defecto
+        console.log(`  🆕 Creando nueva variante: ${JSON.stringify(combo)}`);
+        return {
           options: combo,
           price: formData.basePrice || "",
           compareAtPrice: "",
           stock: "0",
           sku: "",
-        }
-      );
+        };
+      }
     });
 
     setVariants(newVariants);
