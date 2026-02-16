@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
+import { getSiteSettings } from "@/lib/site-settings";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,9 @@ export default async function AdminOrderDetailPage({
   params,
 }: OrderDetailPageProps) {
   const { orderId } = await params;
+
+  // Obtener configuración del sitio para el URL
+  const siteSettings = await getSiteSettings();
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -91,9 +95,10 @@ export default async function AdminOrderDetailPage({
   const statusBadge = getStatusBadge(order.status);
   const paymentBadge = getPaymentBadge(order.paymentStatus);
 
-  // Link para que el cliente vea su orden
+  // Usar site_url de la configuración en lugar de variable de entorno
+  const baseUrl = siteSettings.site_url || 'http://localhost:3000';
   const viewLink = order.viewToken
-    ? `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
+    ? `${baseUrl}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
     : null;
 
   return (
@@ -288,6 +293,9 @@ export default async function AdminOrderDetailPage({
                   />
                   <CopyLinkButton link={viewLink} />
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  URL configurado: {baseUrl}
+                </p>
               </CardContent>
             </Card>
           )}
