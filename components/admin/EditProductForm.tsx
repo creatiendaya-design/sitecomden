@@ -15,7 +15,13 @@ import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 // Tipos
 interface ProductOptionValue {
   id: string;
@@ -74,6 +80,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
     active: product.active,
     featured: product.featured,
     hasVariants: product.hasVariants,
+    template: product.template || "STANDARD",
     metaTitle: product.metaTitle || "",
     metaDescription: product.metaDescription || "",
   });
@@ -640,7 +647,76 @@ export default function EditProductForm({ product, categories }: EditProductForm
                 </div>
               </CardContent>
             </Card>
-
+<Card>
+  <CardHeader>
+    <CardTitle>Presentación</CardTitle>
+    <p className="text-sm text-muted-foreground">
+      Elige cómo se mostrará este producto en la tienda
+    </p>
+  </CardHeader>
+  <CardContent className="space-y-4">
+    <div>
+      <Label htmlFor="template">Tipo de Página</Label>
+      <Select
+        value={formData.template}
+        onValueChange={(value) =>
+          setFormData({ ...formData, template: value })
+        }
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Selecciona un template" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="STANDARD">
+            <div className="flex flex-col">
+              <span className="font-medium">Página Normal</span>
+              <span className="text-xs text-muted-foreground">
+                Vista estándar de producto
+              </span>
+            </div>
+          </SelectItem>
+          <SelectItem value="LANDING">
+            <div className="flex flex-col">
+              <span className="font-medium">Landing Page</span>
+              <span className="text-xs text-muted-foreground">
+                Con secciones especiales y CTA destacados
+              </span>
+            </div>
+          </SelectItem>
+          {/* Futuros templates */}
+          <SelectItem value="MINIMAL" disabled>
+            <div className="flex flex-col">
+              <span className="font-medium">Minimalista</span>
+              <span className="text-xs text-muted-foreground">
+                Próximamente
+              </span>
+            </div>
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+    
+    {/* Preview del template seleccionado */}
+    <div className="rounded-lg border p-3 bg-muted/30">
+      <p className="text-xs font-medium mb-2">Vista Previa:</p>
+      {formData.template === "STANDARD" && (
+        <p className="text-xs text-muted-foreground">
+          ✓ Galería de imágenes izquierda<br/>
+          ✓ Información básica derecha<br/>
+          ✓ Descripción debajo
+        </p>
+      )}
+      {formData.template === "LANDING" && (
+        <p className="text-xs text-muted-foreground">
+          ✓ Hero con imagen destacada<br/>
+          ✓ Secciones de beneficios<br/>
+          ✓ Testimonios<br/>
+          ✓ CTAs prominentes
+        </p>
+      )}
+    </div>
+  </CardContent>
+</Card>
             <Card>
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>

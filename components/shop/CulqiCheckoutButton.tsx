@@ -81,18 +81,18 @@ export default function CulqiCheckoutButton({
           installments: false,
           paymentMethods: {
             tarjeta: true,
-            yape: false,
-            bancaMovil: false,
-            agente: false,
-            billetera: false,
-            cuotealo: false
+            yape: true,
+            bancaMovil: true,
+            agente: true,
+            billetera: true,
+            cuotealo: true
           },
           style: {
             logo: logoUrl,
-            bannerColor: '#FF6B00',
-            buttonBackground: '#FF6B00', 
-            menuColor: '#FF6B00',
-            linksColor: '#FF6B00',
+            bannerColor: '#005de7',
+            buttonBackground: '#050505', 
+            menuColor: '#003441',
+            linksColor: '#00cea1',
             buttonText: 'Pagar',
             buttonTextColor: '#FFFFFF',
             priceColor: '#000000'

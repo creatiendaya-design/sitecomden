@@ -94,6 +94,7 @@ model Product {
   stock            Int               @default(0)
   images           Json              @default("[]")
   hasVariants      Boolean           @default(false)
+  template         ProductTemplate   @default(STANDARD)
   metaTitle        String?
   metaDescription  String?
   featured         Boolean           @default(false)
@@ -115,8 +116,15 @@ model Product {
   @@index([slug])
   @@index([active])
   @@index([featured])
+  @@index([template])
 }
 
+enum ProductTemplate {
+  STANDARD    
+  LANDING     
+  MINIMAL   
+  GALLERY    
+}
 
 model ProductCategory {
   productId  String

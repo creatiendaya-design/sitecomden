@@ -77,6 +77,7 @@ export async function PUT(
         active: validatedData.active ?? true,
         featured: validatedData.featured ?? false,
         hasVariants: validatedData.hasVariants,
+        template: validatedData.template || "STANDARD",
         metaTitle: validatedData.metaTitle || null,
         metaDescription: validatedData.metaDescription || null,
         weight: validatedData.weight || null,

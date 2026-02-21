@@ -156,6 +156,12 @@ export const createProductSchema = z
     featured: z.boolean().optional().default(false),
     hasVariants: z.boolean().optional().default(false),
 
+    // 🆕 NUEVO: Template de presentación
+    template: z
+      .enum(["STANDARD", "LANDING", "MINIMAL", "GALLERY"])
+      .optional()
+      .default("STANDARD"),
+
     // Categoría
     categoryId: z
       .string()
@@ -235,6 +241,10 @@ export const updateProductSchema = z
     active: z.boolean().optional(),
     featured: z.boolean().optional(),
     hasVariants: z.boolean().optional(),
+    // 🆕 NUEVO: Template de presentación
+    template: z
+      .enum(["STANDARD", "LANDING", "MINIMAL", "GALLERY"])
+      .optional(),
     categoryId: z.string().cuid().optional().nullable(),
     metaTitle: z.string().max(60).optional().nullable(),
     metaDescription: z.string().max(160).optional().nullable(),
