@@ -33,7 +33,7 @@ export default function AddBlockMenu({ onAdd, disabled }: AddBlockMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" disabled={disabled}>
+        <Button type="button" size="sm" disabled={disabled}>
           <Plus className="h-4 w-4 mr-1" />
           Agregar sección
         </Button>

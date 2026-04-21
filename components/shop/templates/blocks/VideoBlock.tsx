@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Play, Volume2, VolumeX } from "lucide-react";
 import type { VideoBlockContent, VideoItem } from "@/lib/types/landing-blocks";
 
@@ -19,7 +19,16 @@ export default function VideoBlock({ content, onBuyClick }: VideoBlockProps) {
   return <VideoSlider videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
 }
 
-const VIDEOS_PER_SLIDE = 3;
+function useVideosPerSlide() {
+  const [perSlide, setPerSlide] = useState(2);
+  useEffect(() => {
+    const update = () => setPerSlide(window.innerWidth >= 1024 ? 3 : 2);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return perSlide;
+}
 
 function VideoSlider({
   videos,
@@ -30,18 +39,32 @@ function VideoSlider({
   showBuyButton: boolean;
   onBuyClick?: () => void;
 }) {
+  const perSlide = useVideosPerSlide();
   const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(videos.length / VIDEOS_PER_SLIDE);
-  const visible = videos.slice(page * VIDEOS_PER_SLIDE, page * VIDEOS_PER_SLIDE + VIDEOS_PER_SLIDE);
+  const [fading, setFading] = useState(false);
 
-  const prev = useCallback(() => setPage((p) => Math.max(0, p - 1)), []);
-  const next = useCallback(() => setPage((p) => Math.min(totalPages - 1, p + 1)), [totalPages]);
+  const totalPages = Math.ceil(videos.length / perSlide);
+  const visible = videos.slice(page * perSlide, page * perSlide + perSlide);
+
+  const navigate = useCallback((newPage: number) => {
+    setFading(true);
+    setTimeout(() => {
+      setPage(newPage);
+      setFading(false);
+    }, 180);
+  }, []);
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, Math.max(0, Math.ceil(videos.length / perSlide) - 1)));
+  }, [perSlide, videos.length]);
+
+  const prev = useCallback(() => navigate(Math.max(0, page - 1)), [page, navigate]);
+  const next = useCallback(() => navigate(Math.min(totalPages - 1, page + 1)), [page, totalPages, navigate]);
 
   return (
     <section className="landing-section py-12">
       <div className="container mx-auto px-4">
         <div className="relative">
-          {/* Arrow nav */}
           {totalPages > 1 && (
             <>
               <button
@@ -61,9 +84,13 @@ function VideoSlider({
             </>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={`grid gap-4 grid-cols-2 lg:grid-cols-3 transition-opacity duration-[180ms] ${
+              fading ? "opacity-0" : "opacity-100"
+            }`}
+          >
             {visible.map((video, i) => (
-              <VideoCard key={page * VIDEOS_PER_SLIDE + i} video={video} />
+              <VideoCard key={page * perSlide + i} video={video} />
             ))}
           </div>
         </div>
@@ -94,7 +121,8 @@ function VideoStacked({
 }) {
   return (
     <section className="landing-section py-12">
-      <div className="container mx-auto px-4 space-y-8">
+      <div className="container mx-auto px-4">
+        <div className="flex flex-col gap-8 max-w-2xl mx-auto">
         {videos.map((video, i) => (
           <div key={i} className="space-y-3">
             <VideoCard video={video} />
@@ -108,6 +136,7 @@ function VideoStacked({
             )}
           </div>
         ))}
+        </div>
       </div>
     </section>
   );
@@ -155,7 +184,7 @@ function VideoCard({ video }: { video: VideoItem }) {
 
   return (
     <div
-      className="relative aspect-video rounded-2xl overflow-hidden shadow-md bg-black cursor-pointer group"
+      className="relative rounded-2xl overflow-hidden shadow-md bg-black cursor-pointer group"
       onClick={handleClick}
     >
       <video
@@ -165,7 +194,7 @@ function VideoCard({ video }: { video: VideoItem }) {
         playsInline
         loop
         controls={false}
-        className="w-full h-full object-cover"
+        className="w-full h-auto block"
         onEnded={() => setPlaying(false)}
       />
 
