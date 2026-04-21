@@ -6,7 +6,7 @@ import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bold,
   Italic,
@@ -27,10 +27,9 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 interface RichTextEditorProps {
   content: string;
@@ -43,6 +42,9 @@ export default function RichTextEditor({
   onChange,
   placeholder = "Escribe la descripción del producto...",
 }: RichTextEditorProps) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const editor = useEditor({
     immediatelyRender: false, // ← FIX para SSR
     extensions: [
@@ -97,15 +99,35 @@ export default function RichTextEditor({
     }
   };
 
-  const addImage = () => {
-    const url = window.prompt("URL de la imagen:");
-    if (url) {
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editor) return;
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Error al subir imagen");
+      const { url } = await res.json();
       editor.chain().focus().setImage({ src: url }).run();
+    } catch {
+      alert("No se pudo subir la imagen. Intenta de nuevo.");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
     }
   };
 
   return (
     <div className="border rounded-lg overflow-hidden">
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageFileChange}
+      />
       {/* Toolbar */}
       <div className="bg-slate-50 border-b p-2 flex flex-wrap gap-1">
         {/* Text Formatting */}
@@ -310,10 +332,15 @@ export default function RichTextEditor({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={addImage}
-            title="Insertar imagen"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={uploadingImage}
+            title="Insertar imagen desde archivo"
           >
-            <ImageIcon className="h-4 w-4" />
+            {uploadingImage ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ImageIcon className="h-4 w-4" />
+            )}
           </Button>
         </div>
 

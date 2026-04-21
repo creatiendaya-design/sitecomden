@@ -59,9 +59,10 @@
 
 .prose-content ul {
   list-style-type: disc;
-  list-style-position: inside;
+  list-style-position: outside;
   margin-bottom: 1rem;
-  margin-left: 1rem;
+  margin-left: 0;
+  padding-left: 1.5rem;
 }
 
 .prose-content ul li {
@@ -71,9 +72,10 @@
 
 .prose-content ol {
   list-style-type: decimal;
-  list-style-position: inside;
+  list-style-position: outside;
   margin-bottom: 1rem;
-  margin-left: 1rem;
+  margin-left: 0;
+  padding-left: 1.5rem;
 }
 
 .prose-content ol li {
@@ -83,6 +85,11 @@
 
 .prose-content li {
   color: rgb(55 65 81);
+}
+
+/* Tiptap genera <li><p>texto</p></li> — el p no debe tener margen extra */
+.prose-content li > p {
+  margin-bottom: 0;
 }
 
 .prose-content ul ul,

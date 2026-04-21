@@ -2,7 +2,7 @@
 
 import { useState, useRef, DragEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Upload, Loader2, Edit2, AlertCircle, CheckCircle2, Image as ImageIcon } from "lucide-react";
+import { X, Upload, Loader2, Edit2, AlertCircle, CheckCircle2, Image as ImageIcon, GripVertical } from "lucide-react";
 import Image from "next/image";
 import ImageMetadataEditor from "./ImageMetadataEditor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -40,6 +40,8 @@ export default function ImageUpload({
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const normalizedImages: ImageMetadata[] = images.map((img) =>
@@ -179,7 +181,7 @@ export default function ImageUpload({
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    if (dragIndex === null) setIsDragging(true);
   };
 
   const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
@@ -192,6 +194,8 @@ export default function ImageUpload({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+
+    if (dragIndex !== null) return;
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
@@ -208,6 +212,39 @@ export default function ImageUpload({
     const newImages = [...normalizedImages];
     newImages[index] = metadata;
     onChange(newImages);
+  };
+
+  const handleImageDragStart = (e: DragEvent<HTMLDivElement>, index: number) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleImageDragOver = (e: DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== index) setDragOverIndex(index);
+  };
+
+  const handleImageDrop = (e: DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    const newImages = [...normalizedImages];
+    const [moved] = newImages.splice(dragIndex, 1);
+    newImages.splice(index, 0, moved);
+    onChange(newImages);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleImageDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
   };
 
   const openFileDialog = () => {
@@ -346,14 +383,32 @@ export default function ImageUpload({
             {normalizedImages.map((image, index) => (
               <div
                 key={index}
-                className="group relative aspect-square overflow-hidden rounded-lg border-2 bg-slate-100 transition-all hover:border-primary"
+                draggable
+                onDragStart={(e) => handleImageDragStart(e, index)}
+                onDragOver={(e) => handleImageDragOver(e, index)}
+                onDrop={(e) => handleImageDrop(e, index)}
+                onDragEnd={handleImageDragEnd}
+                onDragLeave={() => setDragOverIndex(null)}
+                className={cn(
+                  "group relative aspect-square overflow-hidden rounded-lg border-2 bg-slate-100 transition-all cursor-grab active:cursor-grabbing",
+                  dragIndex === index
+                    ? "opacity-40 scale-95 border-primary"
+                    : dragOverIndex === index
+                    ? "border-primary border-4 scale-105 shadow-lg"
+                    : "hover:border-primary"
+                )}
               >
                 <Image
                   src={image.url}
                   alt={image.alt || `Imagen ${index + 1}`}
                   fill
-                  className="object-cover"
+                  className="object-cover pointer-events-none"
                 />
+
+                {/* Drag handle */}
+                <div className="absolute top-1 right-1 rounded bg-black/50 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <GripVertical className="h-3.5 w-3.5 text-white" />
+                </div>
 
                 {/* Overlay con botones */}
                 <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
@@ -397,7 +452,7 @@ export default function ImageUpload({
           </div>
 
           <p className="mt-3 text-xs text-slate-500">
-            💡 <strong>Tip:</strong> La primera imagen será la principal. Haz click en{" "}
+            💡 <strong>Tip:</strong> Arrastra las imágenes para reordenarlas. La primera será la principal. Haz click en{" "}
             <Edit2 className="inline h-3 w-3" /> para agregar texto alternativo (SEO).
           </p>
         </div>

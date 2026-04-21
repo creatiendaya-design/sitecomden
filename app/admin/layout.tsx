@@ -48,6 +48,16 @@ export default function AdminLayout({
     "Métodos de Pago", // Expandir Métodos de Pago por defecto
   ]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [siteName, setSiteName] = useState("ShopGood Perú");
+
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.settings?.site_name) setSiteName(data.settings.site_name);
+      })
+      .catch(() => {});
+  }, []);
 
   // Cerrar sidebar al cambiar de ruta en móvil
   useEffect(() => {
@@ -304,7 +314,7 @@ export default function AdminLayout({
             >
               <Menu className="h-6 w-6" />
             </Button>
-            <h2 className="text-sm text-muted-foreground">ShopGood Perú</h2>
+            <h2 className="text-sm text-muted-foreground">{siteName}</h2>
             <div className="w-10 lg:hidden" /> {/* Spacer para centrar */}
           </div>
         </div>
