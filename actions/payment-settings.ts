@@ -213,24 +213,36 @@ export async function uploadQRImage(
 
     // Validar que sea imagen
     if (!file.type.startsWith("image/")) {
-      return { 
-        success: false, 
-        error: "El archivo debe ser una imagen" 
-      };
+      return { success: false, error: "El archivo debe ser una imagen" };
     }
 
     // Validar tamaño (máximo 2MB para QR)
     if (file.size > 2 * 1024 * 1024) {
-      return { 
-        success: false, 
-        error: "La imagen debe ser menor a 2MB" 
-      };
+      return { success: false, error: "La imagen debe ser menor a 2MB" };
     }
 
-    // Subir a Vercel Blob
-    const blob = await put(`qr/${method}-${Date.now()}.jpg`, file, {
-      access: "public",
-    });
+    // Verificar magic bytes para confirmar que el contenido es realmente una imagen
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const SIGNATURES = [
+      [0xff, 0xd8, 0xff],             // JPEG
+      [0x89, 0x50, 0x4e, 0x47],       // PNG
+      [0x47, 0x49, 0x46, 0x38],       // GIF
+      [0x52, 0x49, 0x46, 0x46],       // WebP (RIFF)
+    ];
+    const isValidImage = SIGNATURES.some((sig) =>
+      sig.every((b, i) => bytes[i] === b)
+    );
+    if (!isValidImage) {
+      return { success: false, error: "El archivo no es una imagen válida" };
+    }
+
+    // Subir a Vercel Blob usando los bytes ya validados
+    const blob = await put(
+      `qr/${method}-${Date.now()}.jpg`,
+      new Blob([bytes], { type: file.type }),
+      { access: "public" }
+    );
 
     console.log(`✅ QR ${method} subido por usuario ${user!.id}:`, blob.url);
 

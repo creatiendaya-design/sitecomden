@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
 import { requirePermission } from "@/lib/permissions";
+import { protectRoute } from "@/lib/protect-route";
 
 // ============================================================
 // TIPOS
@@ -25,6 +26,7 @@ export type RoleFormData = {
 
 export async function getRoles() {
   try {
+    await protectRoute("users:manage_roles");
     const roles = await prisma.role.findMany({
       include: {
         permissions: {

@@ -1,0 +1,150 @@
+<h2>Diseño Admin — Sección 2/4</h2>
+<p class="subtitle">Así quedaría el panel de edición de producto con el page builder y el modo de checkout</p>
+
+<div class="mockup" style="max-width:900px;margin:0 auto">
+  <div class="mockup-header">Admin → Editar Producto → Sección "Presentación"</div>
+  <div class="mockup-body" style="padding:0">
+
+    <!-- Template selector (existente) -->
+    <div style="padding:16px;border-bottom:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#718096;margin-bottom:8px">Tipo de Página</div>
+      <div style="display:flex;gap:8px">
+        <div style="padding:8px 16px;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;color:#718096">Página Normal</div>
+        <div style="padding:8px 16px;border:2px solid #3b82f6;border-radius:6px;font-size:13px;color:#3b82f6;font-weight:600;background:#eff6ff">Landing Page ✓</div>
+        <div style="padding:8px 16px;border:1px dashed #e2e8f0;border-radius:6px;font-size:13px;color:#cbd5e0">Minimalista (próx.)</div>
+      </div>
+    </div>
+
+    <!-- Page Builder - visible solo cuando template = LANDING -->
+    <div style="padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-size:14px;font-weight:600">Secciones de la Landing</div>
+          <div style="font-size:12px;color:#718096">Arrastra para reordenar • Haz clic para editar</div>
+        </div>
+        <div style="padding:7px 14px;background:#3b82f6;color:white;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer">+ Agregar sección</div>
+      </div>
+
+      <!-- Block list -->
+      <div style="display:flex;flex-direction:column;gap:6px">
+
+        <!-- TICKER sticky -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;border-left:3px solid #f59e0b">
+          <div style="color:#94a3b8;cursor:grab;font-size:16px">⠿</div>
+          <div style="width:28px;height:28px;background:#fef3c7;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px">📢</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">Ticker</div>
+            <div style="font-size:11px;color:#718096">Scrolling text • Sticky • "🔥 Oferta del día..."</div>
+          </div>
+          <div style="font-size:10px;padding:2px 6px;background:#fef3c7;color:#92400e;border-radius:4px;font-weight:500">STICKY</div>
+          <div style="font-size:12px;color:#94a3b8">✏️</div>
+          <div style="font-size:12px;color:#f87171">🗑</div>
+        </div>
+
+        <!-- HERO -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;border-left:3px solid #8b5cf6">
+          <div style="color:#94a3b8;cursor:grab;font-size:16px">⠿</div>
+          <div style="width:28px;height:28px;background:#ede9fe;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px">🖼</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">Hero</div>
+            <div style="font-size:11px;color:#718096">Imagen de fondo • "El mejor producto del año"</div>
+          </div>
+          <div style="font-size:12px;color:#94a3b8">✏️</div>
+          <div style="font-size:12px;color:#f87171">🗑</div>
+        </div>
+
+        <!-- BENEFITS -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;border-left:3px solid #10b981">
+          <div style="color:#94a3b8;cursor:grab;font-size:16px">⠿</div>
+          <div style="width:28px;height:28px;background:#d1fae5;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px">✅</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">Beneficios</div>
+            <div style="font-size:11px;color:#718096">3 cards • "Envío gratis", "Garantía 1 año", "Stock limitado"</div>
+          </div>
+          <div style="font-size:12px;color:#94a3b8">✏️</div>
+          <div style="font-size:12px;color:#f87171">🗑</div>
+        </div>
+
+        <!-- VIDEO -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;border-left:3px solid #ef4444">
+          <div style="color:#94a3b8;cursor:grab;font-size:16px">⠿</div>
+          <div style="width:28px;height:28px;background:#fee2e2;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px">▶️</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">Video</div>
+            <div style="font-size:11px;color:#718096">YouTube • "Ver cómo funciona"</div>
+          </div>
+          <div style="font-size:12px;color:#94a3b8">✏️</div>
+          <div style="font-size:12px;color:#f87171">🗑</div>
+        </div>
+
+        <!-- COUNTDOWN -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;border-left:3px solid #f59e0b">
+          <div style="color:#94a3b8;cursor:grab;font-size:16px">⠿</div>
+          <div style="width:28px;height:28px;background:#fef3c7;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px">⏱</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">Ticker</div>
+            <div style="font-size:11px;color:#718096">Countdown • "¡Oferta termina en:" • vence 25 abr</div>
+          </div>
+          <div style="font-size:10px;padding:2px 6px;background:#fef3c7;color:#92400e;border-radius:4px;font-weight:500">COUNTDOWN</div>
+          <div style="font-size:12px;color:#94a3b8">✏️</div>
+          <div style="font-size:12px;color:#f87171">🗑</div>
+        </div>
+
+        <!-- TESTIMONIALS -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;border-left:3px solid #3b82f6">
+          <div style="color:#94a3b8;cursor:grab;font-size:16px">⠿</div>
+          <div style="width:28px;height:28px;background:#dbeafe;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px">💬</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">Testimonios</div>
+            <div style="font-size:11px;color:#718096">2 reseñas • María G., Juan R.</div>
+          </div>
+          <div style="font-size:12px;color:#94a3b8">✏️</div>
+          <div style="font-size:12px;color:#f87171">🗑</div>
+        </div>
+
+        <!-- Add block hint -->
+        <div style="display:flex;align-items:center;justify-content:center;padding:14px;border:1.5px dashed #e2e8f0;border-radius:8px;color:#94a3b8;font-size:13px;cursor:pointer">
+          + Agregar otra sección
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Checkout Mode section -->
+<div class="mockup" style="max-width:900px;margin:16px auto 0">
+  <div class="mockup-header">Admin → Editar Producto → Sección "Modo de Compra"</div>
+  <div class="mockup-body">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#718096;margin-bottom:12px">¿Cómo puede comprar el cliente?</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+
+      <label style="display:flex;align-items:flex-start;gap:12px;padding:12px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer">
+        <input type="radio" name="cm" style="margin-top:2px">
+        <div>
+          <div style="font-size:13px;font-weight:500">Checkout normal</div>
+          <div style="font-size:12px;color:#718096">Agrega al carrito → /checkout → pago con tarjeta/Yape/Plin</div>
+        </div>
+      </label>
+
+      <label style="display:flex;align-items:flex-start;gap:12px;padding:12px;border:2px solid #3b82f6;border-radius:8px;background:#eff6ff;cursor:pointer">
+        <input type="radio" name="cm" checked style="margin-top:2px">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:#1d4ed8">Comprar ahora (Contra entrega) + Agregar al carrito</div>
+          <div style="font-size:12px;color:#718096">Botón principal "Comprar ahora" abre formulario COD. Botón secundario sigue al carrito.</div>
+        </div>
+      </label>
+
+      <label style="display:flex;align-items:flex-start;gap:12px;padding:12px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer">
+        <input type="radio" name="cm" style="margin-top:2px">
+        <div>
+          <div style="font-size:13px;font-weight:500">Solo contra entrega (sin carrito)</div>
+          <div style="font-size:12px;color:#718096">Solo botón "Comprar ahora" COD. No se puede agregar al carrito.</div>
+        </div>
+      </label>
+
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:20px;text-align:center">¿El admin se ve como lo necesitas? Dime si quieres cambiar algo antes de continuar con el diseño del frontend.</p>

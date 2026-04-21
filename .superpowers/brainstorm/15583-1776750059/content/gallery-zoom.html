@@ -1,0 +1,64 @@
+<h2>Galería Slider — Carrusel + Zoom</h2>
+<p class="subtitle">El slider funciona como carrusel con thumbnails. Al hacer clic en la imagen principal se abre lightbox para zoom a detalle.</p>
+
+<div class="split" style="gap:20px;align-items:flex-start">
+
+  <!-- Slider normal state -->
+  <div style="flex:1">
+    <div style="text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;color:#718096;margin-bottom:8px">Vista normal del slider</div>
+    <div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff">
+      <!-- Main image -->
+      <div style="background:linear-gradient(135deg,#667eea,#764ba2);height:200px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;position:relative;cursor:zoom-in">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px">
+          <div style="font-size:13px;opacity:.8">Imagen principal</div>
+          <div style="background:rgba(0,0,0,.35);padding:4px 10px;border-radius:20px;font-size:11px;display:flex;align-items:center;gap:5px">🔍 Clic para ampliar</div>
+        </div>
+        <!-- Nav arrows -->
+        <div style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.85);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#374151;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)">‹</div>
+        <div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.85);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#374151;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)">›</div>
+      </div>
+      <!-- Thumbnails -->
+      <div style="display:flex;gap:6px;padding:10px;overflow-x:auto">
+        <div style="width:52px;height:52px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:6px;border:2px solid #6366f1;flex-shrink:0"></div>
+        <div style="width:52px;height:52px;background:linear-gradient(135deg,#f093fb,#f5576c);border-radius:6px;border:1.5px solid #e2e8f0;flex-shrink:0;opacity:.7"></div>
+        <div style="width:52px;height:52px;background:linear-gradient(135deg,#4facfe,#00f2fe);border-radius:6px;border:1.5px solid #e2e8f0;flex-shrink:0;opacity:.7"></div>
+        <div style="width:52px;height:52px;background:linear-gradient(135deg,#43e97b,#38f9d7);border-radius:6px;border:1.5px solid #e2e8f0;flex-shrink:0;opacity:.7"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#718096;margin-top:6px;text-align:center">Thumbnail activo resaltado • swipe en mobile</div>
+  </div>
+
+  <!-- Lightbox / zoom state -->
+  <div style="flex:1">
+    <div style="text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;color:#718096;margin-bottom:8px">Lightbox al hacer clic</div>
+    <div style="border:1.5px solid #6366f1;border-radius:12px;overflow:hidden;background:#111;position:relative">
+      <!-- Dark overlay + zoomed image -->
+      <div style="background:linear-gradient(135deg,#667eea,#764ba2);height:240px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;position:relative">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+          <div style="font-size:12px;opacity:.7;text-align:center">Imagen ampliada<br><span style="font-size:10px">scroll para zoom • arrastrar para mover</span></div>
+        </div>
+        <!-- Close button -->
+        <div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.5);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px">✕</div>
+        <!-- Zoom controls -->
+        <div style="position:absolute;bottom:10px;right:10px;display:flex;gap:6px">
+          <div style="background:rgba(0,0,0,.5);color:white;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px">−</div>
+          <div style="background:rgba(0,0,0,.5);color:white;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px">+</div>
+        </div>
+        <!-- Nav inside lightbox -->
+        <div style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.2);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer">‹</div>
+        <div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.2);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer">›</div>
+      </div>
+      <!-- Thumbnails in lightbox -->
+      <div style="display:flex;gap:5px;padding:8px;background:#1a1a1a;justify-content:center">
+        <div style="width:40px;height:40px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:5px;border:2px solid #6366f1;flex-shrink:0"></div>
+        <div style="width:40px;height:40px;background:linear-gradient(135deg,#f093fb,#f5576c);border-radius:5px;opacity:.5;flex-shrink:0"></div>
+        <div style="width:40px;height:40px;background:linear-gradient(135deg,#4facfe,#00f2fe);border-radius:5px;opacity:.5;flex-shrink:0"></div>
+        <div style="width:40px;height:40px;background:linear-gradient(135deg,#43e97b,#38f9d7);border-radius:5px;opacity:.5;flex-shrink:0"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#718096;margin-top:6px;text-align:center">Pantalla completa • zoom con scroll/pinch en mobile</div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:20px;text-align:center">¿El slider con lightbox/zoom se ve como lo necesitas?</p>

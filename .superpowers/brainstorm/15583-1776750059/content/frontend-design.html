@@ -1,0 +1,146 @@
+<h2>Diseño Frontend — Sección 3/4</h2>
+<p class="subtitle">Página de producto con modo COD_AND_CART + formulario flotante. Vista mobile y desktop.</p>
+
+<div class="split" style="gap:24px;align-items:flex-start">
+
+  <!-- MOBILE -->
+  <div style="flex:1">
+    <div style="text-align:center;margin-bottom:10px;font-size:12px;font-weight:600;color:#718096;text-transform:uppercase">📱 Mobile</div>
+    <div style="width:100%;max-width:320px;margin:0 auto;border:2px solid #e2e8f0;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.08)">
+
+      <!-- Ticker sticky -->
+      <div style="background:#dc2626;color:white;text-align:center;font-size:11px;padding:6px;font-weight:500;letter-spacing:.3px">
+        🔥 OFERTA HOY &nbsp;•&nbsp; ENVÍO GRATIS &nbsp;•&nbsp; STOCK LIMITADO &nbsp;•&nbsp; 🔥 OFERTA HOY &nbsp;•
+      </div>
+
+      <!-- Product image -->
+      <div style="background:linear-gradient(135deg,#667eea,#764ba2);height:200px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px">Imagen del producto</div>
+
+      <!-- Product info -->
+      <div style="padding:14px">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">Nombre del Producto</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="font-size:20px;font-weight:800;color:#dc2626">S/ 79.90</div>
+          <div style="font-size:13px;color:#94a3b8;text-decoration:line-through">S/ 129.90</div>
+        </div>
+
+        <!-- Countdown inline -->
+        <div style="background:#fef3c7;border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px">⏱</span>
+          <span style="font-size:12px;color:#92400e;font-weight:500">Oferta termina en:</span>
+          <span style="font-size:13px;font-weight:700;color:#dc2626">02:14:38</span>
+        </div>
+
+        <!-- CTA buttons -->
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button style="width:100%;padding:14px;background:#dc2626;color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">
+            🛒 Comprar ahora
+          </button>
+          <button style="width:100%;padding:10px;background:white;color:#374151;border:1.5px solid #d1d5db;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer">
+            Agregar al carrito
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DESKTOP product page -->
+  <div style="flex:2">
+    <div style="text-align:center;margin-bottom:10px;font-size:12px;font-weight:600;color:#718096;text-transform:uppercase">🖥 Desktop — Formulario COD flotante</div>
+    <div style="border:2px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#f8fafc;position:relative">
+
+      <!-- Ticker sticky desktop -->
+      <div style="background:#dc2626;color:white;text-align:center;font-size:11px;padding:5px;font-weight:500">
+        🔥 OFERTA HOY &nbsp;•&nbsp; ENVÍO GRATIS &nbsp;•&nbsp; STOCK LIMITADO &nbsp;•&nbsp; 🔥 OFERTA HOY &nbsp;•&nbsp; SOLO 48 HRS &nbsp;•
+      </div>
+
+      <!-- Page content dimmed -->
+      <div style="padding:20px;opacity:.35;pointer-events:none;font-size:12px;color:#374151">
+        <div style="display:flex;gap:20px">
+          <div style="width:40%;background:#e2e8f0;height:200px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#94a3b8">Foto producto</div>
+          <div style="flex:1">
+            <div style="height:16px;background:#e2e8f0;border-radius:4px;margin-bottom:8px"></div>
+            <div style="height:12px;background:#e2e8f0;border-radius:4px;width:60%;margin-bottom:16px"></div>
+            <div style="height:24px;background:#fecaca;border-radius:4px;width:40%;margin-bottom:12px"></div>
+            <div style="height:36px;background:#fca5a5;border-radius:8px;margin-bottom:8px"></div>
+            <div style="height:32px;background:#e2e8f0;border-radius:8px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COD MODAL overlay -->
+      <div style="position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px">
+        <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="font-size:15px;font-weight:700">🛒 Completa tu pedido</div>
+            <div style="color:#94a3b8;cursor:pointer;font-size:16px">✕</div>
+          </div>
+
+          <!-- Product summary -->
+          <div style="display:flex;gap:10px;background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:14px">
+            <div style="width:44px;height:44px;background:#e2e8f0;border-radius:6px;flex-shrink:0"></div>
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:600">Nombre del Producto</div>
+              <div style="font-size:11px;color:#718096">1 unidad</div>
+            </div>
+            <div style="font-size:14px;font-weight:700;color:#dc2626">S/ 79.90</div>
+          </div>
+
+          <!-- Form fields -->
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+            <input placeholder="Nombre completo *" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+            <input placeholder="Teléfono / WhatsApp *" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+            <div style="display:flex;gap:8px">
+              <select style="flex:1;padding:9px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px"><option>Departamento</option></select>
+              <select style="flex:1;padding:9px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px"><option>Provincia</option></select>
+            </div>
+            <select style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px"><option>Distrito</option></select>
+            <input placeholder="Dirección de entrega *" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+          </div>
+
+          <!-- Payment badge -->
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#166534;display:flex;align-items:center;gap:6px">
+            ✅ <strong>Pago contra entrega</strong> — pagas cuando recibes el producto
+          </div>
+
+          <button style="width:100%;padding:13px;background:#dc2626;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">
+            Confirmar pedido →
+          </button>
+
+          <div style="text-align:center;margin-top:8px;font-size:11px;color:#94a3b8">🔒 Datos seguros • Sin tarjeta requerida</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Cart page COD section -->
+<div class="mockup" style="max-width:700px;margin:24px auto 0">
+  <div class="mockup-header">Página /carrito — botón COD cuando hay productos COD en el carrito</div>
+  <div class="mockup-body">
+    <div style="font-size:12px;color:#374151;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6">
+        <span>Producto A (COD habilitado)</span><span style="font-weight:600">S/ 79.90</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6">
+        <span>Producto B (checkout normal)</span><span style="font-weight:600">S/ 45.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;font-weight:700;font-size:13px">
+        <span>Total</span><span>S/ 124.90</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button style="width:100%;padding:12px;background:#1d4ed8;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">
+        Ir al checkout →
+      </button>
+      <button style="width:100%;padding:11px;background:white;color:#dc2626;border:2px solid #dc2626;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">
+        🛒 Pedir con pago contra entrega
+      </button>
+      <div style="font-size:11px;color:#94a3b8;text-align:center">El pago contra entrega aplica a todos los productos del carrito</div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:20px;text-align:center">¿El flujo frontend se ve bien? ¿Algo que cambiar en el formulario o los botones?</p>

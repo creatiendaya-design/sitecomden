@@ -1,0 +1,49 @@
+<h2>Template de Landing — ¿qué secciones quieres poder editar por producto?</h2>
+<p class="subtitle">La Landing Page ya tiene estructura base (hero, beneficios, trust badges, CTA). ¿Qué bloques deben ser editables desde el admin del producto?</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="hero" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>Hero / Cabecera</h3>
+      <p>Imagen de fondo o video, título destacado, subtítulo, color de overlay, botón CTA principal.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="benefits" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>Sección de beneficios / características</h3>
+      <p>Tarjetas con ícono, título y descripción. Ej: "Envío gratis", "Garantía 1 año", etc. Editable: número de cards, textos, íconos.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gallery" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>Galería de imágenes extra</h3>
+      <p>Imágenes adicionales de contexto/uso del producto (distinto a las fotos principales del producto).</p>
+    </div>
+  </div>
+  <div class="option" data-choice="testimonials" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>Testimonios / Reseñas destacadas</h3>
+      <p>Citar manualmente 2-4 reseñas con foto, nombre y texto. No conectado a las reviews del sistema.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="video" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>Video del producto</h3>
+      <p>Sección con embed de YouTube/Vimeo o video propio. Título opcional.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="colors" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>Colores / tema visual</h3>
+      <p>Color primario de la landing, color de fondo de secciones, color de botones CTA. Override visual por producto.</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Puedes seleccionar varios. Ctrl+click para multi-selección.</p>

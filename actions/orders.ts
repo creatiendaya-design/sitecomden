@@ -248,42 +248,42 @@ export async function createOrder(rawData: unknown) {
       });
     }
 
-    // Reducir stock de los productos
-    for (const item of data.items) {
-      if (item.variantId) {
-        // Reducir stock de variante
-        await prisma.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { decrement: item.quantity } },
-        });
+    // Para Yape/Plin el stock se descuenta al aprobar el pago (verificación manual).
+    // Para tarjeta/PayPal se descuenta inmediatamente porque el pago ya fue confirmado.
+    const requiresManualVerification =
+      data.paymentMethod === "YAPE" || data.paymentMethod === "PLIN";
 
-        // Registrar movimiento de inventario
-        await prisma.inventoryMovement.create({
-          data: {
-            variantId: item.variantId,
-            type: "SALE",
-            quantity: -item.quantity,
-            reason: `Venta - Orden #${order.orderNumber}`,
-            reference: order.id,
-          },
-        });
-      } else {
-        // Reducir stock de producto simple
-        await prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
-
-        // Registrar movimiento de inventario
-        await prisma.inventoryMovement.create({
-          data: {
-            productId: item.productId,
-            type: "SALE",
-            quantity: -item.quantity,
-            reason: `Venta - Orden #${order.orderNumber}`,
-            reference: order.id,
-          },
-        });
+    if (!requiresManualVerification) {
+      for (const item of data.items) {
+        if (item.variantId) {
+          await prisma.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { decrement: item.quantity } },
+          });
+          await prisma.inventoryMovement.create({
+            data: {
+              variantId: item.variantId,
+              type: "SALE",
+              quantity: -item.quantity,
+              reason: `Venta - Orden #${order.orderNumber}`,
+              reference: order.id,
+            },
+          });
+        } else {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } },
+          });
+          await prisma.inventoryMovement.create({
+            data: {
+              productId: item.productId,
+              type: "SALE",
+              quantity: -item.quantity,
+              reason: `Venta - Orden #${order.orderNumber}`,
+              reference: order.id,
+            },
+          });
+        }
       }
     }
 
@@ -312,7 +312,7 @@ export async function createOrder(rawData: unknown) {
         shippingAddress: order.shippingAddress as any,
         paymentMethod: order.paymentMethod,
         // Link para ver orden sin login
-        viewOrderLink: `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${order.customerEmail}`,
+        viewOrderLink: `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${encodeURIComponent(order.customerEmail)}`,
       });
     } catch (emailError) {
       // No fallar la orden si el email falla

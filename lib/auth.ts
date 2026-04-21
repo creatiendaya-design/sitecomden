@@ -201,12 +201,7 @@ export async function requireRoleLevel(minLevel: number): Promise<AuthResult> {
     return {
       user: null,
       response: NextResponse.json(
-        { 
-          error: "No tienes permisos suficientes para esta acción",
-          code: "FORBIDDEN",
-          required_level: minLevel,
-          user_level: user.role.level
-        },
+        { error: "No tienes permisos suficientes para esta acción", code: "FORBIDDEN" },
         { status: 403 }
       ),
     };
@@ -271,22 +266,14 @@ export async function requirePermission(permissionSlug: string): Promise<AuthRes
     const allowed = await hasPermission(user.id, permissionSlug);
 
     if (!allowed) {
-      console.warn(`❌ Permiso denegado: ${user.email} intentó ${permissionSlug}`);
       return {
         user: null,
         response: NextResponse.json(
-          { 
-            error: "No tienes permisos para esta acción",
-            code: "FORBIDDEN",
-            required_permission: permissionSlug,
-            role: user.role.name
-          },
+          { error: "No tienes permisos para esta acción", code: "FORBIDDEN" },
           { status: 403 }
         ),
       };
     }
-
-    console.log(`✅ Permiso concedido: ${user.email} - ${permissionSlug}`);
     return { user, response: null };
 
   } catch (error) {

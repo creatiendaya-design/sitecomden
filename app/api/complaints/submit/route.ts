@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withRateLimit, formRateLimiter } from "@/lib/rate-limit";
+import { z } from "zod";
+
+const formDataSchema = z.record(
+  z.string().max(200),
+  z.union([z.string().max(5000), z.number(), z.boolean()])
+);
 
 export async function POST(req: NextRequest) {
   const rateLimitResponse = await withRateLimit(req, formRateLimiter, {
@@ -11,7 +17,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const formData = body.formData || body;
+    const rawFormData = body.formData || body;
+
+    const parsed = formDataSchema.safeParse(rawFormData);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Datos del formulario inválidos" },
+        { status: 400 }
+      );
+    }
+    const formData = parsed.data;
 
     // Mapeo manual de IDs a labels
     const fieldMappings: Record<string, string> = {

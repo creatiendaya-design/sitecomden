@@ -1,0 +1,29 @@
+<h2>¿Qué quieres poder customizar en los templates de producto?</h2>
+<p class="subtitle">El admin ya tiene el campo "Tipo de Página" (STANDARD / LANDING). Ahora hay que definir qué tan profundo va la customización.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Contenido por producto</h3>
+      <p>Cada producto tiene sus propios bloques de contenido: imágenes del hero, secciones de beneficios, testimonios, colores de fondo. Configurable individualmente desde el admin del producto.</p>
+      <p style="margin-top:8px;font-size:12px;color:#888;">Ej: Producto A tiene hero rojo con foto X; Producto B tiene hero azul con foto Y</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Configuración global del template</h3>
+      <p>Los templates (STANDARD, LANDING) tienen ajustes globales: colores del tema, tipografía, layout. Todos los productos con LANDING usan el mismo diseño base.</p>
+      <p style="margin-top:8px;font-size:12px;color:#888;">Ej: En Configuración > Templates, defino que LANDING siempre usa color primario azul navy</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Ambos — global + override por producto</h3>
+      <p>Base global configurable, con opción de override por producto. Cada producto puede sobreescribir los defaults del template.</p>
+      <p style="margin-top:8px;font-size:12px;color:#888;">Ej: Default LANDING = azul navy. Producto A overridea a rojo. Producto B usa el default.</p>
+    </div>
+  </div>
+</div>

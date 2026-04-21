@@ -153,13 +153,13 @@ export default function CustomPermissionsManager({
           <CardHeader>
             <CardTitle>Permisos del Rol "{currentRole.name}"</CardTitle>
             <CardDescription>
-              El usuario hereda estos {currentRole.permissions.length} permisos de su rol.
+              El usuario hereda estos {currentRole.permissions?.length ?? 0} permisos de su rol.
               Los permisos personalizados sobrescriben el rol.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {currentRole.permissions.map((rp: any) => (
+              {(currentRole.permissions ?? []).map((rp: any) => (
                 <Badge key={rp.permission.id} variant="secondary">
                   {MODULE_NAMES[rp.permission.module] || rp.permission.module}:{" "}
                   {formatPermissionName(rp.permission)}

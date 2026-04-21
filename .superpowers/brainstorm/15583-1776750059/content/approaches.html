@@ -1,0 +1,54 @@
+<h2>3 enfoques arquitecturales</h2>
+<p class="subtitle">Para el page builder + checkout COD. ¿Cuál encaja mejor con el proyecto?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Todo en el modelo Product (campos JSON)</h3>
+      <p>Se agregan dos campos JSON directamente al modelo <code>Product</code>:</p>
+      <ul style="margin:8px 0 0 16px;font-size:13px;">
+        <li><code>landingBlocks: Json</code> — array de bloques con tipo, contenido y posición</li>
+        <li><code>checkoutMode</code> enum — STANDARD | COD_ONLY | COD_AND_CART</li>
+      </ul>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>1 migración simple</li><li>Sin joins, todo en un fetch</li><li>Implementación más rápida</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>JSON no tipado en DB</li><li>Bloque individual no editable sin reescribir todo el array</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Tabla separada LandingBlock ⭐ Recomendado</h3>
+      <p>Nuevo modelo <code>LandingBlock</code> con relación a Product. Cada bloque es una fila con tipo, posición y JSON de contenido.</p>
+      <ul style="margin:8px 0 0 16px;font-size:13px;">
+        <li><code>Product</code> agrega <code>checkoutMode</code> + relación <code>landingBlocks[]</code></li>
+        <li>CRUD individual por bloque (agregar, editar, eliminar, reordenar)</li>
+      </ul>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Bloques editables individualmente</li><li>Reordenamiento limpio por <code>position</code></li><li>Escalable — se pueden añadir tipos de bloque nuevos</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>1 query extra para los bloques</li><li>Migración + nuevo modelo</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Modelos separados (ProductLanding + ProductCheckoutConfig)</h3>
+      <p>Entidades completamente separadas de Product, vinculadas por FK.</p>
+      <ul style="margin:8px 0 0 16px;font-size:13px;">
+        <li><code>ProductLanding</code> — tiene los bloques y configuración visual</li>
+        <li><code>ProductCheckoutConfig</code> — modo COD, settings del formulario</li>
+      </ul>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Separación máxima de responsabilidades</li><li>Posible reutilizar entre productos</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Más modelos, más complejidad</li><li>Admin más fragmentado</li><li>Overkill para este caso</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Mi recomendación: <strong>B</strong> — tabla separada da flexibilidad sin sobre-complicar. A es válido si se prioriza velocidad de implementación.</p>

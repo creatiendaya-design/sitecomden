@@ -37,9 +37,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verificar que la orden exista
+    // Verificar que la orden exista (incluir items para descontar stock)
     const order = await prisma.order.findUnique({
       where: { id: orderId },
+      include: { items: true },
     });
 
     if (!order) {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
         data: {
           status: "verified",
           verifiedAt: new Date(),
-          verifiedBy: user.id, // Registrar quién aprobó
+          verifiedBy: user.id,
         },
       });
 
@@ -70,6 +71,41 @@ export async function POST(request: Request) {
           paidAt: new Date(),
         },
       });
+
+      // Descontar stock ahora que el pago está confirmado (diferido desde createOrder)
+      for (const item of order.items) {
+        if (item.variantId) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { decrement: item.quantity } },
+          });
+          await tx.inventoryMovement.create({
+            data: {
+              variantId: item.variantId,
+              type: "SALE",
+              quantity: -item.quantity,
+              reason: `Venta - Orden #${order.orderNumber} (pago aprobado)`,
+              reference: order.id,
+              userId: user.id,
+            },
+          });
+        } else if (item.productId) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } },
+          });
+          await tx.inventoryMovement.create({
+            data: {
+              productId: item.productId,
+              type: "SALE",
+              quantity: -item.quantity,
+              reason: `Venta - Orden #${order.orderNumber} (pago aprobado)`,
+              reference: order.id,
+              userId: user.id,
+            },
+          });
+        }
+      }
     });
 
     console.log(`✅ Pago aprobado exitosamente por usuario ${user.id}:`, {

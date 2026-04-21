@@ -364,7 +364,7 @@ export async function getComplaints(filters?: {
         }),
       },
       orderBy: { createdAt: "desc" },
-      take: filters?.limit || 100,
+      take: Math.min(filters?.limit ?? 50, 100),
     });
 
     return {
