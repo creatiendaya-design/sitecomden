@@ -111,6 +111,8 @@ export default function ProductLandingView({
                 product={serializedProduct}
                 variants={serializedVariants}
                 options={options}
+                checkoutMode={serializedProduct.checkoutMode}
+                codFormSettings={serializedProduct.codFormSettings}
               />
 
               {/* Trust Badges */}

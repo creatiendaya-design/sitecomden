@@ -14,6 +14,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
+import CodOrderModal, { type CodOrderItem } from "@/components/shop/CodOrderModal";
+import { getCartCodData } from "@/actions/cod-orders";
+import { DEFAULT_COD_FORM_SETTINGS, type CodFormSettings } from "@/lib/types/cod-form";
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, getTotalPrice, getTotalItems } =
@@ -29,10 +32,19 @@ export default function CartPage() {
     itemsStatus: {},
   });
 
-  // Verificar stock al cargar la página
+  const [codOpen, setCodOpen] = useState(false);
+  const [codSettings, setCodSettings] = useState<CodFormSettings>(DEFAULT_COD_FORM_SETTINGS);
+  const [hasCod, setHasCod] = useState(false);
+
+  // Verificar stock y COD al cargar la página
   useEffect(() => {
     if (items.length > 0) {
       verifyStock();
+      const productIds = [...new Set(items.map((i) => i.productId))];
+      getCartCodData(productIds).then(({ hasCod: hc, settings }) => {
+        setHasCod(hc);
+        if (settings) setCodSettings(settings);
+      });
     }
   }, []);
 
@@ -295,6 +307,20 @@ export default function CartPage() {
               </p>
             )}
 
+            {hasCod && (
+              <div className="mt-3 space-y-1.5">
+                <button
+                  onClick={() => setCodOpen(true)}
+                  className="w-full py-3 border-2 border-red-600 text-red-600 font-semibold rounded-xl hover:bg-red-50 transition-colors text-sm"
+                >
+                  🛒 Pagar contra entrega
+                </button>
+                <p className="text-xs text-center text-muted-foreground">
+                  Pagas cuando recibes el pedido
+                </p>
+              </div>
+            )}
+
             {/* Payment Methods Icons */}
             <div className="mt-6 pt-4 border-t">
               <p className="text-xs text-muted-foreground text-center mb-3">
@@ -321,6 +347,20 @@ export default function CartPage() {
           </Card>
         </div>
       </div>
+
+      <CodOrderModal
+        open={codOpen}
+        onClose={() => setCodOpen(false)}
+        items={items.map((item): CodOrderItem => ({
+          productId: item.productId,
+          variantId: item.variantId ?? undefined,
+          quantity: item.quantity,
+          name: item.name,
+          price: item.price,
+          image: item.image ?? undefined,
+        }))}
+        settings={codSettings}
+      />
     </div>
   );
 }

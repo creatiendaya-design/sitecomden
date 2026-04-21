@@ -98,3 +98,24 @@ export async function createCodOrder(rawData: unknown) {
 
   return { success: true, orderId: order.id };
 }
+
+export async function getCartCodData(productIds: string[]): Promise<{
+  hasCod: boolean;
+  settings: import("@/lib/types/cod-form").CodFormSettings | null;
+}> {
+  if (!productIds.length) return { hasCod: false, settings: null };
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, checkoutMode: true, codFormSettings: true, name: true },
+  });
+
+  const codProduct = products.find(
+    (p) => p.checkoutMode === "COD_ONLY" || p.checkoutMode === "COD_AND_CART"
+  );
+
+  return {
+    hasCod: !!codProduct,
+    settings: (codProduct?.codFormSettings as import("@/lib/types/cod-form").CodFormSettings | null) ?? null,
+  };
+}

@@ -82,6 +82,8 @@ export default async function ProductDetailPage({
     images: product.images,
     hasVariants: product.hasVariants,
     weight: product.weight ? Number(product.weight) : null,
+    checkoutMode: (product as any).checkoutMode ?? "STANDARD",
+    codFormSettings: (product as any).codFormSettings ?? null,
   };
 
   // Serializar variantes con conversión explícita de options
