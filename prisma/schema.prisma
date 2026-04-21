@@ -110,6 +110,7 @@ model Product {
   reviews          ProductReview[]
   cartItems        CartItem[]
   inventoryMovements InventoryMovement[]
+  landingBlocks    LandingBlock[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -119,11 +120,34 @@ model Product {
   @@index([template])
 }
 
+model LandingBlock {
+  id        String           @id @default(cuid())
+  productId String
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      LandingBlockType
+  position  Int
+  content   Json             @default("{}")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([productId, position])
+}
+
 enum ProductTemplate {
-  STANDARD    
-  LANDING     
-  MINIMAL   
-  GALLERY    
+  STANDARD
+  LANDING
+  MINIMAL
+  GALLERY
+}
+
+enum LandingBlockType {
+  HERO
+  BENEFITS
+  GALLERY
+  TESTIMONIALS
+  VIDEO
+  COLORS
+  TICKER
 }
 
 model ProductCategory {
