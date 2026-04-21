@@ -1,6 +1,8 @@
 import ComplaintsForm from "@/components/ComplaintsForm";
 import { getFormFields, getComplaintsConfig } from "@/actions/complaints";
 
+export const dynamic = "force-dynamic";
+
 export default async function LibroReclamacionesPage() {
   const [fieldsResult, configResult] = await Promise.all([
     getFormFields(),

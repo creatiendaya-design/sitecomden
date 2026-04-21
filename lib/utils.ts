@@ -12,3 +12,7 @@ export function formatPrice(price: number): string {
     minimumFractionDigits: 2,
   }).format(price)
 }
+
+export function formatOrderNumber(seq: number, prefix: string = "PED"): string {
+  return `${prefix}-${seq.toString().padStart(4, "0")}`;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import GalleryLightbox from "@/components/shop/GalleryLightbox";
@@ -47,6 +47,7 @@ function GallerySlider({
             fill
             className="object-cover cursor-zoom-in transition-opacity duration-300"
             onClick={() => setLightboxIndex(current)}
+            unoptimized
           />
           {images.length > 1 && (
             <>
@@ -77,7 +78,7 @@ function GallerySlider({
                   i === current ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
                 }`}
               >
-                <Image src={img} alt="" fill className="object-cover" />
+                <Image src={img} alt="" fill className="object-cover" unoptimized />
               </button>
             ))}
           </div>
@@ -120,11 +121,12 @@ function GalleryStacked({
   return (
     <section className="landing-section py-12">
       <div className="container mx-auto px-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex flex-col gap-4 max-w-2xl mx-auto">
           {images.map((img, i) => (
             <div key={i} className="group relative">
               <div
-                className="relative aspect-square rounded-2xl overflow-hidden shadow-md cursor-zoom-in"
+                className="relative w-full rounded-xl overflow-hidden shadow-md cursor-zoom-in"
+                style={{ aspectRatio: "4/3" }}
                 onClick={() => setLightboxIndex(i)}
               >
                 <Image
@@ -132,6 +134,7 @@ function GalleryStacked({
                   alt={`Imagen ${i + 1}`}
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  unoptimized
                 />
               </div>
               {showBuyButton && (

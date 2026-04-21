@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatOrderNumber } from "@/lib/utils";
 import { getSiteSettings } from "@/lib/site-settings";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -96,6 +96,7 @@ export default async function AdminOrderDetailPage({
   const paymentBadge = getPaymentBadge(order.paymentStatus);
 
   // Usar site_url de la configuración en lugar de variable de entorno
+  const orderPrefix = siteSettings.order_prefix || "PED";
   const baseUrl = siteSettings.site_url || 'http://localhost:3000';
   const viewLink = order.viewToken
     ? `${baseUrl}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
@@ -112,7 +113,11 @@ export default async function AdminOrderDetailPage({
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Orden #{order.orderNumber}</h1>
+            <h1 className="text-3xl font-bold">
+              {(order as any).orderSeq
+                ? formatOrderNumber((order as any).orderSeq, orderPrefix)
+                : `#${order.orderNumber.slice(-8).toUpperCase()}`}
+            </h1>
             <p className="text-muted-foreground">
               {new Date(order.createdAt).toLocaleString("es-PE", {
                 dateStyle: "long",

@@ -23,6 +23,9 @@ export interface SiteSettings {
   social_instagram: string;
   social_twitter: string;
   social_tiktok: string;
+
+  // Orders
+  order_prefix: string;
 }
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -44,6 +47,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
   social_instagram: "",
   social_twitter: "",
   social_tiktok: "",
+
+  order_prefix: "PED",
 };
 
 /**

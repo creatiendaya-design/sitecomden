@@ -5,6 +5,7 @@ import ProductOptions from "@/components/shop/ProductOptions";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import CodOrderModal from "@/components/shop/CodOrderModal";
 import { DEFAULT_COD_FORM_SETTINGS, type CheckoutMode, type CodFormSettings } from "@/lib/types/cod-form";
+import { getProductImageUrl } from "@/lib/image-utils";
 
 // 🔧 TIPOS EXPLÍCITOS
 interface ProductData {
@@ -251,7 +252,7 @@ export default function ProductActions({
           quantity: 1,
           name: product.name,
           price: selectedVariant ? Number(selectedVariant.price) : Number(product.basePrice),
-          image: Array.isArray(product.images) ? product.images[0] : undefined,
+          image: getProductImageUrl(product.images) ?? undefined,
         }]}
         settings={codSettings}
       />

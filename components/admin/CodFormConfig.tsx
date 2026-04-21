@@ -1,10 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { GripVertical, Eye, EyeOff } from "lucide-react";
+import { GripVertical, Eye, EyeOff, Loader2 } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -20,7 +21,193 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CodFormSettings, CodFormField } from "@/lib/types/cod-form";
+import type { CodFormSettings, CodFormField, ShippingRestriction } from "@/lib/types/cod-form";
+import { getDepartments, getProvincesByDepartment, getDistrictsByProvince } from "@/actions/locations";
+
+const EMPTY_RESTRICTION: ShippingRestriction = {
+  enabled: false,
+  allowedDepartmentIds: [],
+  allowedProvinceIds: [],
+  allowedDistrictCodes: [],
+  restrictionMessage: "",
+};
+
+function ShippingRestrictionConfig({
+  restriction,
+  onChange,
+}: {
+  restriction: ShippingRestriction;
+  onChange: (r: ShippingRestriction) => void;
+}) {
+  const [allDepts, setAllDepts] = useState<{ id: string; name: string }[]>([]);
+  const [allProvs, setAllProvs] = useState<{ id: string; name: string }[]>([]);
+  const [allDists, setAllDists] = useState<{ code: string; name: string }[]>([]);
+  const [loadingProvs, setLoadingProvs] = useState(false);
+  const [loadingDists, setLoadingDists] = useState(false);
+
+  useEffect(() => {
+    getDepartments().then((r) => { if (r.success) setAllDepts(r.data); });
+  }, []);
+
+  useEffect(() => {
+    if (!restriction.allowedDepartmentIds.length) {
+      setAllProvs([]);
+      setAllDists([]);
+      return;
+    }
+    setLoadingProvs(true);
+    Promise.all(restriction.allowedDepartmentIds.map((id) => getProvincesByDepartment(id)))
+      .then((results) => {
+        setAllProvs(results.flatMap((r) => (r.success ? r.data : [])));
+        setLoadingProvs(false);
+      });
+  }, [restriction.allowedDepartmentIds.join(",")]);
+
+  useEffect(() => {
+    if (!restriction.allowedProvinceIds.length) {
+      setAllDists([]);
+      return;
+    }
+    setLoadingDists(true);
+    Promise.all(restriction.allowedProvinceIds.map((id) => getDistrictsByProvince(id)))
+      .then((results) => {
+        setAllDists(results.flatMap((r) => (r.success ? r.data : [])));
+        setLoadingDists(false);
+      });
+  }, [restriction.allowedProvinceIds.join(",")]);
+
+  const toggleDept = (id: string) => {
+    const newIds = restriction.allowedDepartmentIds.includes(id)
+      ? restriction.allowedDepartmentIds.filter((x) => x !== id)
+      : [...restriction.allowedDepartmentIds, id];
+    onChange({ ...restriction, allowedDepartmentIds: newIds, allowedProvinceIds: [], allowedDistrictCodes: [] });
+  };
+
+  const toggleProv = (id: string) => {
+    const newIds = restriction.allowedProvinceIds.includes(id)
+      ? restriction.allowedProvinceIds.filter((x) => x !== id)
+      : [...restriction.allowedProvinceIds, id];
+    onChange({ ...restriction, allowedProvinceIds: newIds, allowedDistrictCodes: [] });
+  };
+
+  const toggleDist = (code: string) => {
+    const newCodes = restriction.allowedDistrictCodes.includes(code)
+      ? restriction.allowedDistrictCodes.filter((x) => x !== code)
+      : [...restriction.allowedDistrictCodes, code];
+    onChange({ ...restriction, allowedDistrictCodes: newCodes });
+  };
+
+  return (
+    <div className="space-y-3 mt-2">
+      <div>
+        <Label className="text-xs">Mensaje informativo (opcional)</Label>
+        <Input
+          value={restriction.restrictionMessage ?? ""}
+          onChange={(e) => onChange({ ...restriction, restrictionMessage: e.target.value })}
+          placeholder="Solo hacemos envíos a Lima"
+          className="text-xs"
+        />
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Se muestra encima del selector de ubicación
+        </p>
+      </div>
+
+      {/* Departamentos */}
+      <div>
+        <Label className="text-xs font-semibold">
+          Departamentos permitidos
+          {restriction.allowedDepartmentIds.length > 0 && (
+            <span className="ml-1 text-orange-600">({restriction.allowedDepartmentIds.length} sel.)</span>
+          )}
+        </Label>
+        <p className="text-xs text-muted-foreground mb-1">
+          Sin selección = acepta todos los departamentos
+        </p>
+        <div className="max-h-36 overflow-y-auto border rounded-lg p-2 space-y-0.5 bg-white">
+          {allDepts.length === 0 ? (
+            <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+          ) : (
+            allDepts.map((dept) => (
+              <label key={dept.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded">
+                <input
+                  type="checkbox"
+                  checked={restriction.allowedDepartmentIds.includes(dept.id)}
+                  onChange={() => toggleDept(dept.id)}
+                  className="rounded"
+                />
+                {dept.name}
+              </label>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Provincias — solo cuando hay departamentos seleccionados */}
+      {restriction.allowedDepartmentIds.length > 0 && (
+        <div>
+          <Label className="text-xs font-semibold">
+            Provincias permitidas (opcional)
+            {restriction.allowedProvinceIds.length > 0 && (
+              <span className="ml-1 text-orange-600">({restriction.allowedProvinceIds.length} sel.)</span>
+            )}
+          </Label>
+          <p className="text-xs text-muted-foreground mb-1">
+            Sin selección = acepta todas las provincias de los deptos. elegidos
+          </p>
+          <div className="max-h-36 overflow-y-auto border rounded-lg p-2 space-y-0.5 bg-white">
+            {loadingProvs ? (
+              <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+            ) : (
+              allProvs.map((prov) => (
+                <label key={prov.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded">
+                  <input
+                    type="checkbox"
+                    checked={restriction.allowedProvinceIds.includes(prov.id)}
+                    onChange={() => toggleProv(prov.id)}
+                    className="rounded"
+                  />
+                  {prov.name}
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Distritos — solo cuando hay provincias seleccionadas */}
+      {restriction.allowedProvinceIds.length > 0 && (
+        <div>
+          <Label className="text-xs font-semibold">
+            Distritos permitidos (opcional)
+            {restriction.allowedDistrictCodes.length > 0 && (
+              <span className="ml-1 text-orange-600">({restriction.allowedDistrictCodes.length} sel.)</span>
+            )}
+          </Label>
+          <p className="text-xs text-muted-foreground mb-1">
+            Sin selección = acepta todos los distritos de las provincias elegidas
+          </p>
+          <div className="max-h-36 overflow-y-auto border rounded-lg p-2 space-y-0.5 bg-white">
+            {loadingDists ? (
+              <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+            ) : (
+              allDists.map((dist) => (
+                <label key={dist.code} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded">
+                  <input
+                    type="checkbox"
+                    checked={restriction.allowedDistrictCodes.includes(dist.code)}
+                    onChange={() => toggleDist(dist.code)}
+                    className="rounded"
+                  />
+                  {dist.name}
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SortableField({
   field,
@@ -182,8 +369,8 @@ export default function CodFormConfig({ settings, onChange }: CodFormConfigProps
             </div>
             <div>
               <Label className="text-xs">
-                Mensaje (variables: {"{nombre}"}, {"{telefono}"}, {"{direccion}"}, {"{total}"},
-                {" {producto}"})
+                Mensaje (variables: {"{nombre}"}, {"{telefono}"}, {"{direccion}"}, {"{distrito}"},
+                {" {total}"}, {"{producto}"}, {"{pedido}"}, {"{referencia}"})
               </Label>
               <Textarea
                 value={settings.whatsappMessage ?? ""}
@@ -193,6 +380,34 @@ export default function CodFormConfig({ settings, onChange }: CodFormConfigProps
               />
             </div>
           </>
+        )}
+      </div>
+
+      <div className="border rounded-lg p-3 bg-orange-50 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-semibold text-orange-800">
+              📍 Restringir cobertura de envío
+            </Label>
+            <p className="text-xs text-orange-700 mt-0.5">
+              Limita qué departamentos, provincias o distritos pueden hacer pedidos
+            </p>
+          </div>
+          <Switch
+            checked={settings.shippingRestriction?.enabled ?? false}
+            onCheckedChange={(v) =>
+              update("shippingRestriction", {
+                ...(settings.shippingRestriction ?? EMPTY_RESTRICTION),
+                enabled: v,
+              })
+            }
+          />
+        </div>
+        {settings.shippingRestriction?.enabled && (
+          <ShippingRestrictionConfig
+            restriction={settings.shippingRestriction}
+            onChange={(r) => update("shippingRestriction", r)}
+          />
         )}
       </div>
     </div>

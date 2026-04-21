@@ -16,23 +16,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 
-interface Department {
-  id: string;
-  code: string;
-  name: string;
-}
-
-interface Province {
-  id: string;
-  code: string;
-  name: string;
-}
-
-interface District {
-  id: string;
-  code: string;
-  name: string;
-}
+interface Department { id: string; code: string; name: string; }
+interface Province { id: string; code: string; name: string; }
+interface District { id: string; code: string; name: string; }
 
 interface LocationSelectorProps {
   value: {
@@ -53,12 +39,20 @@ interface LocationSelectorProps {
     province?: string;
     district?: string;
   };
+  allowedDepartmentIds?: string[];
+  allowedProvinceIds?: string[];
+  allowedDistrictCodes?: string[];
+  restrictionMessage?: string;
 }
 
 export default function LocationSelector({
   value,
   onChange,
   errors = {},
+  allowedDepartmentIds,
+  allowedProvinceIds,
+  allowedDistrictCodes,
+  restrictionMessage,
 }: LocationSelectorProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -68,56 +62,69 @@ export default function LocationSelector({
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
 
-  // Cargar departamentos al montar
   useEffect(() => {
-    loadDepartments();
+    getDepartments().then((r) => {
+      if (r.success) setDepartments(r.data);
+      setLoadingDepartments(false);
+    });
   }, []);
 
-  // Cargar provincias cuando cambia el departamento
   useEffect(() => {
     if (value.departmentId) {
-      loadProvinces(value.departmentId);
+      setLoadingProvinces(true);
+      getProvincesByDepartment(value.departmentId).then((r) => {
+        if (r.success) setProvinces(r.data);
+        setLoadingProvinces(false);
+      });
     } else {
       setProvinces([]);
       setDistricts([]);
     }
   }, [value.departmentId]);
 
-  // Cargar distritos cuando cambia la provincia
   useEffect(() => {
     if (value.provinceId) {
-      loadDistricts(value.provinceId);
+      setLoadingDistricts(true);
+      getDistrictsByProvince(value.provinceId).then((r) => {
+        if (r.success) setDistricts(r.data);
+        setLoadingDistricts(false);
+      });
     } else {
       setDistricts([]);
     }
   }, [value.provinceId]);
 
-  const loadDepartments = async () => {
-    setLoadingDepartments(true);
-    const result = await getDepartments();
-    if (result.success) {
-      setDepartments(result.data);
-    }
-    setLoadingDepartments(false);
-  };
+  // Filtered lists based on restrictions
+  const visibleDepts = allowedDepartmentIds?.length
+    ? departments.filter((d) => allowedDepartmentIds.includes(d.id))
+    : departments;
 
-  const loadProvinces = async (departmentId: string) => {
-    setLoadingProvinces(true);
-    const result = await getProvincesByDepartment(departmentId);
-    if (result.success) {
-      setProvinces(result.data);
-    }
-    setLoadingProvinces(false);
-  };
+  const visibleProvs = allowedProvinceIds?.length
+    ? provinces.filter((p) => allowedProvinceIds.includes(p.id))
+    : provinces;
 
-  const loadDistricts = async (provinceId: string) => {
-    setLoadingDistricts(true);
-    const result = await getDistrictsByProvince(provinceId);
-    if (result.success) {
-      setDistricts(result.data);
+  const visibleDists = allowedDistrictCodes?.length
+    ? districts.filter((d) => allowedDistrictCodes.includes(d.code))
+    : districts;
+
+  // Auto-select when only one option is available
+  useEffect(() => {
+    if (!loadingDepartments && visibleDepts.length === 1 && !value.departmentId) {
+      handleDepartmentChange(visibleDepts[0].id);
     }
-    setLoadingDistricts(false);
-  };
+  }, [loadingDepartments, visibleDepts.length]);
+
+  useEffect(() => {
+    if (!loadingProvinces && visibleProvs.length === 1 && !value.provinceId) {
+      handleProvinceChange(visibleProvs[0].id);
+    }
+  }, [loadingProvinces, visibleProvs.length]);
+
+  useEffect(() => {
+    if (!loadingDistricts && visibleDists.length === 1 && !value.districtCode) {
+      handleDistrictChange(visibleDists[0].code);
+    }
+  }, [loadingDistricts, visibleDists.length]);
 
   const handleDepartmentChange = (departmentId: string) => {
     const department = departments.find((d) => d.id === departmentId);
@@ -160,8 +167,12 @@ export default function LocationSelector({
 
   return (
     <div className="space-y-4">
-      {/* Grid responsive: 1 columna en mobile, 3 columnas en desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {restrictionMessage && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          📍 {restrictionMessage}
+        </p>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {/* Departamento */}
         <div>
           <Label htmlFor="department">
@@ -175,12 +186,12 @@ export default function LocationSelector({
             <Select value={value.departmentId} onValueChange={handleDepartmentChange}>
               <SelectTrigger
                 id="department"
-                className={errors.department ? "border-destructive" : ""}
+                className={`w-full ${errors.department ? "border-destructive" : ""}`}
               >
                 <SelectValue placeholder="Selecciona" />
               </SelectTrigger>
               <SelectContent>
-                {departments.map((dept) => (
+                {visibleDepts.map((dept) => (
                   <SelectItem key={dept.id} value={dept.id}>
                     {dept.name}
                   </SelectItem>
@@ -206,22 +217,18 @@ export default function LocationSelector({
             <Select
               value={value.provinceId}
               onValueChange={handleProvinceChange}
-              disabled={!value.departmentId || provinces.length === 0}
+              disabled={!value.departmentId || visibleProvs.length === 0}
             >
               <SelectTrigger
                 id="province"
-                className={errors.province ? "border-destructive" : ""}
+                className={`w-full ${errors.province ? "border-destructive" : ""}`}
               >
                 <SelectValue
-                  placeholder={
-                    !value.departmentId
-                      ? "Primero depto."
-                      : "Selecciona"
-                  }
+                  placeholder={!value.departmentId ? "Primero depto." : "Selecciona"}
                 />
               </SelectTrigger>
               <SelectContent>
-                {provinces.map((prov) => (
+                {visibleProvs.map((prov) => (
                   <SelectItem key={prov.id} value={prov.id}>
                     {prov.name}
                   </SelectItem>
@@ -247,22 +254,18 @@ export default function LocationSelector({
             <Select
               value={value.districtCode}
               onValueChange={handleDistrictChange}
-              disabled={!value.provinceId || districts.length === 0}
+              disabled={!value.provinceId || visibleDists.length === 0}
             >
               <SelectTrigger
                 id="district"
-                className={errors.district ? "border-destructive" : ""}
+                className={`w-full ${errors.district ? "border-destructive" : ""}`}
               >
                 <SelectValue
-                  placeholder={
-                    !value.provinceId
-                      ? "Primero prov."
-                      : "Selecciona"
-                  }
+                  placeholder={!value.provinceId ? "Primero prov." : "Selecciona"}
                 />
               </SelectTrigger>
               <SelectContent>
-                {districts.map((dist) => (
+                {visibleDists.map((dist) => (
                   <SelectItem key={dist.id} value={dist.code}>
                     {dist.name}
                   </SelectItem>

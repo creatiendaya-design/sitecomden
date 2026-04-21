@@ -14,6 +14,7 @@ export async function GET() {
           { category: "general" },
           { category: "contact" },
           { category: "social" },
+          { category: "orders" },
         ],
       },
     });
@@ -85,5 +86,6 @@ function getCategoryFromKey(key: string): string {
   if (key.startsWith("seo_")) return "seo";
   if (key.startsWith("social_")) return "social";
   if (key.startsWith("contact_")) return "contact";
+  if (key.startsWith("order_")) return "orders";
   return "general";
 }

@@ -111,9 +111,24 @@ export default async function ProductDetailPage({
     sku: product.sku || undefined,
   };
 
+  // Serializar product (Prisma Decimal/Date → JS plain objects)
+  const serializedProductFull = {
+    ...product,
+    basePrice: Number(product.basePrice),
+    compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
+    weight: product.weight ? Number(product.weight) : null,
+    createdAt: product.createdAt.toISOString(),
+    updatedAt: product.updatedAt.toISOString(),
+    landingBlocks: ((product as any).landingBlocks ?? []).map((b: any) => ({
+      ...b,
+      createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
+      updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt,
+    })),
+  };
+
   // Props compartidos para todos los templates
   const templateProps = {
-    product,
+    product: serializedProductFull,
     serializedProduct,
     serializedVariants,
     options: product.options,
@@ -121,7 +136,7 @@ export default async function ProductDetailPage({
     initialComparePrice,
     inStock,
     totalStock,
-    landingBlocks: (product as any).landingBlocks ?? [],
+    landingBlocks: serializedProductFull.landingBlocks,
   };
 
   return (

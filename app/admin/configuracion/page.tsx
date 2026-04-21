@@ -26,6 +26,7 @@ export default async function ConfiguracionPage() {
         { category: "general" },
         { category: "contact" },
         { category: "social" },
+        { category: "orders" },
       ],
     },
   });

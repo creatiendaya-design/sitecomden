@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatOrderNumber } from "@/lib/utils";
+import { getSiteSettings } from "@/lib/site-settings";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,8 @@ interface OrdersPageProps {
 
 export default async function AdminOrdersPage({ searchParams }: OrdersPageProps) {
   const { status, payment } = await searchParams;
+  const settings = await getSiteSettings();
+  const orderPrefix = settings.order_prefix || "PED";
 
   // Construir filtros
   const where: any = {};
@@ -146,7 +149,9 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                           href={`/admin/ordenes/${order.id}`}
                           className="font-semibold hover:underline text-sm sm:text-base"
                         >
-                          #{order.orderNumber}
+                          {(order as any).orderSeq
+                            ? formatOrderNumber((order as any).orderSeq, orderPrefix)
+                            : `#${order.orderNumber.slice(-8).toUpperCase()}`}
                         </Link>
                         <div className="flex flex-wrap gap-2">
                           <span className={`rounded-full px-2 py-1 text-xs ${paymentBadge.color}`}>

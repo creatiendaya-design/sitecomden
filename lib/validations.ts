@@ -724,7 +724,7 @@ export const updateSiteSettingsSchema = z.object({
 // ===================================================================
 
 export const codFormFieldSchema = z.object({
-  id: z.enum(["name", "phone", "email", "dni", "location", "address", "notes"]),
+  id: z.enum(["name", "phone", "email", "dni", "location", "address", "reference", "notes"]),
   label: z.string().min(1),
   required: z.boolean(),
   visible: z.boolean(),
@@ -758,6 +758,7 @@ export const createCodOrderSchema = z.object({
   provinceName: z.string().optional(),
   districtName: z.string().optional(),
   address: z.string().min(5).max(300),
+  reference: z.string().max(200).optional(),
   notes: z.string().max(500).optional(),
   items: z.array(z.object({
     productId: z.string(),

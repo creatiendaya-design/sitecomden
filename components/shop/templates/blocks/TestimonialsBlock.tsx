@@ -31,7 +31,7 @@ export default function TestimonialsBlock({ content }: TestimonialsBlockProps) {
               <div className="flex items-center gap-3 pt-2 border-t">
                 {item.photo ? (
                   <div className="relative w-9 h-9 rounded-full overflow-hidden shrink-0">
-                    <Image src={item.photo} alt={item.name} fill className="object-cover" />
+                    <Image src={item.photo} alt={item.name} fill className="object-cover" unoptimized />
                   </div>
                 ) : (
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary font-semibold text-sm">

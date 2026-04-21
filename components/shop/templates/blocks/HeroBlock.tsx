@@ -20,6 +20,7 @@ export default function HeroBlock({ content, onCtaClick }: HeroBlockProps) {
           fill
           className="object-cover"
           priority
+          unoptimized
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900" />

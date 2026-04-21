@@ -132,6 +132,7 @@ export default function GalleryLightbox({
             fill
             className="object-contain"
             draggable={false}
+            unoptimized
           />
         </div>
       </div>
@@ -165,7 +166,7 @@ export default function GalleryLightbox({
                 i === index ? "border-white" : "border-transparent opacity-60 hover:opacity-100"
               }`}
             >
-              <Image src={img} alt="" fill className="object-cover" />
+              <Image src={img} alt="" fill className="object-cover" unoptimized />
             </button>
           ))}
         </div>

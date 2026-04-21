@@ -230,3 +230,8 @@
   color: var(--landing-text, inherit);
 }
 
+body.is-landing-page header,
+body.is-landing-page footer {
+  display: none !important;
+}
+

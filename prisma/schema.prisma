@@ -221,6 +221,7 @@ model ProductVariant {
 model Order {
   id                String            @id @default(cuid())
   orderNumber       String            @unique @default(cuid())
+  orderSeq          Int               @default(autoincrement())
   viewToken         String            @unique @default(cuid())
   subtotal          Decimal           @db.Decimal(10, 2)
   shipping          Decimal           @db.Decimal(10, 2) @default(0)

@@ -176,7 +176,7 @@ export default function CheckoutPageClient({
     } else if (!formData.customerEmail || !formData.customerEmail.includes("@")) {
       emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       emailRef.current?.focus();
-    } else if (!formData.customerPhone || formData.customerPhone.length < 9) {
+    } else if (!formData.customerPhone || formData.customerPhone.length < 7) {
       phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       phoneRef.current?.focus();
     } else if (!formData.districtCode) {
@@ -388,7 +388,7 @@ export default function CheckoutPageClient({
         return;
       }
 
-      if (!formData.customerPhone || formData.customerPhone.length < 9) {
+      if (!formData.customerPhone || formData.customerPhone.length < 7) {
         setError("Ingresa un teléfono válido");
         phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         phoneRef.current?.focus();
@@ -503,8 +503,8 @@ export default function CheckoutPageClient({
           errorMsg = "Ingresa un email válido";
         break;
       case "customerPhone":
-        if (trimmed.length > 0 && trimmed.replace(/\D/g, "").length < 9)
-          errorMsg = "Ingresa un teléfono válido (mínimo 9 dígitos)";
+        if (trimmed.length > 0 && trimmed.replace(/\D/g, "").length < 7)
+          errorMsg = "Ingresa un teléfono válido (mínimo 7 dígitos)";
         break;
       case "address":
         if (trimmed.length > 0 && trimmed.length < 10)
@@ -521,9 +521,15 @@ export default function CheckoutPageClient({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    let processedValue = value;
+    if (name === "customerPhone") {
+      processedValue = value.replace(/\D/g, "").slice(0, 9);
+    } else if (name === "customerDni") {
+      processedValue = value.replace(/\D/g, "").slice(0, 8);
+    }
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: processedValue,
     });
     if (validationErrors[name]) {
       const newErrors = { ...validationErrors };
@@ -885,13 +891,14 @@ export default function CheckoutPageClient({
                           ref={phoneRef}
                           id="customerPhone"
                           name="customerPhone"
-                          type="tel"
+                          type="text"
                           value={formData.customerPhone}
                           onChange={handleInputChange}
                           onBlur={handleBlur}
-                          placeholder="+51 987654321"
+                          placeholder="987654321"
                           autoComplete="tel"
-                          inputMode="tel"
+                          inputMode="numeric"
+                          maxLength={9}
                           className={validationErrors.customerPhone ? "border-destructive" : ""}
                         />
                         {validationErrors.customerPhone && (

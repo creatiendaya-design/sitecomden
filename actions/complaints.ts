@@ -473,7 +473,6 @@ export async function updateComplaintStatus(
 
 export async function getComplaintsConfig(): Promise<ActionResult<ComplaintsConfig>> {
   try {
-    await protectRoute("complaints:configure");
     let config = await prisma.setting.findUnique({
       where: { key: "complaints_config" },
     });

@@ -1,13 +1,18 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ProductActions from "@/components/shop/ProductActions";
 import ProductPrice from "@/components/shop/ProductPrice";
 import RichTextContent from "@/components/RichTextContent";
-import { Check, Shield, Truck, Heart, Star } from "lucide-react";
+import { Shield, Truck, Heart, Star } from "lucide-react";
 import LandingBlockRenderer from "@/components/shop/templates/blocks/LandingBlockRenderer";
+import CodOrderModal from "@/components/shop/CodOrderModal";
+import LandingCartDrawer from "@/components/shop/LandingCartDrawer";
+import { DEFAULT_COD_FORM_SETTINGS } from "@/lib/types/cod-form";
+import { getProductImageUrl } from "@/lib/image-utils";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
 
 interface ProductLandingViewProps {
@@ -33,18 +38,45 @@ export default function ProductLandingView({
   totalStock,
   landingBlocks = [],
 }: ProductLandingViewProps) {
-  const mainImage =
-    Array.isArray(product.images) && product.images.length > 0
-      ? product.images[0]
-      : null;
+  const mainImage = getProductImageUrl(product.images);
 
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  const [codOpen, setCodOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.add("is-landing-page");
+    return () => document.body.classList.remove("is-landing-page");
+  }, []);
+
+  const mode = serializedProduct.checkoutMode ?? "STANDARD";
+  const codSettings = serializedProduct.codFormSettings ?? DEFAULT_COD_FORM_SETTINGS;
+  const isCod = mode === "COD_ONLY" || mode === "COD_AND_CART";
+
+  const handleCtaClick = () => {
+    if (isCod) {
+      setCodOpen(true);
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   // If there are configured landing blocks, render them; otherwise fall back to the static template.
   if (landingBlocks.length > 0) {
     return (
       <div className="landing-product">
-        <LandingBlockRenderer blocks={landingBlocks} onCtaClick={scrollToTop} />
+        <LandingBlockRenderer blocks={landingBlocks} onCtaClick={handleCtaClick} />
+        <CodOrderModal
+          open={codOpen}
+          onClose={() => setCodOpen(false)}
+          items={[{
+            productId: serializedProduct.id,
+            quantity: 1,
+            name: serializedProduct.name,
+            price: Number(serializedProduct.basePrice),
+            image: getProductImageUrl(serializedProduct.images) ?? undefined,
+          }]}
+          settings={codSettings}
+        />
+        {mode === "COD_AND_CART" && <LandingCartDrawer codSettings={codSettings} />}
       </div>
     );
   }
@@ -64,6 +96,7 @@ export default function ProductLandingView({
                   fill
                   className="object-cover"
                   priority
+                  unoptimized
                 />
               ) : (
                 <div className="flex h-full items-center justify-center bg-slate-200 text-slate-400">
@@ -185,17 +218,19 @@ export default function ProductLandingView({
         <section className="py-12 bg-white">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold mb-8 text-center">Galería</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-4 max-w-2xl mx-auto">
               {product.images.slice(1).map((image: string, index: number) => (
                 <div
                   key={index}
-                  className="relative aspect-square rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow"
+                  className="relative w-full rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow"
+                  style={{ aspectRatio: "4/3" }}
                 >
                   <Image
                     src={image}
                     alt={`${product.name} ${index + 2}`}
                     fill
                     className="object-cover hover:scale-105 transition-transform duration-300"
+                    unoptimized
                   />
                 </div>
               ))}

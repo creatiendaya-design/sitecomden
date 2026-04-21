@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import LocationSelector from "@/components/shop/LocationSelector";
 import { createCodOrder } from "@/actions/cod-orders";
 import type { CodFormSettings } from "@/lib/types/cod-form";
+import { useTracking } from "@/hooks/useTracking";
 
 export interface CodOrderItem {
   productId: string;
@@ -45,16 +46,19 @@ function buildWhatsAppUrl(
   formData: Record<string, string>,
   location: LocationState,
   total: number,
-  productNames: string
+  productNames: string,
+  orderId: string
 ): string {
   const msg = (settings.whatsappMessage ?? "")
     .replace("{nombre}", formData.name ?? "")
     .replace("{telefono}", formData.phone ?? "")
     .replace("{email}", formData.email ?? "")
     .replace("{direccion}", formData.address ?? "")
+    .replace("{referencia}", formData.reference ?? "")
     .replace("{distrito}", location.districtName)
     .replace("{total}", total.toFixed(2))
-    .replace("{producto}", productNames);
+    .replace("{producto}", productNames)
+    .replace("{pedido}", orderId);
   return `https://wa.me/${(settings.whatsappNumber ?? "").replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`;
 }
 
@@ -66,6 +70,19 @@ export default function CodOrderModal({
 }: CodOrderModalProps) {
   const [step, setStep] = useState<"form" | "thanks">("form");
   const [isPending, startTransition] = useTransition();
+  const { trackEvent } = useTracking();
+
+  useEffect(() => {
+    if (open) {
+      trackEvent("InitiateCheckout", {
+        value: items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+        currency: "PEN",
+        num_items: items.reduce((sum, i) => sum + i.quantity, 0),
+        content_ids: items.map((i) => i.productId),
+        contents: items.map((i) => ({ id: i.productId, quantity: i.quantity, item_price: i.price })),
+      });
+    }
+  }, [open]);
   const [location, setLocation] = useState<LocationState>({
     departmentId: "",
     provinceId: "",
@@ -107,12 +124,22 @@ export default function CodOrderModal({
         email: formData.email,
         dni: formData.dni,
         address: formData.address ?? "",
+        reference: formData.reference,
         notes: formData.notes,
         ...location,
       };
 
       const result = await createCodOrder(payload);
       if (result.success) {
+        trackEvent("Purchase", {
+          value: total,
+          currency: "PEN",
+          transaction_id: result.orderId,
+          num_items: items.reduce((sum, i) => sum + i.quantity, 0),
+          content_ids: items.map((i) => i.productId),
+          contents: items.map((i) => ({ id: i.productId, quantity: i.quantity, item_price: i.price })),
+        });
+
         if (settings.whatsappEnabled && settings.whatsappNumber) {
           window.open(
             buildWhatsAppUrl(
@@ -120,7 +147,8 @@ export default function CodOrderModal({
               formData,
               location,
               total,
-              items.map((i) => i.name).join(", ")
+              items.map((i) => i.name).join(", "),
+              result.formattedNumber ?? result.orderId ?? ""
             ),
             "_blank"
           );
@@ -148,7 +176,7 @@ export default function CodOrderModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         {step === "form" ? (
           <>
             <DialogHeader>
@@ -159,10 +187,10 @@ export default function CodOrderModal({
             </DialogHeader>
 
             {/* Order summary */}
-            <div className="space-y-1.5 border rounded-lg p-3 bg-muted/30">
+            <div className="space-y-1.5 border rounded-lg p-3 bg-muted/30 min-w-0">
               {items.map((item, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="truncate pr-2">
+                <div key={i} className="flex justify-between gap-2 text-sm min-w-0">
+                  <span className="truncate min-w-0">
                     {item.name} x{item.quantity}
                   </span>
                   <span className="font-semibold shrink-0">
@@ -192,6 +220,26 @@ export default function CodOrderModal({
                           districtCode: location.districtCode,
                         }}
                         onChange={setLocation}
+                        allowedDepartmentIds={
+                          settings.shippingRestriction?.enabled
+                            ? settings.shippingRestriction.allowedDepartmentIds
+                            : undefined
+                        }
+                        allowedProvinceIds={
+                          settings.shippingRestriction?.enabled
+                            ? settings.shippingRestriction.allowedProvinceIds
+                            : undefined
+                        }
+                        allowedDistrictCodes={
+                          settings.shippingRestriction?.enabled
+                            ? settings.shippingRestriction.allowedDistrictCodes
+                            : undefined
+                        }
+                        restrictionMessage={
+                          settings.shippingRestriction?.enabled
+                            ? settings.shippingRestriction.restrictionMessage
+                            : undefined
+                        }
                       />
                     </div>
                   );
@@ -221,17 +269,31 @@ export default function CodOrderModal({
                       {field.required && " *"}
                     </Label>
                     <Input
-                      type={
-                        field.id === "email"
+                      type={field.id === "email" ? "email" : "text"}
+                      inputMode={
+                        field.id === "phone" || field.id === "dni"
+                          ? "numeric"
+                          : field.id === "email"
                           ? "email"
-                          : field.id === "phone"
-                          ? "tel"
-                          : "text"
+                          : undefined
+                      }
+                      maxLength={
+                        field.id === "phone"
+                          ? 9
+                          : field.id === "dni"
+                          ? 8
+                          : undefined
                       }
                       value={formData[field.id] ?? ""}
-                      onChange={(e) =>
-                        setFormData({ ...formData, [field.id]: e.target.value })
-                      }
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (field.id === "phone") {
+                          val = val.replace(/\D/g, "").slice(0, 9);
+                        } else if (field.id === "dni") {
+                          val = val.replace(/\D/g, "").slice(0, 8);
+                        }
+                        setFormData({ ...formData, [field.id]: val });
+                      }}
                       required={field.required}
                     />
                   </div>

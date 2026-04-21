@@ -38,6 +38,9 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
     social_instagram: initialSettings.social_instagram || "",
     social_twitter: initialSettings.social_twitter || "",
     social_tiktok: initialSettings.social_tiktok || "",
+
+    // Orders
+    order_prefix: initialSettings.order_prefix || "PED",
   });
 
   const handleChange = (key: string, value: any) => {
@@ -82,6 +85,7 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
         social_instagram: "",
         social_twitter: "",
         social_tiktok: "",
+        order_prefix: "PED",
       });
       toast.info("Valores restaurados a los predeterminados. Haz clic en 'Guardar' para aplicar los cambios.");
     }
@@ -143,6 +147,34 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
                 />
                 <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                   Usado para sitemap y structured data
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Numeración de Pedidos */}
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl">Numeración de Pedidos</CardTitle>
+              <CardDescription className="text-sm">
+                Prefijo para el número de pedido (ej: PED → PED-0001)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="max-w-xs">
+                <Label htmlFor="order_prefix" className="text-sm sm:text-base">
+                  Prefijo del pedido
+                </Label>
+                <Input
+                  id="order_prefix"
+                  value={settings.order_prefix}
+                  onChange={(e) => handleChange("order_prefix", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
+                  placeholder="PED"
+                  maxLength={6}
+                  className="mt-1 font-mono uppercase"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Vista previa: <strong>{settings.order_prefix || "PED"}-0001</strong>
                 </p>
               </div>
             </CardContent>
@@ -342,6 +374,7 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
               </div>
             </CardContent>
           </Card>
+
         </TabsContent>
       </Tabs>
 

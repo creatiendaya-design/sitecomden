@@ -1,7 +1,15 @@
 export type CheckoutMode = "STANDARD" | "COD_ONLY" | "COD_AND_CART";
 
+export interface ShippingRestriction {
+  enabled: boolean;
+  allowedDepartmentIds: string[];
+  allowedProvinceIds: string[];
+  allowedDistrictCodes: string[];
+  restrictionMessage?: string;
+}
+
 export interface CodFormField {
-  id: "name" | "phone" | "email" | "dni" | "location" | "address" | "notes";
+  id: "name" | "phone" | "email" | "dni" | "location" | "address" | "reference" | "notes";
   label: string;
   required: boolean;
   visible: boolean;
@@ -18,6 +26,7 @@ export interface CodFormSettings {
   whatsappNumber?: string;
   whatsappMessage?: string;
   fields: CodFormField[];
+  shippingRestriction?: ShippingRestriction;
 }
 
 export const DEFAULT_COD_FORM_SETTINGS: CodFormSettings = {
@@ -30,14 +39,15 @@ export const DEFAULT_COD_FORM_SETTINGS: CodFormSettings = {
   whatsappEnabled: false,
   whatsappNumber: "",
   whatsappMessage:
-    "Hola, hice un pedido:\nProducto: {producto}\nNombre: {nombre}\nTel: {telefono}\nDirección: {direccion}, {distrito}\nTotal: S/ {total}",
+    "Hola, hice un pedido:\nPedido: #{pedido}\nProducto: {producto}\nNombre: {nombre}\nTel: {telefono}\nDirección: {direccion}, {distrito}\nReferencia: {referencia}\nTotal: S/ {total}",
   fields: [
     { id: "name",     label: "Nombre completo",                    required: true,  visible: true  },
     { id: "phone",    label: "Teléfono / WhatsApp",                required: true,  visible: true  },
     { id: "email",    label: "Correo electrónico",                 required: false, visible: true  },
     { id: "dni",      label: "DNI",                                required: false, visible: false },
     { id: "location", label: "Departamento / Provincia / Distrito", required: true,  visible: true  },
-    { id: "address",  label: "Dirección de entrega",               required: true,  visible: true  },
-    { id: "notes",    label: "Notas adicionales",                  required: false, visible: false },
+    { id: "address",   label: "Dirección de entrega",               required: true,  visible: true  },
+    { id: "reference", label: "Referencia",                        required: false, visible: true  },
+    { id: "notes",     label: "Notas adicionales",                 required: false, visible: false },
   ],
 };
