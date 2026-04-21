@@ -95,6 +95,8 @@ model Product {
   images           Json              @default("[]")
   hasVariants      Boolean           @default(false)
   template         ProductTemplate   @default(STANDARD)
+  checkoutMode     CheckoutMode      @default(STANDARD)
+  codFormSettings  Json?
   metaTitle        String?
   metaDescription  String?
   featured         Boolean           @default(false)
@@ -347,6 +349,13 @@ enum PaymentMethod {
   YAPE
   PLIN
   MERCADOPAGO
+  COD
+}
+
+enum CheckoutMode {
+  STANDARD
+  COD_ONLY
+  COD_AND_CART
 }
 
 
