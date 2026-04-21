@@ -241,10 +241,13 @@ export const updateProductSchema = z
     active: z.boolean().optional(),
     featured: z.boolean().optional(),
     hasVariants: z.boolean().optional(),
-    // 🆕 NUEVO: Template de presentación
     template: z
       .enum(["STANDARD", "LANDING", "MINIMAL", "GALLERY"])
       .optional(),
+    checkoutMode: z
+      .enum(["STANDARD", "COD_ONLY", "COD_AND_CART"])
+      .optional(),
+    codFormSettings: z.any().optional().nullable(),
     categoryId: z.string().cuid().optional().nullable(),
     metaTitle: z.string().max(60).optional().nullable(),
     metaDescription: z.string().max(160).optional().nullable(),
@@ -714,6 +717,53 @@ export const updateSiteSettingsSchema = z.object({
   seo_home_title: z.string().max(60).optional(),
   seo_home_description: z.string().max(160).optional(),
   seo_home_og_image: imageUrlSchema.optional(),
+});
+
+// ===================================================================
+// COD FORM SCHEMAS
+// ===================================================================
+
+export const codFormFieldSchema = z.object({
+  id: z.enum(["name", "phone", "email", "dni", "location", "address", "notes"]),
+  label: z.string().min(1),
+  required: z.boolean(),
+  visible: z.boolean(),
+});
+
+export const codFormSettingsSchema = z.object({
+  formTitle: z.string().min(1),
+  formSubtitle: z.string().optional(),
+  buttonText: z.string().min(1),
+  paymentBadge: z.string().optional(),
+  thankYouTitle: z.string().min(1),
+  thankYouMessage: z.string().min(1),
+  whatsappEnabled: z.boolean(),
+  whatsappNumber: z.string().optional(),
+  whatsappMessage: z.string().optional(),
+  fields: z.array(codFormFieldSchema),
+});
+
+export const createCodOrderSchema = z.object({
+  productId: z.string().optional(),
+  variantId: z.string().optional(),
+  quantity: z.number().int().min(1).max(99).optional(),
+  name: z.string().min(2).max(100),
+  phone: z.string().min(7).max(20),
+  email: z.string().email().optional().or(z.literal("")),
+  dni: z.string().optional(),
+  departmentId: z.string().optional(),
+  provinceId: z.string().optional(),
+  districtCode: z.string().optional(),
+  departmentName: z.string().optional(),
+  provinceName: z.string().optional(),
+  districtName: z.string().optional(),
+  address: z.string().min(5).max(300),
+  notes: z.string().max(500).optional(),
+  items: z.array(z.object({
+    productId: z.string(),
+    variantId: z.string().optional(),
+    quantity: z.number().int().min(1),
+  })).optional(),
 });
 
 // ===================================================================

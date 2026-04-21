@@ -95,6 +95,8 @@ model Product {
   images           Json              @default("[]")
   hasVariants      Boolean           @default(false)
   template         ProductTemplate   @default(STANDARD)
+  checkoutMode     CheckoutMode      @default(STANDARD)
+  codFormSettings  Json?
   metaTitle        String?
   metaDescription  String?
   featured         Boolean           @default(false)
@@ -110,6 +112,7 @@ model Product {
   reviews          ProductReview[]
   cartItems        CartItem[]
   inventoryMovements InventoryMovement[]
+  landingBlocks    LandingBlock[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -119,11 +122,34 @@ model Product {
   @@index([template])
 }
 
+model LandingBlock {
+  id        String           @id @default(cuid())
+  productId String
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      LandingBlockType
+  position  Int
+  content   Json             @default("{}")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([productId, position])
+}
+
 enum ProductTemplate {
-  STANDARD    
-  LANDING     
-  MINIMAL   
-  GALLERY    
+  STANDARD
+  LANDING
+  MINIMAL
+  GALLERY
+}
+
+enum LandingBlockType {
+  HERO
+  BENEFITS
+  GALLERY
+  TESTIMONIALS
+  VIDEO
+  COLORS
+  TICKER
 }
 
 model ProductCategory {
@@ -323,6 +349,13 @@ enum PaymentMethod {
   YAPE
   PLIN
   MERCADOPAGO
+  COD
+}
+
+enum CheckoutMode {
+  STANDARD
+  COD_ONLY
+  COD_AND_CART
 }
 
 

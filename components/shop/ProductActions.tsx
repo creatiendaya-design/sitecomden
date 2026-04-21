@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import ProductOptions from "@/components/shop/ProductOptions";
 import AddToCartButton from "@/components/shop/AddToCartButton";
+import CodOrderModal from "@/components/shop/CodOrderModal";
+import { DEFAULT_COD_FORM_SETTINGS, type CheckoutMode, type CodFormSettings } from "@/lib/types/cod-form";
 
 // 🔧 TIPOS EXPLÍCITOS
 interface ProductData {
@@ -56,16 +58,23 @@ interface ProductActionsProps {
   product: ProductData;
   variants: VariantData[];
   options: OptionData[];
+  checkoutMode?: CheckoutMode;
+  codFormSettings?: CodFormSettings | null;
 }
 
 export default function ProductActions({
   product,
   variants,
   options,
+  checkoutMode,
+  codFormSettings,
 }: ProductActionsProps) {
-  // Estado: { optionId: valueId }
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [selectedVariant, setSelectedVariant] = useState<VariantData | null>(null);
+  const [codOpen, setCodOpen] = useState(false);
+
+  const mode: CheckoutMode = checkoutMode ?? "STANDARD";
+  const codSettings: CodFormSettings = (codFormSettings as CodFormSettings) ?? DEFAULT_COD_FORM_SETTINGS;
 
   // 🆕 Manejar cambio de opción
   const handleOptionChange = (optionId: string, valueId: string) => {
@@ -194,13 +203,32 @@ export default function ProductActions({
         </div>
       )}
 
-      {/* Add to Cart */}
-      <AddToCartButton
-        product={product}
-        variants={variants}
-        selectedVariant={selectedVariant}
-        disabled={!inStock || (selectedVariant ? selectedVariant.stock <= 0 : false)}
-      />
+      {/* Checkout mode buttons */}
+      <div className="space-y-2">
+        {(mode === "COD_ONLY" || mode === "COD_AND_CART") && (
+          <button
+            onClick={() => {
+              if (!inStock) return;
+              setCodOpen(true);
+            }}
+            disabled={!inStock}
+            className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors text-base"
+          >
+            🛒 Comprar ahora
+          </button>
+        )}
+
+        {(mode === "STANDARD" || mode === "COD_AND_CART") && (
+          <div className={mode === "COD_AND_CART" ? "opacity-90 [&_button]:bg-white [&_button]:border [&_button]:border-gray-300 [&_button]:text-gray-700 [&_button]:hover:bg-gray-50 [&_button]:shadow-none" : ""}>
+            <AddToCartButton
+              product={product}
+              variants={variants}
+              selectedVariant={selectedVariant}
+              disabled={!inStock || (selectedVariant ? selectedVariant.stock <= 0 : false)}
+            />
+          </div>
+        )}
+      </div>
 
       {!inStock && (
         <p className="text-center text-sm text-destructive">
@@ -208,13 +236,25 @@ export default function ProductActions({
         </p>
       )}
 
-      {/* 🆕 Mensaje si no ha seleccionado todas las opciones */}
-      {product.hasVariants &&
-        Object.keys(selectedOptions).length < options.length && (
-          <p className="text-center text-sm text-slate-600">
-            Por favor selecciona todas las opciones
-          </p>
-        )}
+      {product.hasVariants && Object.keys(selectedOptions).length < options.length && (
+        <p className="text-center text-sm text-slate-600">
+          Por favor selecciona todas las opciones
+        </p>
+      )}
+
+      <CodOrderModal
+        open={codOpen}
+        onClose={() => setCodOpen(false)}
+        items={[{
+          productId: product.id,
+          variantId: selectedVariant?.id,
+          quantity: 1,
+          name: product.name,
+          price: selectedVariant ? Number(selectedVariant.price) : Number(product.basePrice),
+          image: Array.isArray(product.images) ? product.images[0] : undefined,
+        }]}
+        settings={codSettings}
+      />
     </div>
   );
 }

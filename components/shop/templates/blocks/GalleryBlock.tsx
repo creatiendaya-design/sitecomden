@@ -1,0 +1,159 @@
+"use client";
+
+import { useState, useRef, useCallback } from "react";
+import Image from "next/image";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import GalleryLightbox from "@/components/shop/GalleryLightbox";
+import type { GalleryBlockContent } from "@/lib/types/landing-blocks";
+
+interface GalleryBlockProps {
+  content: GalleryBlockContent;
+  onBuyClick?: () => void;
+}
+
+export default function GalleryBlock({ content, onBuyClick }: GalleryBlockProps) {
+  const { displayType, images, showBuyButton } = content;
+  if (!images?.length) return null;
+
+  if (displayType === "stacked") {
+    return <GalleryStacked images={images} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
+  }
+  return <GallerySlider images={images} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
+}
+
+function GallerySlider({
+  images,
+  showBuyButton,
+  onBuyClick,
+}: {
+  images: string[];
+  showBuyButton: boolean;
+  onBuyClick?: () => void;
+}) {
+  const [current, setCurrent] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const prev = useCallback(() => setCurrent((i) => (i - 1 + images.length) % images.length), [images.length]);
+  const next = useCallback(() => setCurrent((i) => (i + 1) % images.length), [images.length]);
+
+  return (
+    <section className="landing-section py-12">
+      <div className="container mx-auto px-4">
+        {/* Main image */}
+        <div className="relative aspect-[4/3] sm:aspect-video max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-lg mb-4">
+          <Image
+            src={images[current]}
+            alt={`Imagen ${current + 1}`}
+            fill
+            className="object-cover cursor-zoom-in transition-opacity duration-300"
+            onClick={() => setLightboxIndex(current)}
+          />
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={prev}
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={next}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Centered thumbnails */}
+        {images.length > 1 && (
+          <div className="flex justify-center gap-2 overflow-x-auto pb-2 px-4">
+            {images.map((img, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                className={`relative w-16 h-16 rounded-lg shrink-0 overflow-hidden border-2 transition-colors ${
+                  i === current ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                }`}
+              >
+                <Image src={img} alt="" fill className="object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showBuyButton && (
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={onBuyClick}
+              className="landing-cta-btn rounded-full px-8 py-3 font-semibold shadow-md hover:scale-105 transition-transform active:scale-95"
+            >
+              Comprar ahora
+            </button>
+          </div>
+        )}
+      </div>
+
+      {lightboxIndex !== null && (
+        <GalleryLightbox
+          images={images}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+function GalleryStacked({
+  images,
+  showBuyButton,
+  onBuyClick,
+}: {
+  images: string[];
+  showBuyButton: boolean;
+  onBuyClick?: () => void;
+}) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  return (
+    <section className="landing-section py-12">
+      <div className="container mx-auto px-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {images.map((img, i) => (
+            <div key={i} className="group relative">
+              <div
+                className="relative aspect-square rounded-2xl overflow-hidden shadow-md cursor-zoom-in"
+                onClick={() => setLightboxIndex(i)}
+              >
+                <Image
+                  src={img}
+                  alt={`Imagen ${i + 1}`}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              {showBuyButton && (
+                <button
+                  onClick={onBuyClick}
+                  className="landing-cta-btn w-full mt-2 rounded-full py-2 font-semibold text-sm hover:scale-105 transition-transform active:scale-95"
+                >
+                  Comprar ahora
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {lightboxIndex !== null && (
+        <GalleryLightbox
+          images={images}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </section>
+  );
+}

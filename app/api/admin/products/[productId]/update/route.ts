@@ -78,6 +78,8 @@ export async function PUT(
         featured: validatedData.featured ?? false,
         hasVariants: validatedData.hasVariants,
         template: validatedData.template || "STANDARD",
+        checkoutMode: (validatedData as any).checkoutMode || "STANDARD",
+        codFormSettings: (validatedData as any).codFormSettings ?? undefined,
         metaTitle: validatedData.metaTitle || null,
         metaDescription: validatedData.metaDescription || null,
         weight: validatedData.weight || null,

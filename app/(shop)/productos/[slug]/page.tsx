@@ -35,6 +35,9 @@ export default async function ProductDetailPage({
         },
         orderBy: { position: "asc" },
       },
+      landingBlocks: {
+        orderBy: { position: "asc" },
+      },
     },
   });
 
@@ -79,6 +82,8 @@ export default async function ProductDetailPage({
     images: product.images,
     hasVariants: product.hasVariants,
     weight: product.weight ? Number(product.weight) : null,
+    checkoutMode: (product as any).checkoutMode ?? "STANDARD",
+    codFormSettings: (product as any).codFormSettings ?? null,
   };
 
   // Serializar variantes con conversión explícita de options
@@ -116,6 +121,7 @@ export default async function ProductDetailPage({
     initialComparePrice,
     inStock,
     totalStock,
+    landingBlocks: (product as any).landingBlocks ?? [],
   };
 
   return (
