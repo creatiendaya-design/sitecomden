@@ -22,13 +22,19 @@ export default function TickerBlock({ content, sticky }: TickerBlockProps) {
     >
       <div className={`flex items-center h-10 ${mode === "both" ? "gap-6 px-4 justify-between" : "justify-center"}`}>
         {showScrolling && scrollingText && (
-          <div className="overflow-hidden flex-1">
-            <span
-              className="inline-block whitespace-nowrap animate-marquee"
-              style={{ "--marquee-speed": `${Math.round(30000 / (speed ?? 30))}ms` } as React.CSSProperties}
+          <div className="overflow-hidden flex-1 min-w-0">
+            <div
+              className="flex animate-marquee"
+              style={{ "--marquee-speed": `${Math.round(60000 / (speed ?? 30))}ms` } as React.CSSProperties}
             >
-              {scrollingText}&nbsp;&nbsp;&nbsp;{scrollingText}&nbsp;&nbsp;&nbsp;{scrollingText}
-            </span>
+              {[0, 1].map((half) => (
+                <div key={half} className="flex shrink-0" aria-hidden={half === 1 ? true : undefined}>
+                  {Array(8).fill(scrollingText).map((text, i) => (
+                    <span key={i} className="whitespace-nowrap px-6">{text}</span>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {showCountdown && endsAt && (

@@ -126,14 +126,15 @@ function GalleryStacked({
             <div key={i} className="group relative">
               <div
                 className="relative w-full rounded-xl overflow-hidden shadow-md cursor-zoom-in"
-                style={{ aspectRatio: "4/3" }}
                 onClick={() => setLightboxIndex(i)}
               >
                 <Image
                   src={img}
                   alt={`Imagen ${i + 1}`}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  width={0}
+                  height={0}
+                  sizes="100vw"
+                  className="w-full h-auto group-hover:scale-105 transition-transform duration-300"
                   unoptimized
                 />
               </div>

@@ -41,13 +41,25 @@ export const DEFAULT_COD_FORM_SETTINGS: CodFormSettings = {
   whatsappMessage:
     "Hola, hice un pedido:\nPedido: #{pedido}\nProducto: {producto}\nNombre: {nombre}\nTel: {telefono}\nDirección: {direccion}, {distrito}\nReferencia: {referencia}\nTotal: S/ {total}",
   fields: [
-    { id: "name",     label: "Nombre completo",                    required: true,  visible: true  },
-    { id: "phone",    label: "Teléfono / WhatsApp",                required: true,  visible: true  },
-    { id: "email",    label: "Correo electrónico",                 required: false, visible: true  },
-    { id: "dni",      label: "DNI",                                required: false, visible: false },
-    { id: "location", label: "Departamento / Provincia / Distrito", required: true,  visible: true  },
-    { id: "address",   label: "Dirección de entrega",               required: true,  visible: true  },
-    { id: "reference", label: "Referencia",                        required: false, visible: true  },
-    { id: "notes",     label: "Notas adicionales",                 required: false, visible: false },
+    { id: "name",      label: "Nombre completo",                     required: true,  visible: true  },
+    { id: "phone",     label: "Teléfono / WhatsApp",                 required: true,  visible: true  },
+    { id: "email",     label: "Correo electrónico",                  required: false, visible: true  },
+    { id: "dni",       label: "DNI",                                 required: false, visible: false },
+    { id: "location",  label: "Departamento / Provincia / Distrito", required: true,  visible: true  },
+    { id: "address",   label: "Dirección de entrega",                required: true,  visible: true  },
+    { id: "reference", label: "Referencia",                         required: false, visible: true  },
+    { id: "notes",     label: "Notas adicionales",                  required: false, visible: false },
   ],
 };
+
+// Merges saved settings with defaults, adding any missing fields from future updates
+export function normalizeCodFormSettings(saved: CodFormSettings | null | undefined): CodFormSettings {
+  if (!saved) return DEFAULT_COD_FORM_SETTINGS;
+  const existingIds = new Set(saved.fields.map((f) => f.id));
+  const missingFields = DEFAULT_COD_FORM_SETTINGS.fields.filter((f) => !existingIds.has(f.id));
+  return {
+    ...DEFAULT_COD_FORM_SETTINGS,
+    ...saved,
+    fields: [...saved.fields, ...missingFields],
+  };
+}

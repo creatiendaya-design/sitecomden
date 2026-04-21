@@ -14,7 +14,7 @@ import ImageUpload from "@/components/admin/ImageUpload";
 import LandingBlockList from "@/components/admin/landing-builder/LandingBlockList";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
 import CodFormConfig from "@/components/admin/CodFormConfig";
-import { DEFAULT_COD_FORM_SETTINGS, type CodFormSettings } from "@/lib/types/cod-form";
+import { normalizeCodFormSettings, type CodFormSettings } from "@/lib/types/cod-form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
@@ -97,7 +97,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
     hasVariants: product.hasVariants,
     template: product.template || "STANDARD",
     checkoutMode: (product as any).checkoutMode || "STANDARD",
-    codFormSettings: ((product as any).codFormSettings as CodFormSettings) || DEFAULT_COD_FORM_SETTINGS,
+    codFormSettings: normalizeCodFormSettings((product as any).codFormSettings as CodFormSettings),
     metaTitle: product.metaTitle || "",
     metaDescription: product.metaDescription || "",
   });

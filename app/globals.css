@@ -213,11 +213,11 @@
 /* Landing page builder */
 @keyframes marquee {
   from { transform: translateX(0); }
-  to   { transform: translateX(-33.333%); }
+  to   { transform: translateX(-50%); }
 }
 
 .animate-marquee {
-  animation: marquee var(--marquee-speed, 10s) linear infinite;
+  animation: marquee var(--marquee-speed, 20s) linear infinite;
 }
 
 .landing-cta-btn {
