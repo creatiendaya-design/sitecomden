@@ -13,6 +13,9 @@ import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import LandingBlockList from "@/components/admin/landing-builder/LandingBlockList";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
+import CodFormConfig from "@/components/admin/CodFormConfig";
+import { DEFAULT_COD_FORM_SETTINGS, type CodFormSettings } from "@/lib/types/cod-form";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import dynamic from "next/dynamic";
@@ -93,6 +96,8 @@ export default function EditProductForm({ product, categories }: EditProductForm
     featured: product.featured,
     hasVariants: product.hasVariants,
     template: product.template || "STANDARD",
+    checkoutMode: (product as any).checkoutMode || "STANDARD",
+    codFormSettings: ((product as any).codFormSettings as CodFormSettings) || DEFAULT_COD_FORM_SETTINGS,
     metaTitle: product.metaTitle || "",
     metaDescription: product.metaDescription || "",
   });
@@ -738,6 +743,49 @@ export default function EditProductForm({ product, categories }: EditProductForm
     )}
   </CardContent>
 </Card>
+
+<Card>
+  <CardHeader>
+    <CardTitle>Modo de Compra</CardTitle>
+    <p className="text-sm text-muted-foreground">¿Cómo puede comprar el cliente este producto?</p>
+  </CardHeader>
+  <CardContent className="space-y-3">
+    <RadioGroup
+      value={formData.checkoutMode}
+      onValueChange={(v) => setFormData({ ...formData, checkoutMode: v })}
+    >
+      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
+        <RadioGroupItem value="STANDARD" id="cm-standard" />
+        <label htmlFor="cm-standard" className="cursor-pointer">
+          <div className="font-medium text-sm">Checkout normal</div>
+          <div className="text-xs text-muted-foreground">Agrega al carrito → pago con tarjeta/Yape/Plin</div>
+        </label>
+      </div>
+      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
+        <RadioGroupItem value="COD_AND_CART" id="cm-cod-cart" />
+        <label htmlFor="cm-cod-cart" className="cursor-pointer">
+          <div className="font-medium text-sm">Comprar ahora (COD) + Carrito</div>
+          <div className="text-xs text-muted-foreground">Botón principal "Comprar ahora" COD. Botón secundario agrega al carrito.</div>
+        </label>
+      </div>
+      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
+        <RadioGroupItem value="COD_ONLY" id="cm-cod-only" />
+        <label htmlFor="cm-cod-only" className="cursor-pointer">
+          <div className="font-medium text-sm">Solo contra entrega (sin carrito)</div>
+          <div className="text-xs text-muted-foreground">Solo botón "Comprar ahora" COD. No se puede agregar al carrito.</div>
+        </label>
+      </div>
+    </RadioGroup>
+
+    {(formData.checkoutMode === "COD_ONLY" || formData.checkoutMode === "COD_AND_CART") && (
+      <CodFormConfig
+        settings={formData.codFormSettings as CodFormSettings}
+        onChange={(s) => setFormData({ ...formData, codFormSettings: s })}
+      />
+    )}
+  </CardContent>
+</Card>
+
             <Card>
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>
