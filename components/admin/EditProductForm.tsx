@@ -11,6 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
+import LandingBlockList from "@/components/admin/landing-builder/LandingBlockList";
+import type { LandingBlock } from "@/lib/types/landing-blocks";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import dynamic from "next/dynamic";
@@ -725,6 +727,15 @@ export default function EditProductForm({ product, categories }: EditProductForm
         </p>
       )}
     </div>
+
+    {formData.template === "LANDING" && (
+      <div className="mt-4 pt-4 border-t">
+        <LandingBlockList
+          productId={product.id}
+          initialBlocks={((product as any).landingBlocks ?? []) as LandingBlock[]}
+        />
+      </div>
+    )}
   </CardContent>
 </Card>
             <Card>

@@ -651,6 +651,12 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
         </p>
       )}
     </div>
+
+    {formData.template === "LANDING" && (
+      <div className="mt-4 pt-4 border-t rounded-lg bg-muted/30 p-3 text-center text-sm text-muted-foreground">
+        💡 Guarda el producto primero para poder agregar secciones de landing.
+      </div>
+    )}
   </CardContent>
 </Card>
             <Card>

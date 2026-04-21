@@ -31,6 +31,9 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
         },
         orderBy: { position: "asc" },
       },
+      landingBlocks: {
+        orderBy: { position: "asc" },
+      },
     },
   });
 
