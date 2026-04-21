@@ -7,6 +7,8 @@ import ProductActions from "@/components/shop/ProductActions";
 import ProductPrice from "@/components/shop/ProductPrice";
 import RichTextContent from "@/components/RichTextContent";
 import { Check, Shield, Truck, Heart, Star } from "lucide-react";
+import LandingBlockRenderer from "@/components/shop/templates/blocks/LandingBlockRenderer";
+import type { LandingBlock } from "@/lib/types/landing-blocks";
 
 interface ProductLandingViewProps {
   product: any;
@@ -17,6 +19,7 @@ interface ProductLandingViewProps {
   initialComparePrice: number | null;
   inStock: boolean;
   totalStock: number;
+  landingBlocks?: LandingBlock[];
 }
 
 export default function ProductLandingView({
@@ -28,11 +31,23 @@ export default function ProductLandingView({
   initialComparePrice,
   inStock,
   totalStock,
+  landingBlocks = [],
 }: ProductLandingViewProps) {
   const mainImage =
     Array.isArray(product.images) && product.images.length > 0
       ? product.images[0]
       : null;
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // If there are configured landing blocks, render them; otherwise fall back to the static template.
+  if (landingBlocks.length > 0) {
+    return (
+      <div className="landing-product">
+        <LandingBlockRenderer blocks={landingBlocks} onCtaClick={scrollToTop} />
+      </div>
+    );
+  }
 
   return (
     <div className="landing-product">

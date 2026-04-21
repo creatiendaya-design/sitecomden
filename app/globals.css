@@ -210,3 +210,23 @@
   transform: translateX(2px);
 }
 
+/* Landing page builder */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-33.333%); }
+}
+
+.animate-marquee {
+  animation: marquee var(--marquee-speed, 10s) linear infinite;
+}
+
+.landing-cta-btn {
+  background-color: var(--landing-cta, #dc2626);
+  color: #fff;
+}
+
+.landing-section {
+  background-color: var(--landing-bg, transparent);
+  color: var(--landing-text, inherit);
+}
+

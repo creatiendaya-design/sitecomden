@@ -35,6 +35,9 @@ export default async function ProductDetailPage({
         },
         orderBy: { position: "asc" },
       },
+      landingBlocks: {
+        orderBy: { position: "asc" },
+      },
     },
   });
 
@@ -116,6 +119,7 @@ export default async function ProductDetailPage({
     initialComparePrice,
     inStock,
     totalStock,
+    landingBlocks: (product as any).landingBlocks ?? [],
   };
 
   return (
