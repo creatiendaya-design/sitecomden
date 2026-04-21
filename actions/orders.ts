@@ -3,161 +3,122 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
-import { trackConversion } from "@/lib/conversion-api"; // ✅ Importar tracking
-import { headers } from "next/headers"; // ✅ Para obtener IP y User Agent
+import { trackConversion } from "@/lib/conversion-api";
+import { headers } from "next/headers";
+import { z } from "zod";
+import { protectRoute } from "@/lib/protect-route";
+import { checkRateLimit, apiRateLimiter } from "@/lib/rate-limit";
 
 // ============================================================
-// TIPOS (sin Zod)
+// SCHEMAS ZOD
 // ============================================================
 
-interface OrderInput {
-  // Información del cliente
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  customerDni?: string;
+const orderItemSchema = z.object({
+  id: z.string().min(1),
+  productId: z.string().min(1),
+  variantId: z.string().optional(),
+  name: z.string().min(1).max(500),
+  variantName: z.string().optional(),
+  price: z.number().positive("Precio de item inválido"),
+  quantity: z.number().int().positive("Cantidad de item inválida").max(9999),
+  image: z.string().optional(),
+  options: z.record(z.string(), z.string()).optional(),
+});
 
-  // Dirección
-  address: string;
-  district: string;
-  city: string;
-  department: string;
-  districtCode?: string;
-  reference?: string;
+const createOrderSchema = z.object({
+  customerName: z.string().min(3, "Nombre debe tener al menos 3 caracteres").max(200),
+  customerEmail: z.string().check(z.email("Email inválido")),
+  customerPhone: z.string().min(9, "Teléfono inválido").max(20),
+  customerDni: z.string().max(20).optional(),
+  address: z.string().min(5, "Dirección muy corta").max(500),
+  district: z.string().min(1, "Distrito requerido").max(200),
+  city: z.string().min(1, "Ciudad requerida").max(200),
+  department: z.string().min(1, "Departamento requerido").max(200),
+  districtCode: z.string().optional(),
+  reference: z.string().max(500).optional(),
+  paymentMethod: z.enum(["YAPE", "PLIN", "CARD", "PAYPAL", "MERCADOPAGO"]),
+  customerNotes: z.string().max(1000).optional(),
+  acceptWhatsApp: z.boolean().optional(),
+  couponCode: z.string().max(100).optional(),
+  couponDiscount: z.number().min(0).optional(),
+  shipping: z.number().min(0).optional(),
+  shippingRateId: z.string().optional(),
+  shippingMethod: z.string().optional(),
+  shippingCarrier: z.string().optional(),
+  shippingEstimatedDays: z.string().optional(),
+  items: z.array(orderItemSchema).min(1, "El carrito está vacío"),
+});
 
-  // Método de pago
-  paymentMethod: "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO";
+const updateOrderStatusSchema = z.object({
+  orderId: z.string().min(1, "ID de orden requerido"),
+  status: z.enum(["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]).optional(),
+  paymentStatus: z.enum(["PENDING", "PAID", "FAILED", "REFUNDED", "VERIFYING"]).optional(),
+  fulfillmentStatus: z.enum(["UNFULFILLED", "PARTIAL", "FULFILLED"]).optional(),
+  trackingNumber: z.string().max(200).optional(),
+  shippingCourier: z.string().max(200).optional(),
+  adminNotes: z.string().max(2000).optional(),
+});
 
-  // Notas y preferencias
-  customerNotes?: string;
-  acceptWhatsApp?: boolean;
-
-  // Cupón
-  couponCode?: string;
-  couponDiscount?: number;
-
-  // Envío
-  shipping?: number;
-  shippingRateId?: string;
-  shippingMethod?: string;
-  shippingCarrier?: string;
-  shippingEstimatedDays?: string;
-
-  // Items del carrito
-  items: Array<{
-    id: string;
-    productId: string;
-    variantId?: string;
-    name: string;
-    variantName?: string;
-    price: number;
-    quantity: number;
-    image?: string;
-    options?: Record<string, string>;
-  }>;
-}
-
-export interface UpdateOrderStatusInput {
-  orderId: string;
-  status?: "PENDING" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
-  paymentStatus?: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "VERIFYING";
-  fulfillmentStatus?: "UNFULFILLED" | "PARTIAL" | "FULFILLED";
-  trackingNumber?: string;
-  shippingCourier?: string;
-  adminNotes?: string;
-}
+export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 
 // ============================================================
-// VALIDACIÓN MANUAL (sin Zod)
+// CREAR ORDEN
 // ============================================================
 
-function validateOrderInput(data: any): { valid: boolean; error?: string } {
-  // Validar que data existe
-  if (!data) {
-    return { valid: false, error: "No se recibieron datos" };
-  }
-
-  // Validar campos requeridos
-  if (!data.customerName || typeof data.customerName !== "string" || data.customerName.trim().length < 3) {
-    return { valid: false, error: "Nombre debe tener al menos 3 caracteres" };
-  }
-
-  if (!data.customerEmail || typeof data.customerEmail !== "string" || !data.customerEmail.includes("@")) {
-    return { valid: false, error: "Email inválido" };
-  }
-
-  if (!data.customerPhone || typeof data.customerPhone !== "string" || data.customerPhone.length < 9) {
-    return { valid: false, error: "Teléfono inválido" };
-  }
-
-  if (!data.address || typeof data.address !== "string" || data.address.trim().length < 5) {
-    return { valid: false, error: "Dirección muy corta" };
-  }
-
-  if (!data.district || typeof data.district !== "string") {
-    return { valid: false, error: "Distrito requerido" };
-  }
-
-  if (!data.city || typeof data.city !== "string") {
-    return { valid: false, error: "Ciudad requerida" };
-  }
-
-  if (!data.department || typeof data.department !== "string") {
-    return { valid: false, error: "Departamento requerido" };
-  }
-
-  if (!data.paymentMethod || !["YAPE", "PLIN", "CARD", "PAYPAL", "MERCADOPAGO"].includes(data.paymentMethod)) {
-    return { valid: false, error: "Método de pago inválido" };
-  }
-
-  if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
-    return { valid: false, error: "El carrito está vacío" };
-  }
-
-  // Validar items
-  for (const item of data.items) {
-    if (!item.productId || !item.name || !item.price || !item.quantity) {
-      return { valid: false, error: "Items del carrito inválidos" };
-    }
-    if (typeof item.price !== "number" || item.price <= 0) {
-      return { valid: false, error: "Precio de item inválido" };
-    }
-    if (typeof item.quantity !== "number" || item.quantity <= 0) {
-      return { valid: false, error: "Cantidad de item inválida" };
-    }
-  }
-
-  return { valid: true };
-}
-
-// ============================================================
-// CREAR ORDEN (Sin Zod)
-// ============================================================
-
-export async function createOrder(data: OrderInput) {
+export async function createOrder(rawData: unknown) {
   try {
-    console.log("createOrder - datos recibidos:", data);
-
-    // Validar datos manualmente
-    const validation = validateOrderInput(data);
-    if (!validation.valid) {
-      console.error("Validación fallida:", validation.error);
+    const parsed = createOrderSchema.safeParse(rawData);
+    if (!parsed.success) {
       return {
         success: false,
-        error: validation.error || "Datos inválidos",
+        error: parsed.error.issues[0]?.message ?? "Datos inválidos",
       };
     }
+    const data = parsed.data;
 
-    // Calcular totales
-    const subtotal = data.items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-    const discount = data.couponDiscount || 0;
+    // Obtener precios autoritativos del servidor — nunca confiar en los del cliente
+    const serverPrices = new Map<string, number>();
+    for (const item of data.items) {
+      if (item.variantId) {
+        const variant = await prisma.productVariant.findUnique({
+          where: { id: item.variantId },
+          select: { price: true },
+        });
+        if (variant) serverPrices.set(item.variantId, Number(variant.price));
+      } else {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          select: { basePrice: true },
+        });
+        if (product) serverPrices.set(item.productId, Number(product.basePrice));
+      }
+    }
+
+    // Calcular totales con precios del servidor
+    const subtotal = data.items.reduce((sum, item) => {
+      const key = item.variantId ?? item.productId;
+      const price = serverPrices.get(key) ?? 0;
+      return sum + price * item.quantity;
+    }, 0);
     const shipping = data.shipping || 0;
-    const total = subtotal + shipping - discount;
 
-    console.log("Totales calculados:", { subtotal, discount, shipping, total });
+    // Revalidar cupón en el servidor si se aplicó uno
+    let discount = 0;
+    if (data.couponCode) {
+      const coupon = await prisma.coupon.findUnique({
+        where: { code: data.couponCode.toUpperCase(), active: true },
+      });
+      if (coupon && (!coupon.expiresAt || coupon.expiresAt > new Date())) {
+        if (coupon.type === "PERCENTAGE") {
+          discount = (subtotal * Number(coupon.value)) / 100;
+          if (coupon.maxDiscount) discount = Math.min(discount, Number(coupon.maxDiscount));
+        } else if (coupon.type === "FIXED_AMOUNT") {
+          discount = Math.min(Number(coupon.value), subtotal);
+        }
+      }
+    }
+
+    const total = subtotal + shipping - discount;
 
     // Verificar stock disponible
     for (const item of data.items) {
@@ -202,12 +163,8 @@ export async function createOrder(data: OrderInput) {
       }
     }
 
-    console.log("Stock verificado correctamente");
-
     // Generar token único para ver la orden sin login
     const viewToken = crypto.randomBytes(32).toString("hex");
-
-    console.log("viewToken generado:", viewToken);
 
     // Crear la orden
     const order = await prisma.order.create({
@@ -267,10 +224,10 @@ export async function createOrder(data: OrderInput) {
             variantId: item.variantId || undefined,
             name: item.name,
             variantName: item.variantName || undefined,
-            price: item.price,
+            price: serverPrices.get(item.variantId ?? item.productId) ?? 0,
             quantity: item.quantity,
             image: item.image || undefined,
-            variantOptions: item.options || undefined,
+            variantOptions: (item.options ?? null) as any,
           })),
         },
       },
@@ -278,8 +235,6 @@ export async function createOrder(data: OrderInput) {
         items: true,
       },
     });
-
-    console.log("Orden creada exitosamente:", order.id);
 
     // Si el pago es Yape o Plin, crear registro de pago pendiente
     if (data.paymentMethod === "YAPE" || data.paymentMethod === "PLIN") {
@@ -291,7 +246,6 @@ export async function createOrder(data: OrderInput) {
           status: "pending",
         },
       });
-      console.log("PendingPayment creado para", data.paymentMethod);
     }
 
     // Reducir stock de los productos
@@ -333,15 +287,12 @@ export async function createOrder(data: OrderInput) {
       }
     }
 
-    console.log("Stock reducido correctamente");
-
     // Incrementar contador de uso del cupón
     if (data.couponCode) {
       await prisma.coupon.updateMany({
         where: { code: data.couponCode },
         data: { usageCount: { increment: 1 } },
       });
-      console.log("Cupón actualizado:", data.couponCode);
     }
 
     // Enviar email de confirmación con link para ver orden
@@ -363,7 +314,6 @@ export async function createOrder(data: OrderInput) {
         // Link para ver orden sin login
         viewOrderLink: `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${order.customerEmail}`,
       });
-      console.log("Email enviado correctamente");
     } catch (emailError) {
       // No fallar la orden si el email falla
       console.error("Error sending confirmation email:", emailError);
@@ -373,12 +323,6 @@ export async function createOrder(data: OrderInput) {
     revalidatePath("/");
     revalidatePath("/productos");
     revalidatePath("/admin/ordenes");
-
-    console.log("createOrder - éxito:", {
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      viewToken: order.viewToken,
-    });
 
     return {
       success: true,
@@ -404,6 +348,13 @@ export async function createOrder(data: OrderInput) {
 
 export async function getOrderByToken(token: string, email: string) {
   try {
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for") ?? headersList.get("x-real-ip") ?? "anonymous";
+    const { success } = await checkRateLimit(apiRateLimiter, `order_token:${ip}`, { action: "order_by_token" });
+    if (!success) {
+      return { success: false, error: "Demasiadas solicitudes. Intenta más tarde." };
+    }
+
     const order = await prisma.order.findFirst({
       where: {
         viewToken: token,
@@ -478,6 +429,7 @@ export async function getOrders(filters?: {
   offset?: number;
 }) {
   try {
+    await protectRoute("orders:view");
     const where: any = {};
 
     // Filtros
@@ -552,6 +504,7 @@ export async function getOrders(filters?: {
 
 export async function getOrderById(orderId: string) {
   try {
+    await protectRoute("orders:view");
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -619,6 +572,7 @@ export async function getOrderById(orderId: string) {
 
 export async function updateOrderStatus(input: UpdateOrderStatusInput) {
   try {
+    await protectRoute("orders:update_status");
     const updateData: any = {
       updatedAt: new Date(),
     };
@@ -744,8 +698,6 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
     // ✅ TRACKING DE CONVERSIONES - SERVER SIDE
     // ============================================================
     if (input.paymentStatus === "PAID" && currentOrder.paymentStatus !== "PAID") {
-      console.log("🎯 Enviando conversión de compra...");
-      
       try {
         // ✅ Obtener headers para IP y User Agent (con await)
         const headersList = await headers();
@@ -778,8 +730,6 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           clientIp: clientIp || undefined,
           clientUserAgent: clientUserAgent || undefined,
         });
-
-        console.log("✅ Conversión enviada exitosamente para orden:", currentOrder.orderNumber);
       } catch (trackingError) {
         // No fallar la actualización si el tracking falla
         console.error("❌ Error enviando conversión (no crítico):", trackingError);
@@ -808,7 +758,6 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           Number(currentOrder.total),
           viewOrderLink
         );
-        console.log("✅ Email de pago aprobado enviado");
       }
 
       // 🎯 Pago fallido
@@ -821,7 +770,6 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           viewOrderLink,
           input.adminNotes || undefined
         );
-        console.log("✅ Email de pago fallido enviado");
       }
 
       // 🎯 Reembolso procesado
@@ -834,7 +782,6 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           viewOrderLink,
           input.adminNotes || undefined
         );
-        console.log("✅ Email de reembolso enviado");
       }
 
       // 🎯 Orden enviada
@@ -848,7 +795,6 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           estimatedDelivery: currentOrder.estimatedDelivery?.toISOString() || undefined,
           viewOrderLink,
         });
-        console.log("✅ Email de envío enviado");
       }
 
       // 🎯 Orden entregada
@@ -859,7 +805,6 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           currentOrder.customerEmail,
           viewOrderLink
         );
-        console.log("✅ Email de entrega enviado");
       }
 
       // 🎯 Orden cancelada
@@ -871,7 +816,6 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           viewOrderLink,
           input.adminNotes || undefined
         );
-        console.log("✅ Email de cancelación enviado");
       }
     } catch (emailError) {
       // No fallar la actualización si el email falla
@@ -901,6 +845,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
 
 export async function getOrderStats() {
   try {
+    await protectRoute("orders:view");
     const [
       totalOrders,
       pendingOrders,

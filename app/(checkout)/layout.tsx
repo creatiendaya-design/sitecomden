@@ -1,8 +1,10 @@
 import CheckoutHeader from "@/components/shop/CheckoutHeader";
+import "@/app/styles/checkout.css";
 import CheckoutFooter from "@/components/shop/CheckoutFooter";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getActivePixels } from "@/actions/tracking-pixels";
-import PixelScripts from "@/components/tracking/PixelScripts";
+import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
+import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
 import Script from "next/script";
 
 export default async function CheckoutLayout({
@@ -39,8 +41,9 @@ export default async function CheckoutLayout({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
       
-      {/* ✅ Píxeles de Tracking */}
-      <PixelScripts pixels={pixels} />
+      {/* Píxeles de Tracking (solo con consentimiento) */}
+      <ConsentAwarePixels pixels={pixels} />
+      <CookieConsentBanner />
       
       {/* Culqi Script */}
       <Script

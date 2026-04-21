@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { withRateLimit, loginRateLimiter } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    const rateLimitResponse = await withRateLimit(request, loginRateLimiter, {
+      action: "admin_login",
+      errorMessage: "Demasiados intentos de login. Intenta nuevamente en 15 minutos.",
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { email, password } = await request.json();
 
     if (!email || !password) {
@@ -50,8 +57,9 @@ export async function POST(request: Request) {
     cookieStore.set("admin_session", user.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 días
+      sameSite: "strict",
+      path: "/admin",
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     // ⭐ CAMBIO 2: Actualizar respuesta con nuevo formato

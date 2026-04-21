@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { hasMarketingConsent } from "@/lib/consent";
 
 export type TrackingEvent =
   | "ViewContent"
@@ -25,6 +26,7 @@ interface EventData {
 export function useTracking() {
   const trackEvent = useCallback((event: TrackingEvent, data?: EventData) => {
     if (typeof window === "undefined") return;
+    if (!hasMarketingConsent()) return;
 
     // Facebook Pixel
     if ((window as any).fbq) {
@@ -50,6 +52,7 @@ export function useTracking() {
 
   const trackPageView = useCallback((url: string) => {
     if (typeof window === "undefined") return;
+    if (!hasMarketingConsent()) return;
 
     // Facebook Pixel
     if ((window as any).fbq) {

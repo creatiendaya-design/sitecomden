@@ -24,7 +24,6 @@ import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
 import { AlertTriangle, ChevronUp, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { useTracking } from "@/hooks/useTracking";
 import CulqiCheckoutButton from "@/components/shop/CulqiCheckoutButton";
 import {
@@ -197,7 +196,6 @@ export default function CheckoutPageClient({
 
   useEffect(() => {
     if (culqiToken && !processingRef.current && formData.paymentMethod === "CARD") {
-      console.log('🎯 Token detectado, procesando pago automáticamente...');
       processPaymentAutomatically();
     }
   }, [culqiToken]);
@@ -226,7 +224,6 @@ export default function CheckoutPageClient({
 
   const processPaymentAutomatically = async () => {
     if (processingRef.current) {
-      console.log('⚠️ Ya se está procesando un pago, saltando...');
       return;
     }
 
@@ -235,8 +232,6 @@ export default function CheckoutPageClient({
     setError(null);
 
     try {
-      console.log('🚀 Iniciando proceso automático de pago...');
-
       if (!formData.districtCode || !selectedShippingRate || !formData.acceptTerms) {
         setError("Por favor completa todos los campos requeridos");
         setIsProcessingPayment(false);
@@ -306,7 +301,6 @@ export default function CheckoutPageClient({
         couponDiscount: appliedCoupon?.discount || 0,
       };
 
-      console.log("📋 Creando orden...");
       const result = await createOrder(orderData);
 
       if (!result.success) {
@@ -317,7 +311,6 @@ export default function CheckoutPageClient({
         return;
       }
 
-      console.log('💳 Procesando pago con Culqi...');
       const paymentResult = await processCardPayment({
         orderId: result.orderId!,
         culqiToken: culqiToken!,
@@ -331,8 +324,6 @@ export default function CheckoutPageClient({
         setCulqiToken(null);
         return;
       }
-
-      console.log('✅ Pago procesado exitosamente');
 
       clearCart();
       clearPersistedData();
@@ -351,14 +342,10 @@ export default function CheckoutPageClient({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('🔵 handleSubmit llamado - método de pago:', formData.paymentMethod);
-    
     if (formData.paymentMethod === "CARD") {
-      console.log('ℹ️ Método de pago: TARJETA - esperando token de Culqi');
       return;
     }
 
-    console.log('📝 Procesando pedido para:', formData.paymentMethod);
     setLoading(true);
     setError(null);
     setValidationErrors({});
@@ -501,6 +488,35 @@ export default function CheckoutPageClient({
     }
   };
 
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const trimmed = value.trim();
+    let errorMsg = "";
+
+    switch (name) {
+      case "customerName":
+        if (trimmed.length > 0 && trimmed.length < 3)
+          errorMsg = "El nombre debe tener al menos 3 caracteres";
+        break;
+      case "customerEmail":
+        if (trimmed.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))
+          errorMsg = "Ingresa un email válido";
+        break;
+      case "customerPhone":
+        if (trimmed.length > 0 && trimmed.replace(/\D/g, "").length < 9)
+          errorMsg = "Ingresa un teléfono válido (mínimo 9 dígitos)";
+        break;
+      case "address":
+        if (trimmed.length > 0 && trimmed.length < 10)
+          errorMsg = "La dirección debe tener al menos 10 caracteres";
+        break;
+    }
+
+    if (errorMsg) {
+      setValidationErrors({ ...validationErrors, [name]: errorMsg });
+    }
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -553,7 +569,6 @@ export default function CheckoutPageClient({
   };
 
   const handleCulqiSuccess = (token: string) => {
-    console.log('🎯 Token recibido de Culqi:', token);
     setCulqiToken(token);
     setError(null);
   };
@@ -813,9 +828,14 @@ export default function CheckoutPageClient({
                           name="customerName"
                           value={formData.customerName}
                           onChange={handleInputChange}
+                          onBlur={handleBlur}
                           placeholder="Juan Pérez"
+                          autoComplete="name"
                           className={validationErrors.customerName ? "border-destructive" : ""}
                         />
+                        {validationErrors.customerName && (
+                          <p className="text-sm text-destructive mt-1">{validationErrors.customerName}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <Label htmlFor="customerDni" className="block mb-2">
@@ -827,7 +847,10 @@ export default function CheckoutPageClient({
                           value={formData.customerDni}
                           onChange={handleInputChange}
                           placeholder="12345678"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           maxLength={8}
+                          autoComplete="off"
                         />
                       </div>
                     </div>
@@ -844,9 +867,15 @@ export default function CheckoutPageClient({
                           type="email"
                           value={formData.customerEmail}
                           onChange={handleInputChange}
+                          onBlur={handleBlur}
                           placeholder="juan@example.com"
+                          autoComplete="email"
+                          inputMode="email"
                           className={validationErrors.customerEmail ? "border-destructive" : ""}
                         />
+                        {validationErrors.customerEmail && (
+                          <p className="text-sm text-destructive mt-1">{validationErrors.customerEmail}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <Label htmlFor="customerPhone" className="block mb-2">
@@ -859,9 +888,15 @@ export default function CheckoutPageClient({
                           type="tel"
                           value={formData.customerPhone}
                           onChange={handleInputChange}
+                          onBlur={handleBlur}
                           placeholder="+51 987654321"
+                          autoComplete="tel"
+                          inputMode="tel"
                           className={validationErrors.customerPhone ? "border-destructive" : ""}
                         />
+                        {validationErrors.customerPhone && (
+                          <p className="text-sm text-destructive mt-1">{validationErrors.customerPhone}</p>
+                        )}
                       </div>
                     </div>
 
@@ -926,9 +961,14 @@ export default function CheckoutPageClient({
                         name="address"
                         value={formData.address}
                         onChange={handleInputChange}
+                        onBlur={handleBlur}
                         placeholder="Av. Larco 123, Dpto 501"
+                        autoComplete="street-address"
                         className={validationErrors.address ? "border-destructive" : ""}
                       />
+                      {validationErrors.address && (
+                        <p className="text-sm text-destructive mt-1">{validationErrors.address}</p>
+                      )}
                     </div>
 
                     <div className="min-w-0">
@@ -1087,12 +1127,13 @@ export default function CheckoutPageClient({
                       /* Botón para Yape/Plin/PayPal - Desktop */
                       <Button
                         type="submit"
+                        variant="cta"
                         size="lg"
                         className="w-full"
                         disabled={
-                          loading || 
-                          !stockVerified || 
-                          stockCheckLoading || 
+                          loading ||
+                          !stockVerified ||
+                          stockCheckLoading ||
                           !selectedShippingRate ||
                           !formData.acceptTerms
                         }
@@ -1212,12 +1253,13 @@ export default function CheckoutPageClient({
             /* Botón para Yape/Plin/PayPal - Móvil */
             <Button
               type="submit"
+              variant="cta"
               size="lg"
               className="w-full text-base font-semibold h-12"
               disabled={
-                loading || 
-                !stockVerified || 
-                stockCheckLoading || 
+                loading ||
+                !stockVerified ||
+                stockCheckLoading ||
                 !selectedShippingRate
               }
               onClick={handleSubmit}

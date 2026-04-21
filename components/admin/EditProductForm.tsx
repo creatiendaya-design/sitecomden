@@ -13,7 +13,17 @@ import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
-import RichTextEditor from "@/components/admin/RichTextEditor";
+import dynamic from "next/dynamic";
+
+const RichTextEditor = dynamic(
+  () => import("@/components/admin/RichTextEditor"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-48 animate-pulse rounded-lg bg-muted" />
+    ),
+  }
+);
 import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
 import {
   Select,

@@ -6,7 +6,7 @@ import { normalizeImagesForSave } from "@/lib/image-utils";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
-  const { user, response: authResponse } = await requirePermission("products.create");
+  const { user, response: authResponse } = await requirePermission("products:create");
   if (authResponse) return authResponse;
 
   try {

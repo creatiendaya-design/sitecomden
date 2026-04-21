@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { withRateLimit, formRateLimiter } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const rateLimitResponse = await withRateLimit(req, formRateLimiter, {
+    action: "complaint_submit",
+    errorMessage: "Demasiados intentos. Intenta nuevamente más tarde.",
+  });
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await req.json();
     const formData = body.formData || body;
-    
-    console.log("📥 Datos recibidos del formulario:");
-    console.log(JSON.stringify(formData, null, 2));
 
     // Mapeo manual de IDs a labels
     const fieldMappings: Record<string, string> = {
@@ -30,24 +34,12 @@ export async function POST(req: NextRequest) {
       "cmkftguz4000w2xswy2yg5eaf": "Pedido",
     };
 
-    // Convertir IDs a labels
-    const dataByLabel: Record<string, any> = {};
+    const dataByLabel: Record<string, unknown> = {};
     for (const [fieldId, value] of Object.entries(formData)) {
       const label = fieldMappings[fieldId];
-      if (label) {
-        dataByLabel[label] = value;
-        console.log(`  ${fieldId} → "${label}" = "${value}"`);
-      } else {
-        console.log(`  ⚠️ Campo desconocido: ${fieldId} = "${value}"`);
-        // Guardar campos desconocidos con su ID
-        dataByLabel[fieldId] = value;
-      }
+      dataByLabel[label ?? fieldId] = value;
     }
 
-    console.log("\n📊 Datos mapeados por label:");
-    console.log(JSON.stringify(dataByLabel, null, 2));
-
-    // Extraer datos específicos para campos del modelo
     const customerName = [
       dataByLabel["Nombres"],
       dataByLabel["Apellido Paterno"],
@@ -56,101 +48,54 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join(" ");
 
-    const customerEmail = dataByLabel["Email"];
-    const customerPhone = dataByLabel["Teléfono"];
+    const customerEmail = dataByLabel["Email"] as string | undefined;
+    const customerPhone = dataByLabel["Teléfono"] as string | undefined;
 
-    console.log("\n🔍 Campos extraídos:");
-    console.log({
-      customerName,
-      customerEmail,
-      customerPhone,
-    });
-
-    // Obtener IP y User Agent del request
-    const ipAddress = req.headers.get("x-forwarded-for") || 
-                      req.headers.get("x-real-ip") || 
-                      null;
+    const ipAddress =
+      req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null;
     const userAgent = req.headers.get("user-agent") || null;
 
-    console.log("\n💾 Generando número de reclamo...");
-
-    // Obtener configuración del sistema (prefijo personalizado)
     const configSetting = await prisma.setting.findUnique({
       where: { key: "complaints_config" },
     });
-    
-    // Usar prefijo de configuración o "REC" por defecto
-    const configValue = configSetting?.value as { prefix?: string; emailSubject?: string; emailMessage?: string } | null;
-    const prefix = configValue?.prefix || "REC";
-    
-    // Generar número de reclamo secuencial: {PREFIX}-YYYY-###
-    const currentYear = new Date().getFullYear();
-    
-    // Contar reclamos del año actual con este prefijo
-    const countThisYear = await prisma.complaint.count({
-      where: {
-        complaintNumber: {
-          startsWith: `${prefix}-${currentYear}-`,
-        },
-      },
-    });
-    
-    // Siguiente número secuencial (empezar en 1)
-    const nextNumber = countThisYear + 1;
-    
-    // Formatear con padding de 3 dígitos: 001, 002, etc.
-    const paddedNumber = String(nextNumber).padStart(3, '0');
-    
-    // Formato final: REC-2025-001 (o el prefijo configurado)
-    const complaintNumber = `${prefix}-${currentYear}-${paddedNumber}`;
-    
-    console.log("   Prefijo configurado:", prefix);
-    console.log("   Número generado:", complaintNumber);
 
-    // Guardar en base de datos
+    const configValue = configSetting?.value as {
+      prefix?: string;
+      emailSubject?: string;
+      emailMessage?: string;
+    } | null;
+    const prefix = configValue?.prefix || "REC";
+    const currentYear = new Date().getFullYear();
+
+    const countThisYear = await prisma.complaint.count({
+      where: { complaintNumber: { startsWith: `${prefix}-${currentYear}-` } },
+    });
+
+    const complaintNumber = `${prefix}-${currentYear}-${String(countThisYear + 1).padStart(3, "0")}`;
+
     const complaint = await prisma.complaint.create({
       data: {
-        // Número de reclamo personalizado
         complaintNumber,
-        
-        // formData: todos los datos originales con IDs + labels
         formData: {
-          original: formData,         // IDs originales
-          mapped: dataByLabel,        // Datos mapeados a labels
+          original: formData,
+          mapped: dataByLabel,
           submittedAt: new Date().toISOString(),
         } as any,
-        
-        // Campos específicos extraídos
         customerName: customerName || null,
         customerEmail: customerEmail || null,
         customerPhone: customerPhone || null,
-        
-        // Metadata del request
         ipAddress,
         userAgent,
-        
-        // status: "PENDING" es el default, no hace falta especificarlo
       },
     });
 
-    console.log("✅ Reclamo creado exitosamente:");
-    console.log("   ID:", complaint.id);
-    console.log("   Número de reclamo:", complaint.complaintNumber);
-    console.log("   Nombre:", complaint.customerName);
-    console.log("   Email:", complaint.customerEmail);
-    console.log("   Estado:", complaint.status);
-
-    // 📧 ENVIAR EMAIL DE CONFIRMACIÓN AL CLIENTE
     if (customerEmail) {
       try {
-        console.log("\n📧 Enviando email de confirmación...");
-        
-        // Importar función de envío de email
         const { sendEmail } = await import("@/lib/email");
-
         const emailSubject = configValue?.emailSubject || "Reclamación Recibida";
-        const emailMessage = configValue?.emailMessage || 
-          "Hemos recibido su reclamación y será atendida a la brevedad. Nuestro equipo revisará su caso y se pondrá en contacto con usted en un plazo máximo de 15 días hábiles.";
+        const emailMessage =
+          configValue?.emailMessage ||
+          "Hemos recibido su reclamación y será atendida a la brevedad.";
 
         await sendEmail({
           to: customerEmail,
@@ -171,22 +116,15 @@ export async function POST(req: NextRequest) {
             </div>
           `,
         });
-
-        console.log("   ✅ Email enviado exitosamente a:", customerEmail);
-      } catch (emailError) {
-        console.error("   ❌ Error enviando email:", emailError);
+      } catch {
         // No fallar la petición si el email falla
-        // El reclamo ya fue guardado exitosamente
       }
-    } else {
-      console.log("\n⚠️  No se envió email (cliente no proporcionó email)");
     }
-
 
     return NextResponse.json({
       success: true,
       message: "Reclamo registrado exitosamente",
-      complaintNumber: complaint.complaintNumber, // ← En raíz para frontend
+      complaintNumber: complaint.complaintNumber,
       data: {
         id: complaint.id,
         complaintNumber: complaint.complaintNumber,
@@ -194,14 +132,9 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("❌ Error submitting complaint:", error);
-
+    console.error("Error submitting complaint:", error instanceof Error ? error.message : "unknown");
     return NextResponse.json(
-      {
-        success: false,
-        error: "Error al procesar el reclamo. Intente nuevamente.",
-        details: error instanceof Error ? error.message : "Error desconocido",
-      },
+      { success: false, error: "Error al procesar el reclamo. Intente nuevamente." },
       { status: 500 }
     );
   }

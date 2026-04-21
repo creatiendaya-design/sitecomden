@@ -209,16 +209,26 @@ export async function getCulqiCharge(chargeId: string) {
 }
 
 /**
- * Verificar firma del webhook de Culqi
- * Culqi envía un header X-Culqi-Signature para validar que la petición es legítima
+ * Verificar que un cargo de webhook realmente existe y fue exitoso en Culqi.
+ * Culqi no firma sus webhooks, así que verificamos contra su API directamente.
  */
-export function verifyCulqiWebhookSignature(
-  payload: string,
-  signature: string
-): boolean {
-  // TODO: Implementar verificación de firma cuando Culqi lo requiera
-  // Por ahora, retornamos true para desarrollo
-  return true;
+export async function verifyCulqiCharge(
+  chargeId: string,
+  expectedAmount: number,
+  expectedCurrency: string
+): Promise<boolean> {
+  try {
+    const charge = await getCulqiCharge(chargeId);
+    return (
+      charge.object === "charge" &&
+      charge.id === chargeId &&
+      charge.outcome?.type === "venta_exitosa" &&
+      charge.amount === expectedAmount &&
+      charge.currency_code === expectedCurrency
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**

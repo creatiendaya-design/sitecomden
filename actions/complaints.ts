@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
 import { FormField, ComplaintsConfig } from "@/types/complaints";
 import { prismaFieldToFormField } from "@/lib/complaints-helpers";
+import { escapeHtml } from "@/lib/sanitize";
+import { protectRoute } from "@/lib/protect-route";
 
 // ==========================================
 // TIPOS DE RETORNO
@@ -44,6 +46,7 @@ export async function getFormFields(): Promise<ActionResult<FormField[]>> {
 
 export async function getAllFormFields(): Promise<ActionResult<FormField[]>> {
   try {
+    await protectRoute("complaints:configure");
     const fields = await prisma.complaintFormField.findMany({
       orderBy: { order: "asc" },
     });
@@ -73,13 +76,14 @@ export async function createFormField(data: {
   placeholder?: string;
   helpText?: string;
   required: boolean;
-  options?: string[]; // ✅ Sin null
+  options?: string[];
   otherLabel?: string;
   minLength?: number;
   maxLength?: number;
   pattern?: string;
 }) {
   try {
+    await protectRoute("complaints:configure");
     // Obtener el último order
     const lastField = await prisma.complaintFormField.findFirst({
       orderBy: { order: "desc" },
@@ -131,7 +135,7 @@ export async function updateFormField(
     placeholder?: string;
     helpText?: string;
     required?: boolean;
-    options?: string[]; // ✅ Sin null
+    options?: string[];
     minLength?: number;
     maxLength?: number;
     pattern?: string;
@@ -139,7 +143,7 @@ export async function updateFormField(
   }
 ) {
   try {
-    // ✅ Preparar data con conversión explícita
+    await protectRoute("complaints:configure");
     const updateData: any = {};
     
     if (data.label !== undefined) updateData.label = data.label;
@@ -179,6 +183,7 @@ export async function updateFormField(
 
 export async function deleteFormField(id: string) {
   try {
+    await protectRoute("complaints:configure");
     await prisma.complaintFormField.delete({
       where: { id },
     });
@@ -199,6 +204,7 @@ export async function deleteFormField(id: string) {
 
 export async function reorderFormFields(fieldIds: string[]) {
   try {
+    await protectRoute("complaints:configure");
     // Actualizar el orden de cada campo
     await Promise.all(
       fieldIds.map((id, index) =>
@@ -301,13 +307,13 @@ export async function submitComplaint(data: {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Reclamación Registrada</h2>
-            <p>Estimado/a ${customerName || "cliente"},</p>
-            <p>${
+            <p>Estimado/a ${escapeHtml(customerName) || "cliente"},</p>
+            <p>${escapeHtml(
               emailConfig?.emailMessage ||
               "Hemos recibido su reclamación y será atendida a la brevedad."
-            }</p>
+            )}</p>
             <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p style="margin: 0;"><strong>Número de Reclamación:</strong> ${complaintNumber}</p>
+              <p style="margin: 0;"><strong>Número de Reclamación:</strong> ${escapeHtml(complaintNumber)}</p>
               <p style="margin: 10px 0 0 0;"><strong>Fecha:</strong> ${new Date().toLocaleDateString(
                 "es-PE"
               )}</p>
@@ -345,6 +351,7 @@ export async function getComplaints(filters?: {
   limit?: number;
 }) {
   try {
+    await protectRoute("complaints:view");
     const complaints = await prisma.complaint.findMany({
       where: {
         ...(filters?.status && { status: filters.status as any }),
@@ -376,6 +383,7 @@ export async function getComplaints(filters?: {
 
 export async function getComplaintById(id: string) {
   try {
+    await protectRoute("complaints:view");
     const complaint = await prisma.complaint.findUnique({
       where: { id },
     });
@@ -407,6 +415,7 @@ export async function updateComplaintStatus(
   respondedBy?: string
 ) {
   try {
+    await protectRoute("complaints:respond");
     const complaint = await prisma.complaint.update({
       where: { id },
       data: {
@@ -427,15 +436,13 @@ export async function updateComplaintStatus(
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Respuesta a su Reclamación</h2>
-            <p>Estimado/a ${complaint.customerName || "cliente"},</p>
+            <p>Estimado/a ${escapeHtml(complaint.customerName) || "cliente"},</p>
             <p>Le informamos que hemos actualizado el estado de su reclamación:</p>
             <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p style="margin: 0;"><strong>Número de Reclamación:</strong> ${
-                complaint.complaintNumber
-              }</p>
-              <p style="margin: 10px 0;"><strong>Estado:</strong> ${status}</p>
+              <p style="margin: 0;"><strong>Número de Reclamación:</strong> ${escapeHtml(complaint.complaintNumber)}</p>
+              <p style="margin: 10px 0;"><strong>Estado:</strong> ${escapeHtml(status)}</p>
               <p style="margin: 10px 0 0 0;"><strong>Respuesta:</strong></p>
-              <p style="margin: 5px 0 0 0;">${adminResponse}</p>
+              <p style="margin: 5px 0 0 0;">${escapeHtml(adminResponse)}</p>
             </div>
             <p style="color: #666; font-size: 12px; margin-top: 30px;">
               Este es un mensaje automático, por favor no responder.
@@ -466,6 +473,7 @@ export async function updateComplaintStatus(
 
 export async function getComplaintsConfig(): Promise<ActionResult<ComplaintsConfig>> {
   try {
+    await protectRoute("complaints:configure");
     let config = await prisma.setting.findUnique({
       where: { key: "complaints_config" },
     });
@@ -511,7 +519,7 @@ export async function updateComplaintsConfig(data: {
   requireEmail: boolean;
 }) {
   try {
-    // Validaciones
+    await protectRoute("complaints:configure");
     if (!data.prefix || data.prefix.length < 2 || data.prefix.length > 10) {
       return {
         success: false,

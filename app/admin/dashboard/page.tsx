@@ -14,8 +14,22 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import SalesChart from "@/components/admin/SalesChart";
-import OrdersStatusChart from "@/components/admin/OrdersStatusChart";
+import dynamic from "next/dynamic";
+
+const SalesChart = dynamic(() => import("@/components/admin/SalesChart"), {
+  loading: () => (
+    <div className="h-[300px] animate-pulse rounded-lg bg-muted" />
+  ),
+});
+
+const OrdersStatusChart = dynamic(
+  () => import("@/components/admin/OrdersStatusChart"),
+  {
+    loading: () => (
+      <div className="h-[300px] animate-pulse rounded-lg bg-muted" />
+    ),
+  }
+);
 
 export default async function AdminDashboardPage() {
   // Fecha actual y mes anterior

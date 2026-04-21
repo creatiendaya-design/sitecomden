@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PackageSearch, SearchX } from "lucide-react";
 
 interface ProductsPageProps {
   searchParams: Promise<{
@@ -28,14 +29,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   };
 
   // Si hay filtro de categoría, necesitamos filtrar por la relación muchos a muchos
-  let categoryFilter = null;
   if (category) {
     const categoryData = await prisma.category.findUnique({
       where: { slug: category },
     });
     if (categoryData) {
-      categoryFilter = categoryData.id;
-      // Filtrar productos que tienen esta categoría
       where.categories = {
         some: {
           categoryId: categoryData.id,
@@ -178,13 +176,46 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </div>
 
           {products.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-12 text-center">
-              <p className="text-muted-foreground">
-                No se encontraron productos
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 px-6 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                {search ? (
+                  <SearchX className="h-8 w-8 text-muted-foreground" />
+                ) : (
+                  <PackageSearch className="h-8 w-8 text-muted-foreground" />
+                )}
+              </div>
+              <h2 className="mb-2 text-xl font-semibold">
+                {search
+                  ? "Sin resultados para tu búsqueda"
+                  : category
+                  ? "Sin productos en esta categoría"
+                  : "No hay productos disponibles"}
+              </h2>
+              <p className="mb-6 max-w-sm text-muted-foreground">
+                {search ? (
+                  <>
+                    No encontramos productos para{" "}
+                    <span className="font-medium text-foreground">
+                      &ldquo;{search}&rdquo;
+                    </span>
+                    . Intenta con otro término o explora todas las categorías.
+                  </>
+                ) : category ? (
+                  "Pronto agregaremos nuevos artículos a esta categoría."
+                ) : (
+                  "Pronto habrá productos disponibles."
+                )}
               </p>
-              <Button asChild className="mt-4">
-                <Link href="/productos">Ver todos los productos</Link>
-              </Button>
+              <div className="flex flex-wrap justify-center gap-3">
+                {(search || category) && (
+                  <Button asChild>
+                    <Link href="/productos">Ver todos los productos</Link>
+                  </Button>
+                )}
+                <Button asChild variant="outline">
+                  <Link href="/">Ir al inicio</Link>
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">

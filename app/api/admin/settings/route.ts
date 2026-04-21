@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
+  const { response: authResponse } = await requirePermission("settings:view");
+  if (authResponse) return authResponse;
+
   try {
     const settings = await prisma.setting.findMany({
       where: {
@@ -31,6 +35,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const { response: authResponse } = await requirePermission("settings:update");
+  if (authResponse) return authResponse;
+
   try {
     const data = await request.json();
 

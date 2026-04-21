@@ -219,7 +219,13 @@ export async function checkRateLimit(
     details?: Record<string, any>;
   }
 ): Promise<RateLimitResult> {
-  const result = await limiter.limit(identifier);
+  let result: Awaited<ReturnType<typeof limiter.limit>>;
+  try {
+    result = await limiter.limit(identifier);
+  } catch (err) {
+    console.warn("⚠️ Rate limiter unavailable (Redis unreachable), allowing request:", err instanceof Error ? err.message : err);
+    return { success: true, remaining: 0, reset: Date.now(), limit: 0 };
+  }
 
   // Si se excedió el límite, loguear
   if (!result.success && context) {

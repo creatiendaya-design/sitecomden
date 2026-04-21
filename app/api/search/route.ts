@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAllProductImages } from "@/lib/image-utils";
+import { withRateLimit, searchRateLimiter } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
+  const rateLimitResponse = await withRateLimit(request, searchRateLimiter, {
+    action: "search",
+  });
+  if (rateLimitResponse) return rateLimitResponse;
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");

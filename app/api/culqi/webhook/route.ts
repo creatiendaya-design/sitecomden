@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyCulqiWebhookSignature } from "@/lib/culqi";
+import { verifyCulqiCharge } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
 
 // Deshabilitar body parsing para poder leer el raw body
@@ -52,26 +52,9 @@ interface CulqiWebhookEvent {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Leer el body
     const rawBody = await request.text();
-    const signature = request.headers.get("X-Culqi-Signature");
-
-    console.log("📥 Culqi webhook received");
-
-    // 2. Verificar firma (si Culqi la envía)
-    if (signature && !verifyCulqiWebhookSignature(rawBody, signature)) {
-      console.error("❌ Invalid Culqi webhook signature");
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
-      );
-    }
-
-    // 3. Parsear evento
     const event: CulqiWebhookEvent = JSON.parse(rawBody);
-    console.log("📦 Culqi event:", event.type, event.id);
 
-    // 4. Procesar según tipo de evento
     switch (event.type) {
       case "charge.succeeded":
         await handleChargeSucceeded(event);
@@ -86,15 +69,12 @@ export async function POST(request: NextRequest) {
         break;
 
       default:
-        console.log(`⚠️ Unhandled Culqi event type: ${event.type}`);
+        break;
     }
 
-    // 5. Retornar 200 OK
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error("❌ Error processing Culqi webhook:", error);
-    
-    // Retornar 500 para que Culqi reintente
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }
@@ -109,29 +89,24 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
   const { data } = event;
   const orderId = data.metadata?.order_id;
 
-  if (!orderId) {
-    console.warn("⚠️ Charge succeeded but no order_id in metadata");
+  if (!orderId) return;
+
+  // Verificar contra la API de Culqi que el cargo realmente existe y fue exitoso.
+  // Culqi no firma webhooks, así que esta llamada de vuelta es la única prueba confiable.
+  const isValid = await verifyCulqiCharge(data.id, data.amount, data.currency_code);
+  if (!isValid) {
+    console.error(`❌ Charge ${data.id} failed verification against Culqi API`);
     return;
   }
 
-  console.log(`✅ Charge succeeded for order ${orderId}`);
-
-  // Buscar la orden
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { items: true },
   });
 
-  if (!order) {
-    console.error(`❌ Order ${orderId} not found`);
-    return;
-  }
+  if (!order) return;
 
-  // Si ya está pagada, no hacer nada
-  if (order.paymentStatus === "PAID") {
-    console.log(`ℹ️ Order ${orderId} already marked as paid`);
-    return;
-  }
+  if (order.paymentStatus === "PAID") return;
 
   // Actualizar orden
   await prisma.order.update({

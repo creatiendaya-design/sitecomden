@@ -305,6 +305,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         <div className="p-4 pt-0 sm:hidden">
           <Button
+            variant="cta"
             size="sm"
             className="w-full"
             onClick={handleAddToCart}

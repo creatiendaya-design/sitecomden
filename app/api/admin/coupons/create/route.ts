@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
-  const { user, response: authResponse } = await requirePermission("coupons.create");
+  const { user, response: authResponse } = await requirePermission("coupons:create");
   if (authResponse) return authResponse;
 
   try {

@@ -11,8 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Edit, Eye } from "lucide-react";
 import DeleteProductButton from "@/components/admin/DeleteProductButton";
 
-// ⭐ NUEVO: Importar sistema de permisos
-import { hasPermission } from "@/lib/permissions";
+import { hasPermissions } from "@/lib/permissions";
 import { getCurrentUserId } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -26,19 +25,22 @@ interface ProductsAdminPageProps {
 export default async function ProductsAdminPage({
   searchParams,
 }: ProductsAdminPageProps) {
-  // ⭐ NUEVO: Verificar permisos
   const userId = await getCurrentUserId();
-  
-  // Verificar acceso al módulo de productos
-  const canView = await hasPermission(userId, "products:view");
-  if (!canView) {
+
+  const perms = await hasPermissions(userId, [
+    "products:view",
+    "products:create",
+    "products:edit",
+    "products:delete",
+  ]);
+
+  if (!perms["products:view"]) {
     redirect("/admin/dashboard");
   }
 
-  // Obtener permisos específicos
-  const canCreate = await hasPermission(userId, "products:create");
-  const canEdit = await hasPermission(userId, "products:edit");
-  const canDelete = await hasPermission(userId, "products:delete");
+  const canCreate = perms["products:create"];
+  const canEdit = perms["products:edit"];
+  const canDelete = perms["products:delete"];
 
   const { search, category } = await searchParams;
 

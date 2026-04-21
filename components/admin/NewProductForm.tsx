@@ -20,7 +20,14 @@ import Link from "next/link";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import ImageUpload from "@/components/admin/ImageUpload";
-import RichTextEditor from "./RichTextEditor";
+import dynamic from "next/dynamic";
+
+const RichTextEditor = dynamic(() => import("./RichTextEditor"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-48 animate-pulse rounded-lg bg-muted" />
+  ),
+});
 import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
 
 // 🆕 Tipos actualizados con swatches

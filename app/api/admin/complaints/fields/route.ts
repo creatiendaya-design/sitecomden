@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -27,6 +28,9 @@ export async function GET(request: Request) {
 
 // POST - Crear nuevo campo (ya lo tenías)
 export async function POST(request: Request) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   try {
     const body = await request.json();
 

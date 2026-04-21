@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { withRateLimit, couponRateLimiter } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const rateLimitResponse = await withRateLimit(request, couponRateLimiter, {
+    action: "coupon_validate",
+    errorMessage: "Demasiados intentos. Espera un momento antes de intentar otro cupón.",
+  });
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const { code, subtotal } = await request.json();
 

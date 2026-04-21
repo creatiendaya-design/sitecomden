@@ -8,7 +8,7 @@ export async function PUT(
   { params }: { params: Promise<{ couponId: string }> }
 ) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
-  const { user, response: authResponse } = await requirePermission("coupons.update");
+  const { user, response: authResponse } = await requirePermission("coupons:update");
   if (authResponse) return authResponse;
 
   try {

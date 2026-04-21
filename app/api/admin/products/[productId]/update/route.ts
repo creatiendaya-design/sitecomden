@@ -10,7 +10,7 @@ export async function PUT(
   { params }: { params: Promise<{ productId: string }> }
 ) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
-  const { user, response: authResponse } = await requirePermission("products.update");
+  const { user, response: authResponse } = await requirePermission("products:update");
   if (authResponse) return authResponse;
 
   try {

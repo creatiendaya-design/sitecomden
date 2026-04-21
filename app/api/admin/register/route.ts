@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { requireRoleLevel } from "@/lib/auth";
+import { SUPER_ADMIN_LEVEL } from "@/lib/constants";
 
 export async function POST(request: Request) {
   try {
+    // Solo Super Admins pueden crear nuevas cuentas de administrador
+    const { response: authResponse } = await requireRoleLevel(SUPER_ADMIN_LEVEL);
+    if (authResponse) return authResponse;
+
     const { name, email, password } = await request.json();
 
-    // Validaciones
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: "Todos los campos son requeridos" },
@@ -14,18 +19,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    if (password.length < 12) {
       return NextResponse.json(
-        { error: "La contraseña debe tener al menos 6 caracteres" },
+        { error: "La contraseña debe tener al menos 12 caracteres" },
         { status: 400 }
       );
     }
 
-    // Verificar si el email ya existe
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return NextResponse.json(
         { error: "Este email ya está registrado" },
@@ -33,42 +34,30 @@ export async function POST(request: Request) {
       );
     }
 
-    // ⭐ NUEVO: Buscar rol por defecto (Admin o Staff)
-    const defaultRole = await prisma.role.findFirst({
-      where: {
-        OR: [
-          { slug: "admin" },      // Intentar Admin primero
-          { slug: "staff" },      // Si no existe, Staff
-        ],
-        active: true,
-      },
-      orderBy: {
-        level: "desc", // Obtener el de mayor nivel disponible
-      },
+    // Siempre asignar el rol de menor privilegio — elevación requiere acción explícita
+    const staffRole = await prisma.role.findFirst({
+      where: { active: true },
+      orderBy: { level: "asc" },
     });
 
-    if (!defaultRole) {
+    if (!staffRole) {
       return NextResponse.json(
         { error: "No hay roles disponibles. Ejecuta el seed primero." },
         { status: 500 }
       );
     }
 
-    // Hashear contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ⭐ CAMBIO: Crear usuario con roleId
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        roleId: defaultRole.id, // ⭐ Usar roleId en lugar de role
+        roleId: staffRole.id,
         active: true,
       },
-      include: {
-        role: true, // ⭐ Incluir role en la respuesta
-      },
+      include: { role: true },
     });
 
     return NextResponse.json({
@@ -77,13 +66,9 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
-        roleId: user.roleId,
-        role: user.role ? {
-          id: user.role.id,
-          name: user.role.name,
-          slug: user.role.slug,
-          level: user.role.level,
-        } : null,
+        role: user.role
+          ? { id: user.role.id, name: user.role.name, slug: user.role.slug, level: user.role.level }
+          : null,
       },
     });
   } catch (error) {

@@ -2,7 +2,8 @@ import { getSiteSettings } from "@/lib/site-settings";
 import Header from "@/components/shop/Header";
 import Footer from "@/components/shop/Footer";
 import { getActivePixels } from "@/actions/tracking-pixels";
-import PixelScripts from "@/components/tracking/PixelScripts";
+import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
+import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
 export default async function ShopLayout({
   children,
 }: {
@@ -40,7 +41,8 @@ export default async function ShopLayout({
  const { pixels } = await getActivePixels();
   return (
     <>
-     <PixelScripts pixels={pixels} />
+     <ConsentAwarePixels pixels={pixels} />
+      <CookieConsentBanner />
       {/* Structured Data de Organización */}
       <script
         type="application/ld+json"

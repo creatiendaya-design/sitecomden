@@ -8,7 +8,7 @@ export async function DELETE(
   { params }: { params: Promise<{ categoryId: string }> }
 ) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
-  const { user, response: authResponse } = await requirePermission("categories.delete");
+  const { user, response: authResponse } = await requirePermission("categories:delete");
   if (authResponse) return authResponse;
 
   try {

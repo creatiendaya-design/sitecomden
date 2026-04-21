@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import ProductCard from "@/components/shop/ProductCard";
 import { getSiteSettings } from "@/lib/site-settings";
 import { Metadata } from "next";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { PackageSearch } from "lucide-react";
 
 interface CategoryPageProps {
   params: Promise<{
@@ -78,10 +81,24 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
       {/* Grid de productos */}
       {products.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-muted-foreground">
-            No hay productos disponibles en esta categoría
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 px-6 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <PackageSearch className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="mb-2 text-xl font-semibold">Sin productos por ahora</h2>
+          <p className="mb-6 max-w-sm text-muted-foreground">
+            Aún no hay productos disponibles en{" "}
+            <span className="font-medium text-foreground">{category.name}</span>.
+            Pronto agregaremos nuevos artículos.
           </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button asChild>
+              <Link href="/productos">Ver todos los productos</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/">Ir al inicio</Link>
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

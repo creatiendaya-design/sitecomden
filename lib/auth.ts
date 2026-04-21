@@ -19,10 +19,11 @@
  *   const user = await getCurrentUser();
  */
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { prisma } from "./db";
+import { SUPER_ADMIN_LEVEL } from "./constants";
 import type { User, Role } from "@prisma/client";
 
 // ===================================================================
@@ -226,7 +227,7 @@ export async function requireRoleLevel(minLevel: number): Promise<AuthResult> {
  * @param permissionSlug - Slug del permiso (ej: "products.create")
  * 
  * @example
- * const { user, response } = await requirePermission("products.delete");
+ * const { user, response } = await requirePermission("products:delete");
  * if (response) return response;
  */
 export async function requirePermission(permissionSlug: string): Promise<AuthResult> {
@@ -257,22 +258,17 @@ export async function requirePermission(permissionSlug: string): Promise<AuthRes
     };
   }
 
-  // ✅ CONVERSIÓN CRÍTICA: products.create → products:create
-  // Las API routes usan punto (.), pero lib/permissions usa dos puntos (:)
-  const normalizedPermissionKey = permissionSlug.replace(/\./g, ":");
-
   // ✅ SUPER ADMIN BYPASS: Nivel 100+ tiene TODO permitido
-  if (user.role && user.role.level >= 100) {
+  if (user.role && user.role.level >= SUPER_ADMIN_LEVEL) {
     console.log(`✅ Super Admin bypass: ${user.email} - ${permissionSlug}`);
     return { user, response: null };
   }
 
-  // ✅ Verificar permisos personalizados y del rol usando hasPermission
   try {
     // Importar hasPermission dinámicamente para evitar dependencia circular
     const { hasPermission } = await import("./permissions");
-    
-    const allowed = await hasPermission(user.id, normalizedPermissionKey);
+
+    const allowed = await hasPermission(user.id, permissionSlug);
 
     if (!allowed) {
       console.warn(`❌ Permiso denegado: ${user.email} intentó ${permissionSlug}`);
@@ -351,18 +347,15 @@ export async function requireAnyPermission(permissionSlugs: string[]): Promise<A
   }
 
   // ✅ SUPER ADMIN BYPASS
-  if (user.role && user.role.level >= 100) {
+  if (user.role && user.role.level >= SUPER_ADMIN_LEVEL) {
     console.log(`✅ Super Admin bypass: ${user.email} - any of ${permissionSlugs.join(", ")}`);
     return { user, response: null };
   }
 
-  // Convertir formato
-  const normalizedKeys = permissionSlugs.map(slug => slug.replace(/\./g, ":"));
-
   // Verificar si el rol tiene alguno de los permisos
   const permission = await prisma.permission.findFirst({
     where: {
-      key: { in: normalizedKeys },
+      key: { in: permissionSlugs },
       roles: {
         some: {
           roleId: user.roleId,
@@ -435,18 +428,15 @@ export async function requireAllPermissions(permissionSlugs: string[]): Promise<
   }
 
   // ✅ SUPER ADMIN BYPASS
-  if (user.role && user.role.level >= 100) {
+  if (user.role && user.role.level >= SUPER_ADMIN_LEVEL) {
     console.log(`✅ Super Admin bypass: ${user.email} - all of ${permissionSlugs.join(", ")}`);
     return { user, response: null };
   }
 
-  // Convertir formato
-  const normalizedKeys = permissionSlugs.map(slug => slug.replace(/\./g, ":"));
-
   // Verificar si el rol tiene todos los permisos
   const permissions = await prisma.permission.findMany({
     where: {
-      key: { in: normalizedKeys },
+      key: { in: permissionSlugs },
       roles: {
         some: {
           roleId: user.roleId,
@@ -457,18 +447,18 @@ export async function requireAllPermissions(permissionSlugs: string[]): Promise<
 
   if (permissions.length !== permissionSlugs.length) {
     const foundSlugs = permissions.map(p => p.key);
-    const missingPermissions = normalizedKeys.filter(
-      slug => !foundSlugs.includes(slug)
+    const missingPermissions = permissionSlugs.filter(
+      (slug: string) => !foundSlugs.includes(slug)
     );
 
     return {
       user: null,
       response: NextResponse.json(
-        { 
+        {
           error: "No tienes todos los permisos necesarios",
           code: "FORBIDDEN",
           required_permissions: permissionSlugs,
-          missing_permissions: missingPermissions.map(key => key.replace(/:/g, ".")),
+          missing_permissions: missingPermissions,
           role: user.role.name
         },
         { status: 403 }
@@ -562,16 +552,13 @@ export async function userHasPermission(
   }
 
   // ✅ SUPER ADMIN BYPASS
-  if (user.role && user.role.level >= 100) {
+  if (user.role && user.role.level >= SUPER_ADMIN_LEVEL) {
     return true;
   }
 
-  // Convertir formato
-  const normalizedKey = permissionSlug.replace(/\./g, ":");
-
   const permission = await prisma.permission.findFirst({
     where: {
-      key: normalizedKey,
+      key: permissionSlug,
       roles: {
         some: {
           roleId: user.roleId,
@@ -605,23 +592,13 @@ export async function userHasRoleLevel(
  * Se puede usar en Server Components y Server Actions
  */
 export async function getCurrentUserId(): Promise<string> {
-  // Opción 1: Desde cookie (más confiable)
   const cookieStore = await cookies();
   const adminSession = cookieStore.get("admin_session");
-  
+
   if (adminSession?.value) {
     return adminSession.value;
   }
 
-  // Opción 2: Desde header (inyectado por middleware)
-  const headersList = await headers();
-  const userId = headersList.get("x-user-id");
-  
-  if (userId) {
-    return userId;
-  }
-
-  // No hay sesión
   redirect("/admin-auth/login");
 }
 
@@ -634,15 +611,7 @@ export async function getCurrentUserId(): Promise<string> {
 export async function getCurrentUserIdOrNull(): Promise<string | null> {
   const cookieStore = await cookies();
   const adminSession = cookieStore.get("admin_session");
-  
-  if (adminSession?.value) {
-    return adminSession.value;
-  }
-
-  const headersList = await headers();
-  const userId = headersList.get("x-user-id");
-  
-  return userId || null;
+  return adminSession?.value ?? null;
 }
 
 /**

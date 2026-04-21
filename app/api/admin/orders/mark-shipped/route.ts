@@ -6,7 +6,7 @@ import { sendOrderShippedEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
-  const { user, response: authResponse } = await requirePermission("orders.update");
+  const { user, response: authResponse } = await requirePermission("orders:update");
   if (authResponse) return authResponse;
 
   try {

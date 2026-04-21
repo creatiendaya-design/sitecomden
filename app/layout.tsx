@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Rubik, Nunito_Sans, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
 import { Toaster } from "sonner";
 import { getSiteSettings } from "@/lib/site-settings";
 import "./globals.css";
 import "@/app/styles/prose-content.css";
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+
+const rubik = Rubik({
+  variable: "--font-rubik",
+  subsets: ["latin"],
+});
+
+const nunitoSans = Nunito_Sans({
+  variable: "--font-nunito-sans",
   subsets: ["latin"],
 });
 
@@ -87,7 +93,7 @@ export default function RootLayout({
     <ClerkProvider localization={esES}>
       <html lang="es" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${rubik.variable} ${nunitoSans.variable} ${geistMono.variable} antialiased`}
         >
           {children}
           <Toaster position="top-right" richColors />

@@ -1,38 +1,49 @@
 "use server";
 
 import { Resend } from "resend";
+import { z } from "zod";
 import { getSiteSettings } from "@/lib/site-settings";
+import { escapeHtml } from "@/lib/sanitize";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const contactSchema = z.object({
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+  email: z.string().check(
+    z.email("Por favor ingresa un email válido"),
+  ),
+  phone: z.string().max(20).optional(),
+  subject: z.string().min(2, "El asunto es obligatorio").max(200),
+  message: z.string().min(10, "El mensaje debe tener al menos 10 caracteres").max(2000),
+});
+
 export async function sendContactEmail(formData: FormData) {
   try {
-    const name = formData.get("name") as string;
-    const email = formData.get("email") as string;
-    const phone = formData.get("phone") as string;
-    const subject = formData.get("subject") as string;
-    const message = formData.get("message") as string;
+    const raw = {
+      name: formData.get("name"),
+      email: formData.get("email"),
+      phone: formData.get("phone") || undefined,
+      subject: formData.get("subject"),
+      message: formData.get("message"),
+    };
 
-    // Validaciones básicas
-    if (!name || !email || !subject || !message) {
-      return {
-        success: false,
-        error: "Por favor completa todos los campos obligatorios",
-      };
+    const parsed = contactSchema.safeParse(raw);
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0];
+      return { success: false, error: firstError.message };
     }
 
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return {
-        success: false,
-        error: "Por favor ingresa un email válido",
-      };
-    }
+    const { name, email, phone, subject, message } = parsed.data;
+
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safePhone = phone ? escapeHtml(phone) : null;
+    const safeSubject = escapeHtml(subject);
+    const safeMessage = escapeHtml(message);
 
     const settings = await getSiteSettings();
+    const safeSiteName = escapeHtml(settings.site_name);
 
-    // Enviar email al admin
     await resend.emails.send({
       from: `${settings.site_name} <${process.env.RESEND_FROM_EMAIL}>`,
       to: settings.contact_email || process.env.RESEND_FROM_EMAIL!,
@@ -50,27 +61,27 @@ export async function sendContactEmail(formData: FormData) {
               <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
                 Nuevo Mensaje de Contacto
               </h2>
-              
+
               <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <p style="margin: 0 0 10px 0;">
-                  <strong>Nombre:</strong> ${name}
+                  <strong>Nombre:</strong> ${safeName}
                 </p>
                 <p style="margin: 0 0 10px 0;">
-                  <strong>Email:</strong> <a href="mailto:${email}" style="color: #2563eb;">${email}</a>
+                  <strong>Email:</strong> <a href="mailto:${safeEmail}" style="color: #2563eb;">${safeEmail}</a>
                 </p>
-                ${phone ? `<p style="margin: 0 0 10px 0;"><strong>Teléfono:</strong> ${phone}</p>` : ""}
+                ${safePhone ? `<p style="margin: 0 0 10px 0;"><strong>Teléfono:</strong> ${safePhone}</p>` : ""}
                 <p style="margin: 0 0 10px 0;">
-                  <strong>Asunto:</strong> ${subject}
+                  <strong>Asunto:</strong> ${safeSubject}
                 </p>
               </div>
 
               <div style="background-color: #fff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
                 <h3 style="margin-top: 0; color: #374151;">Mensaje:</h3>
-                <p style="white-space: pre-wrap; margin: 0;">${message}</p>
+                <p style="white-space: pre-wrap; margin: 0;">${safeMessage}</p>
               </div>
 
               <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
-                <p>Este mensaje fue enviado desde el formulario de contacto de ${settings.site_name}</p>
+                <p>Este mensaje fue enviado desde el formulario de contacto de ${safeSiteName}</p>
                 <p style="margin: 5px 0 0 0;">Responde directamente a este email para contactar al cliente</p>
               </div>
             </div>
@@ -79,7 +90,6 @@ export async function sendContactEmail(formData: FormData) {
       `,
     });
 
-    // Email de confirmación al cliente
     await resend.emails.send({
       from: `${settings.site_name} <${process.env.RESEND_FROM_EMAIL}>`,
       to: email,
@@ -96,25 +106,25 @@ export async function sendContactEmail(formData: FormData) {
               <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
                 Gracias por contactarnos
               </h2>
-              
-              <p>Hola ${name},</p>
-              
+
+              <p>Hola ${safeName},</p>
+
               <p>Hemos recibido tu mensaje y te responderemos lo antes posible. Generalmente respondemos en un plazo de 24-48 horas durante días laborables.</p>
 
               <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="margin-top: 0; color: #374151;">Tu mensaje:</h3>
-                <p style="margin: 0 0 10px 0;"><strong>Asunto:</strong> ${subject}</p>
-                <p style="white-space: pre-wrap; margin: 0; color: #6b7280;">${message}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Asunto:</strong> ${safeSubject}</p>
+                <p style="white-space: pre-wrap; margin: 0; color: #6b7280;">${safeMessage}</p>
               </div>
 
               <p>Si tu consulta es urgente, también puedes contactarnos a través de:</p>
               <ul style="color: #6b7280;">
-                ${settings.contact_phone ? `<li><strong>Teléfono:</strong> ${settings.contact_phone}</li>` : ""}
-                ${settings.contact_email ? `<li><strong>Email:</strong> ${settings.contact_email}</li>` : ""}
+                ${settings.contact_phone ? `<li><strong>Teléfono:</strong> ${escapeHtml(settings.contact_phone)}</li>` : ""}
+                ${settings.contact_email ? `<li><strong>Email:</strong> ${escapeHtml(settings.contact_email)}</li>` : ""}
               </ul>
 
               <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
-                <p><strong>${settings.site_name}</strong></p>
+                <p><strong>${safeSiteName}</strong></p>
                 <p style="margin: 5px 0;">Gracias por tu preferencia</p>
               </div>
             </div>

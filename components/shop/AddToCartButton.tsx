@@ -136,6 +136,7 @@ export default function AddToCartButton({
 
   return (
     <Button
+      variant="cta"
       size="lg"
       className="w-full"
       onClick={handleAddToCart}

@@ -108,7 +108,7 @@ export async function savePaymentMethodSettings(
   settings: PaymentMethodSettings
 ): Promise<{ success: boolean; error?: string; message?: string }> {
   // 🔐 PROTECCIÓN: Solo admins con permiso pueden cambiar configuración
-  const { user } = await requirePermission("settings.update");
+  const { user } = await requirePermission("settings:update");
   
   try {
     // Validar que los números tengan formato correcto si están habilitados
@@ -191,7 +191,7 @@ export async function uploadQRImage(
   formData: FormData
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   // 🔐 PROTECCIÓN: Solo admins con permiso pueden subir QR codes
-  const { user } = await requirePermission("settings.update");
+  const { user } = await requirePermission("settings:update");
   
   try {
     const file = formData.get("file") as File;
