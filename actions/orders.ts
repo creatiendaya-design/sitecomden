@@ -687,15 +687,15 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       updateData.fulfillmentStatus = input.fulfillmentStatus;
     }
 
-    if (input.trackingNumber) {
+    if (input.trackingNumber !== undefined) {
       updateData.trackingNumber = input.trackingNumber;
     }
 
-    if (input.shippingCourier) {
+    if (input.shippingCourier !== undefined) {
       updateData.shippingCourier = input.shippingCourier;
     }
 
-    if (input.adminNotes) {
+    if (input.adminNotes !== undefined) {
       updateData.adminNotes = input.adminNotes;
     }
 
