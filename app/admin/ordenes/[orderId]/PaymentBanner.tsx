@@ -54,22 +54,20 @@ export default function PaymentBanner({
   const handleReject = async () => {
     if (!rejectReason.trim()) return;
     setRejectLoading(true);
-    setRejectOpen(false);
     try {
       const result = await rejectPayment(paymentId, rejectReason);
       if (result.success) {
+        setRejectOpen(false);
+        setRejectReason("");
         toast.success("Pago rechazado. Se envió email al cliente.");
         router.refresh();
       } else {
         toast.error(result.error || "Error al rechazar el pago");
       }
     } finally {
-      setRejectReason("");
       setRejectLoading(false);
     }
   };
-
-  const isLoading = approveLoading || rejectLoading;
 
   return (
     <>
@@ -95,7 +93,7 @@ export default function PaymentBanner({
             size="sm"
             className="bg-green-600 hover:bg-green-700 text-white"
             onClick={handleApprove}
-            disabled={isLoading}
+            disabled={approveLoading}
           >
             {approveLoading ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1" />
@@ -109,7 +107,7 @@ export default function PaymentBanner({
             variant="outline"
             className="border-red-300 text-red-600 hover:bg-red-50"
             onClick={() => setRejectOpen(true)}
-            disabled={isLoading}
+            disabled={rejectLoading}
           >
             {rejectLoading ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1" />
