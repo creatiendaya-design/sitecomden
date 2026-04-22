@@ -38,30 +38,40 @@ export default function SunatConfigForm({ initialConfig }: SunatConfigFormProps)
   async function handleTest() {
     setTesting(true);
     setTestResult(null);
-    const key = apiKey || config.apiKeyMasked;
-    const result = await testSunatConnectionAction(key, config.apiUrl);
-    setTestResult({ ok: result.success, msg: result.error ?? "Conexión exitosa" });
-    setTesting(false);
+    try {
+      const key = apiKey || config.apiKeyMasked;
+      const result = await testSunatConnectionAction(key, config.apiUrl);
+      setTestResult({ ok: result.success, msg: result.error ?? "Conexión exitosa" });
+    } catch {
+      setTestResult({ ok: false, msg: "Error al conectar. Intenta nuevamente." });
+    } finally {
+      setTesting(false);
+    }
   }
 
   async function handleSave() {
     setSaving(true);
-    await saveSunatConfigAction({
-      enabled: config.enabled,
-      emissionMode: config.emissionMode as "auto" | "manual" | "mixed",
-      apiKey: apiKey || config.apiKeyMasked,
-      apiUrl: config.apiUrl,
-      ruc: config.ruc,
-      razonSocial: config.razonSocial,
-      address: config.address,
-      boletaSeries: config.boletaSeries,
-      facturaSeries: config.facturaSeries,
-      pricesIncludeIgv: config.pricesIncludeIgv,
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-    router.refresh();
+    try {
+      await saveSunatConfigAction({
+        enabled: config.enabled,
+        emissionMode: config.emissionMode as "auto" | "manual" | "mixed",
+        apiKey: apiKey || config.apiKeyMasked,
+        apiUrl: config.apiUrl,
+        ruc: config.ruc,
+        razonSocial: config.razonSocial,
+        address: config.address,
+        boletaSeries: config.boletaSeries,
+        facturaSeries: config.facturaSeries,
+        pricesIncludeIgv: config.pricesIncludeIgv,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      router.refresh();
+    } catch {
+      setTestResult({ ok: false, msg: "Error al guardar. Intenta nuevamente." });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -163,16 +173,18 @@ export default function SunatConfigForm({ initialConfig }: SunatConfigFormProps)
       <Card>
         <CardHeader><CardTitle>Datos del Emisor</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {[
-            { key: "ruc", label: "RUC", placeholder: "20123456789" },
-            { key: "razonSocial", label: "Razón Social", placeholder: "Mi Tienda SAC" },
-            { key: "address", label: "Dirección Fiscal", placeholder: "Av. Lima 123, Lima" },
-          ].map(({ key, label, placeholder }) => (
+          {(
+            [
+              { key: "ruc" as const, label: "RUC", placeholder: "20123456789" },
+              { key: "razonSocial" as const, label: "Razón Social", placeholder: "Mi Tienda SAC" },
+              { key: "address" as const, label: "Dirección Fiscal", placeholder: "Av. Lima 123, Lima" },
+            ] as const
+          ).map(({ key, label, placeholder }) => (
             <div key={key}>
               <Label>{label}</Label>
               <Input
                 placeholder={placeholder}
-                value={(config as Record<string, string>)[key] ?? ""}
+                value={config[key]}
                 onChange={(e) => setConfig({ ...config, [key]: e.target.value })}
               />
             </div>
