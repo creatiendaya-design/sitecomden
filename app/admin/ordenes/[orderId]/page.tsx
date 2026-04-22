@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Package, User, MapPin, CreditCard } from "lucide-react";
+import { ArrowLeft, Package, User, MapPin, CreditCard, FileText } from "lucide-react";
 import Image from "next/image";
 import OrderUpdateForm from "./order-update-form";
 import CopyLinkButton from "./copy-link-button";
+import { EmitDocumentButton, ResendComprobanteButton } from "./EmitDocumentButton";
 
 interface OrderDetailPageProps {
   params: Promise<{
@@ -50,6 +51,7 @@ export default async function AdminOrderDetailPage({
         },
       },
       pendingPayment: true,
+      electronicDocument: true,
     },
   });
 
@@ -384,6 +386,74 @@ export default async function AdminOrderDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {/* Comprobante Electrónico */}
+          {order.documentType && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Comprobante Electrónico
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {order.electronicDocument ? (
+                  order.electronicDocument.status === "ISSUED" ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-green-100 text-green-700">Emitido</Badge>
+                        <span className="font-mono font-medium">
+                          {order.electronicDocument.fullNumber}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {order.electronicDocument.issuedAt?.toLocaleString("es-PE")}
+                      </p>
+                      <div className="flex gap-2 flex-wrap">
+                        {order.electronicDocument.pdfUrl && (
+                          <Button asChild variant="outline" size="sm">
+                            <a href={order.electronicDocument.pdfUrl} target="_blank" rel="noopener noreferrer">
+                              Descargar PDF
+                            </a>
+                          </Button>
+                        )}
+                        {order.electronicDocument.xmlUrl && (
+                          <Button asChild variant="outline" size="sm">
+                            <a href={order.electronicDocument.xmlUrl} target="_blank" rel="noopener noreferrer">
+                              Descargar XML
+                            </a>
+                          </Button>
+                        )}
+                        <ResendComprobanteButton orderId={order.id} />
+                      </div>
+                    </div>
+                  ) : order.electronicDocument.status === "ERROR" ? (
+                    <div className="space-y-3">
+                      <Badge variant="destructive">Error</Badge>
+                      <p className="text-sm text-red-600">{order.electronicDocument.errorMessage}</p>
+                      <EmitDocumentButton orderId={order.id} />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Badge className="bg-amber-100 text-amber-700">Pendiente</Badge>
+                      <EmitDocumentButton orderId={order.id} />
+                    </div>
+                  )
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Tipo solicitado:{" "}
+                      <strong>{order.documentType === "BOLETA" ? "Boleta de Venta" : "Factura"}</strong>
+                      {order.documentType === "FACTURA" && order.buyerRuc && (
+                        <> — RUC: {order.buyerRuc} ({order.buyerRazonSocial})</>
+                      )}
+                    </p>
+                    <EmitDocumentButton orderId={order.id} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
