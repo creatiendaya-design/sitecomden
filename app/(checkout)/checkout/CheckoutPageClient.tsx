@@ -53,16 +53,22 @@ const initialFormData = {
   departmentName: "",
   provinceName: "",
   districtName: "",
+  documentType: "BOLETA" as "BOLETA" | "FACTURA",
+  buyerRuc: "",
+  buyerRazonSocial: "",
+  buyerFiscalAddress: "",
 };
 
 interface CheckoutPageClientProps {
   siteName: string;
   siteLogo: string;
+  sunatEnabled: boolean;
 }
 
-export default function CheckoutPageClient({ 
-  siteName, 
-  siteLogo 
+export default function CheckoutPageClient({
+  siteName,
+  siteLogo,
+  sunatEnabled,
 }: CheckoutPageClientProps) {
   const router = useRouter();
   const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();
@@ -299,6 +305,10 @@ export default function CheckoutPageClient({
         shippingEstimatedDays: selectedShippingRate.estimatedDays || undefined,
         couponCode: appliedCoupon?.code || undefined,
         couponDiscount: appliedCoupon?.discount || 0,
+        documentType: sunatEnabled ? formData.documentType : undefined,
+        buyerRuc: formData.documentType === "FACTURA" ? formData.buyerRuc : undefined,
+        buyerRazonSocial: formData.documentType === "FACTURA" ? formData.buyerRazonSocial : undefined,
+        buyerFiscalAddress: formData.documentType === "FACTURA" ? formData.buyerFiscalAddress : undefined,
       };
 
       const result = await createOrder(orderData);
@@ -461,6 +471,10 @@ export default function CheckoutPageClient({
         shippingEstimatedDays: selectedShippingRate.estimatedDays || undefined,
         couponCode: appliedCoupon?.code || undefined,
         couponDiscount: appliedCoupon?.discount || 0,
+        documentType: sunatEnabled ? formData.documentType : undefined,
+        buyerRuc: formData.documentType === "FACTURA" ? formData.buyerRuc : undefined,
+        buyerRazonSocial: formData.documentType === "FACTURA" ? formData.buyerRazonSocial : undefined,
+        buyerFiscalAddress: formData.documentType === "FACTURA" ? formData.buyerFiscalAddress : undefined,
       };
 
       const result = await createOrder(orderData);
@@ -990,6 +1004,91 @@ export default function CheckoutPageClient({
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Comprobante de Pago */}
+                {sunatEnabled && (
+                  <Card className="min-w-0">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Comprobante de Pago</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex gap-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            value="BOLETA"
+                            checked={formData.documentType === "BOLETA"}
+                            onChange={() => setFormData({ ...formData, documentType: "BOLETA" })}
+                          />
+                          <span className="text-sm font-medium">Boleta de Venta</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            value="FACTURA"
+                            checked={formData.documentType === "FACTURA"}
+                            onChange={() => setFormData({ ...formData, documentType: "FACTURA" })}
+                          />
+                          <span className="text-sm font-medium">Factura (requiere RUC)</span>
+                        </label>
+                      </div>
+
+                      {formData.documentType === "FACTURA" && (
+                        <div className="space-y-3 pt-2 border-t">
+                          <div>
+                            <Label htmlFor="buyerRuc">RUC *</Label>
+                            <Input
+                              id="buyerRuc"
+                              placeholder="20123456789"
+                              maxLength={11}
+                              value={formData.buyerRuc}
+                              onChange={(e) =>
+                                setFormData({ ...formData, buyerRuc: e.target.value })
+                              }
+                            />
+                            {validationErrors.buyerRuc && (
+                              <p className="text-sm text-red-500 mt-1">
+                                {validationErrors.buyerRuc}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <Label htmlFor="buyerRazonSocial">Razón Social *</Label>
+                            <Input
+                              id="buyerRazonSocial"
+                              placeholder="Mi Empresa SAC"
+                              value={formData.buyerRazonSocial}
+                              onChange={(e) =>
+                                setFormData({ ...formData, buyerRazonSocial: e.target.value })
+                              }
+                            />
+                            {validationErrors.buyerRazonSocial && (
+                              <p className="text-sm text-red-500 mt-1">
+                                {validationErrors.buyerRazonSocial}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <Label htmlFor="buyerFiscalAddress">Dirección Fiscal *</Label>
+                            <Input
+                              id="buyerFiscalAddress"
+                              placeholder="Av. Ejemplo 123, Lima"
+                              value={formData.buyerFiscalAddress}
+                              onChange={(e) =>
+                                setFormData({ ...formData, buyerFiscalAddress: e.target.value })
+                              }
+                            />
+                            {validationErrors.buyerFiscalAddress && (
+                              <p className="text-sm text-red-500 mt-1">
+                                {validationErrors.buyerFiscalAddress}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Método de Pago */}
                 <Card className="min-w-0">
