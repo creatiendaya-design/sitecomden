@@ -333,6 +333,46 @@ export async function sendOrderCancelledEmail(
   }
 }
 
+export async function sendComprobanteEmail(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  documentNumber: string;
+  total: number;
+  pdfUrl: string;
+}) {
+  try {
+    const { default: ComprobanteEmitido } = await import(
+      "@/emails/comprobante-emitido"
+    );
+    const fromEmail = await getFromEmail();
+
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: params.to,
+      subject: `Tu comprobante ${params.documentNumber} — Orden #${params.orderNumber}`,
+      react: ComprobanteEmitido({
+        customerName: params.customerName,
+        orderNumber: params.orderNumber,
+        documentNumber: params.documentNumber,
+        total: params.total,
+        pdfUrl: params.pdfUrl,
+      }),
+    });
+
+    if (error) {
+      console.error("Error sending comprobante email:", error);
+      return { success: false, error };
+    }
+
+    console.log("Comprobante email sent:", data);
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error sending comprobante email:", error);
+    return { success: false, error };
+  }
+}
+
 // Función genérica para enviar emails
 export async function sendEmail({
   to,
