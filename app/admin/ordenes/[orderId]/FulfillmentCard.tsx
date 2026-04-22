@@ -17,6 +17,7 @@ import { Loader2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { updateOrderStatus } from "@/actions/orders";
 import {
+  type FulfillmentStatus,
   FULFILLMENT_STATUS_TRANSITIONS,
   FULFILLMENT_STATUS_LABELS,
   isTerminalFulfillmentStatus,
@@ -36,7 +37,9 @@ export default function FulfillmentCard({
   currentShippingCourier,
 }: FulfillmentCardProps) {
   const router = useRouter();
-  const [fulfillmentStatus, setFulfillmentStatus] = useState(currentFulfillmentStatus);
+  const [fulfillmentStatus, setFulfillmentStatus] = useState<FulfillmentStatus>(
+    currentFulfillmentStatus as FulfillmentStatus
+  );
   const [trackingNumber, setTrackingNumber] = useState(currentTrackingNumber);
   const [shippingCourier, setShippingCourier] = useState(currentShippingCourier);
   const [loading, setLoading] = useState(false);
@@ -59,7 +62,7 @@ export default function FulfillmentCard({
         orderId,
         fulfillmentStatus:
           fulfillmentStatus !== currentFulfillmentStatus
-            ? (fulfillmentStatus as any)
+            ? (fulfillmentStatus as FulfillmentStatus)
             : undefined,
         trackingNumber:
           trackingNumber !== currentTrackingNumber ? trackingNumber : undefined,
@@ -93,14 +96,17 @@ export default function FulfillmentCard({
           </p>
         </div>
 
-        {isTerminalFulfillmentStatus(currentFulfillmentStatus as any) ? (
+        {isTerminalFulfillmentStatus(currentFulfillmentStatus as FulfillmentStatus) ? (
           <p className="text-sm text-muted-foreground">
             Estado final — no se puede modificar
           </p>
         ) : allowedStatuses.length > 0 ? (
           <div className="space-y-1">
             <Label className="text-xs">Cambiar estado</Label>
-            <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus}>
+            <Select
+              value={fulfillmentStatus}
+              onValueChange={(value) => setFulfillmentStatus(value as FulfillmentStatus)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
