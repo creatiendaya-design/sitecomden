@@ -102,7 +102,8 @@ model Product {
   featured         Boolean           @default(false)
   active           Boolean           @default(true)
   weight           Decimal?          @db.Decimal(8, 2)
-  
+  igvType          IgvType           @default(GRAVADO)
+
 
   categories       ProductCategory[]
   
@@ -264,6 +265,11 @@ model Order {
   couponCode        String?
   couponDiscount    Decimal?          @db.Decimal(10, 2)
   customerNotes     String?           @db.Text
+  documentType         DocumentType?
+  buyerRuc             String?
+  buyerRazonSocial     String?
+  buyerFiscalAddress   String?
+  electronicDocument   ElectronicDocument?
   adminNotes        String?           @db.Text
   paidAt            DateTime?
   shippedAt         DateTime?
@@ -320,6 +326,47 @@ model PendingPayment {
   @@index([status])
 }
 
+enum DocStatus {
+  PENDING
+  ISSUED
+  CANCELLED
+  ERROR
+}
+
+model ElectronicDocument {
+  id                 String       @id @default(cuid())
+  orderId            String       @unique
+  order              Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  type               DocumentType
+  series             String
+  number             Int
+  fullNumber         String
+
+  status             DocStatus    @default(PENDING)
+
+  xmlContent         String?      @db.Text
+  pdfUrl             String?
+  xmlUrl             String?
+  cdrUrl             String?
+  sunatCode          Int?
+  hash               String?
+  nubefactId         String?
+  errorMessage       String?
+
+  issuedAt           DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@index([type])
+  @@index([fullNumber])
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -357,6 +404,17 @@ enum CheckoutMode {
   STANDARD
   COD_ONLY
   COD_AND_CART
+}
+
+enum IgvType {
+  GRAVADO
+  EXONERADO
+  INAFECTO
+}
+
+enum DocumentType {
+  BOLETA
+  FACTURA
 }
 
 
