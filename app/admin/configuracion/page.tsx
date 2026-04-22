@@ -79,6 +79,14 @@ export default async function ConfiguracionPage() {
       bgColor: "bg-red-100",
     },
     {
+      title: "Facturación Electrónica",
+      description: "Configura SUNAT y emisión de boletas/facturas via Nubefact",
+      icon: FileText,
+      href: "/admin/configuracion/sunat",
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-100",
+    },
+    {
       title: "Libro de Reclamaciones",
       description: "Configura el formulario de reclamaciones",
       icon: FileText,

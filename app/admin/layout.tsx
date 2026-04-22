@@ -173,6 +173,11 @@ export default function AdminLayout({
           ],
         },
         {
+          href: "/admin/configuracion/sunat",
+          icon: FileText,
+          label: "Facturación SUNAT",
+        },
+        {
           href: "/admin/libro-reclamaciones",
           icon: FileText,
           label: "Libro de Reclamaciones",
