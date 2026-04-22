@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { createCulqiCharge, solesToCents, formatCardInfo } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { autoEmitOnPayment } from "@/actions/sunat";
 
 /**
  * Procesar pago con tarjeta usando Culqi
@@ -87,6 +88,8 @@ export async function processCardPayment(data: {
         paidAt: new Date(),
       },
     });
+
+    await autoEmitOnPayment(order.id);
 
     // 6. Reducir inventario de productos
     for (const item of order.items) {

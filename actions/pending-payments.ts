@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { put } from "@vercel/blob";
+import { autoEmitOnPayment } from "@/actions/sunat";
 
 // ============================================================
 // SUBIR COMPROBANTE DE PAGO (Cliente)
@@ -172,6 +173,8 @@ export async function approvePayment(paymentId: string) {
         paidAt: new Date(),
       },
     });
+
+    await autoEmitOnPayment(payment.orderId);
 
     console.log("Pago aprobado:", {
       paymentId,
