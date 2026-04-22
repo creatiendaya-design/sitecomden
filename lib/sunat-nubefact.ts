@@ -23,6 +23,11 @@ async function allocateDocument(
   orderId: string,
   type: DocumentType
 ): Promise<ElectronicDocument> {
+  // Remove any previous failed/pending attempt so we can retry cleanly
+  await prisma.electronicDocument.deleteMany({
+    where: { orderId, status: { in: ["PENDING", "ERROR"] } },
+  });
+
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       return await prisma.$transaction(
