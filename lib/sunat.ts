@@ -29,7 +29,10 @@ export async function getSunatConfig(): Promise<SunatConfig | null> {
 
   const s = Object.fromEntries(settings.map((r) => [r.key, r.value]));
 
-  if (!s.sunat_enabled || s.sunat_enabled !== true) return null;
+  const isEnabled = s.sunat_enabled === true || s.sunat_enabled === "true";
+  if (!isEnabled) return null;
+
+  if (!s.sunat_ruc || !s.sunat_api_key || !s.sunat_api_url) return null;
 
   const encryptedKey = s.sunat_api_key as string;
   let apiKey = "";

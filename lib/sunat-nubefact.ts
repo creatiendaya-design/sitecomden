@@ -18,6 +18,39 @@ type OrderWithItems = Order & {
   }>;
 };
 
+async function allocateDocument(
+  series: string,
+  orderId: string,
+  type: DocumentType
+): Promise<ElectronicDocument> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const last = await tx.electronicDocument.findFirst({
+            where: { series },
+            orderBy: { number: "desc" },
+          });
+          const number = (last?.number ?? 0) + 1;
+          const fullNumber = `${series}-${String(number).padStart(8, "0")}`;
+          return tx.electronicDocument.create({
+            data: { orderId, type, series, number, fullNumber, status: "PENDING" },
+          });
+        },
+        { isolationLevel: "Serializable" }
+      );
+    } catch (err: unknown) {
+      const isUniqueViolation =
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code: string }).code === "P2002";
+      if (!isUniqueViolation || attempt === 2) throw err;
+    }
+  }
+  throw new Error("Failed to allocate document number after 3 attempts");
+}
+
 export class NubefactProvider implements SunatProvider {
   async emitDocument(
     order: OrderWithItems,
@@ -26,25 +59,7 @@ export class NubefactProvider implements SunatProvider {
   ): Promise<ElectronicDocument> {
     const series = type === "BOLETA" ? config.boletaSeries : config.facturaSeries;
 
-    const doc = await prisma.$transaction(async (tx) => {
-      const last = await tx.electronicDocument.findFirst({
-        where: { series },
-        orderBy: { number: "desc" },
-      });
-      const number = (last?.number ?? 0) + 1;
-      const fullNumber = `${series}-${String(number).padStart(8, "0")}`;
-
-      return tx.electronicDocument.create({
-        data: {
-          orderId: order.id,
-          type,
-          series,
-          number,
-          fullNumber,
-          status: "PENDING",
-        },
-      });
-    });
+    const doc = await allocateDocument(series, order.id, type);
 
     try {
       const productIds = order.items
@@ -109,6 +124,7 @@ export class NubefactProvider implements SunatProvider {
 
       const response = await fetch(config.apiUrl, {
         method: "POST",
+        signal: AbortSignal.timeout(15_000),
         headers: {
           "Content-Type": "application/json",
           Authorization: `Token ${config.apiKey}`,
@@ -157,6 +173,10 @@ export class NubefactProvider implements SunatProvider {
       where: { id: documentId },
     });
 
+    if (doc.status !== "ISSUED") {
+      throw new Error(`Cannot cancel document with status ${doc.status}`);
+    }
+
     const payload = {
       operacion: "generar_anulacion",
       tipo_de_comprobante: doc.type === "FACTURA" ? 1 : 2,
@@ -174,6 +194,7 @@ export class NubefactProvider implements SunatProvider {
 
     const response = await fetch(config.apiUrl, {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Token ${config.apiKey}`,
@@ -182,8 +203,10 @@ export class NubefactProvider implements SunatProvider {
     });
 
     if (!response.ok) {
-      const result = await response.json();
-      throw new Error(result.errors?.join(", ") || "Error al anular en SUNAT");
+      const isJson = response.headers.get("content-type")?.includes("application/json");
+      const body = isJson ? await response.json() : null;
+      const errorMsg = body?.errors?.join(", ") || `HTTP ${response.status}`;
+      throw new Error(errorMsg);
     }
 
     await prisma.electronicDocument.update({
