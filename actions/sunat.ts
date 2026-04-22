@@ -139,7 +139,7 @@ export async function saveSunatConfigAction(data: {
   return { success: true };
 }
 
-const ALLOWED_NUBEFACT_HOSTS = ["demo-ose.nubefact.com", "ose.nubefact.com"];
+const ALLOWED_NUBEFACT_HOSTS = ["demo-ose.nubefact.com", "ose.nubefact.com", "api.nubefact.com"];
 
 // ── Probar conexión con Nubefact ────────────────────────────────
 export async function testSunatConnectionAction(apiKey: string, apiUrl: string) {
@@ -160,7 +160,7 @@ export async function testSunatConnectionAction(apiKey: string, apiUrl: string) 
       signal: AbortSignal.timeout(10_000),
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Token ${apiKey}`,
+        Authorization: apiKey,
       },
       body: JSON.stringify({ operacion: "consultar_serie" }),
     });

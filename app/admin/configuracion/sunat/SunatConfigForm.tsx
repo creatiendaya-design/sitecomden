@@ -123,39 +123,29 @@ export default function SunatConfigForm({ initialConfig }: SunatConfigFormProps)
       <Card>
         <CardHeader><CardTitle>Credenciales Nubefact</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Label className="w-24">Ambiente</Label>
-            <RadioGroup
-              value={config.apiUrl.includes("demo") ? "sandbox" : "production"}
-              onValueChange={(v) =>
-                setConfig({
-                  ...config,
-                  apiUrl:
-                    v === "sandbox"
-                      ? "https://demo-ose.nubefact.com/ose/api"
-                      : "https://ose.nubefact.com/ose/api",
-                })
-              }
-              className="flex gap-4"
-            >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="sandbox" id="env-sandbox" />
-                <Label htmlFor="env-sandbox">Sandbox (pruebas)</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="production" id="env-prod" />
-                <Label htmlFor="env-prod">Producción</Label>
-              </div>
-            </RadioGroup>
+          <div>
+            <Label>Ruta (URL)</Label>
+            <Input
+              type="text"
+              placeholder="https://api.nubefact.com/api/v1/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              value={config.apiUrl}
+              onChange={(e) => setConfig({ ...config, apiUrl: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              La RUTA única de tu cuenta en Nubefact (sección API / Integración)
+            </p>
           </div>
           <div>
-            <Label>API Key</Label>
+            <Label>Token</Label>
             <Input
               type="password"
-              placeholder={config.apiKeyMasked ? "••••••••••••• (guardada)" : "Ingresa tu API Key de Nubefact"}
+              placeholder={config.apiKeyMasked ? "••••••••••••• (guardado)" : "Ingresa tu Token de Nubefact"}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              El TOKEN de autorización de tu cuenta (distinto a la Ruta)
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={handleTest} disabled={testing}>

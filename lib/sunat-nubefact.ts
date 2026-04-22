@@ -127,15 +127,19 @@ export class NubefactProvider implements SunatProvider {
         signal: AbortSignal.timeout(15_000),
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Token ${config.apiKey}`,
+          Authorization: config.apiKey,
         },
         body: JSON.stringify(payload),
       });
 
       const result: NubefactResponse = await response.json();
 
-      if (!response.ok || result.codigo !== 0) {
-        const errorMsg = result.errors?.join(", ") || result.sunat_description || "Error desconocido";
+      const hasApiError = result.errors != null || (result.codigo !== undefined && result.codigo !== 0);
+      if (!response.ok || hasApiError) {
+        const rawErrors = result.errors;
+        const errorMsg = Array.isArray(rawErrors)
+          ? rawErrors.join(", ")
+          : rawErrors || result.sunat_description || "Error desconocido";
         return prisma.electronicDocument.update({
           where: { id: doc.id },
           data: { status: "ERROR", errorMessage: errorMsg },
@@ -197,7 +201,7 @@ export class NubefactProvider implements SunatProvider {
       signal: AbortSignal.timeout(15_000),
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Token ${config.apiKey}`,
+        Authorization: config.apiKey,
       },
       body: JSON.stringify(payload),
     });
