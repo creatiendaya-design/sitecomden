@@ -262,6 +262,30 @@ export default function CheckoutPageClient({
         return;
       }
 
+      if (sunatEnabled && formData.documentType === "FACTURA") {
+        if (!formData.buyerRuc || !/^(10|20)\d{9}$/.test(formData.buyerRuc)) {
+          setError("Ingresa un RUC válido (11 dígitos, empieza con 10 o 20)");
+          setIsProcessingPayment(false);
+          processingRef.current = false;
+          setCulqiToken(null);
+          return;
+        }
+        if (!formData.buyerRazonSocial.trim()) {
+          setError("Ingresa la razón social");
+          setIsProcessingPayment(false);
+          processingRef.current = false;
+          setCulqiToken(null);
+          return;
+        }
+        if (!formData.buyerFiscalAddress.trim()) {
+          setError("Ingresa la dirección fiscal");
+          setIsProcessingPayment(false);
+          processingRef.current = false;
+          setCulqiToken(null);
+          return;
+        }
+      }
+
       trackEvent("AddPaymentInfo", {
         value: total,
         currency: "PEN",
@@ -412,6 +436,24 @@ export default function CheckoutPageClient({
         addressRef.current?.focus();
         setLoading(false);
         return;
+      }
+
+      if (sunatEnabled && formData.documentType === "FACTURA") {
+        if (!formData.buyerRuc || !/^(10|20)\d{9}$/.test(formData.buyerRuc)) {
+          setError("Ingresa un RUC válido (11 dígitos, empieza con 10 o 20)");
+          setLoading(false);
+          return;
+        }
+        if (!formData.buyerRazonSocial.trim()) {
+          setError("Ingresa la razón social");
+          setLoading(false);
+          return;
+        }
+        if (!formData.buyerFiscalAddress.trim()) {
+          setError("Ingresa la dirección fiscal");
+          setLoading(false);
+          return;
+        }
       }
 
       const stockItems = items.map((item) => ({
@@ -1016,6 +1058,7 @@ export default function CheckoutPageClient({
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="radio"
+                            name="documentType"
                             value="BOLETA"
                             checked={formData.documentType === "BOLETA"}
                             onChange={() => setFormData({ ...formData, documentType: "BOLETA" })}
@@ -1025,6 +1068,7 @@ export default function CheckoutPageClient({
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="radio"
+                            name="documentType"
                             value="FACTURA"
                             checked={formData.documentType === "FACTURA"}
                             onChange={() => setFormData({ ...formData, documentType: "FACTURA" })}

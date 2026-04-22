@@ -8,7 +8,7 @@ export default async function CheckoutPage() {
     prisma.setting.findUnique({ where: { key: "sunat_enabled" } }),
   ]);
 
-  const sunatEnabled = sunatSetting?.value === true;
+  const sunatEnabled = sunatSetting?.value === true || sunatSetting?.value === "true";
 
   return (
     <CheckoutPageClient
