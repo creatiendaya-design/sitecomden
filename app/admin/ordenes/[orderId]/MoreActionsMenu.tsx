@@ -40,7 +40,9 @@ export default function MoreActionsMenu({
   paymentStatus,
 }: MoreActionsMenuProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [failedLoading, setFailedLoading] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [failedOpen, setFailedOpen] = useState(false);
@@ -52,7 +54,7 @@ export default function MoreActionsMenu({
   if (!showCancel && !showRefund && !showFailed) return null;
 
   const handleCancelOrder = async () => {
-    setLoading(true);
+    setCancelLoading(true);
     setCancelOpen(false);
     try {
       const result = await updateOrderStatus({ orderId, status: "CANCELLED" as any });
@@ -63,12 +65,12 @@ export default function MoreActionsMenu({
         toast.error(result.error || "Error al cancelar la orden");
       }
     } finally {
-      setLoading(false);
+      setCancelLoading(false);
     }
   };
 
   const handleRefundPayment = async () => {
-    setLoading(true);
+    setRefundLoading(true);
     setRefundOpen(false);
     try {
       const result = await updateOrderStatus({ orderId, paymentStatus: "REFUNDED" as any });
@@ -79,12 +81,12 @@ export default function MoreActionsMenu({
         toast.error(result.error || "Error al procesar el reembolso");
       }
     } finally {
-      setLoading(false);
+      setRefundLoading(false);
     }
   };
 
   const handleMarkAsFailed = async () => {
-    setLoading(true);
+    setFailedLoading(true);
     setFailedOpen(false);
     try {
       const result = await updateOrderStatus({ orderId, paymentStatus: "FAILED" as any });
@@ -95,7 +97,7 @@ export default function MoreActionsMenu({
         toast.error(result.error || "Error al marcar como fallido");
       }
     } finally {
-      setLoading(false);
+      setFailedLoading(false);
     }
   };
 
@@ -103,8 +105,8 @@ export default function MoreActionsMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" disabled={loading}>
-            {loading && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+          <Button variant="outline" size="sm" disabled={cancelLoading || refundLoading || failedLoading}>
+            {(cancelLoading || refundLoading || failedLoading) && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             Más acciones
             <ChevronDown className="h-4 w-4 ml-1" />
           </Button>
