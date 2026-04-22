@@ -40,6 +40,9 @@ export async function POST(request: Request) {
         active: data.active ?? true,
         featured: data.featured ?? false,
         hasVariants: data.hasVariants ?? false,
+        weight: data.weight ? parseFloat(data.weight) : null,
+        metaTitle: data.metaTitle || null,
+        metaDescription: data.metaDescription || null,
         // Relación con categorías (many-to-many)
         categories: data.categoryId ? {
           create: {
