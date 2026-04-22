@@ -8,6 +8,7 @@ import OrderDeliveredEmail from "@/emails/OrderDeliveredEmail";
 import OrderCancelledEmail from "@/emails/OrderCancelledEmail";
 import PaymentFailedEmail from "@/emails/PaymentFailedEmail";
 import PaymentRefundedEmail from "@/emails/PaymentRefundedEmail";
+import ComprobanteEmitido from "@/emails/comprobante-emitido";
 
 interface OrderData {
   orderNumber: string;
@@ -342,9 +343,6 @@ export async function sendComprobanteEmail(params: {
   pdfUrl: string;
 }) {
   try {
-    const { default: ComprobanteEmitido } = await import(
-      "@/emails/comprobante-emitido"
-    );
     const fromEmail = await getFromEmail();
 
     const { data, error } = await resend.emails.send({
