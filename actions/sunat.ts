@@ -98,7 +98,7 @@ export async function cancelDocumentAction(documentId: string, reason: string) {
 export async function saveSunatConfigAction(data: {
   enabled: boolean;
   emissionMode: "auto" | "manual" | "mixed";
-  apiKey: string;
+  apiKey?: string;
   apiUrl: string;
   ruc: string;
   razonSocial: string;
@@ -109,14 +109,11 @@ export async function saveSunatConfigAction(data: {
 }) {
   await protectRoute("settings:edit");
 
-  const isNewKey = data.apiKey && !data.apiKey.startsWith("ENCRYPTED");
-  const encryptedKey = isNewKey ? encrypt(data.apiKey) : data.apiKey;
-
   const entries: Array<[string, Prisma.InputJsonValue]> = [
     ["sunat_enabled", data.enabled],
     ["sunat_emission_mode", data.emissionMode],
-    ["sunat_api_key", encryptedKey],
     ["sunat_api_url", data.apiUrl],
+    ...(data.apiKey ? [["sunat_api_key", encrypt(data.apiKey)] as [string, Prisma.InputJsonValue]] : []),
     ["sunat_ruc", data.ruc],
     ["sunat_razon_social", data.razonSocial],
     ["sunat_address", data.address],

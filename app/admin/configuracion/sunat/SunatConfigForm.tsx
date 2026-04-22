@@ -55,7 +55,7 @@ export default function SunatConfigForm({ initialConfig }: SunatConfigFormProps)
       await saveSunatConfigAction({
         enabled: config.enabled,
         emissionMode: config.emissionMode as "auto" | "manual" | "mixed",
-        apiKey: apiKey || config.apiKeyMasked,
+        apiKey: apiKey || undefined,
         apiUrl: config.apiUrl,
         ruc: config.ruc,
         razonSocial: config.razonSocial,
