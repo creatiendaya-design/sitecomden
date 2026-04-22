@@ -64,15 +64,20 @@ Botones **"Importar"** y **"Exportar"** añadidos al header de `/admin/productos
 Columnas soportadas en import y export:
 
 ```
-slug, nombre, descripcion, precio, precio_comparacion, stock, categoria_slug,
-estado, igv_tipo, sku_variante, precio_variante, stock_variante, imagen_url
+slug, nombre, descripcion, descripcion_corta, precio, precio_comparacion, peso,
+stock, sku, destacado, categoria_slug, estado, igv_tipo, meta_titulo, meta_descripcion,
+sku_variante, precio_variante, stock_variante, imagen_url
 ```
 
 - Un producto sin variantes ocupa una sola fila
 - Un producto con N variantes ocupa N filas (mismo `slug`, distinto `sku_variante`)
 - `categoria_slug` hace lookup de la categoría por slug; si no existe se deja sin categoría
-- `estado`: `ACTIVE` | `DRAFT`
+- `estado`: `ACTIVE` | `DRAFT` → mapea a `Product.active` (true/false)
 - `igv_tipo`: `GRAVADO` | `EXONERADO` | `INAFECTO`
+- `destacado`: `true` | `false` → mapea a `Product.featured`
+- `peso`: número decimal en kg → mapea a `Product.weight`
+- `sku`: SKU a nivel producto (para productos sin variantes) → mapea a `Product.sku`
+- `meta_titulo` / `meta_descripcion`: si vienen vacíos en un update, no se sobreescriben
 
 ### A4: Formato Shopify CSV (export)
 
@@ -96,6 +101,10 @@ Los campos del sistema se mapean a las columnas estándar de Shopify para que el
 | `Variant Inventory Qty` | `ProductVariant.stock` |
 | `Image Src` | primera imagen del producto |
 | `Image Alt` | `Product.name` |
+| `SEO Title` | `Product.metaTitle` |
+| `SEO Description` | `Product.metaDescription` |
+| `Variant Weight` | `Product.weight` |
+| `Variant Weight Unit` | `kg` (fijo) |
 
 ### A5: Página de Export (`/admin/productos/exportar`)
 
@@ -151,21 +160,38 @@ Botón **"Exportar CSV"** en el header de `/admin/ordenes`, junto al panel de fi
 | Número de orden | `orderSeq` formateado (ej: PED-0001) |
 | Fecha | `createdAt` (formato DD/MM/YYYY HH:mm) |
 | Estado | `status` |
-| Cliente | nombre + apellido |
-| Email | `customer.email` |
-| Teléfono | `customer.phone` |
+| Estado de pago | `paymentStatus` |
+| Estado de envío | `fulfillmentStatus` |
+| Cliente | `customerName` |
+| DNI | `customerDni` |
+| Email | `customerEmail` |
+| Teléfono | `customerPhone` |
+| Tipo de documento | `documentType` (boleta/factura) |
+| RUC | `buyerRuc` |
+| Razón social | `buyerRazonSocial` |
 | Método de pago | `paymentMethod` |
+| Método de envío | `shippingMethod` |
 | Subtotal | `subtotal` |
+| Descuento | `discount` |
+| Cupón | `couponCode` |
+| Descuento cupón | `couponDiscount` |
 | IGV | `tax` |
-| Envío | `shippingCost` |
+| Envío | `shipping` |
 | Total | `total` |
 | Productos | `"Nombre x cantidad; Nombre x cantidad"` |
+| Notas del cliente | `customerNotes` |
 | Dirección | calle completa |
 | Distrito | `shippingAddress.district` |
 | Provincia | `shippingAddress.province` |
 | Departamento | `shippingAddress.department` |
 | Número de seguimiento | `trackingNumber` |
 | Courier | `shippingCourier` |
+| Entrega estimada | `estimatedDelivery` (DD/MM/YYYY) |
+| Fecha de pago | `paidAt` (DD/MM/YYYY HH:mm) |
+| Fecha de envío | `shippedAt` (DD/MM/YYYY HH:mm) |
+| Fecha de entrega | `deliveredAt` (DD/MM/YYYY HH:mm) |
+| Puntos ganados | `pointsEarned` |
+| Puntos usados | `pointsUsed` |
 | Notas admin | `adminNotes` |
 
 Implementación: Server Action `exportOrders(filters)` en `actions/orders-export.ts`. Recibe los mismos params de filtro que la página. CSV con encoding UTF-8 + BOM para Excel.
@@ -196,3 +222,5 @@ Implementación: Server Action `exportOrders(filters)` en `actions/orders-export
 |---------|--------|
 | `app/admin/productos/page.tsx` | Añadir botones Import / Export en header |
 | `app/admin/ordenes/page.tsx` | Añadir panel de filtros y botón Export |
+| `components/admin/NewProductForm.tsx` | Añadir campo "Peso (kg)" — el campo existe en schema y estado pero falta el input UI |
+| `app/admin/productos/[productId]/page.tsx` | Añadir campo "Peso (kg)" — mismo caso que el formulario de creación |
