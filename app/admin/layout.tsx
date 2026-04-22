@@ -128,6 +128,11 @@ export default function AdminLayout({
       label: "Pagos Pendientes",
     },
     {
+      href: "/admin/facturacion",
+      icon: FileText,
+      label: "Facturación",
+    },
+    {
       icon: Settings,
       label: "Configuración",
       items: [
