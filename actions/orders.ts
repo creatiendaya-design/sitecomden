@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { protectRoute } from "@/lib/protect-route";
 import { checkRateLimit, apiRateLimiter } from "@/lib/rate-limit";
+import { rucSchema } from "@/lib/validations";
 
 // ============================================================
 // SCHEMAS ZOD
@@ -48,7 +49,7 @@ const createOrderSchema = z.object({
   shippingEstimatedDays: z.string().optional(),
   items: z.array(orderItemSchema).min(1, "El carrito está vacío"),
   documentType: z.enum(["BOLETA", "FACTURA"]).optional(),
-  buyerRuc: z.string().regex(/^(10|20)\d{9}$/).optional(),
+  buyerRuc: rucSchema.optional(),
   buyerRazonSocial: z.string().max(200).optional(),
   buyerFiscalAddress: z.string().max(500).optional(),
 });
