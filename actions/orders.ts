@@ -47,6 +47,10 @@ const createOrderSchema = z.object({
   shippingCarrier: z.string().optional(),
   shippingEstimatedDays: z.string().optional(),
   items: z.array(orderItemSchema).min(1, "El carrito está vacío"),
+  documentType: z.enum(["BOLETA", "FACTURA"]).optional(),
+  buyerRuc: z.string().regex(/^(10|20)\d{9}$/).optional(),
+  buyerRazonSocial: z.string().max(200).optional(),
+  buyerFiscalAddress: z.string().max(500).optional(),
 });
 
 const updateOrderStatusSchema = z.object({
@@ -216,6 +220,12 @@ export async function createOrder(rawData: unknown) {
 
         // Notas
         customerNotes: data.customerNotes,
+
+        // Comprobante SUNAT
+        documentType: data.documentType ?? null,
+        buyerRuc: data.buyerRuc ?? null,
+        buyerRazonSocial: data.buyerRazonSocial ?? null,
+        buyerFiscalAddress: data.buyerFiscalAddress ?? null,
 
         // Items
         items: {

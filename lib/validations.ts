@@ -781,3 +781,27 @@ export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// ===================================================================
+// SUNAT / COMPROBANTES
+// ===================================================================
+
+export const rucSchema = z
+  .string()
+  .regex(/^(10|20)\d{9}$/, "RUC inválido — debe tener 11 dígitos y empezar con 10 o 20");
+
+export const facturaDataSchema = z.object({
+  buyerRuc: rucSchema,
+  buyerRazonSocial: z.string().min(3, "Razón social debe tener al menos 3 caracteres").max(200),
+  buyerFiscalAddress: z.string().min(5, "Dirección fiscal muy corta").max(500),
+});
+
+export const documentTypeSchema = z.discriminatedUnion("documentType", [
+  z.object({ documentType: z.literal("BOLETA") }),
+  z.object({
+    documentType: z.literal("FACTURA"),
+    buyerRuc: rucSchema,
+    buyerRazonSocial: z.string().min(3).max(200),
+    buyerFiscalAddress: z.string().min(5).max(500),
+  }),
+]);
