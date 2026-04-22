@@ -1,8 +1,8 @@
-import type { Order, ElectronicDocument, DocumentType } from "@prisma/client";
+import type { Order, ElectronicDocument, DocumentType, DocumentStatus } from "@prisma/client";
 
 export type { DocumentType };
-
-export type DocStatus = "PENDING" | "ISSUED" | "CANCELLED" | "ERROR";
+export type { DocumentStatus };
+export type DocStatus = DocumentStatus;
 
 export interface NubefactItem {
   unidad_de_medida: string;

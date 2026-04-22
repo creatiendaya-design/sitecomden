@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 16;
+const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 
 function getKey(): Buffer {
@@ -22,6 +22,9 @@ export function encrypt(plaintext: string): string {
 
 export function decrypt(ciphertext: string): string {
   const buf = Buffer.from(ciphertext, "base64");
+  if (buf.length < IV_LENGTH + TAG_LENGTH + 1) {
+    throw new Error("Invalid ciphertext: too short");
+  }
   const iv = buf.subarray(0, IV_LENGTH);
   const tag = buf.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
   const encrypted = buf.subarray(IV_LENGTH + TAG_LENGTH);
