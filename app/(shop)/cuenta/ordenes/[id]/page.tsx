@@ -72,6 +72,7 @@ export default async function OrderDetailPage({
           product: true,
         },
       },
+      electronicDocument: true,
     },
   });
 
@@ -278,6 +279,39 @@ export default async function OrderDetailPage({
               </div>
             </CardContent>
           </Card>
+
+          {order.electronicDocument?.status === "ISSUED" && order.electronicDocument.pdfUrl && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Comprobante de Pago</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.electronicDocument.fullNumber}
+                    </p>
+                  </div>
+                  <a
+                    href={order.electronicDocument.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    Descargar PDF
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {order.documentType && !order.electronicDocument && (
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground">
+                  Tu comprobante está en proceso de emisión...
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}
