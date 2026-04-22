@@ -63,6 +63,9 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
   if (!order) notFound();
 
   const shippingAddress = order.shippingAddress as any;
+  if (!shippingAddress || typeof shippingAddress !== "object") {
+    return notFound();
+  }
   const orderPrefix = siteSettings.order_prefix || "PED";
   const baseUrl = siteSettings.site_url || "http://localhost:3000";
   const orderDisplayNumber = (order as any).orderSeq
@@ -376,6 +379,13 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                         {order.electronicDocument.errorMessage}
                       </p>
                       <EmitDocumentButton orderId={order.id} />
+                    </div>
+                  ) : order.electronicDocument.status === "CANCELLED" ? (
+                    <div className="space-y-2">
+                      <Badge className="bg-slate-100 text-slate-600">Cancelado</Badge>
+                      <p className="text-sm text-muted-foreground">
+                        El comprobante fue cancelado.
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-2">
