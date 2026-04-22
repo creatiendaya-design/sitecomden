@@ -139,9 +139,20 @@ export async function saveSunatConfigAction(data: {
   return { success: true };
 }
 
+const ALLOWED_NUBEFACT_HOSTS = ["demo-ose.nubefact.com", "ose.nubefact.com"];
+
 // ── Probar conexión con Nubefact ────────────────────────────────
 export async function testSunatConnectionAction(apiKey: string, apiUrl: string) {
   await protectRoute("settings:edit");
+
+  try {
+    const parsed = new URL(apiUrl);
+    if (parsed.protocol !== "https:" || !ALLOWED_NUBEFACT_HOSTS.includes(parsed.hostname)) {
+      return { success: false, error: "URL no permitida. Use una URL oficial de Nubefact." };
+    }
+  } catch {
+    return { success: false, error: "URL inválida" };
+  }
 
   try {
     const response = await fetch(apiUrl, {
@@ -158,9 +169,8 @@ export async function testSunatConnectionAction(apiKey: string, apiUrl: string) 
     if (response.status === 404) return { success: false, error: "URL incorrecta" };
 
     return { success: true };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Error de conexión";
-    return { success: false, error: msg };
+  } catch {
+    return { success: false, error: "No se pudo conectar con Nubefact" };
   }
 }
 
