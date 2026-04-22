@@ -43,14 +43,17 @@ export default function OrderStatusCard({
   const handleSave = async () => {
     if (!hasChanged) return;
     setLoading(true);
-    const result = await updateOrderStatus({ orderId, status: status as any });
-    if (result.success) {
-      toast.success("Estado de orden actualizado");
-      router.refresh();
-    } else {
-      toast.error(result.error || "Error al actualizar el estado");
+    try {
+      const result = await updateOrderStatus({ orderId, status: status as any });
+      if (result.success) {
+        toast.success("Estado de orden actualizado");
+        router.refresh();
+      } else {
+        toast.error(result.error || "Error al actualizar el estado");
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
