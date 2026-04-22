@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { put } from "@vercel/blob";
 import { autoEmitOnPayment } from "@/actions/sunat";
+import { protectRoute } from "@/lib/protect-route";
 
 // ============================================================
 // SUBIR COMPROBANTE DE PAGO (Cliente)
@@ -141,6 +142,7 @@ export async function getPendingPayments() {
 
 export async function approvePayment(paymentId: string) {
   try {
+    await protectRoute("orders:update_status");
     // Obtener pago pendiente con orden
     const payment = await prisma.pendingPayment.findUnique({
       where: { id: paymentId },
@@ -186,6 +188,7 @@ export async function approvePayment(paymentId: string) {
 
     revalidatePath("/admin/pagos-pendientes");
     revalidatePath("/admin/ordenes");
+    revalidatePath(`/admin/ordenes/${payment.orderId}`);
 
     return {
       success: true,
@@ -206,6 +209,7 @@ export async function approvePayment(paymentId: string) {
 
 export async function rejectPayment(paymentId: string, reason: string) {
   try {
+    await protectRoute("orders:update_status");
     // Obtener pago pendiente con orden
     const payment = await prisma.pendingPayment.findUnique({
       where: { id: paymentId },
@@ -246,6 +250,7 @@ export async function rejectPayment(paymentId: string, reason: string) {
 
     revalidatePath("/admin/pagos-pendientes");
     revalidatePath("/admin/ordenes");
+    revalidatePath(`/admin/ordenes/${payment.orderId}`);
 
     return {
       success: true,

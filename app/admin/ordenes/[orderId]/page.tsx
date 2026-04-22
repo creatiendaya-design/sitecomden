@@ -4,27 +4,46 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Package, User, MapPin, CreditCard, FileText } from "lucide-react";
+import { ArrowLeft, CreditCard, FileText, MapPin, Package, User } from "lucide-react";
 import Image from "next/image";
-import OrderUpdateForm from "./order-update-form";
 import CopyLinkButton from "./copy-link-button";
 import { EmitDocumentButton, ResendComprobanteButton } from "./EmitDocumentButton";
+import OrderStatusCard from "./OrderStatusCard";
+import FulfillmentCard from "./FulfillmentCard";
+import AdminNotesCard from "./AdminNotesCard";
+import MoreActionsMenu from "./MoreActionsMenu";
+import PaymentBanner from "./PaymentBanner";
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  FULFILLMENT_STATUS_LABELS,
+} from "@/lib/order-status-logic";
 
 interface OrderDetailPageProps {
-  params: Promise<{
-    orderId: string;
-  }>;
+  params: Promise<{ orderId: string }>;
 }
 
-export default async function AdminOrderDetailPage({
-  params,
-}: OrderDetailPageProps) {
+function getStatusPillClass(status: string): string {
+  const green = ["PAID", "DELIVERED", "FULFILLED", "ISSUED"];
+  const amber = ["PENDING", "VERIFYING", "PROCESSING", "UNFULFILLED", "PARTIAL"];
+  const red = ["CANCELLED", "FAILED", "ERROR"];
+  const blue = ["SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"];
+  const slate = ["REFUNDED"];
+
+  if (green.includes(status)) return "bg-green-100 text-green-700";
+  if (amber.includes(status)) return "bg-amber-100 text-amber-700";
+  if (red.includes(status)) return "bg-red-100 text-red-700";
+  if (blue.includes(status)) return "bg-blue-100 text-blue-700";
+  if (slate.includes(status)) return "bg-slate-100 text-slate-600";
+  return "bg-slate-100 text-slate-600";
+}
+
+export default async function AdminOrderDetailPage({ params }: OrderDetailPageProps) {
   const { orderId } = await params;
 
-  // Obtener configuración del sitio para el URL
   const siteSettings = await getSiteSettings();
 
   const order = await prisma.order.findUnique({
@@ -32,22 +51,8 @@ export default async function AdminOrderDetailPage({
     include: {
       items: {
         include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              images: true,
-            },
-          },
-          variant: {
-            select: {
-              id: true,
-              sku: true,
-              options: true,
-              image: true,
-            },
-          },
+          product: { select: { id: true, name: true, slug: true, images: true } },
+          variant: { select: { id: true, sku: true, options: true, image: true } },
         },
       },
       pendingPayment: true,
@@ -55,59 +60,30 @@ export default async function AdminOrderDetailPage({
     },
   });
 
-  if (!order) {
-    notFound();
-  }
+  if (!order) notFound();
 
   const shippingAddress = order.shippingAddress as any;
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: any; label: string }> = {
-      PENDING: { variant: "secondary", label: "Pendiente" },
-      PAID: { variant: "default", label: "Pagado" },
-      PROCESSING: { variant: "default", label: "Procesando" },
-      SHIPPED: { variant: "default", label: "Enviado" },
-      DELIVERED: { variant: "default", label: "Entregado" },
-      CANCELLED: { variant: "destructive", label: "Cancelado" },
-    };
-    return variants[status] || { variant: "secondary", label: status };
-  };
-
-  const getPaymentBadge = (paymentStatus: string) => {
-    const colors: Record<string, string> = {
-      PENDING: "bg-amber-100 text-amber-700",
-      PAID: "bg-green-100 text-green-700",
-      FAILED: "bg-red-100 text-red-700",
-      VERIFYING: "bg-blue-100 text-blue-700",
-      REFUNDED: "bg-slate-100 text-slate-700",
-    };
-    const labels: Record<string, string> = {
-      PENDING: "Pendiente",
-      PAID: "Pagado",
-      FAILED: "Fallido",
-      VERIFYING: "Verificando",
-      REFUNDED: "Reembolsado",
-    };
-    return {
-      color: colors[paymentStatus] || "bg-slate-100 text-slate-700",
-      label: labels[paymentStatus] || paymentStatus,
-    };
-  };
-
-  const statusBadge = getStatusBadge(order.status);
-  const paymentBadge = getPaymentBadge(order.paymentStatus);
-
-  // Usar site_url de la configuración en lugar de variable de entorno
+  if (!shippingAddress || typeof shippingAddress !== "object") {
+    return notFound();
+  }
   const orderPrefix = siteSettings.order_prefix || "PED";
-  const baseUrl = siteSettings.site_url || 'http://localhost:3000';
+  const baseUrl = siteSettings.site_url || "http://localhost:3000";
+  const orderDisplayNumber = (order as any).orderSeq
+    ? formatOrderNumber((order as any).orderSeq, orderPrefix)
+    : `#${order.orderNumber.slice(-8).toUpperCase()}`;
   const viewLink = order.viewToken
     ? `${baseUrl}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
     : null;
 
+  const showSunatBanner =
+    !!order.documentType &&
+    order.paymentStatus === "PAID" &&
+    (!order.electronicDocument || order.electronicDocument.status !== "ISSUED");
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
             <Link href="/admin/ordenes">
@@ -115,11 +91,7 @@ export default async function AdminOrderDetailPage({
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">
-              {(order as any).orderSeq
-                ? formatOrderNumber((order as any).orderSeq, orderPrefix)
-                : `#${order.orderNumber.slice(-8).toUpperCase()}`}
-            </h1>
+            <h1 className="text-3xl font-bold">{orderDisplayNumber}</h1>
             <p className="text-muted-foreground">
               {new Date(order.createdAt).toLocaleString("es-PE", {
                 dateStyle: "long",
@@ -128,21 +100,48 @@ export default async function AdminOrderDetailPage({
             </p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Badge variant={statusBadge.variant as any}>
-            {statusBadge.label}
-          </Badge>
-          <span className={`rounded-full px-2 py-1 text-xs ${paymentBadge.color}`}>
-            {paymentBadge.label}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusPillClass(order.status)}`}>
+            {ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS] ?? order.status}
           </span>
+          <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusPillClass(order.paymentStatus)}`}>
+            {PAYMENT_STATUS_LABELS[order.paymentStatus as keyof typeof PAYMENT_STATUS_LABELS] ?? order.paymentStatus}
+          </span>
+          <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusPillClass((order as any).fulfillmentStatus)}`}>
+            {FULFILLMENT_STATUS_LABELS[(order as any).fulfillmentStatus as keyof typeof FULFILLMENT_STATUS_LABELS] ?? (order as any).fulfillmentStatus}
+          </span>
+          <MoreActionsMenu
+            orderId={order.id}
+            orderStatus={order.status}
+            paymentStatus={order.paymentStatus}
+          />
         </div>
       </div>
 
+      {/* Payment verification banner */}
+      {order.paymentStatus === "VERIFYING" && order.pendingPayment && (
+        <PaymentBanner
+          paymentId={order.pendingPayment.id}
+          paymentMethod={order.paymentMethod}
+          proofImageUrl={order.pendingPayment.proofImage ?? null}
+        />
+      )}
+
+      {/* SUNAT document pending banner */}
+      {showSunatBanner && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-blue-900">
+            📄 Comprobante electrónico pendiente de emitir
+          </p>
+          <EmitDocumentButton orderId={order.id} />
+        </div>
+      )}
+
+      {/* Two-column layout */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content */}
+        {/* Main column — 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Items */}
+          {/* Productos */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -157,7 +156,7 @@ export default async function AdminOrderDetailPage({
                     {(item.image || item.variant?.image) && (
                       <div className="relative w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
                         <Image
-                          src={item.image || item.variant?.image || ''}
+                          src={item.image || item.variant?.image || ""}
                           alt={item.name}
                           fill
                           className="object-cover"
@@ -167,17 +166,13 @@ export default async function AdminOrderDetailPage({
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>
                       {item.variantName && (
-                        <p className="text-sm text-muted-foreground">
-                          {item.variantName}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{item.variantName}</p>
                       )}
                       {item.sku && (
-                        <p className="text-xs text-muted-foreground">
-                          SKU: {item.sku}
-                        </p>
+                        <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
                       )}
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Cantidad: {item.quantity} × {formatPrice(Number(item.price))}
+                        {item.quantity} × {formatPrice(Number(item.price))}
                       </p>
                     </div>
                     <div className="text-right">
@@ -217,7 +212,15 @@ export default async function AdminOrderDetailPage({
             </CardContent>
           </Card>
 
-          {/* Customer Info */}
+          {/* Despacho — in main column */}
+          <FulfillmentCard
+            orderId={order.id}
+            currentFulfillmentStatus={(order as any).fulfillmentStatus}
+            currentTrackingNumber={order.trackingNumber || ""}
+            currentShippingCourier={(order as any).shippingCourier || ""}
+          />
+
+          {/* Cliente */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -247,7 +250,7 @@ export default async function AdminOrderDetailPage({
             </CardContent>
           </Card>
 
-          {/* Shipping Address */}
+          {/* Dirección */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -269,7 +272,7 @@ export default async function AdminOrderDetailPage({
             </CardContent>
           </Card>
 
-          {/* Notes */}
+          {/* Notas del cliente */}
           {order.customerNotes && (
             <Card>
               <CardHeader>
@@ -282,76 +285,146 @@ export default async function AdminOrderDetailPage({
           )}
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar — 1/3 width */}
         <div className="space-y-6">
-          {/* Link para Cliente */}
-          {viewLink && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Link para Cliente</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={viewLink}
-                    readOnly
-                    className="flex-1 text-xs bg-slate-50 border rounded px-2 py-1"
-                  />
-                  <CopyLinkButton link={viewLink} />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  URL configurado: {baseUrl}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          {/* Estado de la orden */}
+          <OrderStatusCard orderId={order.id} currentStatus={order.status} />
 
-          {/* Formulario de Actualización */}
-          <OrderUpdateForm
-            orderId={order.id}
-            currentStatus={order.status}
-            currentPaymentStatus={order.paymentStatus}
-            currentFulfillmentStatus={order.fulfillmentStatus}
-            currentTrackingNumber={order.trackingNumber || ""}
-            currentShippingCourier={order.shippingCourier || ""}
-            currentAdminNotes={order.adminNotes || ""}
-          />
-
-          {/* Payment Info */}
+          {/* Pago */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
-                Método de Pago
+                Pago
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               <p className="font-medium">{order.paymentMethod}</p>
-              {order.pendingPayment && (
-                <div className="mt-3 rounded-lg bg-amber-50 p-3">
-                  <p className="text-sm font-medium text-amber-900">
-                    Pago pendiente de verificación
-                  </p>
-                  <Button size="sm" className="mt-2" asChild>
-                    <Link href="/admin/pagos-pendientes">
-                      Verificar Pago
-                    </Link>
-                  </Button>
-                </div>
-              )}
+              <span
+                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getStatusPillClass(order.paymentStatus)}`}
+              >
+                {PAYMENT_STATUS_LABELS[order.paymentStatus as keyof typeof PAYMENT_STATUS_LABELS] ?? order.paymentStatus}
+              </span>
               {order.paidAt && (
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Pagado: {new Date(order.paidAt).toLocaleString("es-PE")}
                 </p>
+              )}
+              {order.paymentStatus === "VERIFYING" && order.pendingPayment?.proofImage && (
+                <Button variant="outline" size="sm" className="mt-1" asChild>
+                  <a
+                    href={order.pendingPayment.proofImage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Ver comprobante
+                  </a>
+                </Button>
               )}
             </CardContent>
           </Card>
 
-          {/* Fechas Importantes */}
+          {/* Comprobante electrónico */}
+          {order.documentType && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Comprobante Electrónico
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {order.electronicDocument ? (
+                  order.electronicDocument.status === "ISSUED" ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-green-100 text-green-700">Emitido</Badge>
+                        <span className="font-mono font-medium text-sm">
+                          {order.electronicDocument.fullNumber}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {order.electronicDocument.issuedAt?.toLocaleString("es-PE")}
+                      </p>
+                      <div className="flex gap-2 flex-wrap">
+                        {order.electronicDocument.pdfUrl && (
+                          <Button asChild variant="outline" size="sm">
+                            <a
+                              href={order.electronicDocument.pdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Descargar PDF
+                            </a>
+                          </Button>
+                        )}
+                        {order.electronicDocument.xmlUrl && (
+                          <Button asChild variant="outline" size="sm">
+                            <a
+                              href={order.electronicDocument.xmlUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Descargar XML
+                            </a>
+                          </Button>
+                        )}
+                        <ResendComprobanteButton orderId={order.id} />
+                      </div>
+                    </div>
+                  ) : order.electronicDocument.status === "ERROR" ? (
+                    <div className="space-y-3">
+                      <Badge variant="destructive">Error</Badge>
+                      <p className="text-sm text-red-600">
+                        {order.electronicDocument.errorMessage}
+                      </p>
+                      <EmitDocumentButton orderId={order.id} />
+                    </div>
+                  ) : order.electronicDocument.status === "CANCELLED" ? (
+                    <div className="space-y-2">
+                      <Badge className="bg-slate-100 text-slate-600">Cancelado</Badge>
+                      <p className="text-sm text-muted-foreground">
+                        El comprobante fue cancelado.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Badge className="bg-amber-100 text-amber-700">Pendiente</Badge>
+                      <p className="text-sm text-muted-foreground">
+                        {order.documentType === "BOLETA" ? "Boleta de Venta" : "Factura"}
+                        {order.documentType === "FACTURA" && order.buyerRuc && (
+                          <> — RUC: {order.buyerRuc} ({(order as any).buyerRazonSocial})</>
+                        )}
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Tipo:{" "}
+                      <strong>
+                        {order.documentType === "BOLETA" ? "Boleta de Venta" : "Factura"}
+                      </strong>
+                      {order.documentType === "FACTURA" && order.buyerRuc && (
+                        <> — RUC: {order.buyerRuc} ({(order as any).buyerRazonSocial})</>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Notas internas */}
+          <AdminNotesCard
+            orderId={order.id}
+            currentAdminNotes={(order as any).adminNotes || ""}
+          />
+
+          {/* Fechas importantes */}
           <Card>
             <CardHeader>
-              <CardTitle>Fechas Importantes</CardTitle>
+              <CardTitle className="text-sm font-medium">Fechas importantes</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div>
@@ -368,89 +441,41 @@ export default async function AdminOrderDetailPage({
                   </p>
                 </div>
               )}
-              {order.shippedAt && (
+              {(order as any).shippedAt && (
                 <div>
                   <p className="font-medium">Enviada</p>
                   <p className="text-muted-foreground">
-                    {new Date(order.shippedAt).toLocaleString("es-PE")}
+                    {new Date((order as any).shippedAt).toLocaleString("es-PE")}
                   </p>
                 </div>
               )}
-              {order.deliveredAt && (
+              {(order as any).deliveredAt && (
                 <div>
                   <p className="font-medium">Entregada</p>
                   <p className="text-muted-foreground">
-                    {new Date(order.deliveredAt).toLocaleString("es-PE")}
+                    {new Date((order as any).deliveredAt).toLocaleString("es-PE")}
                   </p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Comprobante Electrónico */}
-          {order.documentType && (
+          {/* Link para cliente */}
+          {viewLink && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Comprobante Electrónico
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">Link para cliente</CardTitle>
               </CardHeader>
               <CardContent>
-                {order.electronicDocument ? (
-                  order.electronicDocument.status === "ISSUED" ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-green-100 text-green-700">Emitido</Badge>
-                        <span className="font-mono font-medium">
-                          {order.electronicDocument.fullNumber}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {order.electronicDocument.issuedAt?.toLocaleString("es-PE")}
-                      </p>
-                      <div className="flex gap-2 flex-wrap">
-                        {order.electronicDocument.pdfUrl && (
-                          <Button asChild variant="outline" size="sm">
-                            <a href={order.electronicDocument.pdfUrl} target="_blank" rel="noopener noreferrer">
-                              Descargar PDF
-                            </a>
-                          </Button>
-                        )}
-                        {order.electronicDocument.xmlUrl && (
-                          <Button asChild variant="outline" size="sm">
-                            <a href={order.electronicDocument.xmlUrl} target="_blank" rel="noopener noreferrer">
-                              Descargar XML
-                            </a>
-                          </Button>
-                        )}
-                        <ResendComprobanteButton orderId={order.id} />
-                      </div>
-                    </div>
-                  ) : order.electronicDocument.status === "ERROR" ? (
-                    <div className="space-y-3">
-                      <Badge variant="destructive">Error</Badge>
-                      <p className="text-sm text-red-600">{order.electronicDocument.errorMessage}</p>
-                      <EmitDocumentButton orderId={order.id} />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Badge className="bg-amber-100 text-amber-700">Pendiente</Badge>
-                      <EmitDocumentButton orderId={order.id} />
-                    </div>
-                  )
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Tipo solicitado:{" "}
-                      <strong>{order.documentType === "BOLETA" ? "Boleta de Venta" : "Factura"}</strong>
-                      {order.documentType === "FACTURA" && order.buyerRuc && (
-                        <> — RUC: {order.buyerRuc} ({order.buyerRazonSocial})</>
-                      )}
-                    </p>
-                    <EmitDocumentButton orderId={order.id} />
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={viewLink}
+                    readOnly
+                    className="flex-1 text-xs bg-slate-50 border rounded px-2 py-1"
+                  />
+                  <CopyLinkButton link={viewLink} />
+                </div>
               </CardContent>
             </Card>
           )}
