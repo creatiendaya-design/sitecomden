@@ -268,7 +268,7 @@ model Order {
   documentType         DocumentType?
   buyerRuc             String?
   buyerRazonSocial     String?
-  buyerFiscalAddress   String?
+  buyerFiscalAddress   String?   @db.Text
   electronicDocument   ElectronicDocument?
   adminNotes        String?           @db.Text
   paidAt            DateTime?
@@ -326,7 +326,7 @@ model PendingPayment {
   @@index([status])
 }
 
-enum DocStatus {
+enum DocumentStatus {
   PENDING
   ISSUED
   CANCELLED
@@ -343,7 +343,7 @@ model ElectronicDocument {
   number             Int
   fullNumber         String
 
-  status             DocStatus    @default(PENDING)
+  status             DocumentStatus @default(PENDING)
 
   xmlContent         String?      @db.Text
   pdfUrl             String?
@@ -361,10 +361,10 @@ model ElectronicDocument {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
-  @@index([orderId])
   @@index([status])
   @@index([type])
   @@index([fullNumber])
+  @@unique([series, number])
 }
 
 enum OrderStatus {
