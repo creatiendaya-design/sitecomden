@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { PageBuilder } from "./page-builder/PageBuilder"
 import { useBuilderStore } from "./page-builder/store"
 import { syncProductLandingBlocks } from "@/actions/landing-blocks"
@@ -19,7 +19,9 @@ interface ProductLandingBuilderProps {
 const AUTOSAVE_DEBOUNCE_MS = 600
 
 export function ProductLandingBuilder({ product, initialBlocks }: ProductLandingBuilderProps) {
-  const [blocksForBuilder, setBlocksForBuilder] = useState<BlockInstance[]>(initialBlocks)
+  // No mirror state: the Zustand store in PageBuilder is the single source of
+  // truth after the initial hydration. Holding mirror state here would create
+  // a ping-pong loop (store → onBlocksChange → setState → prop → useEffect → store).
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSerializedRef = useRef<string>(JSON.stringify(initialBlocks))
 
@@ -82,11 +84,8 @@ export function ProductLandingBuilder({ product, initialBlocks }: ProductLanding
 
   return (
     <PageBuilder
-      blocks={blocksForBuilder}
-      onBlocksChange={(blocks) => {
-        setBlocksForBuilder(blocks)
-        handleBlocksChange(blocks)
-      }}
+      blocks={initialBlocks}
+      onBlocksChange={handleBlocksChange}
       scope="product"
       context={{ type: "product", product }}
       title={product.name}

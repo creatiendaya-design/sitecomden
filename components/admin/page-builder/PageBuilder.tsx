@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useBuilderStore } from "./store"
 import { TopBar } from "./TopBar"
 import { LeftSidebar } from "./LeftSidebar/LeftSidebar"
@@ -29,16 +29,23 @@ export function PageBuilder({
   const setBlocks = useBuilderStore((s) => s.setBlocks)
   const blocks = useBuilderStore((s) => s.blocks)
 
-  // Hydrate store from props on mount and when initialBlocks changes
+  // Hydrate store from props ONCE on mount. After mount, the store is the
+  // source of truth — we do NOT re-sync from props, because that creates a
+  // ping-pong loop with onBlocksChange (store → parent → prop → store).
+  const hydratedRef = useRef(false)
   useEffect(() => {
+    if (hydratedRef.current) return
+    hydratedRef.current = true
     setBlocks(initialBlocks)
-  }, [initialBlocks, setBlocks])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  // Bubble changes up to parent so it can persist via Server Actions
+  // Bubble changes up to parent so it can persist via Server Actions.
+  // Skip until the first hydration has happened — otherwise the initial
+  // setBlocks call fires this with the SAME blocks array (just different ref).
   useEffect(() => {
-    if (blocks !== initialBlocks) {
-      onBlocksChange(blocks)
-    }
+    if (!hydratedRef.current) return
+    onBlocksChange(blocks)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks])
 
