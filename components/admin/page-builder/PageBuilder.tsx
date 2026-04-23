@@ -10,6 +10,7 @@ import { registerExistingBlocks } from "@/lib/blocks/register-existing-blocks"
 import type { PageBuilderProps } from "./types"
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts"
 import { useUrlSelection } from "./hooks/useUrlSelection"
+import { useBeforeUnload } from "./hooks/useBeforeUnload"
 
 export function PageBuilder({
   blocks: initialBlocks,
@@ -43,6 +44,7 @@ export function PageBuilder({
 
   useKeyboardShortcuts()
   useUrlSelection()
+  useBeforeUnload()
 
   return (
     <div className="h-screen flex flex-col bg-muted/20">
