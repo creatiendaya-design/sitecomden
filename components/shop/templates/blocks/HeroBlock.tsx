@@ -2,13 +2,15 @@
 
 import Image from "next/image";
 import type { HeroBlockContent } from "@/lib/types/landing-blocks";
+import { readContent } from "./_normalizeContent";
 
 interface HeroBlockProps {
-  content: HeroBlockContent;
+  content: HeroBlockContent | unknown;
   onCtaClick?: () => void;
 }
 
-export default function HeroBlock({ content, onCtaClick }: HeroBlockProps) {
+export default function HeroBlock({ content: rawContent, onCtaClick }: HeroBlockProps) {
+  const content = readContent<HeroBlockContent>(rawContent, "HERO");
   const { title, subtitle, bgImage, overlayColor, ctaText } = content;
 
   return (

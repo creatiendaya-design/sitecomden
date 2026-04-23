@@ -5,13 +5,15 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import GalleryLightbox from "@/components/shop/GalleryLightbox";
 import type { GalleryBlockContent } from "@/lib/types/landing-blocks";
+import { readContent } from "./_normalizeContent";
 
 interface GalleryBlockProps {
-  content: GalleryBlockContent;
+  content: GalleryBlockContent | unknown;
   onBuyClick?: () => void;
 }
 
-export default function GalleryBlock({ content, onBuyClick }: GalleryBlockProps) {
+export default function GalleryBlock({ content: rawContent, onBuyClick }: GalleryBlockProps) {
+  const content = readContent<GalleryBlockContent>(rawContent, "GALLERY");
   const { displayType, images, showBuyButton } = content;
   if (!images?.length) return null;
 

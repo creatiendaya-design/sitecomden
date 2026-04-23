@@ -1,12 +1,14 @@
 import Image from "next/image";
 import { Star } from "lucide-react";
 import type { TestimonialsBlockContent } from "@/lib/types/landing-blocks";
+import { readContent } from "./_normalizeContent";
 
 interface TestimonialsBlockProps {
-  content: TestimonialsBlockContent;
+  content: TestimonialsBlockContent | unknown;
 }
 
-export default function TestimonialsBlock({ content }: TestimonialsBlockProps) {
+export default function TestimonialsBlock({ content: rawContent }: TestimonialsBlockProps) {
+  const content = readContent<TestimonialsBlockContent>(rawContent, "TESTIMONIALS");
   const { items } = content;
   if (!items?.length) return null;
 

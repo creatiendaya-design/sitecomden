@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import type { TickerBlockContent } from "@/lib/types/landing-blocks";
+import { readContent } from "./_normalizeContent";
 
 interface TickerBlockProps {
-  content: TickerBlockContent;
+  content: TickerBlockContent | unknown;
   sticky?: boolean;
 }
 
-export default function TickerBlock({ content, sticky }: TickerBlockProps) {
+export default function TickerBlock({ content: rawContent, sticky }: TickerBlockProps) {
+  const content = readContent<TickerBlockContent>(rawContent, "TICKER");
   const { mode, scrollingText, speed, endsAt, countdownLabel, bgColor, textColor } = content;
   const isSticky = sticky ?? content.sticky;
 

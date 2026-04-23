@@ -1,10 +1,12 @@
 import type { BenefitsBlockContent } from "@/lib/types/landing-blocks";
+import { readContent } from "./_normalizeContent";
 
 interface BenefitsBlockProps {
-  content: BenefitsBlockContent;
+  content: BenefitsBlockContent | unknown;
 }
 
-export default function BenefitsBlock({ content }: BenefitsBlockProps) {
+export default function BenefitsBlock({ content: rawContent }: BenefitsBlockProps) {
+  const content = readContent<BenefitsBlockContent>(rawContent, "BENEFITS");
   const { cards } = content;
   if (!cards?.length) return null;
 
