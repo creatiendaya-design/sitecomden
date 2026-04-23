@@ -70,6 +70,12 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
   const existingSet = new Set(existing.map((p) => p.slug));
 
   for (const row of rows) {
+    // Validate critical fields before DB operations
+    if (!row.slug || row.basePrice < 0 || !Number.isFinite(row.basePrice)) {
+      result.errors.push({ slug: row.slug || "(sin slug)", message: "slug requerido y basePrice debe ser >= 0" });
+      continue;
+    }
+
     try {
       const categoryId = row.categorySlug ? categoryBySlug.get(row.categorySlug) : undefined;
       const images = row.imageUrl ? [row.imageUrl] : [];
@@ -94,27 +100,34 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
 
       if (existingSet.has(row.slug)) {
         // UPDATE
+        // Nota: la categoría no se actualiza en re-imports — se mantiene la categoría original del producto
         await prisma.product.update({
           where: { slug: row.slug },
           data: productData,
         });
 
-        // Upsert variantes
+        // Upsert variantes con seguridad de producto
         for (const v of row.variants) {
-          await prisma.productVariant.upsert({
-            where: { sku: v.sku },
-            create: {
-              sku: v.sku,
-              price: v.price,
-              stock: v.stock,
-              options: v.options ?? {},
-              product: { connect: { slug: row.slug } },
-            },
-            update: {
-              price: v.price,
-              stock: v.stock,
-            },
+          const existingVariant = await prisma.productVariant.findFirst({
+            where: { sku: v.sku, product: { slug: row.slug } },
+            select: { id: true },
           });
+          if (existingVariant) {
+            await prisma.productVariant.update({
+              where: { id: existingVariant.id },
+              data: { price: v.price, stock: v.stock, options: v.options ?? {} },
+            });
+          } else {
+            await prisma.productVariant.create({
+              data: {
+                sku: v.sku,
+                price: v.price,
+                stock: v.stock,
+                options: v.options ?? {},
+                product: { connect: { slug: row.slug } },
+              },
+            });
+          }
         }
 
         result.updated++;
