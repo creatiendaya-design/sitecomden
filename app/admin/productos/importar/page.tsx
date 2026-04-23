@@ -58,11 +58,20 @@ export default function ImportProductsPage() {
       const text = await file.text();
       const parsed = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: true });
 
+      // Normalize keys and values: trim whitespace that Excel/Sheets may add
+      const normalizedData = parsed.data.map((row) => {
+        const clean: Record<string, string> = {};
+        for (const [key, value] of Object.entries(row)) {
+          clean[key.trim()] = typeof value === "string" ? value.trim() : (value ?? "");
+        }
+        return clean;
+      });
+
       let productMap: Map<string, any>;
       const rowErrors: ParsedProduct[] = [];
 
       if (format === "generic") {
-        const rows = parsed.data as unknown as GenericProductRow[];
+        const rows = normalizedData as unknown as GenericProductRow[];
         rows.forEach((row, i) => {
           const err = validateGenericRow(row, i);
           if (err) rowErrors.push({ slug: row.slug || `fila-${i+1}`, name: row.nombre || "", status: "error", errorMessage: err, input: null });
@@ -70,7 +79,7 @@ export default function ImportProductsPage() {
         const validRows = rows.filter((_, i) => !validateGenericRow(_, i));
         productMap = genericRowsToProductInputs(validRows);
       } else {
-        const rows = parsed.data as unknown as ShopifyProductRow[];
+        const rows = normalizedData as unknown as ShopifyProductRow[];
         rows.forEach((row, i) => {
           const err = validateShopifyRow(row, i);
           if (err) rowErrors.push({ slug: row.Handle || `fila-${i+1}`, name: row.Title || "", status: "error", errorMessage: err, input: null });

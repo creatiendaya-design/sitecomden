@@ -136,7 +136,7 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
         result.updated++;
       } else {
         // CREATE
-        await prisma.product.create({
+        const created = await prisma.product.create({
           data: {
             ...productData,
             slug: row.slug,
@@ -151,7 +151,25 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
               })),
             } : undefined,
           },
+          include: { variants: true },
         });
+
+        if (row.variants.length === 0) {
+          if (row.stock > 0) {
+            await prisma.inventoryMovement.create({
+              data: { productId: created.id, type: "PURCHASE", quantity: row.stock, reason: "Importación CSV" },
+            });
+          }
+        } else {
+          for (const createdVariant of created.variants) {
+            const inputVariant = row.variants.find((v) => v.sku === createdVariant.sku);
+            if (inputVariant && inputVariant.stock > 0) {
+              await prisma.inventoryMovement.create({
+                data: { productId: created.id, variantId: createdVariant.id, type: "PURCHASE", quantity: inputVariant.stock, reason: "Importación CSV" },
+              });
+            }
+          }
+        }
 
         result.created++;
       }
