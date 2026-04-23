@@ -5,6 +5,8 @@ import { createCulqiCharge, solesToCents, formatCardInfo } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { autoEmitOnPayment } from "@/actions/sunat";
+import { getSiteSettings } from "@/lib/site-settings";
+import { displayOrderNumber } from "@/lib/utils";
 
 /**
  * Procesar pago con tarjeta usando Culqi
@@ -89,7 +91,11 @@ export async function processCardPayment(data: {
       },
     });
 
-    await autoEmitOnPayment(order.id);
+    try {
+      await autoEmitOnPayment(order.id);
+    } catch (emitError) {
+      console.error("SUNAT auto-emission failed (payment still confirmed):", emitError);
+    }
 
     // 6. Reducir inventario de productos
     for (const item of order.items) {
@@ -132,8 +138,10 @@ export async function processCardPayment(data: {
 
     // 7. Enviar email de confirmación
     try {
+      const emailSettings = await getSiteSettings();
+      const orderDisplayNumber = displayOrderNumber(order, emailSettings.order_prefix || "PED");
       await sendOrderConfirmationEmail({
-        orderNumber: order.orderNumber,
+        orderNumber: orderDisplayNumber,
         customerName: order.customerName,
         customerEmail: order.customerEmail,
         total: Number(order.total),

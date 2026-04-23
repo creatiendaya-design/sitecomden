@@ -85,6 +85,16 @@ export function productToShopifyRows(product: any): ShopifyProductRow[] {
   });
 }
 
+function generateVariantSku(handle: string, opt1: string, opt2: string): string {
+  return [handle, opt1, opt2]
+    .filter(Boolean)
+    .join("-")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 /** Agrupa filas Shopify por Handle y convierte a ProductInput */
 export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<string, any> {
   const byHandle = new Map<string, any>();
@@ -93,42 +103,67 @@ export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<strin
     const handle = row.Handle;
     if (!handle) continue;
 
+    // Shopify simple products always have Option1 Name="Title" + Option1 Value="Default Title"
+    // These are NOT real variants — treat as simple product
+    const isShopifyDefaultVariant =
+      row["Option1 Name"]?.toLowerCase() === "title" &&
+      row["Option1 Value"]?.toLowerCase() === "default title";
+
     if (!byHandle.has(handle)) {
+      const firstStock = parseInt(row["Variant Inventory Qty"], 10);
+      const compareAt = parseFloat(row["Variant Compare At Price"]);
       byHandle.set(handle, {
         slug: handle,
         name: row.Title,
         description: row["Body (HTML)"] || null,
         shortDescription: null,
         basePrice: (() => { const p = parseFloat(row["Variant Price"]); return Number.isFinite(p) ? p : 0; })(),
-        compareAtPrice: row["Variant Compare At Price"] ? parseFloat(row["Variant Compare At Price"]) : null,
+        // 0.00 means "no compare price" in Shopify — store as null
+        compareAtPrice: Number.isFinite(compareAt) && compareAt > 0 ? compareAt : null,
         weight: row["Variant Weight"] ? parseFloat(row["Variant Weight"]) : null,
+        stock: Number.isFinite(firstStock) ? firstStock : 0,
+        sku: isShopifyDefaultVariant ? (row["Variant SKU"] || null) : null,
         active: row.Published?.toUpperCase() === "TRUE",
         featured: false,
         igvType: "GRAVADO" as any,
         metaTitle: row["SEO Title"] || null,
         metaDescription: row["SEO Description"] || null,
         categorySlug: null,
-        imageUrl: row["Image Src"] || null,
+        imageUrls: row["Image Src"] ? [row["Image Src"]] : [],
         variants: [] as any[],
         _option1Name: row["Option1 Name"],
         _option2Name: row["Option2 Name"],
       });
+    } else {
+      // Collect additional images from subsequent rows for the same handle
+      const product = byHandle.get(handle)!;
+      if (row["Image Src"] && !product.imageUrls.includes(row["Image Src"])) {
+        product.imageUrls.push(row["Image Src"]);
+      }
     }
 
-    if (row["Variant SKU"]) {
-      const product = byHandle.get(handle);
+    // Skip "Default Title" rows — they represent simple products, not real variants
+    if (isShopifyDefaultVariant) continue;
+
+    // Push a variant for rows that have real option values or an explicit SKU
+    const hasOptions = row["Option1 Value"] || row["Option2 Value"];
+    const hasSku = row["Variant SKU"];
+
+    if (hasSku || hasOptions) {
+      const product = byHandle.get(handle)!;
       const options: Record<string, string> = {};
       if (product._option1Name && row["Option1 Value"]) options[product._option1Name] = row["Option1 Value"];
       if (product._option2Name && row["Option2 Value"]) options[product._option2Name] = row["Option2 Value"];
 
       const price = parseFloat(row["Variant Price"]);
       const stock = parseInt(row["Variant Inventory Qty"], 10);
+      const sku = row["Variant SKU"] || generateVariantSku(handle, row["Option1 Value"], row["Option2 Value"]);
 
       product.variants.push({
-        sku: row["Variant SKU"],
+        sku,
         price: Number.isFinite(price) ? price : product.basePrice,
         stock: Number.isFinite(stock) ? stock : 0,
-        options, // empty object {} is valid for single-option products
+        options,
       });
     }
   }

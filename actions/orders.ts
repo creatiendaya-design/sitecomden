@@ -9,6 +9,8 @@ import { z } from "zod";
 import { protectRoute } from "@/lib/protect-route";
 import { checkRateLimit, apiRateLimiter } from "@/lib/rate-limit";
 import { rucSchema } from "@/lib/validations";
+import { getSiteSettings } from "@/lib/site-settings";
+import { displayOrderNumber } from "@/lib/utils";
 
 // ============================================================
 // SCHEMAS ZOD
@@ -309,8 +311,10 @@ export async function createOrder(rawData: unknown) {
     // Enviar email de confirmación con link para ver orden
     try {
       const { sendOrderConfirmationEmail } = await import("@/lib/email");
+      const emailSettings = await getSiteSettings();
+      const orderDisplayNumber = displayOrderNumber(order, emailSettings.order_prefix || "PED");
       await sendOrderConfirmationEmail({
-        orderNumber: order.orderNumber,
+        orderNumber: orderDisplayNumber,
         customerName: order.customerName,
         customerEmail: order.customerEmail,
         total: Number(order.total),
@@ -760,10 +764,13 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
         sendPaymentRefundedEmail,
       } = await import("@/lib/email");
 
+      const emailSettings = await getSiteSettings();
+      const orderDisplayNumber = displayOrderNumber(currentOrder, emailSettings.order_prefix || "PED");
+
       // 🎯 Pago aprobado
       if (input.paymentStatus === "PAID" && currentOrder.paymentStatus !== "PAID") {
         await sendPaymentApprovedEmail(
-          currentOrder.orderNumber,
+          orderDisplayNumber,
           currentOrder.customerName,
           currentOrder.customerEmail,
           Number(currentOrder.total),
@@ -774,7 +781,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       // 🎯 Pago fallido
       if (input.paymentStatus === "FAILED" && currentOrder.paymentStatus !== "FAILED") {
         await sendPaymentFailedEmail(
-          currentOrder.orderNumber,
+          orderDisplayNumber,
           currentOrder.customerName,
           currentOrder.customerEmail,
           Number(currentOrder.total),
@@ -786,7 +793,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       // 🎯 Reembolso procesado
       if (input.paymentStatus === "REFUNDED" && currentOrder.paymentStatus !== "REFUNDED") {
         await sendPaymentRefundedEmail(
-          currentOrder.orderNumber,
+          orderDisplayNumber,
           currentOrder.customerName,
           currentOrder.customerEmail,
           Number(currentOrder.total),
@@ -798,7 +805,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       // 🎯 Orden enviada
       if (input.status === "SHIPPED" && currentOrder.status !== "SHIPPED") {
         await sendOrderShippedEmail({
-          orderNumber: currentOrder.orderNumber,
+          orderNumber: orderDisplayNumber,
           customerName: currentOrder.customerName,
           customerEmail: currentOrder.customerEmail,
           trackingNumber: input.trackingNumber || currentOrder.trackingNumber || undefined,
@@ -811,7 +818,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       // 🎯 Orden entregada
       if (input.status === "DELIVERED" && currentOrder.status !== "DELIVERED") {
         await sendOrderDeliveredEmail(
-          currentOrder.orderNumber,
+          orderDisplayNumber,
           currentOrder.customerName,
           currentOrder.customerEmail,
           viewOrderLink
@@ -821,7 +828,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       // 🎯 Orden cancelada
       if (input.status === "CANCELLED" && currentOrder.status !== "CANCELLED") {
         await sendOrderCancelledEmail(
-          currentOrder.orderNumber,
+          orderDisplayNumber,
           currentOrder.customerName,
           currentOrder.customerEmail,
           viewOrderLink,

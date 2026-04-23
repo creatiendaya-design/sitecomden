@@ -477,7 +477,6 @@ export default function EditProductForm({ product, categories }: EditProductForm
                 <ImageUpload
                   images={formData.images}
                   onChange={(images) => setFormData({ ...formData, images })}
-                  maxImages={5}
                 />
               </CardContent>
             </Card>

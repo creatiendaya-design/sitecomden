@@ -176,7 +176,11 @@ export async function approvePayment(paymentId: string) {
       },
     });
 
-    await autoEmitOnPayment(payment.orderId);
+    try {
+      await autoEmitOnPayment(payment.orderId);
+    } catch (emitError) {
+      console.error("SUNAT auto-emission failed (payment still approved):", emitError);
+    }
 
     console.log("Pago aprobado:", {
       paymentId,

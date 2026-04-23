@@ -33,6 +33,7 @@ export interface ImportRow {
   metaDescription: string | null;
   categorySlug: string | null;
   imageUrl: string | null;
+  imageUrls?: string[];
   variants: Array<{
     sku: string;
     price: number;
@@ -78,7 +79,7 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
 
     try {
       const categoryId = row.categorySlug ? categoryBySlug.get(row.categorySlug) : undefined;
-      const images = row.imageUrl ? [row.imageUrl] : [];
+      const images = row.imageUrls?.length ? row.imageUrls : (row.imageUrl ? [row.imageUrl] : []);
 
       const productData = {
         name: row.name,

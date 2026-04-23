@@ -63,12 +63,14 @@ interface CheckoutPageClientProps {
   siteName: string;
   siteLogo: string;
   sunatEnabled: boolean;
+  pricesIncludeIgv: boolean;
 }
 
 export default function CheckoutPageClient({
   siteName,
   siteLogo,
   sunatEnabled,
+  pricesIncludeIgv,
 }: CheckoutPageClientProps) {
   const router = useRouter();
   const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();
@@ -645,10 +647,15 @@ export default function CheckoutPageClient({
 
   const subtotal = getTotalPrice();
   const discount = appliedCoupon?.discount || 0;
-  const finalShippingCost = selectedShippingRate 
+  const finalShippingCost = selectedShippingRate
     ? (appliedCoupon?.type === "FREE_SHIPPING" ? 0 : selectedShippingRate.finalCost)
     : 0;
-  const total = subtotal + finalShippingCost - discount;
+  const igvAmount = pricesIncludeIgv
+    ? subtotal - subtotal / 1.18
+    : subtotal * 0.18;
+  const total = pricesIncludeIgv
+    ? subtotal + finalShippingCost - discount
+    : subtotal + igvAmount + finalShippingCost - discount;
 
   if (items.length === 0) {
     return (
@@ -725,6 +732,16 @@ export default function CheckoutPageClient({
           <span className="text-muted-foreground">Subtotal</span>
           <span className="font-medium">{formatPrice(subtotal)}</span>
         </div>
+        {sunatEnabled && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">
+              {pricesIncludeIgv ? "IGV incluido (18%)" : "IGV (18%)"}
+            </span>
+            <span className={pricesIncludeIgv ? "text-muted-foreground" : "font-medium"}>
+              {pricesIncludeIgv ? `incl. ${formatPrice(igvAmount)}` : formatPrice(igvAmount)}
+            </span>
+          </div>
+        )}
         {discount > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Descuento</span>

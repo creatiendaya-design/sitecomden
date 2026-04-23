@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, DragEvent } from "react";
+import { upload } from "@vercel/blob/client";
 import { Button } from "@/components/ui/button";
 import { X, Upload, Loader2, Edit2, AlertCircle, CheckCircle2, Image as ImageIcon, GripVertical } from "lucide-react";
 import Image from "next/image";
@@ -18,8 +19,13 @@ interface ImageMetadata {
 interface ImageUploadProps {
   images: ImageMetadata[] | string[];
   onChange: (images: ImageMetadata[]) => void;
-  maxImages?: number;
+  maxImages?: number; // undefined = sin límite
   maxSizeMB?: number;
+}
+
+function isVideoUrl(url: string): boolean {
+  const path = url.split("?")[0].toLowerCase();
+  return path.endsWith(".mp4") || path.endsWith(".webm") || path.endsWith(".mov");
 }
 
 interface UploadProgress {
@@ -32,7 +38,7 @@ interface UploadProgress {
 export default function ImageUpload({
   images,
   onChange,
-  maxImages = 5,
+  maxImages,
   maxSizeMB = 10,
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
@@ -58,17 +64,20 @@ export default function ImageUpload({
 
     try {
       // Validaciones previas
-      const totalImages = normalizedImages.length + fileArray.length;
-      if (totalImages > maxImages) {
+      if (maxImages !== undefined && normalizedImages.length + fileArray.length > maxImages) {
         setError(
-          `Solo puedes subir ${maxImages} imágenes. Actualmente tienes ${normalizedImages.length}.`
+          `Solo puedes subir ${maxImages} archivos. Actualmente tienes ${normalizedImages.length}.`
         );
         setUploading(false);
         return;
       }
 
+      // Videos have a higher limit (100MB), images use maxSizeMB
       const maxSizeBytes = maxSizeMB * 1024 * 1024;
-      const oversizedFiles = fileArray.filter((file) => file.size > maxSizeBytes);
+      const oversizedFiles = fileArray.filter((file) => {
+        if (file.type.startsWith("video/")) return file.size > 100 * 1024 * 1024;
+        return file.size > maxSizeBytes;
+      });
 
       if (oversizedFiles.length > 0) {
         const fileList = oversizedFiles
@@ -99,31 +108,54 @@ export default function ImageUpload({
         const file = fileArray[i];
 
         try {
-          setUploadProgress((prev) =>
-            prev.map((p, idx) => (idx === i ? { ...p, progress: 30 } : p))
-          );
+          let resultUrl: string;
 
-          const formData = new FormData();
-          formData.append("file", file);
+          if (file.type.startsWith("video/")) {
+            // Videos: direct client→Vercel Blob upload (bypasses 10MB server body limit)
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2, 9);
+            const ext = file.name.split(".").pop()?.toLowerCase() ?? "mp4";
+            const pathname = `products/${timestamp}-${random}.${ext}`;
 
-          const response = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          });
+            const blob = await upload(pathname, file, {
+              access: "public",
+              handleUploadUrl: "/api/upload",
+              onUploadProgress: ({ percentage }) => {
+                setUploadProgress((prev) =>
+                  prev.map((p, idx) => (idx === i ? { ...p, progress: Math.round(percentage) } : p))
+                );
+              },
+            });
+            resultUrl = blob.url;
+          } else {
+            // Images: server-side FormData upload with magic-byte verification
+            setUploadProgress((prev) =>
+              prev.map((p, idx) => (idx === i ? { ...p, progress: 30 } : p))
+            );
 
-          setUploadProgress((prev) =>
-            prev.map((p, idx) => (idx === i ? { ...p, progress: 80 } : p))
-          );
+            const formData = new FormData();
+            formData.append("file", file);
 
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Error al subir ${file.name}`);
+            const response = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+
+            setUploadProgress((prev) =>
+              prev.map((p, idx) => (idx === i ? { ...p, progress: 80 } : p))
+            );
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.error || `Error al subir ${file.name}`);
+            }
+
+            const data = await response.json();
+            resultUrl = data.url;
           }
 
-          const data = await response.json();
-
           newImages.push({
-            url: data.url,
+            url: resultUrl,
             alt: "",
             name: file.name.replace(/\.[^/.]+$/, ""),
           });
@@ -150,7 +182,8 @@ export default function ImageUpload({
         }
       }
 
-      onChange([...normalizedImages, ...newImages].slice(0, maxImages));
+      const merged = [...normalizedImages, ...newImages];
+      onChange(maxImages !== undefined ? merged.slice(0, maxImages) : merged);
 
       // Limpiar progreso después de 2 segundos
       setTimeout(() => {
@@ -288,7 +321,7 @@ export default function ImageUpload({
       )}
 
       {/* Drag & Drop Zone */}
-      {normalizedImages.length < maxImages && (
+      {(maxImages === undefined || normalizedImages.length < maxImages) && (
         <div
           className={cn(
             "relative rounded-lg border-2 border-dashed transition-all duration-200",
@@ -305,7 +338,7 @@ export default function ImageUpload({
             ref={fileInputRef}
             type="file"
             id="image-upload"
-            accept="image/*"
+            accept="image/*,video/mp4,video/webm,video/quicktime"
             multiple
             onChange={handleUpload}
             disabled={uploading}
@@ -344,13 +377,15 @@ export default function ImageUpload({
                   o haz click para seleccionar archivos
                 </p>
                 <div className="flex items-center gap-4 text-xs text-slate-400">
-                  <span>PNG, JPG, WebP, GIF, SVG</span>
+                  <span>PNG, JPG, WebP, GIF · MP4, WebM, MOV</span>
                   <span>•</span>
-                  <span>Máx. {maxSizeMB}MB por imagen</span>
-                  <span>•</span>
-                  <span>
-                    {normalizedImages.length}/{maxImages} imágenes
-                  </span>
+                  <span>Imágenes: máx. {maxSizeMB}MB · Videos: máx. 100MB</span>
+                  {maxImages !== undefined && (
+                    <>
+                      <span>•</span>
+                      <span>{normalizedImages.length}/{maxImages} archivos</span>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -363,9 +398,9 @@ export default function ImageUpload({
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium text-slate-700">
-              Imágenes ({normalizedImages.length}/{maxImages})
+              Media ({normalizedImages.length}{maxImages !== undefined ? `/${maxImages}` : ""})
             </p>
-            {normalizedImages.length < maxImages && (
+            {(maxImages === undefined || normalizedImages.length < maxImages) && (
               <Button
                 type="button"
                 variant="outline"
@@ -374,7 +409,7 @@ export default function ImageUpload({
                 disabled={uploading}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                Agregar más
+                Agregar media
               </Button>
             )}
           </div>
@@ -398,12 +433,21 @@ export default function ImageUpload({
                     : "hover:border-primary"
                 )}
               >
-                <Image
-                  src={image.url}
-                  alt={image.alt || `Imagen ${index + 1}`}
-                  fill
-                  className="object-cover pointer-events-none"
-                />
+                {isVideoUrl(image.url) ? (
+                  <video
+                    src={image.url}
+                    className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                    muted
+                    preload="metadata"
+                  />
+                ) : (
+                  <Image
+                    src={image.url}
+                    alt={image.alt || `Imagen ${index + 1}`}
+                    fill
+                    className="object-cover pointer-events-none"
+                  />
+                )}
 
                 {/* Drag handle */}
                 <div className="absolute top-1 right-1 rounded bg-black/50 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -452,7 +496,7 @@ export default function ImageUpload({
           </div>
 
           <p className="mt-3 text-xs text-slate-500">
-            💡 <strong>Tip:</strong> Arrastra las imágenes para reordenarlas. La primera será la principal. Haz click en{" "}
+            💡 <strong>Tip:</strong> Arrastra las imágenes o videos para reordenarlos. La primera será la principal. Haz click en{" "}
             <Edit2 className="inline h-3 w-3" /> para agregar texto alternativo (SEO).
           </p>
         </div>

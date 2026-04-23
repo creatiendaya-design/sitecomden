@@ -7,6 +7,8 @@ import { protectRoute } from "@/lib/protect-route";
 import { revalidatePath } from "next/cache";
 import { sendComprobanteEmail } from "@/lib/email";
 import type { DocumentType, Prisma } from "@prisma/client";
+import { getSiteSettings } from "@/lib/site-settings";
+import { displayOrderNumber } from "@/lib/utils";
 
 // ── Emitir comprobante manualmente desde admin ──────────────────
 export async function emitDocumentAction(orderId: string) {
@@ -40,10 +42,11 @@ export async function emitDocumentAction(orderId: string) {
   const doc = await provider.emitDocument(orderForEmit, order.documentType, config);
 
   if (doc.status === "ISSUED" && doc.pdfUrl) {
+    const emailSettings = await getSiteSettings();
     await sendComprobanteEmail({
       to: order.customerEmail,
       customerName: order.customerName,
-      orderNumber: order.orderNumber,
+      orderNumber: displayOrderNumber(order, emailSettings.order_prefix || "PED"),
       documentNumber: doc.fullNumber,
       total: Number(order.total),
       pdfUrl: doc.pdfUrl,
@@ -67,10 +70,11 @@ export async function resendComprobanteEmailAction(orderId: string) {
     return { success: false, error: "No hay comprobante emitido para reenviar" };
   }
 
+  const emailSettings = await getSiteSettings();
   await sendComprobanteEmail({
     to: order.customerEmail,
     customerName: order.customerName,
-    orderNumber: order.orderNumber,
+    orderNumber: displayOrderNumber(order, emailSettings.order_prefix || "PED"),
     documentNumber: doc.fullNumber,
     total: Number(order.total),
     pdfUrl: doc.pdfUrl,
@@ -200,10 +204,11 @@ export async function autoEmitOnPayment(orderId: string) {
   const doc = await provider.emitDocument(orderForEmit, order.documentType, config);
 
   if (doc.status === "ISSUED" && doc.pdfUrl) {
+    const emailSettings = await getSiteSettings();
     await sendComprobanteEmail({
       to: order.customerEmail,
       customerName: order.customerName,
-      orderNumber: order.orderNumber,
+      orderNumber: displayOrderNumber(order, emailSettings.order_prefix || "PED"),
       documentNumber: doc.fullNumber,
       total: Number(order.total),
       pdfUrl: doc.pdfUrl,
