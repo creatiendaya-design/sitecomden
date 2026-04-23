@@ -156,12 +156,14 @@ export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<strin
       if (product._option2Name && row["Option2 Value"]) options[product._option2Name] = row["Option2 Value"];
 
       const price = parseFloat(row["Variant Price"]);
+      const compareAt = parseFloat(row["Variant Compare At Price"]);
       const stock = parseInt(row["Variant Inventory Qty"], 10);
       const sku = row["Variant SKU"] || generateVariantSku(handle, row["Option1 Value"], row["Option2 Value"]);
 
       product.variants.push({
         sku,
         price: Number.isFinite(price) ? price : product.basePrice,
+        compareAtPrice: Number.isFinite(compareAt) && compareAt > 0 ? compareAt : null,
         stock: Number.isFinite(stock) ? stock : 0,
         options,
       });

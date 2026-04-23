@@ -37,6 +37,7 @@ export interface ImportRow {
   variants: Array<{
     sku: string;
     price: number;
+    compareAtPrice?: number | null;
     stock: number;
     options?: Record<string, string>;
   }>;
@@ -116,13 +117,14 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
           if (existingVariant) {
             await prisma.productVariant.update({
               where: { id: existingVariant.id },
-              data: { price: v.price, stock: v.stock, options: v.options ?? {} },
+              data: { price: v.price, compareAtPrice: v.compareAtPrice ?? null, stock: v.stock, options: v.options ?? {} },
             });
           } else {
             await prisma.productVariant.create({
               data: {
                 sku: v.sku,
                 price: v.price,
+                compareAtPrice: v.compareAtPrice ?? null,
                 stock: v.stock,
                 options: v.options ?? {},
                 product: { connect: { slug: row.slug } },
@@ -143,6 +145,7 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
               create: row.variants.map((v) => ({
                 sku: v.sku,
                 price: v.price,
+                compareAtPrice: v.compareAtPrice ?? null,
                 stock: v.stock,
                 options: v.options ?? {},
               })),
