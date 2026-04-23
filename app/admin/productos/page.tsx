@@ -80,6 +80,18 @@ export default async function ProductsAdminPage({
     orderBy: { name: "asc" },
   });
 
+  // Serializar Decimals para Client Component
+  const serializedProducts = products.map((p) => ({
+    ...p,
+    basePrice: Number(p.basePrice),
+    compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : null,
+    weight: p.weight ? Number(p.weight) : null,
+    variants: p.variants.map((v) => ({
+      ...v,
+      price: Number(v.price),
+    })),
+  }));
+
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
@@ -138,7 +150,7 @@ export default async function ProductsAdminPage({
               </Button>
             </div>
           ) : (
-            <ProductsList products={products} canEdit={canEdit} canDelete={canDelete} />
+            <ProductsList products={serializedProducts} canEdit={canEdit} canDelete={canDelete} />
           )}
         </CardContent>
       </Card>
