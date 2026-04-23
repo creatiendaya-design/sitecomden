@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,11 +7,6 @@ import { Plus, Edit } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import DeleteCategoryButton from "@/components/admin/DeleteCategoryButton";
-
-// ✅ CRÍTICO: Forzar renderizado dinámico en producción
-// Esto previene que Next.js cachee esta página
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 export default async function CategoriesPage() {
   const categories = await prisma.category.findMany({

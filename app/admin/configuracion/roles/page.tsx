@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getRoles } from "@/actions/roles";
 import { hasPermission } from "@/lib/permissions";
 import { getCurrentUserId } from "@/lib/auth";

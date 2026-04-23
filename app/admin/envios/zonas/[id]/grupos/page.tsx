@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getRateGroupsByZone, getShippingZoneById } from "@/actions/shipping-system";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

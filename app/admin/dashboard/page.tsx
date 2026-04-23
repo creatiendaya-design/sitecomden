@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,15 +16,15 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 
-const SalesChart = dynamic(() => import("@/components/admin/SalesChart"), {
+const SalesChart = nextDynamic(() => import("@/components/admin/SalesChart"), {
   loading: () => (
     <div className="h-[300px] animate-pulse rounded-lg bg-muted" />
   ),
 });
 
-const OrdersStatusChart = dynamic(
+const OrdersStatusChart = nextDynamic(
   () => import("@/components/admin/OrdersStatusChart"),
   {
     loading: () => (

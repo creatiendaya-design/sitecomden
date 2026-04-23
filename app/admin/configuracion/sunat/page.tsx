@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/db";
 import { protectRoute } from "@/lib/protect-route";
 import SunatConfigForm from "./SunatConfigForm";

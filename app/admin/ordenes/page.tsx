@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/db";
 import { formatPrice, formatOrderNumber } from "@/lib/utils";
 import { getSiteSettings } from "@/lib/site-settings";
