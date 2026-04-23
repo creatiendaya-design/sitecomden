@@ -1,15 +1,11 @@
 // app/admin/productos/page.tsx
 import { prisma } from "@/lib/db";
-import { formatPrice } from "@/lib/utils";
-import { getProductImageUrl, getProductImageAlt } from "../../../lib/image-utils";
 import Link from "next/link";
-import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, Search, Edit, Eye, Upload, Download } from "lucide-react";
-import DeleteProductButton from "@/components/admin/DeleteProductButton";
+import { Plus, Upload, Download } from "lucide-react";
+import ProductFiltersBar from "@/components/admin/ProductFiltersBar";
+import ProductsList from "@/components/admin/ProductsList";
 
 import { hasPermissions } from "@/lib/permissions";
 import { getCurrentUserId } from "@/lib/auth";
@@ -122,24 +118,7 @@ export default async function ProductsAdminPage({
       {/* Filters */}
       <Card>
         <CardContent className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre o SKU..."
-                className="pl-9"
-                defaultValue={search}
-              />
-            </div>
-            <select className="rounded-md border px-4 py-2 sm:w-auto">
-              <option value="">Todas las categorías</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <ProductFiltersBar categories={categories} />
         </CardContent>
       </Card>
 
@@ -151,201 +130,15 @@ export default async function ProductsAdminPage({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-2 sm:p-6">
-          {products.length === 0 ? (
+          {products.length === 0 && canCreate ? (
             <div className="py-12 text-center">
               <p className="text-muted-foreground">No hay productos</p>
-              {/* ⭐ CAMBIO: Solo mostrar si tiene permiso */}
-              {canCreate && (
-                <Button asChild className="mt-4">
-                  <Link href="/admin/productos/nuevo">
-                    Crear primer producto
-                  </Link>
-                </Button>
-              )}
+              <Button asChild className="mt-4">
+                <Link href="/admin/productos/nuevo">Crear primer producto</Link>
+              </Button>
             </div>
           ) : (
-            <div className="space-y-3 sm:space-y-4">
-              {products.map((product) => {
-                const totalStock = product.hasVariants
-                  ? product.variants.reduce((sum, v) => sum + v.stock, 0)
-                  : product.stock;
-
-                // ✅ CALCULAR PRECIO A MOSTRAR
-                let displayPrice = Number(product.basePrice);
-                let pricePrefix = "";
-
-                if (product.hasVariants && product.variants.length > 0) {
-                  // Para productos con variantes, obtener el precio mínimo y máximo
-                  const prices = product.variants.map(v => Number(v.price));
-                  const minPrice = Math.min(...prices);
-                  const maxPrice = Math.max(...prices);
-                  
-                  displayPrice = minPrice;
-                  
-                  // Si hay diferentes precios, mostrar "Desde"
-                  if (minPrice !== maxPrice) {
-                    pricePrefix = "Desde ";
-                  }
-                }
-
-                return (
-                  <div
-                    key={product.id}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-lg border p-3 sm:p-4 hover:bg-slate-50"
-                  >
-                    {/* Mobile Layout */}
-                    <div className="flex gap-3 sm:hidden">
-                      {/* Image - Mobile */}
-                      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
-                        {getProductImageUrl(product.images as any) ? (
-                          <Image
-                            src={getProductImageUrl(product.images as any)!}
-                            alt={getProductImageAlt(product.images as any, product.name)}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                            Sin imagen
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Info - Mobile */}
-                      <div className="flex-1 space-y-1 min-w-0">
-                        <div className="flex flex-col gap-1">
-                          <Link
-                            href={`/admin/productos/${product.id}`}
-                            className="font-semibold text-sm hover:underline line-clamp-2"
-                          >
-                            {product.name}
-                          </Link>
-                          <div className="flex flex-wrap gap-1">
-                            {!product.active && (
-                              <Badge variant="secondary" className="text-xs">Inactivo</Badge>
-                            )}
-                            {product.featured && (
-                              <Badge variant="default" className="text-xs">Destacado</Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground line-clamp-1">
-                          {product.categories && product.categories.length > 0
-                            ? product.categories.map(pc => pc.category.name).join(", ")
-                            : "Sin categoría"}
-                        </div>
-                        {product.hasVariants && (
-                          <div className="text-xs text-muted-foreground">
-                            {product.variants.length} variantes
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Desktop Image */}
-                    <div className="hidden sm:block relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
-                      {getProductImageUrl(product.images as any) ? (
-                        <Image
-                          src={getProductImageUrl(product.images as any)!}
-                          alt={getProductImageAlt(product.images as any, product.name)}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                          Sin imagen
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Desktop Info */}
-                    <div className="hidden sm:block flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/admin/productos/${product.id}`}
-                          className="font-semibold hover:underline"
-                        >
-                          {product.name}
-                        </Link>
-                        {!product.active && (
-                          <Badge variant="secondary">Inactivo</Badge>
-                        )}
-                        {product.featured && (
-                          <Badge variant="default">Destacado</Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {product.categories && product.categories.length > 0
-                          ? product.categories.map(pc => pc.category.name).join(", ")
-                          : "Sin categoría"}
-                        {product.sku && ` • SKU: ${product.sku}`}
-                        {product.hasVariants && ` • ${product.variants.length} variantes`}
-                      </div>
-                    </div>
-
-                    {/* Price & Stock - Combined for Mobile */}
-                    <div className="flex items-center justify-between sm:block sm:text-right">
-                      <div>
-                        <p className="font-semibold text-sm sm:text-base">
-                          {pricePrefix}{formatPrice(displayPrice)}
-                        </p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                          Stock: {totalStock}
-                        </p>
-                      </div>
-
-                      {/* Actions - Mobile (right side) */}
-                      <div className="flex gap-2 sm:hidden">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/productos/${product.slug}`} target="_blank">
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        {/* ⭐ CAMBIO: Solo mostrar si tiene permiso de editar */}
-                        {canEdit && (
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/admin/productos/${product.id}`}>
-                              <Edit className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                        )}
-                        {/* ⭐ CAMBIO: Solo mostrar si tiene permiso de eliminar */}
-                        {canDelete && (
-                          <DeleteProductButton 
-                            productId={product.id} 
-                            productName={product.name} 
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions - Desktop */}
-                    <div className="hidden sm:flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/productos/${product.slug}`} target="_blank">
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      {/* ⭐ CAMBIO: Solo mostrar si tiene permiso de editar */}
-                      {canEdit && (
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/admin/productos/${product.id}`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      )}
-                      {/* ⭐ CAMBIO: Solo mostrar si tiene permiso de eliminar */}
-                      {canDelete && (
-                        <DeleteProductButton 
-                          productId={product.id} 
-                          productName={product.name} 
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <ProductsList products={products} canEdit={canEdit} canDelete={canDelete} />
           )}
         </CardContent>
       </Card>
