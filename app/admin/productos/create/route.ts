@@ -40,7 +40,11 @@ export async function POST(request: Request) {
         active: data.active ?? true,
         featured: data.featured ?? false,
         hasVariants: data.hasVariants ?? false,
-        weight: data.weight ? parseFloat(data.weight) : null,
+        weight: (() => {
+          if (!data.weight) return null;
+          const w = parseFloat(data.weight);
+          return Number.isFinite(w) && w >= 0 ? w : null;
+        })(),
         metaTitle: data.metaTitle || null,
         metaDescription: data.metaDescription || null,
         // Relación con categorías (many-to-many)
