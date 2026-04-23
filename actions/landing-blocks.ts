@@ -69,3 +69,90 @@ export async function reorderLandingBlocks(
   revalidatePath(`/admin/productos`);
   return { success: true };
 }
+
+/**
+ * Accepts a full desired state of a product's landingBlocks and syncs
+ * the DB in a single transaction: creates new, updates existing, deletes
+ * missing. Used by the autosave path in ProductLandingBuilder to persist
+ * changes originating from the Zustand store.
+ *
+ * Blocks with ids that start with "tmp-" are treated as new (to be created
+ * with fresh cuids). All other ids are treated as existing.
+ */
+export async function syncProductLandingBlocks(
+  productId: string,
+  desired: Array<{
+    id: string
+    type: LandingBlockType
+    position: number
+    content: unknown // content is persisted as Json — TS type is irrelevant at runtime
+    sourceTemplateBlockId?: string | null
+    detached?: boolean
+  }>
+) {
+  await protectRoute("products:update");
+
+  const existing = await prisma.landingBlock.findMany({
+    where: { productId },
+    select: { id: true },
+  });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const desiredPersistentIds = new Set(
+    desired.filter((b) => !b.id.startsWith("tmp-")).map((b) => b.id)
+  );
+
+  const toDelete = [...existingIds].filter((id) => !desiredPersistentIds.has(id));
+  const toCreate = desired.filter((b) => b.id.startsWith("tmp-"));
+  const toUpdate = desired.filter(
+    (b) => !b.id.startsWith("tmp-") && existingIds.has(b.id)
+  );
+
+  const result = await prisma.$transaction(async (tx) => {
+    if (toDelete.length > 0) {
+      await tx.landingBlock.deleteMany({ where: { id: { in: toDelete } } });
+    }
+
+    const created = await Promise.all(
+      toCreate.map((b) =>
+        tx.landingBlock.create({
+          data: {
+            productId,
+            type: b.type,
+            position: b.position,
+            content: b.content as object,
+            sourceTemplateBlockId: b.sourceTemplateBlockId ?? null,
+            detached: b.detached ?? false,
+          },
+        })
+      )
+    );
+
+    await Promise.all(
+      toUpdate.map((b) =>
+        tx.landingBlock.update({
+          where: { id: b.id },
+          data: {
+            type: b.type,
+            position: b.position,
+            content: b.content as object,
+            sourceTemplateBlockId: b.sourceTemplateBlockId ?? null,
+            detached: b.detached ?? false,
+          },
+        })
+      )
+    );
+
+    return { created, updatedCount: toUpdate.length, deletedCount: toDelete.length };
+  });
+
+  revalidatePath(`/admin/productos/${productId}`);
+  revalidatePath(`/admin/productos`);
+
+  // Map tmp ids to real cuids for the client to reconcile
+  const tmpToReal: Record<string, string> = {};
+  toCreate.forEach((b, i) => {
+    tmpToReal[b.id] = result.created[i].id;
+  });
+
+  return { success: true, tmpToReal };
+}
