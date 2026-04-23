@@ -171,28 +171,38 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
                 isSelected ? "bg-primary/5 border-primary/30" : "hover:bg-slate-50"
               }`}
             >
-              {/* Checkbox */}
+              {/* Checkbox — desktop only (standalone left column) */}
               <input
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => toggleOne(product.id)}
-                className="h-4 w-4 flex-shrink-0 cursor-pointer self-start sm:self-center"
+                className="hidden sm:block h-4 w-4 flex-shrink-0 cursor-pointer self-center"
                 aria-label={`Seleccionar ${product.name}`}
               />
 
               {/* Mobile Layout */}
               <div className="flex gap-3 sm:hidden flex-1">
-                <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
-                  {getProductImageUrl(product.images as any) ? (
-                    <Image
-                      src={getProductImageUrl(product.images as any)!}
-                      alt={getProductImageAlt(product.images as any, product.name)}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Sin imagen</div>
-                  )}
+                {/* Checkbox inline with image on mobile */}
+                <div className="flex items-start gap-2 flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleOne(product.id)}
+                    className="mt-1 h-4 w-4 cursor-pointer"
+                    aria-label={`Seleccionar ${product.name}`}
+                  />
+                  <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
+                    {getProductImageUrl(product.images as any) ? (
+                      <Image
+                        src={getProductImageUrl(product.images as any)!}
+                        alt={getProductImageAlt(product.images as any, product.name)}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Sin imagen</div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex-1 space-y-1 min-w-0">
                   <Link href={`/admin/productos/${product.id}`} className="font-semibold text-sm hover:underline line-clamp-2">
