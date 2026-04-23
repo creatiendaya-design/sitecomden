@@ -8,6 +8,7 @@ import { Canvas } from "./Canvas/Canvas"
 import { RightSidebar } from "./RightSidebar/RightSidebar"
 import { registerExistingBlocks } from "@/lib/blocks/register-existing-blocks"
 import type { PageBuilderProps } from "./types"
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts"
 
 export function PageBuilder({
   blocks: initialBlocks,
@@ -38,6 +39,8 @@ export function PageBuilder({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks])
+
+  useKeyboardShortcuts()
 
   return (
     <div className="h-screen flex flex-col bg-muted/20">
