@@ -434,3 +434,40 @@ export async function getLowStockProducts() {
     };
   }
 }
+
+// Eliminar masivamente todos los productos con stock 0
+export async function deleteZeroStockProducts(): Promise<{ success: boolean; deleted?: number; error?: string }> {
+  try {
+    // Simple products with stock = 0
+    const simpleDeleted = await prisma.product.deleteMany({
+      where: { hasVariants: false, stock: { lte: 0 } },
+    });
+
+    // Variant products where ALL variants have stock = 0:
+    // Find products that have at least one variant with stock > 0
+    const variantsWithStock = await prisma.productVariant.findMany({
+      where: { stock: { gt: 0 } },
+      select: { productId: true },
+      distinct: ["productId"],
+    });
+    const productIdsWithStock = variantsWithStock
+      .map((v) => v.productId)
+      .filter((id): id is string => id !== null);
+
+    const variantDeleted = await prisma.product.deleteMany({
+      where: {
+        hasVariants: true,
+        id: { notIn: productIdsWithStock },
+      },
+    });
+
+    const total = simpleDeleted.count + variantDeleted.count;
+    revalidatePath("/admin/inventario");
+    revalidatePath("/admin/productos");
+
+    return { success: true, deleted: total };
+  } catch (error) {
+    console.error("Error deleting zero stock products:", error);
+    return { success: false, error: "Error al eliminar productos" };
+  }
+}

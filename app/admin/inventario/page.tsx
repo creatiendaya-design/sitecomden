@@ -14,6 +14,7 @@ import {
   getLowStockProducts,
 } from "@/actions/inventory";
 import { Badge } from "@/components/ui/badge";
+import BulkDeleteZeroStockButton from "@/components/admin/BulkDeleteZeroStockButton";
 
 export default async function InventoryPage() {
   const [summaryResult, inventoryResult, lowStockResult] = await Promise.all([
@@ -26,6 +27,8 @@ export default async function InventoryPage() {
   const inventory = inventoryResult.success ? inventoryResult.data : [];
   const lowStockProducts = lowStockResult.success ? lowStockResult.data : [];
 
+  const zeroStockCount = inventory.filter((item) => item.currentStock <= 0).length;
+
   return (
     <div className="space-y-4 sm:space-y-8 p-4 sm:p-0">
       {/* Header */}
@@ -36,7 +39,8 @@ export default async function InventoryPage() {
             Gestiona el stock y movimientos de productos
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+          <BulkDeleteZeroStockButton zeroStockCount={zeroStockCount} />
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href="/admin/inventario/movimientos">
               <History className="mr-2 h-4 w-4" />
