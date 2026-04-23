@@ -6,23 +6,97 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
+import OrderFiltersPanel from "@/components/admin/OrderFiltersPanel";
 
 interface OrdersPageProps {
   searchParams: Promise<{
-    status?: string;
-    payment?: string;
+    desde?: string;
+    hasta?: string;
+    status?: string | string[];
+    payment?: string | string[];
+    productId?: string;
+    categoryId?: string;
+    department?: string;
+    province?: string;
+    district?: string;
+    q?: string;
+    montoMin?: string;
+    montoMax?: string;
   }>;
 }
 
 export default async function AdminOrdersPage({ searchParams }: OrdersPageProps) {
-  const { status, payment } = await searchParams;
+  const params = await searchParams;
   const settings = await getSiteSettings();
   const orderPrefix = settings.order_prefix || "PED";
 
-  // Construir filtros
-  const where: any = {};
-  if (status) where.status = status;
-  if (payment) where.paymentStatus = payment;
+  const where: Record<string, unknown> = {};
+
+  if (params.desde || params.hasta) {
+    const createdAt: Record<string, Date> = {};
+    if (params.desde) createdAt.gte = new Date(params.desde);
+    if (params.hasta) {
+      const end = new Date(params.hasta);
+      end.setHours(23, 59, 59, 999);
+      createdAt.lte = end;
+    }
+    where.createdAt = createdAt;
+  }
+
+  const statuses = params.status
+    ? Array.isArray(params.status)
+      ? params.status
+      : [params.status]
+    : [];
+  if (statuses.length > 0) where.status = { in: statuses };
+
+  const methods = params.payment
+    ? Array.isArray(params.payment)
+      ? params.payment
+      : [params.payment]
+    : [];
+  if (methods.length > 0) where.paymentMethod = { in: methods };
+
+  const itemsConditions: Record<string, unknown>[] = [];
+  if (params.productId) itemsConditions.push({ productId: params.productId });
+  if (params.categoryId)
+    itemsConditions.push({
+      product: { categories: { some: { categoryId: params.categoryId } } },
+    });
+  if (itemsConditions.length === 1) where.items = { some: itemsConditions[0] };
+  if (itemsConditions.length > 1)
+    where.items = { some: { AND: itemsConditions } };
+
+  const addressConditions: Record<string, unknown>[] = [];
+  if (params.department)
+    addressConditions.push({
+      shippingAddress: { path: ["department"], equals: params.department },
+    });
+  if (params.province)
+    addressConditions.push({
+      shippingAddress: { path: ["province"], equals: params.province },
+    });
+  if (params.district)
+    addressConditions.push({
+      shippingAddress: { path: ["district"], equals: params.district },
+    });
+  if (addressConditions.length === 1) Object.assign(where, addressConditions[0]);
+  if (addressConditions.length > 1) where.AND = addressConditions;
+
+  if (params.q) {
+    where.OR = [
+      { customerName: { contains: params.q, mode: "insensitive" } },
+      { customerEmail: { contains: params.q, mode: "insensitive" } },
+      { customerPhone: { contains: params.q, mode: "insensitive" } },
+    ];
+  }
+
+  if (params.montoMin || params.montoMax) {
+    const total: Record<string, number> = {};
+    if (params.montoMin) total.gte = parseFloat(params.montoMin);
+    if (params.montoMax) total.lte = parseFloat(params.montoMax);
+    where.total = total;
+  }
 
   // Obtener órdenes
   const orders = await prisma.order.findMany({
@@ -33,7 +107,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     orderBy: {
       createdAt: "desc",
     },
-    take: 50,
+    take: 200,
   });
 
   // Obtener totales para los filtros
@@ -43,8 +117,14 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     prisma.order.count({ where: { paymentStatus: "PAID" } }),
   ]);
 
+  const categories = await prisma.category.findMany({
+    where: { active: true },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: any; label: string }> = {
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
       PENDING: { variant: "secondary", label: "Pendiente" },
       PAID: { variant: "default", label: "Pagado" },
       PROCESSING: { variant: "default", label: "Procesando" },
@@ -53,7 +133,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
       CANCELLED: { variant: "destructive", label: "Cancelado" },
       REFUNDED: { variant: "destructive", label: "Reembolsado" },
     };
-    return variants[status] || { variant: "secondary", label: status };
+    return variants[status] || { variant: "secondary" as const, label: status };
   };
 
   const getPaymentBadge = (paymentStatus: string) => {
@@ -77,6 +157,10 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     };
   };
 
+  const currentPayment = Array.isArray(params.payment)
+    ? params.payment[0]
+    : params.payment;
+
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
@@ -89,11 +173,14 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
         </div>
       </div>
 
+      {/* Advanced Filters + Export */}
+      <OrderFiltersPanel categories={categories} />
+
       {/* Filter Tabs - Horizontal scroll en móvil */}
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         <Link href="/admin/ordenes">
-          <Button 
-            variant={!payment ? "default" : "outline"} 
+          <Button
+            variant={!currentPayment ? "default" : "outline"}
             size="sm"
             className="whitespace-nowrap"
           >
@@ -101,8 +188,8 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
           </Button>
         </Link>
         <Link href="/admin/ordenes?payment=PENDING">
-          <Button 
-            variant={payment === "PENDING" ? "default" : "outline"} 
+          <Button
+            variant={currentPayment === "PENDING" ? "default" : "outline"}
             size="sm"
             className="whitespace-nowrap"
           >
@@ -110,8 +197,8 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
           </Button>
         </Link>
         <Link href="/admin/ordenes?payment=PAID">
-          <Button 
-            variant={payment === "PAID" ? "default" : "outline"} 
+          <Button
+            variant={currentPayment === "PAID" ? "default" : "outline"}
             size="sm"
             className="whitespace-nowrap"
           >
@@ -149,15 +236,20 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                           href={`/admin/ordenes/${order.id}`}
                           className="font-semibold hover:underline text-sm sm:text-base"
                         >
-                          {(order as any).orderSeq
-                            ? formatOrderNumber((order as any).orderSeq, orderPrefix)
+                          {order.orderSeq
+                            ? formatOrderNumber(order.orderSeq, orderPrefix)
                             : `#${order.orderNumber.slice(-8).toUpperCase()}`}
                         </Link>
                         <div className="flex flex-wrap gap-2">
-                          <span className={`rounded-full px-2 py-1 text-xs ${paymentBadge.color}`}>
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs ${paymentBadge.color}`}
+                          >
                             {paymentBadge.label}
                           </span>
-                          <Badge variant={statusBadge.variant as any} className="text-xs">
+                          <Badge
+                            variant={statusBadge.variant}
+                            className="text-xs"
+                          >
                             {statusBadge.label}
                           </Badge>
                         </div>
@@ -171,7 +263,8 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                         <span className="break-all">{order.customerEmail}</span>
                         <span className="hidden sm:inline"> • </span>
                         <br className="sm:hidden" />
-                        {order.items.length} {order.items.length === 1 ? "producto" : "productos"}
+                        {order.items.length}{" "}
+                        {order.items.length === 1 ? "producto" : "productos"}
                       </div>
 
                       {/* Fecha y método de pago */}

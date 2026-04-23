@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Edit, Eye } from "lucide-react";
+import { Plus, Search, Edit, Eye, Upload, Download } from "lucide-react";
 import DeleteProductButton from "@/components/admin/DeleteProductButton";
 
 import { hasPermissions } from "@/lib/permissions";
@@ -96,12 +96,26 @@ export default async function ProductsAdminPage({
         </div>
         {/* ⭐ CAMBIO: Solo mostrar si tiene permiso para crear */}
         {canCreate && (
-          <Button asChild className="w-full sm:w-auto">
-            <Link href="/admin/productos/nuevo">
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Producto
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/productos/importar">
+                <Upload className="mr-2 h-4 w-4" />
+                Importar
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/productos/exportar">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar
+              </Link>
+            </Button>
+            <Button asChild className="w-full sm:w-auto">
+              <Link href="/admin/productos/nuevo">
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo Producto
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
 

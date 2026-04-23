@@ -88,6 +88,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     codFormSettings: DEFAULT_COD_FORM_SETTINGS as CodFormSettings,
     metaTitle: "",
     metaDescription: "",
+    weight: "",
   });
 
   // 🆕 Estado para opciones con swatches
@@ -225,6 +226,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
           ? parseFloat(formData.compareAtPrice)
           : null,
         stock: formData.hasVariants ? 0 : parseInt(formData.stock),
+        weight: formData.weight ? parseFloat(formData.weight) : null,
         hasVariants: formData.hasVariants,
         options: formData.hasVariants ? options : [],
         variants: formData.hasVariants
@@ -459,6 +461,23 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="weight">Peso (kg)</Label>
+                    <Input
+                      id="weight"
+                      name="weight"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Usado para calcular tarifas de envío por peso
+                    </p>
                   </div>
                 </CardContent>
               </Card>

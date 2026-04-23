@@ -100,6 +100,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
     codFormSettings: normalizeCodFormSettings((product as any).codFormSettings as CodFormSettings),
     metaTitle: product.metaTitle || "",
     metaDescription: product.metaDescription || "",
+    weight: product.weight?.toString() || "",
   });
 
   const [options, setOptions] = useState<ProductOption[]>([]);
@@ -305,6 +306,7 @@ export default function EditProductForm({ product, categories }: EditProductForm
           ? parseFloat(formData.compareAtPrice)
           : null,
         stock: formData.hasVariants ? 0 : parseInt(formData.stock),
+        weight: formData.weight ? parseFloat(formData.weight) : null,
         hasVariants: formData.hasVariants,
         categoryId: selectedCategoryId || null,
         options: formData.hasVariants ? options : [],
@@ -534,6 +536,23 @@ export default function EditProductForm({ product, categories }: EditProductForm
                         required
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="weight">Peso (kg)</Label>
+                    <Input
+                      id="weight"
+                      name="weight"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Usado para calcular tarifas de envío por peso
+                    </p>
                   </div>
                 </CardContent>
               </Card>
