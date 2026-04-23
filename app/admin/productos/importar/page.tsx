@@ -54,44 +54,49 @@ export default function ImportProductsPage() {
 
     setIsProcessing(true);
 
-    const text = await file.text();
-    const parsed = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: true });
+    try {
+      const text = await file.text();
+      const parsed = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: true });
 
-    let productMap: Map<string, any>;
-    const rowErrors: ParsedProduct[] = [];
+      let productMap: Map<string, any>;
+      const rowErrors: ParsedProduct[] = [];
 
-    if (format === "generic") {
-      const rows = parsed.data as unknown as GenericProductRow[];
-      rows.forEach((row, i) => {
-        const err = validateGenericRow(row, i);
-        if (err) rowErrors.push({ slug: row.slug || `fila-${i+1}`, name: row.nombre || "", status: "error", errorMessage: err, input: null });
-      });
-      const validRows = rows.filter((_, i) => !validateGenericRow(_, i));
-      productMap = genericRowsToProductInputs(validRows);
-    } else {
-      const rows = parsed.data as unknown as ShopifyProductRow[];
-      rows.forEach((row, i) => {
-        const err = validateShopifyRow(row, i);
-        if (err) rowErrors.push({ slug: row.Handle || `fila-${i+1}`, name: row.Title || "", status: "error", errorMessage: err, input: null });
-      });
-      const validRows = rows.filter((_, i) => !validateShopifyRow(_, i));
-      productMap = shopifyRowsToProductInputs(validRows);
+      if (format === "generic") {
+        const rows = parsed.data as unknown as GenericProductRow[];
+        rows.forEach((row, i) => {
+          const err = validateGenericRow(row, i);
+          if (err) rowErrors.push({ slug: row.slug || `fila-${i+1}`, name: row.nombre || "", status: "error", errorMessage: err, input: null });
+        });
+        const validRows = rows.filter((_, i) => !validateGenericRow(_, i));
+        productMap = genericRowsToProductInputs(validRows);
+      } else {
+        const rows = parsed.data as unknown as ShopifyProductRow[];
+        rows.forEach((row, i) => {
+          const err = validateShopifyRow(row, i);
+          if (err) rowErrors.push({ slug: row.Handle || `fila-${i+1}`, name: row.Title || "", status: "error", errorMessage: err, input: null });
+        });
+        const validRows = rows.filter((_, i) => !validateShopifyRow(_, i));
+        productMap = shopifyRowsToProductInputs(validRows);
+      }
+
+      const slugs = [...productMap.keys()];
+      const existingSlugs = await checkExistingSlugs(slugs);
+      const existingSet = new Set(existingSlugs);
+
+      const products: ParsedProduct[] = [...productMap.entries()].map(([slug, input]) => ({
+        slug,
+        name: input.name,
+        status: existingSet.has(slug) ? "update" : "create",
+        input,
+      }));
+
+      setParsedProducts([...products, ...rowErrors]);
+      setStep(2);
+    } catch {
+      alert("Error al procesar el archivo. Verifica que sea un CSV válido.");
+    } finally {
+      setIsProcessing(false);
     }
-
-    const slugs = [...productMap.keys()];
-    const existingSlugs = await checkExistingSlugs(slugs);
-    const existingSet = new Set(existingSlugs);
-
-    const products: ParsedProduct[] = [...productMap.entries()].map(([slug, input]) => ({
-      slug,
-      name: input.name,
-      status: existingSet.has(slug) ? "update" : "create",
-      input,
-    }));
-
-    setParsedProducts([...products, ...rowErrors]);
-    setIsProcessing(false);
-    setStep(2);
   }
 
   async function handleImport() {
@@ -102,18 +107,22 @@ export default function ImportProductsPage() {
     const inputs = validProducts.map((p) => p.input);
     const totalResult = { created: 0, updated: 0, errors: [] as any[] };
 
-    for (let i = 0; i < inputs.length; i += BATCH_SIZE) {
-      const batch = inputs.slice(i, i + BATCH_SIZE);
-      const batchResult = await importProductsBatch(batch);
-      totalResult.created += batchResult.created;
-      totalResult.updated += batchResult.updated;
-      totalResult.errors.push(...batchResult.errors);
-      setProgress(Math.round(((i + batch.length) / inputs.length) * 100));
+    try {
+      for (let i = 0; i < inputs.length; i += BATCH_SIZE) {
+        const batch = inputs.slice(i, i + BATCH_SIZE);
+        const batchResult = await importProductsBatch(batch);
+        totalResult.created += batchResult.created;
+        totalResult.updated += batchResult.updated;
+        totalResult.errors.push(...batchResult.errors);
+        setProgress(Math.round(((i + batch.length) / inputs.length) * 100));
+      }
+    } catch {
+      totalResult.errors.push({ slug: "—", message: "Error de conexión durante el import" });
+    } finally {
+      setResult(totalResult);
+      setIsProcessing(false);
+      setStep(4);
     }
-
-    setResult(totalResult);
-    setIsProcessing(false);
-    setStep(4);
   }
 
   function downloadErrorCsv() {
