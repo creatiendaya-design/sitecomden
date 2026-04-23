@@ -126,7 +126,7 @@ export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<strin
         active: row.Published?.toUpperCase() === "TRUE",
         featured: false,
         igvType: "GRAVADO" as any,
-        metaTitle: row["SEO Title"] || null,
+        metaTitle: row["SEO Title"] || row.Title || null,
         metaDescription: row["SEO Description"] || null,
         categorySlug: null,
         imageUrls: row["Image Src"] ? [row["Image Src"]] : [],
