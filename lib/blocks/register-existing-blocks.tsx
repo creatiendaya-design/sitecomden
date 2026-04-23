@@ -15,13 +15,13 @@ const VideoBlock = dynamic(() => import("@/components/shop/templates/blocks/Vide
 const ColorsBlock = dynamic(() => import("@/components/shop/templates/blocks/ColorsBlock"))
 const TickerBlock = dynamic(() => import("@/components/shop/templates/blocks/TickerBlock"))
 
-import { StubContentForm } from "@/components/admin/page-builder/forms/StubContentForm"
-
-function stubForm(blockType: string) {
-  return function Stub(props: { content: any; onChange: (c: any) => void }) {
-    return <StubContentForm blockType={blockType} content={props.content} onChange={props.onChange} />
-  }
-}
+import { HeroContentForm } from "@/components/admin/page-builder/forms/adapters/HeroContentForm"
+import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapters/BenefitsContentForm"
+import { GalleryContentForm } from "@/components/admin/page-builder/forms/adapters/GalleryContentForm"
+import { TestimonialsContentForm } from "@/components/admin/page-builder/forms/adapters/TestimonialsContentForm"
+import { VideoContentForm } from "@/components/admin/page-builder/forms/adapters/VideoContentForm"
+import { ColorsContentForm } from "@/components/admin/page-builder/forms/adapters/ColorsContentForm"
+import { TickerContentForm } from "@/components/admin/page-builder/forms/adapters/TickerContentForm"
 
 const existing: BlockDefinition[] = [
   {
@@ -34,7 +34,7 @@ const existing: BlockDefinition[] = [
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.HERO,
     renderer: HeroBlock as any,
-    contentForm: stubForm("HERO") as any,
+    contentForm: HeroContentForm as any,
   },
   {
     type: "BENEFITS",
@@ -46,7 +46,7 @@ const existing: BlockDefinition[] = [
     category: "visual",
     defaultContent: DEFAULT_CONTENT_V2.BENEFITS,
     renderer: BenefitsBlock as any,
-    contentForm: stubForm("BENEFITS") as any,
+    contentForm: BenefitsContentForm as any,
   },
   {
     type: "GALLERY",
@@ -58,7 +58,7 @@ const existing: BlockDefinition[] = [
     category: "media",
     defaultContent: DEFAULT_CONTENT_V2.GALLERY,
     renderer: GalleryBlock as any,
-    contentForm: stubForm("GALLERY") as any,
+    contentForm: GalleryContentForm as any,
   },
   {
     type: "TESTIMONIALS",
@@ -70,7 +70,7 @@ const existing: BlockDefinition[] = [
     category: "social-proof",
     defaultContent: DEFAULT_CONTENT_V2.TESTIMONIALS,
     renderer: TestimonialsBlock as any,
-    contentForm: stubForm("TESTIMONIALS") as any,
+    contentForm: TestimonialsContentForm as any,
   },
   {
     type: "VIDEO",
@@ -82,7 +82,7 @@ const existing: BlockDefinition[] = [
     category: "media",
     defaultContent: DEFAULT_CONTENT_V2.VIDEO,
     renderer: VideoBlock as any,
-    contentForm: stubForm("VIDEO") as any,
+    contentForm: VideoContentForm as any,
   },
   {
     type: "COLORS",
@@ -94,7 +94,7 @@ const existing: BlockDefinition[] = [
     category: "visual",
     defaultContent: DEFAULT_CONTENT_V2.COLORS,
     renderer: ColorsBlock as any,
-    contentForm: stubForm("COLORS") as any,
+    contentForm: ColorsContentForm as any,
   },
   {
     type: "TICKER",
@@ -106,7 +106,7 @@ const existing: BlockDefinition[] = [
     category: "visual",
     defaultContent: DEFAULT_CONTENT_V2.TICKER,
     renderer: TickerBlock as any,
-    contentForm: stubForm("TICKER") as any,
+    contentForm: TickerContentForm as any,
   },
 ]
 
