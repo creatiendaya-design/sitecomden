@@ -9,6 +9,7 @@ import { RightSidebar } from "./RightSidebar/RightSidebar"
 import { registerExistingBlocks } from "@/lib/blocks/register-existing-blocks"
 import type { PageBuilderProps } from "./types"
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts"
+import { useUrlSelection } from "./hooks/useUrlSelection"
 
 export function PageBuilder({
   blocks: initialBlocks,
@@ -41,6 +42,7 @@ export function PageBuilder({
   }, [blocks])
 
   useKeyboardShortcuts()
+  useUrlSelection()
 
   return (
     <div className="h-screen flex flex-col bg-muted/20">
