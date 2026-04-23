@@ -1,65 +1,47 @@
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"
 
-import { prisma } from "@/lib/db";
-import { notFound } from "next/navigation";
-import EditProductForm from "@/components/admin/EditProductForm";
+import { prisma } from "@/lib/db"
+import { notFound } from "next/navigation"
+import EditProductForm from "@/components/admin/EditProductForm"
+import { ProductLandingBuilder } from "@/components/admin/ProductLandingBuilder"
+import { isPageBuilderV2Enabled } from "@/lib/blocks/feature-flag"
+import type { BlockInstance, BlockContentV2 } from "@/lib/blocks/types"
 
 interface EditProductPageProps {
   params: Promise<{
-    productId: string;
-  }>;
+    productId: string
+  }>
+  searchParams?: Promise<{ tab?: string }>
 }
 
-export default async function EditProductPage({ params }: EditProductPageProps) {
-  const { productId } = await params;
+export default async function EditProductPage({ params, searchParams }: EditProductPageProps) {
+  const { productId } = await params
+  const sp = (await searchParams) ?? {}
+  const flagOn = await isPageBuilderV2Enabled()
 
-  // Obtener producto con todas sus relaciones
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: {
-      categories: {
-        include: {
-          category: true,
-        },
-      },
-      variants: {
-        orderBy: { createdAt: "asc" },
-      },
+      categories: { include: { category: true } },
+      variants: { orderBy: { createdAt: "asc" } },
       options: {
-        include: {
-          values: {
-            orderBy: { position: "asc" },
-          },
-        },
+        include: { values: { orderBy: { position: "asc" } } },
         orderBy: { position: "asc" },
       },
-      landingBlocks: {
-        orderBy: { position: "asc" },
-      },
+      landingBlocks: { orderBy: { position: "asc" } },
     },
-  });
+  })
 
-  if (!product) {
-    notFound();
-  }
+  if (!product) notFound()
 
-  // Obtener categorías activas
   const categories = await prisma.category.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
+    select: { id: true, name: true },
+  })
 
-  // ✅ Serializar categorías (igual que en NewProductPage)
-  const serializedCategories = categories.map(cat => ({
-    id: cat.id,
-    name: cat.name,
-  }));
+  const serializedCategories = categories.map((c) => ({ id: c.id, name: c.name }))
 
-  // Serializar datos para el cliente
   const serializedProduct = {
     ...product,
     basePrice: Number(product.basePrice),
@@ -71,7 +53,31 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
       compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
       weight: v.weight ? Number(v.weight) : null,
     })),
-  };
+  }
 
-  return <EditProductForm product={serializedProduct} categories={serializedCategories} />;
+  // When the v2 flag is ON AND the admin opened the landing tab, render the
+  // full-screen builder instead of the form-based editor.
+  if (flagOn && sp.tab === "landing") {
+    const blocks: BlockInstance[] = product.landingBlocks.map((b) => ({
+      id: b.id,
+      type: b.type,
+      position: b.position,
+      content: b.content as unknown as BlockContentV2,
+      sourceTemplateBlockId: b.sourceTemplateBlockId,
+      detached: b.detached,
+    }))
+
+    return (
+      <ProductLandingBuilder
+        product={{ id: product.id, slug: product.slug, name: product.name }}
+        initialBlocks={blocks}
+      />
+    )
+  }
+
+  return <EditProductForm
+    product={serializedProduct}
+    categories={serializedCategories}
+    showLegacyLandingEditor={!flagOn}
+  />
 }
