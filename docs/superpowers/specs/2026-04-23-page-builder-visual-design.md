@@ -204,7 +204,119 @@ If product.landingTemplateId != null:
 
 A background maintenance job can rebalance positions periodically (converting float sequences back to whole integers 0, 1, 2, …) to avoid float precision drift — this is orthogonal to rendering and optional.
 
-### 2.5 Data migration of existing blocks
+### 2.5 Storefront rendering performance strategy
+
+The sync model requires resolving template + overrides per-request, which naively would trigger 4-5 DB queries per storefront visit. This section defines how to keep the storefront fast under load.
+
+**Layer 1 — Batched queries with Prisma `include`:**
+
+Collapse the 5 logical queries into one SQL round-trip with JOINs:
+
+```typescript
+const product = await prisma.product.findUnique({
+  where: { slug, active: true },
+  include: {
+    categories: { include: { category: true } },
+    variants: { where: { active: true }, orderBy: { price: "asc" } },
+    options: { include: { values: { orderBy: { position: "asc" } } }, orderBy: { position: "asc" } },
+    landingBlocks: { orderBy: { position: "asc" } },
+    landingTemplate: {
+      include: {
+        templateBlocks: { orderBy: { position: "asc" } }
+      }
+    }
+  }
+})
+```
+
+One query with joins instead of five sequential round-trips.
+
+**Layer 2 — Next.js `unstable_cache` with tag-based invalidation:**
+
+Wrap the fetcher in `unstable_cache` so repeated visits are served from memory:
+
+```typescript
+import { unstable_cache } from "next/cache"
+
+const getProductForStorefront = unstable_cache(
+  async (slug: string) => {
+    return await prisma.product.findUnique({ where: { slug, active: true }, include: {...} })
+  },
+  ["storefront-product"],                    // cache key prefix
+  {
+    revalidate: 300,                          // max staleness: 5 minutes
+    tags: (slug) => [`product:${slug}`]       // static tags based on slug
+  }
+)
+```
+
+Additional tag for the template is applied after the first fetch (since `templateId` is not known upfront):
+
+```typescript
+// After fetch, re-tag with template if present
+if (product.landingTemplateId) {
+  // wrap the inner fetch with an additional tag
+  // using unstable_cache's dynamic key pattern
+}
+```
+
+An alternative and cleaner approach is to split into two cached functions:
+1. `getProductCore(slug)` — tagged `product:${slug}`
+2. `getTemplateBlocks(templateId)` — tagged `template:${templateId}`
+
+Compose at render time. Each has independent cache lifecycle.
+
+**Layer 3 — Targeted invalidation on mutations:**
+
+Every Server Action that mutates products or templates calls `revalidateTag`:
+
+| Mutation | Invalidation |
+|---|---|
+| Update product field | `revalidateTag('product:${slug}')` |
+| Edit/add/delete a product LandingBlock | `revalidateTag('product:${slug}')` |
+| Template "Guardar y propagar" | `revalidateTag('template:${templateId}')` → all linked products invalidated transitively via their template tag dependency |
+| Apply template to product | `revalidateTag('product:${slug}')` |
+| Unlink template from product | `revalidateTag('product:${slug}')` |
+| Delete template | `revalidateTag('template:${templateId}')` + loop linked products with `revalidateTag('product:${slug}')` for each |
+
+**Layer 4 — Optional ISR for top products:**
+
+Top N products (by sales or manual curation) can be statically generated:
+
+```typescript
+// app/(shop)/productos/[slug]/page.tsx
+export async function generateStaticParams() {
+  const topProducts = await prisma.product.findMany({
+    where: { active: true },
+    orderBy: { /* ... */ },
+    take: 100,
+    select: { slug: true }
+  })
+  return topProducts.map(p => ({ slug: p.slug }))
+}
+
+export const revalidate = 300
+```
+
+These are served from the edge/CDN, <20ms globally. Revalidation still triggered by the tag system above.
+
+**Expected impact (estimation for 50k daily storefront visits, 10k products):**
+
+| Metric | Without cache | With 5-min cache |
+|---|---|---|
+| DB queries per day | ~250,000 | ~3,000 |
+| Reduction | — | ~98.8% |
+| P50 latency per visit | 80-150ms | 5-10ms (cache hit) |
+| Freshness after admin edit | Immediate | Immediate (tag invalidates on save) |
+
+**What this means for the v1 implementation:**
+
+- All storefront data fetching for product pages MUST go through `unstable_cache` with appropriate tags
+- All Server Actions that mutate landing data MUST call `revalidateTag` for the affected product(s) or template(s)
+- Admin pages are already `force-dynamic` (recent commits) and intentionally NOT cached — this stays unchanged
+- Implementation effort for this performance layer: ~2-3 days bundled into Phase 0/1, NOT additional to the 9-10 week estimate
+
+### 2.6 Data migration of existing blocks
 
 Script `scripts/migrate-landing-blocks-to-v2.ts`:
 
@@ -384,32 +496,66 @@ The renderers do not know they are in edit mode. Interaction (click, hover, outl
 
 ### 4.2 Floating toolbar
 
-Appears on hover or selection:
+Appears on hover or selection. Compact layout with frequent actions as icons and secondary actions under an overflow menu:
 
 ```
-┌─────────────────────────────────────────────────┐
-│  ⋮⋮   ↑    ↓    📋    👁    🗑                  │
-│  grip  move up/down  duplicate  visibility  delete │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  ⋮⋮    ↑    ↓                    ⋯     │
+└─────────────────────────────────────────┘
 ```
+
+**Visible icons (frequent, fast access):**
 
 - **Grip handle (⋮⋮)** — cursor becomes `grab`/`grabbing`. Primary drag handle for reordering.
 - **↑ / ↓** — move block one position (alternative to drag, useful on tablet)
+- **⋯** — overflow menu with secondary actions (see below)
+
+**Overflow menu (⋯) — opens on click:**
+
+```
+┌──────────────────────────────────────┐
+│  📋  Duplicar              Ctrl+D    │
+│  👁  Visibilidad             ►       │  (submenu)
+│  ──────────────────────              │
+│  🔗  Copiar enlace al bloque         │
+│  ✏️  Ver propiedades avanzadas       │
+│  ──────────────────────              │
+│  🗑  Eliminar                 Del    │  (destructive, red)
+└──────────────────────────────────────┘
+```
+
+**Visibility submenu:**
+
+```
+┌──────────────────────────────────────┐
+│  ● Siempre visible                   │
+│  ○ Solo mobile                       │
+│  ○ Solo desktop                      │
+└──────────────────────────────────────┘
+```
+
+**Action details:**
+
 - **📋 Duplicate** — clones block below original
-- **👁 Visibility** — quick toggle Always / Mobile-only / Desktop-only
-- **🗑 Delete** — inline confirmation (no modal)
+- **👁 Visibility** — Always / Mobile-only / Desktop-only (also available in Style tab)
+- **🔗 Copiar enlace al bloque** — copies `/admin/productos/[id]#block=<blockId>` to clipboard for sharing
+- **✏️ Ver propiedades avanzadas** — focuses right panel "Advanced" tab
+- **🗑 Delete** — inline confirmation, no modal
 
 **Toolbar behavior by block sync state:**
 
-| Action | 🔗 Inherited | ✏️ Detached | 📦 Pure local |
+| Icon/menu action | 🔗 Inherited | ✏️ Detached | 📦 Pure local |
 |---|---|---|---|
-| Grip/drag reorder | ❌ disabled | ✅ enabled | ✅ enabled |
+| Grip (⋮⋮) | ❌ disabled | ✅ enabled | ✅ enabled |
 | ↑ / ↓ | ❌ disabled | ✅ enabled | ✅ enabled |
 | 📋 Duplicate | ✅ (creates pure local copy) | ✅ (creates pure local copy) | ✅ |
 | 👁 Visibility | ⚠️ clicking triggers detach confirmation first | ✅ | ✅ |
+| 🔗 Copy link | ✅ | ✅ | ✅ |
+| ✏️ Advanced | ✅ (read-only) | ✅ | ✅ |
 | 🗑 Delete | ❌ disabled (must edit template) | ✅ (prompts "esto eliminará el override, ¿restaurar al template?") | ✅ |
+| ↺ Restore to template | — | ✅ (appears above Delete in menu) | — |
 
-Disabled controls are rendered grayed with a tooltip explaining why ("Para editar un bloque heredado, desvincúlalo primero o edita la plantilla").
+Disabled items in the overflow menu are rendered grayed with a tooltip explaining why ("Para editar un bloque heredado, desvincúlalo primero o edita la plantilla"). Visible toolbar icons that are disabled appear dimmed.
 
 ### 4.3 Click behaviors
 
@@ -647,11 +793,18 @@ Two editors, two different save models — this is intentional:
 | **Template editor** | **Explicit save only** — no autosave | Changes propagate to N linked products. Must be deliberate and atomic. |
 
 In the template editor:
-- All edits are held in the Zustand store as a draft
-- A "Guardar y propagar" button in the topbar persists the changes transactionally
+- All edits across ALL blocks are held in the Zustand store as a single draft
+- A "Guardar y propagar" button in the topbar persists the entire draft in ONE atomic DB transaction (partial saves not possible — either all edits persist or none do)
 - Navigating away with unsaved changes triggers `beforeunload` prompt
-- The draft is NOT persisted to the DB until the user confirms save
-- If the user closes the tab, changes are lost (no draft-in-DB for templates in v1)
+
+**Draft-loss protection (mandatory for v1):**
+
+1. **Persistent pending-changes counter** in topbar: badge "3 cambios pendientes" that increments with every edit. Clicking it shows a live diff of all pending changes vs. the last persisted template state.
+2. **Draft auto-backup to localStorage** every 5 seconds. Key: `template-draft-<templateId>-<userId>`. On opening the template editor, if a backup newer than the persisted state is found, user is prompted: "Recuperar cambios no guardados de tu sesión anterior? [Sí] [Descartar]".
+3. **Discard confirmation:** clicking "Descartar cambios" requires a confirmation modal ("Se perderán N cambios. ¿Continuar?").
+4. **BeforeUnload warning:** native browser warning if navigating away with pending changes.
+
+With these safeguards, the user cannot lose work by accident regardless of how many blocks they edit across a session.
 
 ### 6.2 Template library — new admin routes
 
@@ -696,16 +849,16 @@ Filter bar: Active/Inactive/All, Category dropdown, Search input.
 3. Redirect to `/admin/landing-plantillas/[id]` — empty `PageBuilder` with `scope="page"`
 4. Product-specific blocks (`RELATED_PRODUCTS`) are NOT available in this context
 
-**Flow B: Save product landing as template**
+**Flow B: Save product landing as template (Shopify-style auto-link)**
 
 Inside product builder, `⋯` menu → "Guardar como plantilla..." opens modal:
 
 ```
 Save as template
 ─────────────────
-⚠ This creates a copy of the current landing in the library.
-  The product will NOT be linked to the new template unless
-  you explicitly apply it afterward.
+⚠ Al guardar, este producto quedará VINCULADO a la nueva
+  plantilla. Los cambios futuros a la plantilla se aplicarán
+  automáticamente a este producto (comportamiento Shopify).
 
 Name: [ ... ]
 Description: [ ... ]
@@ -713,33 +866,54 @@ Category: [Electrónica ▼]
 
 Blocks to save: 6
 
-[Cancel]  [Save template]
+[Cancel]  [Guardar y vincular]
 ```
 
-Server Action `saveAsTemplate(productId, metadata)`: reads product's blocks, creates `LandingTemplate` + `TemplateBlock[]`, copying `content` as-is. Does not modify the product.
+Server Action `saveAsTemplate(productId, metadata)` runs in a single transaction:
 
-### 6.6 Apply template to a product
+1. Reads product's `LandingBlock[]`
+2. Creates `LandingTemplate` + copies each block as `TemplateBlock` with identical `content` and `position`
+3. Sets `Product.landingTemplateId = <newTemplateId>`
+4. Deletes the product's original `LandingBlock` rows (they are now served from the template via the resolver in 2.4)
 
-`⋯` menu → "Aplicar plantilla..." opens modal with template gallery + linkage confirmation:
+Result: the product continues rendering identically, but its blocks are now all 🔗 inherited. Editing the template later propagates to this product automatically.
+
+If the admin does NOT want auto-linking, they can unlink immediately via `⋯` → "Desvincular plantilla" (which re-creates the blocks as local copies — see 6.10).
+
+### 6.6 Apply template to a product (Shopify-style full replacement)
+
+`⋯` menu → "Aplicar plantilla..." opens modal with template gallery. Clicking "Usar" on a template opens confirmation:
 
 ```
-⚠ El producto se VINCULARÁ a esta plantilla.
-  Los cambios futuros a la plantilla afectarán automáticamente
-  a este producto (excepto en bloques editados localmente).
-
-[Cancel]  [Vincular con plantilla]
+┌────────────────────────────────────────────┐
+│  Aplicar plantilla: Template Auriculares   │
+├────────────────────────────────────────────┤
+│  Se REEMPLAZARÁN los 3 bloques actuales    │
+│  del producto por los 6 bloques de la      │
+│  plantilla. El producto quedará VINCULADO  │
+│  y los cambios futuros a la plantilla se   │
+│  aplicarán automáticamente.                │
+│                                            │
+│  ⚠ Los 3 bloques locales actuales se       │
+│    perderán. Esta acción no se puede       │
+│    deshacer.                               │
+│                                            │
+│  [Cancelar]    [Reemplazar y vincular]     │
+└────────────────────────────────────────────┘
 ```
 
-If product has pre-existing local blocks, an extra modal appears:
+Server Action `applyTemplate(productId, templateId)` runs atomically:
 
-```
-Este producto tiene 3 bloques locales. ¿Qué hacer?
+1. Delete all existing `LandingBlock` rows for the product (including any previous detached overrides)
+2. Set `Product.landingTemplateId = templateId`
 
-● Descartarlos (solo los de la plantilla quedan)
-○ Mantenerlos (se intercalarán con los de la plantilla)
-```
+No interleave option. No merge logic. Applying a template always replaces everything — this matches Shopify's mental model and removes ambiguity.
 
-Server Action `applyTemplate(productId, templateId, mode)` runs in a transaction.
+If the admin wants to keep some of the current blocks, they should:
+- Apply the template first
+- Then add them again as pure local blocks after
+
+This is a deliberate design choice: keep the apply action simple and predictable at the cost of one extra step for the rare interleave use case.
 
 ### 6.7 Visual state of blocks in product builder
 
@@ -1013,24 +1187,45 @@ Phase 4 — Templates with sync (3 weeks)
 ├─ Thumbnail generation (with manual fallback)
 └─ Seed script for example templates
 
-Phase 5 — Cleanup (3-4 days)
+Phase 5 — E2E test suite with Playwright (1 week)
+├─ Set up Playwright in the project (first automated tests in codebase)
+├─ Core happy-path flows:
+│   ├─ Create product landing with 5 blocks, save, verify storefront render
+│   ├─ Apply template to product, edit a block locally, verify sync state
+│   ├─ Edit template, propagate changes, verify product reflects update
+│   ├─ Device toggle preview matches overrides
+│   └─ Block reorder via drag persists correctly
+├─ Regression coverage:
+│   ├─ Old form-editor still functional when flag OFF
+│   └─ Storefront renders both legacy and v2 block shapes identically
+├─ CI integration: run on every PR to master
+└─ Documented in docs/guides/testing-page-builder.md
+
+Phase 6 — Cleanup and release (3-4 days)
 ├─ Remove old form-based editor
 ├─ Remove backward-compatible reader path
-├─ Remove feature flag
+├─ Remove feature flag (after 2-4 weeks of production stability)
 ├─ Admin user guide
 └─ Final QA regression
 ```
 
-**Total estimate: ~9-10 weeks (single developer).**
+**Total estimate: ~10-11 weeks (single developer, including E2E suite).**
 
 ### 8.2 Feature flag and rollout
 
 `LANDING_BUILDER_V2` lives in `Setting` table (via existing `lib/site-settings.ts`).
 
-- **Flag OFF (default):** old form-based editor. Production unaffected.
-- **Flag ON:** new visual builder active.
+- **Flag OFF (default during development):** old form-based editor. Production unaffected.
+- **Flag ON (activated for all admins from day one of release):** new visual builder active for all admin users without per-user gating.
 
-Storefront never uses the flag — `LandingBlockRenderer` is backward-compatible with both content shapes during Phase 0-4.
+**Rollout decision:** the flag is intended as a rollback lever (can be flipped OFF instantly if a critical issue is found in production), NOT as a gradual per-user rollout. When the release is green-lit after Phase 5 QA, the flag is flipped ON globally for all admins in a single deploy.
+
+**Storefront never uses the flag** — `LandingBlockRenderer` is backward-compatible with both content shapes during Phase 0-4 and simplified to new-shape only in Phase 5.
+
+**Flag lifecycle:**
+- Phase 0-5: flag exists, defaults to OFF in non-production
+- Phase 5 release: flag flipped ON globally in production
+- Post-release (2-4 weeks stabilization): flag removed entirely, old editor code deleted
 
 ### 8.3 Data migration
 
@@ -1079,7 +1274,11 @@ Default role mappings:
 | Admin detaches a block by accident, regrets it | Medium | Low | "Restore to template" always visible in detached blocks |
 | Template deletion leaves products inconsistent | Low | Medium | `ON DELETE SET NULL` on `Product.landingTemplateId`; detached blocks become local automatically |
 
-### 8.6 QA plan (manual, per phase)
+### 8.6 QA plan (manual per phase, plus automated E2E in Phase 5)
+
+**Automated E2E (Phase 5):** Playwright suite covering happy paths and regression scenarios. Runs on every PR to master in CI. This is the first automated test infrastructure in the codebase — adds Playwright as a dev dependency and a `playwright.config.ts` at the repo root.
+
+**Manual QA per phase:**
 
 **Phase 0 — data migration smoke test:**
 - Dry-run in staging, verify N blocks migrate correctly
@@ -1150,13 +1349,16 @@ Default role mappings:
 
 | Area | Delivered |
 |---|---|
-| Editor | WYSIWYG, 3 panels, desktop/mobile toggle, autosave, drag & drop |
+| Editor | WYSIWYG, 3 panels, desktop/mobile toggle, autosave, drag & drop, overflow menu |
 | Blocks | 12 total: 7 existing migrated + 5 new |
 | Styling | Level 2 with opt-in per-device overrides |
-| Templates | Library with sync (block-level override model) |
+| Templates | Library with sync (block-level override model), Shopify-style auto-link and replace |
+| Performance | `unstable_cache` + tag invalidation (~98% DB query reduction on storefront) |
 | Schema | Additive, backward-compatible, idempotent migration |
 | Scope | Product landings only — foundation ready for Phase 2 (pages) |
-| Duration | ~9-10 weeks |
+| Testing | First Playwright E2E suite in the project, runs on every PR |
+| Rollout | Feature flag for rollback safety, flipped ON globally for all admins at release |
+| Duration | ~10-11 weeks |
 | New permissions | 5 slugs |
 
 ---
