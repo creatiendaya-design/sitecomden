@@ -1,4 +1,6 @@
 // app/admin/productos/page.tsx
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
