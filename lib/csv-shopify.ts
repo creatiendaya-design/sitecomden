@@ -99,7 +99,7 @@ export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<strin
         name: row.Title,
         description: row["Body (HTML)"] || null,
         shortDescription: null,
-        basePrice: parseFloat(row["Variant Price"]) || 0,
+        basePrice: (() => { const p = parseFloat(row["Variant Price"]); return Number.isFinite(p) ? p : 0; })(),
         compareAtPrice: row["Variant Compare At Price"] ? parseFloat(row["Variant Compare At Price"]) : null,
         weight: row["Variant Weight"] ? parseFloat(row["Variant Weight"]) : null,
         active: row.Published?.toUpperCase() === "TRUE",
@@ -121,11 +121,14 @@ export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<strin
       if (product._option1Name && row["Option1 Value"]) options[product._option1Name] = row["Option1 Value"];
       if (product._option2Name && row["Option2 Value"]) options[product._option2Name] = row["Option2 Value"];
 
+      const price = parseFloat(row["Variant Price"]);
+      const stock = parseInt(row["Variant Inventory Qty"], 10);
+
       product.variants.push({
         sku: row["Variant SKU"],
-        price: parseFloat(row["Variant Price"]) || product.basePrice,
-        stock: parseInt(row["Variant Inventory Qty"]) || 0,
-        options,
+        price: Number.isFinite(price) ? price : product.basePrice,
+        stock: Number.isFinite(stock) ? stock : 0,
+        options, // empty object {} is valid for single-option products
       });
     }
   }
