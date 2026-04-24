@@ -12,14 +12,21 @@ interface LandingBlockRendererProps {
   onCtaClick?: () => void;
 }
 
+// Detect sticky flag across both content shapes:
+//  - v1 flat: content.sticky
+//  - v2 zoned: content.data.sticky
+function isStickyTicker(b: LandingBlock): boolean {
+  if (b.type !== "TICKER") return false;
+  const c = b.content as Record<string, unknown>;
+  if (c?.sticky === true) return true;
+  const data = c?.data as Record<string, unknown> | undefined;
+  return data?.sticky === true;
+}
+
 export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBlockRendererProps) {
-  // Sticky tickers render outside normal flow, at the top
-  const stickyTickers = blocks.filter(
-    (b) => b.type === "TICKER" && (b.content as TickerBlockContent).sticky
-  );
-  const rest = blocks.filter(
-    (b) => !(b.type === "TICKER" && (b.content as TickerBlockContent).sticky)
-  );
+  // Sticky tickers render outside normal flow, at the top.
+  const stickyTickers = blocks.filter(isStickyTicker);
+  const rest = blocks.filter((b) => !isStickyTicker(b));
 
   return (
     <>
