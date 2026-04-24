@@ -5,7 +5,9 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import GalleryLightbox from "@/components/shop/GalleryLightbox";
 import type { GalleryBlockContent } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface GalleryBlockProps {
   content: GalleryBlockContent | unknown;
@@ -14,23 +16,29 @@ interface GalleryBlockProps {
 
 export default function GalleryBlock({ content: rawContent, onBuyClick }: GalleryBlockProps) {
   const content = readContent<GalleryBlockContent>(rawContent, "GALLERY");
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
   const { displayType, images, showBuyButton } = content;
   if (!images?.length) return null;
 
   if (displayType === "stacked") {
-    return <GalleryStacked images={images} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
+    return <GalleryStacked images={images} showBuyButton={showBuyButton} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
   }
-  return <GallerySlider images={images} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
+  return <GallerySlider images={images} showBuyButton={showBuyButton} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
 }
 
 function GallerySlider({
   images,
   showBuyButton,
   onBuyClick,
+  styleClass,
+  inlineStyle,
 }: {
   images: string[];
   showBuyButton: boolean;
   onBuyClick?: () => void;
+  styleClass?: string;
+  inlineStyle?: React.CSSProperties;
 }) {
   const [current, setCurrent] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -39,7 +47,7 @@ function GallerySlider({
   const next = useCallback(() => setCurrent((i) => (i + 1) % images.length), [images.length]);
 
   return (
-    <section className="landing-section py-12 @container">
+    <section className={cn("landing-section py-12 @container", styleClass)} style={inlineStyle}>
       <div className="container mx-auto px-4">
         {/* Main image */}
         <div className="relative aspect-[4/3] @md:aspect-video max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-lg mb-4">
@@ -113,15 +121,19 @@ function GalleryStacked({
   images,
   showBuyButton,
   onBuyClick,
+  styleClass,
+  inlineStyle,
 }: {
   images: string[];
   showBuyButton: boolean;
   onBuyClick?: () => void;
+  styleClass?: string;
+  inlineStyle?: React.CSSProperties;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
-    <section className="landing-section py-12 @container">
+    <section className={cn("landing-section py-12 @container", styleClass)} style={inlineStyle}>
       <div className="container mx-auto px-4">
         <div className="flex flex-col gap-4 max-w-2xl mx-auto">
           {images.map((img, i) => (

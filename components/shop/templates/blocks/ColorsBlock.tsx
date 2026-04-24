@@ -1,5 +1,7 @@
 import type { ColorsBlockContent } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface ColorsBlockProps {
   content: ColorsBlockContent | unknown;
@@ -7,6 +9,8 @@ interface ColorsBlockProps {
 
 export default function ColorsBlock({ content: rawContent }: ColorsBlockProps) {
   const content = readContent<ColorsBlockContent>(rawContent, "COLORS");
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
   const { primary, background, cta, text } = content;
 
   const cssVars: Record<string, string> = {};
@@ -16,7 +20,7 @@ export default function ColorsBlock({ content: rawContent }: ColorsBlockProps) {
   if (text)       cssVars["--landing-text"]       = text;
 
   return (
-    <div className="@container">
+    <div className={cn("@container", styleClass)} style={inlineStyle}>
     <style>{`
       .landing-product {
         ${primary    ? `--landing-primary: ${primary};` : ""}

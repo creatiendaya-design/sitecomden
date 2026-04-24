@@ -3,7 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Play, Volume2, VolumeX } from "lucide-react";
 import type { VideoBlockContent, VideoItem } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface VideoBlockProps {
   content: VideoBlockContent | unknown;
@@ -12,13 +14,15 @@ interface VideoBlockProps {
 
 export default function VideoBlock({ content: rawContent, onBuyClick }: VideoBlockProps) {
   const content = readContent<VideoBlockContent>(rawContent, "VIDEO");
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
   const { displayType, videos, showBuyButton } = content;
   if (!videos?.length) return null;
 
   if (displayType === "stacked") {
-    return <VideoStacked videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
+    return <VideoStacked videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
   }
-  return <VideoSlider videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
+  return <VideoSlider videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
 }
 
 /**
@@ -55,10 +59,14 @@ function VideoSlider({
   videos,
   showBuyButton,
   onBuyClick,
+  styleClass,
+  inlineStyle,
 }: {
   videos: VideoItem[];
   showBuyButton: boolean;
   onBuyClick?: () => void;
+  styleClass?: string;
+  inlineStyle?: React.CSSProperties;
 }) {
   const containerRef = useRef<HTMLElement>(null);
   const perSlide = useVideosPerSlide(containerRef);
@@ -84,7 +92,7 @@ function VideoSlider({
   const next = useCallback(() => navigate(Math.min(totalPages - 1, page + 1)), [page, totalPages, navigate]);
 
   return (
-    <section ref={containerRef} className="landing-section py-12 @container">
+    <section ref={containerRef} className={cn("landing-section py-12 @container", styleClass)} style={inlineStyle}>
       <div className="container mx-auto px-4">
         <div className="relative">
           {totalPages > 1 && (
@@ -136,13 +144,17 @@ function VideoStacked({
   videos,
   showBuyButton,
   onBuyClick,
+  styleClass,
+  inlineStyle,
 }: {
   videos: VideoItem[];
   showBuyButton: boolean;
   onBuyClick?: () => void;
+  styleClass?: string;
+  inlineStyle?: React.CSSProperties;
 }) {
   return (
-    <section className="landing-section py-12 @container">
+    <section className={cn("landing-section py-12 @container", styleClass)} style={inlineStyle}>
       <div className="container mx-auto px-4">
         <div className="flex flex-col gap-8 max-w-2xl mx-auto">
         {videos.map((video, i) => (

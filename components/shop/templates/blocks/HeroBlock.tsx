@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import type { HeroBlockContent } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface HeroBlockProps {
   content: HeroBlockContent | unknown;
@@ -11,10 +13,18 @@ interface HeroBlockProps {
 
 export default function HeroBlock({ content: rawContent, onCtaClick }: HeroBlockProps) {
   const content = readContent<HeroBlockContent>(rawContent, "HERO");
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
   const { title, subtitle, bgImage, overlayColor, ctaText } = content;
 
   return (
-    <section className="relative min-h-[40vh] @md:min-h-[60vh] flex items-center justify-center overflow-hidden @container">
+    <section
+      className={cn(
+        "relative min-h-[40vh] @md:min-h-[60vh] flex items-center justify-center overflow-hidden @container",
+        styleClass,
+      )}
+      style={inlineStyle}
+    >
       {bgImage ? (
         <Image
           src={bgImage}
