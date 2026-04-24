@@ -9,7 +9,8 @@ export type LandingBlockType =
   | "TRUST_BADGES"
   | "RICH_TEXT"
   | "FAQ"
-  | "IMAGE_TEXT";
+  | "IMAGE_TEXT"
+  | "RELATED_PRODUCTS";
 
 export interface HeroBlockContent {
   title: string;
@@ -108,6 +109,23 @@ export interface ImageTextBlockContent {
   ratioImageToText?: "40-60" | "50-50" | "60-40";
 }
 
+export interface RelatedProductsBlockContent {
+  title?: string;
+  mode: "manual" | "auto";
+  manualProductIds?: string[];
+  autoFilters?: {
+    source: "same-category" | "same-tags" | "best-sellers" | "recently-added";
+    limit: number;
+    excludeCurrentProduct: boolean;
+  };
+  displayType: "carousel" | "grid";
+  columnsDesktop: 3 | 4 | 5;
+  columnsMobile: 1 | 2;
+  showPrice: boolean;
+  showRating: boolean;
+  showAddToCart: boolean;
+}
+
 export type BlockContent =
   | HeroBlockContent
   | BenefitsBlockContent
@@ -119,7 +137,8 @@ export type BlockContent =
   | TrustBadgesBlockContent
   | RichTextBlockContent
   | FaqBlockContent
-  | ImageTextBlockContent;
+  | ImageTextBlockContent
+  | RelatedProductsBlockContent;
 
 export interface LandingBlock {
   id: string;
@@ -143,6 +162,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   RICH_TEXT: "Texto con formato",
   FAQ: "Preguntas frecuentes",
   IMAGE_TEXT: "Imagen + Texto",
+  RELATED_PRODUCTS: "Productos relacionados",
 };
 
 export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
@@ -157,4 +177,13 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
   RICH_TEXT: { html: "" },
   FAQ: { items: [] },
   IMAGE_TEXT: { description: "", imagePosition: "left", imageAlt: "" },
+  RELATED_PRODUCTS: {
+    mode: "auto",
+    displayType: "carousel",
+    columnsDesktop: 4,
+    columnsMobile: 2,
+    showPrice: true,
+    showRating: false,
+    showAddToCart: false,
+  },
 };

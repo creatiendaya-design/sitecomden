@@ -10,10 +10,15 @@ import TrustBadgesBlock from "./TrustBadgesBlock";
 import RichTextBlock from "./RichTextBlock";
 import FaqBlock from "./FaqBlock";
 import ImageTextBlock from "./ImageTextBlock";
+import RelatedProductsBlockEditorWrapper from "./RelatedProductsBlockEditorWrapper";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
   onCtaClick?: () => void;
+  /** When rendering from a product page, the RELATED_PRODUCTS block uses
+   *  this to fetch real recommendations. When absent (editor canvas), the
+   *  block falls back to placeholder cards. */
+  currentProductId?: string;
 }
 
 // Detect sticky flag across both content shapes:
@@ -51,7 +56,7 @@ function getVisibilityClass(visibility: string): string {
   return "";
 }
 
-export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBlockRendererProps) {
+export default function LandingBlockRenderer({ blocks, onCtaClick, currentProductId }: LandingBlockRendererProps) {
   // Skip blocks marked as fully hidden — they should not render on the
   // storefront at all. Device-specific visibility (mobile-only / desktop-only)
   // is applied as a Tailwind class on the wrapping div below.
@@ -121,6 +126,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
             break;
           case "IMAGE_TEXT":
             inner = <ImageTextBlock content={c} onCtaClick={onCtaClick} />;
+            break;
+          case "RELATED_PRODUCTS":
+            inner = <RelatedProductsBlockEditorWrapper content={c} currentProductId={currentProductId} />;
             break;
           default:
             return null;

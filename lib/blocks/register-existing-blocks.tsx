@@ -18,6 +18,7 @@ const TrustBadgesBlock = dynamic(() => import("@/components/shop/templates/block
 const RichTextBlock = dynamic(() => import("@/components/shop/templates/blocks/RichTextBlock"))
 const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlock"))
 const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/ImageTextBlock"))
+const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
 
 import { HeroContentForm } from "@/components/admin/page-builder/forms/adapters/HeroContentForm"
 import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapters/BenefitsContentForm"
@@ -30,6 +31,7 @@ import { TrustBadgesContentForm } from "@/components/admin/page-builder/forms/ad
 import { RichTextContentForm } from "@/components/admin/page-builder/forms/adapters/RichTextContentForm"
 import { FaqContentForm } from "@/components/admin/page-builder/forms/adapters/FaqContentForm"
 import { ImageTextContentForm } from "@/components/admin/page-builder/forms/adapters/ImageTextContentForm"
+import { RelatedProductsContentForm } from "@/components/admin/page-builder/forms/adapters/RelatedProductsContentForm"
 
 const existing: BlockDefinition[] = [
   {
@@ -163,6 +165,18 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.IMAGE_TEXT,
     renderer: ImageTextBlock as any,
     contentForm: ImageTextContentForm as any,
+  },
+  {
+    type: "RELATED_PRODUCTS",
+    label: "Productos relacionados",
+    icon: "Package",
+    emoji: "🛒",
+    description: "Cross-sell y up-sell basado en categorías o manual",
+    scope: "product",
+    category: "commerce",
+    defaultContent: DEFAULT_CONTENT_V2.RELATED_PRODUCTS,
+    renderer: RelatedProductsBlockEditorWrapper as any,
+    contentForm: RelatedProductsContentForm as any,
   },
 ]
 
