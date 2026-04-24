@@ -8,7 +8,8 @@ export type LandingBlockType =
   | "TICKER"
   | "TRUST_BADGES"
   | "RICH_TEXT"
-  | "FAQ";
+  | "FAQ"
+  | "IMAGE_TEXT";
 
 export interface HeroBlockContent {
   title: string;
@@ -97,6 +98,16 @@ export interface FaqBlockContent {
   defaultOpenFirst?: boolean;
 }
 
+export interface ImageTextBlockContent {
+  title?: string;
+  description: string;
+  imagePosition: "left" | "right";
+  imageAlt: string;
+  ctaText?: string;
+  ctaUrl?: string;
+  ratioImageToText?: "40-60" | "50-50" | "60-40";
+}
+
 export type BlockContent =
   | HeroBlockContent
   | BenefitsBlockContent
@@ -107,7 +118,8 @@ export type BlockContent =
   | TickerBlockContent
   | TrustBadgesBlockContent
   | RichTextBlockContent
-  | FaqBlockContent;
+  | FaqBlockContent
+  | ImageTextBlockContent;
 
 export interface LandingBlock {
   id: string;
@@ -130,6 +142,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   TRUST_BADGES: "Badges de confianza",
   RICH_TEXT: "Texto con formato",
   FAQ: "Preguntas frecuentes",
+  IMAGE_TEXT: "Imagen + Texto",
 };
 
 export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
@@ -143,4 +156,5 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
   TRUST_BADGES: { badges: [], layout: "horizontal", columns: 4, iconSize: "md", iconStyle: "outline" },
   RICH_TEXT: { html: "" },
   FAQ: { items: [] },
+  IMAGE_TEXT: { description: "", imagePosition: "left", imageAlt: "" },
 };

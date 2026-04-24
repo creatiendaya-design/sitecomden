@@ -17,6 +17,7 @@ const TickerBlock = dynamic(() => import("@/components/shop/templates/blocks/Tic
 const TrustBadgesBlock = dynamic(() => import("@/components/shop/templates/blocks/TrustBadgesBlock"))
 const RichTextBlock = dynamic(() => import("@/components/shop/templates/blocks/RichTextBlock"))
 const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlock"))
+const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/ImageTextBlock"))
 
 import { HeroContentForm } from "@/components/admin/page-builder/forms/adapters/HeroContentForm"
 import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapters/BenefitsContentForm"
@@ -28,6 +29,7 @@ import { TickerContentForm } from "@/components/admin/page-builder/forms/adapter
 import { TrustBadgesContentForm } from "@/components/admin/page-builder/forms/adapters/TrustBadgesContentForm"
 import { RichTextContentForm } from "@/components/admin/page-builder/forms/adapters/RichTextContentForm"
 import { FaqContentForm } from "@/components/admin/page-builder/forms/adapters/FaqContentForm"
+import { ImageTextContentForm } from "@/components/admin/page-builder/forms/adapters/ImageTextContentForm"
 
 const existing: BlockDefinition[] = [
   {
@@ -149,6 +151,18 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.FAQ,
     renderer: FaqBlock as any,
     contentForm: FaqContentForm as any,
+  },
+  {
+    type: "IMAGE_TEXT",
+    label: "Imagen + Texto",
+    icon: "Image",
+    emoji: "🖼️",
+    description: "Imagen y texto lado a lado (o apilados en mobile)",
+    scope: "universal",
+    category: "content",
+    defaultContent: DEFAULT_CONTENT_V2.IMAGE_TEXT,
+    renderer: ImageTextBlock as any,
+    contentForm: ImageTextContentForm as any,
   },
 ]
 

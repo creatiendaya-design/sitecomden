@@ -9,6 +9,7 @@ import TickerBlock from "./TickerBlock";
 import TrustBadgesBlock from "./TrustBadgesBlock";
 import RichTextBlock from "./RichTextBlock";
 import FaqBlock from "./FaqBlock";
+import ImageTextBlock from "./ImageTextBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -117,6 +118,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
             break;
           case "FAQ":
             inner = <FaqBlock content={c} />;
+            break;
+          case "IMAGE_TEXT":
+            inner = <ImageTextBlock content={c} onCtaClick={onCtaClick} />;
             break;
           default:
             return null;

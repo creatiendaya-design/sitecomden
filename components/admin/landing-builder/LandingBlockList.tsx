@@ -46,6 +46,7 @@ import {
 const BLOCK_ICONS: Record<LandingBlockType, string> = {
   HERO: "🖼", BENEFITS: "✅", GALLERY: "🖼️",
   TESTIMONIALS: "💬", VIDEO: "▶️", COLORS: "🎨", TICKER: "📢", TRUST_BADGES: "🛡️", RICH_TEXT: "📝", FAQ: "❓",
+  IMAGE_TEXT: "🖼️",
 };
 
 const BLOCK_COLORS: Record<LandingBlockType, string> = {
@@ -55,6 +56,7 @@ const BLOCK_COLORS: Record<LandingBlockType, string> = {
   TRUST_BADGES: "border-l-teal-500",
   RICH_TEXT: "border-l-indigo-500",
   FAQ: "border-l-sky-500",
+  IMAGE_TEXT: "border-l-fuchsia-500",
 };
 
 interface SortableBlockItemProps {
