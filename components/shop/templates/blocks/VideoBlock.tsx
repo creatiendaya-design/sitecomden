@@ -3,13 +3,15 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Play, Volume2, VolumeX } from "lucide-react";
 import type { VideoBlockContent, VideoItem } from "@/lib/types/landing-blocks";
+import { readContent } from "./_normalizeContent";
 
 interface VideoBlockProps {
-  content: VideoBlockContent;
+  content: VideoBlockContent | unknown;
   onBuyClick?: () => void;
 }
 
-export default function VideoBlock({ content, onBuyClick }: VideoBlockProps) {
+export default function VideoBlock({ content: rawContent, onBuyClick }: VideoBlockProps) {
+  const content = readContent<VideoBlockContent>(rawContent, "VIDEO");
   const { displayType, videos, showBuyButton } = content;
   if (!videos?.length) return null;
 

@@ -1,10 +1,12 @@
 import type { ColorsBlockContent } from "@/lib/types/landing-blocks";
+import { readContent } from "./_normalizeContent";
 
 interface ColorsBlockProps {
-  content: ColorsBlockContent;
+  content: ColorsBlockContent | unknown;
 }
 
-export default function ColorsBlock({ content }: ColorsBlockProps) {
+export default function ColorsBlock({ content: rawContent }: ColorsBlockProps) {
+  const content = readContent<ColorsBlockContent>(rawContent, "COLORS");
   const { primary, background, cta, text } = content;
 
   const cssVars: Record<string, string> = {};

@@ -71,9 +71,10 @@ interface EditProductFormProps {
     id: string;
     name: string;
   }>;
+  showLegacyLandingEditor?: boolean;
 }
 
-export default function EditProductForm({ product, categories }: EditProductFormProps) {
+export default function EditProductForm({ product, categories, showLegacyLandingEditor = true }: EditProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -753,10 +754,25 @@ export default function EditProductForm({ product, categories }: EditProductForm
 
     {formData.template === "LANDING" && (
       <div className="mt-4 pt-4 border-t">
-        <LandingBlockList
-          productId={product.id}
-          initialBlocks={((product as any).landingBlocks ?? []) as LandingBlock[]}
-        />
+        {showLegacyLandingEditor ? (
+          <LandingBlockList
+            productId={product.id}
+            initialBlocks={((product as any).landingBlocks ?? []) as LandingBlock[]}
+          />
+        ) : (
+          <div className="p-6 border rounded-md bg-muted/40 text-center">
+            <p className="text-sm font-medium mb-1">Nuevo builder visual disponible</p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Edita la landing de este producto con el editor WYSIWYG de pantalla completa.
+            </p>
+            <a
+              href={`/admin/productos/${product.id}?tab=landing`}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Editar en el nuevo builder →
+            </a>
+          </div>
+        )}
       </div>
     )}
   </CardContent>

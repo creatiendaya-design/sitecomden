@@ -1,7 +1,5 @@
-
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
@@ -10,37 +8,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-
 model Category {
-  id          String     @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  slug        String     @unique
-  description String?    @db.Text
+  slug        String  @unique
+  description String? @db.Text
   image       String?
-  
 
-  metaTitle        String?
-  metaDescription  String?
-  
+  metaTitle       String?
+  metaDescription String?
 
-  collectionType   CollectionType @default(MANUAL)
-  
+  collectionType CollectionType @default(MANUAL)
 
-  parentId    String?
-  parent      Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
-  children    Category[] @relation("CategoryToCategory")
-  
+  parentId String?
+  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryToCategory")
 
-  order       Int        @default(0)
-  active      Boolean    @default(true)
-  
+  order  Int     @default(0)
+  active Boolean @default(true)
 
-  products    ProductCategory[]
-  conditions  CategoryCondition[]
-  
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  products   ProductCategory[]
+  conditions CategoryCondition[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([slug])
   @@index([active])
@@ -49,30 +40,25 @@ model Category {
 }
 
 enum CollectionType {
-  MANUAL    
-  SMART    
+  MANUAL
+  SMART
 }
 
-
 model CategoryCondition {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   categoryId String
-  
 
-  field      String
-  
+  field String
 
-  operator   String
-  
+  operator String
 
-  value      String
-  
+  value String
 
-  relation   ConditionRelation @default(AND)
-  
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  createdAt  DateTime @default(now())
+  relation ConditionRelation @default(AND)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 
   @@index([categoryId])
 }
@@ -83,39 +69,40 @@ enum ConditionRelation {
 }
 
 model Product {
-  id               String            @id @default(cuid())
+  id               String          @id @default(cuid())
   name             String
-  slug             String            @unique
-  description      String?           @db.Text
-  shortDescription String?           @db.Text
-  basePrice        Decimal           @db.Decimal(10, 2)
-  compareAtPrice   Decimal?          @db.Decimal(10, 2)
-  sku              String?           @unique
-  stock            Int               @default(0)
-  images           Json              @default("[]")
-  hasVariants      Boolean           @default(false)
-  template         ProductTemplate   @default(STANDARD)
-  checkoutMode     CheckoutMode      @default(STANDARD)
+  slug             String          @unique
+  description      String?         @db.Text
+  shortDescription String?         @db.Text
+  basePrice        Decimal         @db.Decimal(10, 2)
+  compareAtPrice   Decimal?        @db.Decimal(10, 2)
+  sku              String?         @unique
+  stock            Int             @default(0)
+  images           Json            @default("[]")
+  hasVariants      Boolean         @default(false)
+  template         ProductTemplate @default(STANDARD)
+  checkoutMode     CheckoutMode    @default(STANDARD)
   codFormSettings  Json?
   metaTitle        String?
   metaDescription  String?
-  featured         Boolean           @default(false)
-  active           Boolean           @default(true)
-  weight           Decimal?          @db.Decimal(8, 2)
-  igvType          IgvType           @default(GRAVADO)
+  featured         Boolean         @default(false)
+  active           Boolean         @default(true)
+  weight           Decimal?        @db.Decimal(8, 2)
+  igvType          IgvType         @default(GRAVADO)
 
+  categories ProductCategory[]
 
-  categories       ProductCategory[]
-  
-  variants         ProductVariant[]
-  options          ProductOption[]
-  orderItems       OrderItem[]
-  reviews          ProductReview[]
-  cartItems        CartItem[]
+  variants           ProductVariant[]
+  options            ProductOption[]
+  orderItems         OrderItem[]
+  reviews            ProductReview[]
+  cartItems          CartItem[]
   inventoryMovements InventoryMovement[]
-  landingBlocks    LandingBlock[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  landingBlocks      LandingBlock[]
+  landingTemplateId  String?
+  landingTemplate    LandingTemplate?    @relation(fields: [landingTemplateId], references: [id], onDelete: SetNull)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([slug])
   @@index([active])
@@ -124,16 +111,19 @@ model Product {
 }
 
 model LandingBlock {
-  id        String           @id @default(cuid())
-  productId String
-  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  type      LandingBlockType
-  position  Int
-  content   Json             @default("{}")
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id                    String           @id @default(cuid())
+  productId             String
+  product               Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type                  LandingBlockType
+  position              Int
+  content               Json             @default("{}")
+  sourceTemplateBlockId String?
+  detached              Boolean          @default(false)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
   @@index([productId, position])
+  @@index([sourceTemplateBlockId])
 }
 
 enum ProductTemplate {
@@ -151,17 +141,23 @@ enum LandingBlockType {
   VIDEO
   COLORS
   TICKER
+  // v2 additions (Plan 2 will implement renderers/forms; Plan 1 only adds enum values)
+  RICH_TEXT
+  FAQ
+  IMAGE_TEXT
+  RELATED_PRODUCTS
+  TRUST_BADGES
 }
 
 model ProductCategory {
   productId  String
   categoryId String
-  
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  createdAt  DateTime @default(now())
-  
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
   @@id([productId, categoryId])
   @@index([productId])
   @@index([categoryId])
@@ -217,66 +213,61 @@ model ProductVariant {
   @@index([active])
 }
 
-
-
 model Order {
-  id                String            @id @default(cuid())
-  orderNumber       String            @unique @default(cuid())
-  orderSeq          Int               @default(autoincrement())
-  viewToken         String            @unique @default(cuid())
-  subtotal          Decimal           @db.Decimal(10, 2)
-  shipping          Decimal           @db.Decimal(10, 2) @default(0)
-  discount          Decimal           @db.Decimal(10, 2) @default(0)
-  tax               Decimal           @db.Decimal(10, 2) @default(0)
-  total             Decimal           @db.Decimal(10, 2)
-  status            OrderStatus       @default(PENDING)
+  id          String      @id @default(cuid())
+  orderNumber String      @unique @default(cuid())
+  orderSeq    Int         @default(autoincrement())
+  viewToken   String      @unique @default(cuid())
+  subtotal    Decimal     @db.Decimal(10, 2)
+  shipping    Decimal     @default(0) @db.Decimal(10, 2)
+  discount    Decimal     @default(0) @db.Decimal(10, 2)
+  tax         Decimal     @default(0) @db.Decimal(10, 2)
+  total       Decimal     @db.Decimal(10, 2)
+  status      OrderStatus @default(PENDING)
 
- customerId    String?
-  customer      Customer?  @relation(fields: [customerId], references: [id])
-  
-  
-  pointsEarned  Int        @default(0)
-  
-  
-  pointsUsed    Int        @default(0)
-  
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
 
-  customerTier  LoyaltyTier?
+  pointsEarned Int @default(0)
 
-  paymentStatus     PaymentStatus     @default(PENDING)
-  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
-  customerName      String
-  customerEmail     String
-  customerPhone     String
-  customerDni       String?
-  customerType      String            @default("person")
-  billingAddress    Json
-  shippingAddress   Json
-  shippingMethod    String?
-  shippingCourier   String?
-  trackingNumber    String?
-  estimatedDelivery DateTime?
-  paymentMethod     PaymentMethod
-  paymentProvider   String?
-  paymentId         String?           @unique
-  paymentDetails    Json?
-  items             OrderItem[]
-  pendingPayment    PendingPayment?
-  couponCode        String?
-  couponDiscount    Decimal?          @db.Decimal(10, 2)
-  customerNotes     String?           @db.Text
-  documentType         DocumentType?
-  buyerRuc             String?
-  buyerRazonSocial     String?
-  buyerFiscalAddress   String?   @db.Text
-  electronicDocument   ElectronicDocument?
-  adminNotes        String?           @db.Text
-  paidAt            DateTime?
-  shippedAt         DateTime?
-  deliveredAt       DateTime?
-  cancelledAt       DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  pointsUsed Int @default(0)
+
+  customerTier LoyaltyTier?
+
+  paymentStatus      PaymentStatus       @default(PENDING)
+  fulfillmentStatus  FulfillmentStatus   @default(UNFULFILLED)
+  customerName       String
+  customerEmail      String
+  customerPhone      String
+  customerDni        String?
+  customerType       String              @default("person")
+  billingAddress     Json
+  shippingAddress    Json
+  shippingMethod     String?
+  shippingCourier    String?
+  trackingNumber     String?
+  estimatedDelivery  DateTime?
+  paymentMethod      PaymentMethod
+  paymentProvider    String?
+  paymentId          String?             @unique
+  paymentDetails     Json?
+  items              OrderItem[]
+  pendingPayment     PendingPayment?
+  couponCode         String?
+  couponDiscount     Decimal?            @db.Decimal(10, 2)
+  customerNotes      String?             @db.Text
+  documentType       DocumentType?
+  buyerRuc           String?
+  buyerRazonSocial   String?
+  buyerFiscalAddress String?             @db.Text
+  electronicDocument ElectronicDocument?
+  adminNotes         String?             @db.Text
+  paidAt             DateTime?
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([orderNumber])
   @@index([status])
@@ -334,37 +325,37 @@ enum DocumentStatus {
 }
 
 model ElectronicDocument {
-  id                 String       @id @default(cuid())
-  orderId            String       @unique
-  order              Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  type               DocumentType
-  series             String
-  number             Int
-  fullNumber         String
+  type       DocumentType
+  series     String
+  number     Int
+  fullNumber String
 
-  status             DocumentStatus @default(PENDING)
+  status DocumentStatus @default(PENDING)
 
-  xmlContent         String?      @db.Text
-  pdfUrl             String?
-  xmlUrl             String?
-  cdrUrl             String?
-  sunatCode          Int?
-  hash               String?
-  nubefactId         String?
-  errorMessage       String?
+  xmlContent   String? @db.Text
+  pdfUrl       String?
+  xmlUrl       String?
+  cdrUrl       String?
+  sunatCode    Int?
+  hash         String?
+  nubefactId   String?
+  errorMessage String?
 
   issuedAt           DateTime?
   cancelledAt        DateTime?
   cancellationReason String?
 
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@unique([series, number])
   @@index([status])
   @@index([type])
   @@index([fullNumber])
-  @@unique([series, number])
 }
 
 enum OrderStatus {
@@ -417,8 +408,6 @@ enum DocumentType {
   FACTURA
 }
 
-
-
 model Coupon {
   id                String     @id @default(cuid())
   code              String     @unique
@@ -445,8 +434,6 @@ enum CouponType {
   FIXED_AMOUNT
   FREE_SHIPPING
 }
-
-
 
 model InventoryMovement {
   id        String                @id @default(cuid())
@@ -475,8 +462,6 @@ enum InventoryMovementType {
   DAMAGE
 }
 
-
-
 model Cart {
   id          String     @id @default(cuid())
   sessionId   String     @unique
@@ -504,8 +489,6 @@ model CartItem {
   @@index([cartId])
 }
 
-
-
 model ProductReview {
   id            String   @id @default(cuid())
   productId     String
@@ -527,127 +510,107 @@ model ProductReview {
   @@index([verified])
 }
 
-
-
-
 model Permission {
-  id          String   @id @default(cuid())
-  
-  key         String   @unique
-  
+  id String @id @default(cuid())
 
-  name        String    
-  description String?   
-  
+  key String @unique
 
-  module      String   
-  action      String   
-  
+  name        String
+  description String?
 
-  roles       RolePermission[]
-  users       UserPermission[]   
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  module String
+  action String
+
+  roles RolePermission[]
+  users UserPermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([module])
   @@index([action])
   @@index([key])
 }
 
-
 model Role {
-  id          String   @id @default(cuid())
-  
+  id String @id @default(cuid())
 
-  name        String   @unique     
-  slug        String   @unique     
-  description String?              
-  
+  name        String  @unique
+  slug        String  @unique
+  description String?
 
-  level       Int      @default(0) 
-  
- 
-  color       String?  @default("#6366f1") 
-  
+  level Int @default(0)
 
-  isSystem    Boolean  @default(false)     
-  active      Boolean  @default(true)
-  
- 
+  color String? @default("#6366f1")
+
+  isSystem Boolean @default(false)
+  active   Boolean @default(true)
+
   permissions RolePermission[]
   users       User[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([slug])
   @@index([level])
   @@index([active])
 }
 
-
 model RolePermission {
-  id           String     @id @default(cuid())
+  id           String @id @default(cuid())
   roleId       String
   permissionId String
-  
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime   @default(now())
-  
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
   @@unique([roleId, permissionId])
   @@index([roleId])
   @@index([permissionId])
 }
 
-
 model UserPermission {
-  id           String         @id @default(cuid())
+  id           String @id @default(cuid())
   userId       String
   permissionId String
-  
 
-  type         PermissionType @default(GRANT) 
-  
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission   Permission     @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime       @default(now())
-  
+  type PermissionType @default(GRANT)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
   @@unique([userId, permissionId])
   @@index([userId])
   @@index([permissionId])
 }
 
 enum PermissionType {
-  GRANT  
-  DENY   
+  GRANT
+  DENY
 }
 
-
-
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String
-  name      String
-  roleId    String?
-  role      Role?     @relation(fields: [roleId], references: [id])
+  id                String           @id @default(cuid())
+  email             String           @unique
+  password          String
+  name              String
+  roleId            String?
+  role              Role?            @relation(fields: [roleId], references: [id])
   customPermissions UserPermission[]
-  active    Boolean   @default(true)
-  lastLogin DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  active            Boolean          @default(true)
+  lastLogin         DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([email])
   @@index([active])
-   @@index([roleId])
+  @@index([roleId])
 }
-
-
-
 
 model Setting {
   id          String   @id @default(cuid())
@@ -661,8 +624,6 @@ model Setting {
   @@index([category])
 }
 
-
-
 model NewsletterSubscriber {
   id             String    @id @default(cuid())
   email          String    @unique
@@ -675,407 +636,344 @@ model NewsletterSubscriber {
   @@index([active])
 }
 
-
-
-
-
 model Department {
-  id          String     @id @default(cuid())
-  code        String     @unique      
-  name        String                 
-  provinces   Province[]
-  
+  id        String     @id @default(cuid())
+  code      String     @unique
+  name      String
+  provinces Province[]
+
   @@index([code])
   @@index([name])
 }
 
 model Province {
-  id            String     @id @default(cuid())
-  code          String     @unique      
-  name          String                
-  departmentId  String
-  department    Department @relation(fields: [departmentId], references: [id])
-  districts     District[]
-  
+  id           String     @id @default(cuid())
+  code         String     @unique
+  name         String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  districts    District[]
+
   @@index([departmentId])
   @@index([code])
   @@index([name])
 }
 
 model District {
-  id          String    @id @default(cuid())
-  code        String    @unique      
-  name        String                 
-  provinceId  String
-  province    Province  @relation(fields: [provinceId], references: [id])
-  
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  provinceId String
+  province   Province @relation(fields: [provinceId], references: [id])
+
   @@index([provinceId])
   @@index([code])
   @@index([name])
 }
 
-
-
-
-
-
-
 model ShippingZone {
-  id          String   @id @default(cuid())
-  name        String  
-  description String?  @db.Text
-  
- 
-  districts   ShippingZoneDistrict[]
-  
-  
-  rateGroups  ShippingRateGroup[]
-  
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String  @id @default(cuid())
+  name        String
+  description String? @db.Text
+
+  districts ShippingZoneDistrict[]
+
+  rateGroups ShippingRateGroup[]
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-
 model ShippingRateGroup {
-  id          String   @id @default(cuid())
-  zoneId      String
-  zone        ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  
-  name        String   
-  description String?  @db.Text
-  
+  id     String       @id @default(cuid())
+  zoneId String
+  zone   ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
-  rates       ShippingRate[]
-  
+  name        String
+  description String? @db.Text
 
-  order       Int      @default(0)
-  active      Boolean  @default(true)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  rates ShippingRate[]
+
+  order  Int     @default(0)
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([zoneId])
 }
 
-
 model ShippingRate {
-  id          String   @id @default(cuid())
-  groupId     String
-  group       ShippingRateGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  
+  id      String            @id @default(cuid())
+  groupId String
+  group   ShippingRateGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
-  name        String  
-  description String?  @db.Text
-  
+  name        String
+  description String? @db.Text
 
-  baseCost    Decimal  @db.Decimal(10, 2)  
-  
+  baseCost Decimal @db.Decimal(10, 2)
 
-  minOrderAmount  Decimal?  @db.Decimal(10, 2) 
-  maxOrderAmount  Decimal?  @db.Decimal(10, 2)  
-  freeShippingMin Decimal?  @db.Decimal(10, 2) 
-  
+  minOrderAmount  Decimal? @db.Decimal(10, 2)
+  maxOrderAmount  Decimal? @db.Decimal(10, 2)
+  freeShippingMin Decimal? @db.Decimal(10, 2)
 
-  estimatedDays   String?  
-  carrier         String?  
-  shippingType    String?   
-  timeWindow      String?  
-  
+  estimatedDays String?
+  carrier       String?
+  shippingType  String?
+  timeWindow    String?
 
-  order       Int      @default(0)
-  active      Boolean  @default(true)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  order  Int     @default(0)
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([groupId])
 }
 
-
 model ShippingZoneDistrict {
-  id              String       @id @default(cuid())
-  shippingZoneId  String
-  districtCode    String       @unique
-  
-  shippingZone    ShippingZone @relation(fields: [shippingZoneId], references: [id], onDelete: Cascade)
-  
+  id             String @id @default(cuid())
+  shippingZoneId String
+  districtCode   String @unique
+
+  shippingZone ShippingZone @relation(fields: [shippingZoneId], references: [id], onDelete: Cascade)
+
   @@index([districtCode])
   @@index([shippingZoneId])
 }
 
-
 model ComplaintFormField {
-  id            String   @id @default(cuid())
-  label         String   
-  fieldType     String  
-  placeholder   String?
-  helpText      String?
-  required      Boolean  @default(false)
-  order         Int      @default(0)
-  
+  id          String  @id @default(cuid())
+  label       String
+  fieldType   String
+  placeholder String?
+  helpText    String?
+  required    Boolean @default(false)
+  order       Int     @default(0)
 
-  section       String?  
-  
-  
-  width         String   @default("full")  
-  
+  section String?
 
-  options       Json?
-  otherLabel    String?  @default("Otro (especificar)")
- 
-  minLength     Int?
-  maxLength     Int?
-  pattern       String?
-  
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  width String @default("full")
+
+  options    Json?
+  otherLabel String? @default("Otro (especificar)")
+
+  minLength Int?
+  maxLength Int?
+  pattern   String?
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([order])
   @@index([active])
-  @@index([section])  
+  @@index([section])
 }
 
-
 model Complaint {
-  id              String   @id @default(cuid())
-  complaintNumber String   @unique @default(cuid())  
-  
+  id              String @id @default(cuid())
+  complaintNumber String @unique @default(cuid())
 
-  formData        Json     
-  
+  formData Json
 
-  customerEmail   String?
-  customerName    String?
-  customerPhone   String?
-  
+  customerEmail String?
+  customerName  String?
+  customerPhone String?
 
-  status          ComplaintStatus @default(PENDING)
-  
+  status ComplaintStatus @default(PENDING)
 
-  adminResponse   String?  @db.Text
-  respondedAt     DateTime?
-  respondedBy     String?  
-  
+  adminResponse String?   @db.Text
+  respondedAt   DateTime?
+  respondedBy   String?
 
-  ipAddress       String?
-  userAgent       String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([status])
   @@index([createdAt])
   @@index([customerEmail])
 }
 
 enum ComplaintStatus {
-  PENDING       
-  IN_REVIEW     
-  RESOLVED      
-  CLOSED        
+  PENDING
+  IN_REVIEW
+  RESOLVED
+  CLOSED
 }
 
-
 model Customer {
-  id                String              @id @default(cuid())
-  email             String              @unique
-  name              String
-  phone             String?
-  dni               String?             @unique
-  
+  id    String  @id @default(cuid())
+  email String  @unique
+  name  String
+  phone String?
+  dni   String? @unique
 
-  referralCode      String              @unique    
-  referredById      String?                       
-  referredBy        Customer?           @relation("CustomerReferrals", fields: [referredById], references: [id])
-  referrals         Customer[]          @relation("CustomerReferrals")
-  referralCount     Int                 @default(0) 
-  
+  referralCode  String     @unique
+  referredById  String?
+  referredBy    Customer?  @relation("CustomerReferrals", fields: [referredById], references: [id])
+  referrals     Customer[] @relation("CustomerReferrals")
+  referralCount Int        @default(0)
 
-  points            Int                 @default(0)  
-  totalPointsEarned Int                 @default(0)  
-  totalPointsSpent  Int                 @default(0)  
-  
+  points            Int @default(0)
+  totalPointsEarned Int @default(0)
+  totalPointsSpent  Int @default(0)
 
-  loyaltyTier       LoyaltyTier         @default(BRONZE)
-  
+  loyaltyTier LoyaltyTier @default(BRONZE)
 
-  totalOrders       Int                 @default(0)
-  totalSpent        Decimal             @default(0) @db.Decimal(10, 2)
-  
+  totalOrders Int     @default(0)
+  totalSpent  Decimal @default(0) @db.Decimal(10, 2)
 
-  birthday          DateTime?
-  address           Json?               
-  
+  birthday DateTime?
+  address  Json?
 
-  orders            Order[]
-  pointsHistory     PointTransaction[]
-  rewards           RewardRedemption[]
-  
+  orders        Order[]
+  pointsHistory PointTransaction[]
+  rewards       RewardRedemption[]
 
-  registeredAt      DateTime            @default(now())
-  lastPurchaseAt    DateTime?
-  updatedAt         DateTime            @updatedAt
-  
+  registeredAt   DateTime  @default(now())
+  lastPurchaseAt DateTime?
+  updatedAt      DateTime  @updatedAt
+
   @@index([email])
   @@index([referralCode])
   @@index([referredById])
 }
 
-
 enum LoyaltyTier {
-  BRONZE      
-  SILVER      
-  GOLD       
-  PLATINUM    
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
 }
 
-
 model PointTransaction {
-  id            String              @id @default(cuid())
-  customerId    String
-  customer      Customer            @relation(fields: [customerId], references: [id])
-  
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
 
-  type          PointTransactionType
-  
+  type PointTransactionType
 
-  points        Int
-  
- 
-  description   String              
-  reference     String?            
-  
-  
-  balanceAfter  Int
-  
-  createdAt     DateTime            @default(now())
-  
+  points Int
+
+  description String
+  reference   String?
+
+  balanceAfter Int
+
+  createdAt DateTime @default(now())
+
   @@index([customerId])
   @@index([type])
   @@index([createdAt])
 }
 
 enum PointTransactionType {
-  PURCHASE          
-  REFERRAL_BONUS    
-  WELCOME_BONUS     
-  BIRTHDAY_BONUS    
-  ADMIN_ADJUSTMENT  
-  REWARD_REDEMPTION 
-  EXPIRED           
+  PURCHASE
+  REFERRAL_BONUS
+  WELCOME_BONUS
+  BIRTHDAY_BONUS
+  ADMIN_ADJUSTMENT
+  REWARD_REDEMPTION
+  EXPIRED
 }
 
-
 model Reward {
-  id            String              @id @default(cuid())
-  name          String             
-  description   String?             @db.Text
-  image         String?
-  
+  id          String  @id @default(cuid())
+  name        String
+  description String? @db.Text
+  image       String?
 
-  pointsCost    Int                 
-  
+  pointsCost Int
 
-  rewardType    RewardType          
-  rewardValue   Decimal             @db.Decimal(10, 2) 
-  
+  rewardType  RewardType
+  rewardValue Decimal    @db.Decimal(10, 2)
 
-  minPurchase   Decimal?            @db.Decimal(10, 2)  
-  maxUses       Int?                
-  usageCount    Int                 @default(0)
-  
+  minPurchase Decimal? @db.Decimal(10, 2)
+  maxUses     Int?
+  usageCount  Int      @default(0)
 
-  startsAt      DateTime?
-  expiresAt     DateTime?
-  active        Boolean             @default(true)
-  
+  startsAt  DateTime?
+  expiresAt DateTime?
+  active    Boolean   @default(true)
 
-  allowedCategories String[]        @default([]) 
-  
-  redemptions   RewardRedemption[]
-  
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  
+  allowedCategories String[] @default([])
+
+  redemptions RewardRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([pointsCost])
   @@index([active])
 }
 
 enum RewardType {
-  DISCOUNT         
-  PERCENTAGE        
-  FREE_SHIPPING    
-  PRODUCT          
+  DISCOUNT
+  PERCENTAGE
+  FREE_SHIPPING
+  PRODUCT
 }
 
-
 model RewardRedemption {
-  id            String          @id @default(cuid())
-  customerId    String
-  customer      Customer        @relation(fields: [customerId], references: [id])
-  rewardId      String
-  reward        Reward          @relation(fields: [rewardId], references: [id])
-  
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  rewardId   String
+  reward     Reward   @relation(fields: [rewardId], references: [id])
 
-  pointsSpent   Int
-  
- 
-  couponCode    String          @unique  
-  
+  pointsSpent Int
 
-  status        RedemptionStatus @default(PENDING)
-  usedAt        DateTime?
-  orderId       String?        
-  
-  createdAt     DateTime        @default(now())
-  expiresAt     DateTime       
-  
+  couponCode String @unique
+
+  status  RedemptionStatus @default(PENDING)
+  usedAt  DateTime?
+  orderId String?
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
   @@index([customerId])
   @@index([status])
   @@index([couponCode])
 }
 
 enum RedemptionStatus {
-  PENDING      
-  USED         
-  EXPIRED     
-  CANCELLED    
+  PENDING
+  USED
+  EXPIRED
+  CANCELLED
 }
 
-
 model LoyaltyProgramSettings {
-  id                    String    @id @default(cuid())
-  
+  id String @id @default(cuid())
 
-  pointsPerSol          Int       @default(1)   
-  solsPerPoint          Decimal   @default(0.10) @db.Decimal(10, 2) 
-  
+  pointsPerSol Int     @default(1)
+  solsPerPoint Decimal @default(0.10) @db.Decimal(10, 2)
 
-  welcomeBonus          Int       @default(100)  
-  referralBonus         Int       @default(200)  
-  referredBonus         Int       @default(100)  
-  birthdayBonus         Int       @default(150)  
-  
+  welcomeBonus  Int @default(100)
+  referralBonus Int @default(200)
+  referredBonus Int @default(100)
+  birthdayBonus Int @default(150)
 
-  silverThreshold       Int       @default(500)
-  goldThreshold         Int       @default(2000)
-  platinumThreshold     Int       @default(5000)
-  
+  silverThreshold   Int @default(500)
+  goldThreshold     Int @default(2000)
+  platinumThreshold Int @default(5000)
 
-  silverDiscount        Int       @default(5)   
-  goldDiscount          Int       @default(10)  
-  platinumDiscount      Int       @default(15)  
-  platinumFreeShipping  Boolean   @default(true)
-  
+  silverDiscount       Int     @default(5)
+  goldDiscount         Int     @default(10)
+  platinumDiscount     Int     @default(15)
+  platinumFreeShipping Boolean @default(true)
 
-  pointsExpireDays      Int       @default(365) 
-  
+  pointsExpireDays Int @default(365)
 
-  enabled               Boolean   @default(true)
-  
-  updatedAt             DateTime  @updatedAt
+  enabled Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
 }
 
 enum SwatchType {
@@ -1091,31 +989,56 @@ enum OptionDisplayStyle {
 }
 
 model TrackingPixel {
-  id          String        @id @default(cuid())
-  platform    PixelPlatform 
-  
-  
-  config      Json
-  
+  id       String        @id @default(cuid())
+  platform PixelPlatform
 
-  enabled     Boolean       @default(false)
-  
+  config Json
 
-  testMode    Boolean       @default(true)
-  
+  enabled Boolean @default(false)
 
-  description String?       @db.Text
-  
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
+  testMode Boolean @default(true)
+
+  description String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([platform])
   @@index([enabled])
 }
 
 enum PixelPlatform {
-  FACEBOOK          
-  TIKTOK            
-  GOOGLE_ADS        
-  GOOGLE_ANALYTICS  
+  FACEBOOK
+  TIKTOK
+  GOOGLE_ADS
+  GOOGLE_ANALYTICS
+}
+
+model LandingTemplate {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  category       String?
+  thumbnail      String?
+  active         Boolean         @default(true)
+  createdBy      String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  templateBlocks TemplateBlock[]
+  products       Product[]
+
+  @@index([active, category])
+}
+
+model TemplateBlock {
+  id         String           @id @default(cuid())
+  templateId String
+  template   LandingTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  type       LandingBlockType
+  position   Int
+  content    Json             @default("{}")
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([templateId, position])
 }

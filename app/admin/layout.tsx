@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
@@ -37,12 +37,19 @@ interface NavItem {
   items?: NavItem[];
 }
 
-export default function AdminLayout({
+function AdminLayoutInner({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Detect the full-screen page builder route so we can render it WITHOUT
+  // the admin sidebar and top header. Matches: /admin/productos/<id>?tab=landing
+  const isFullScreenBuilder =
+    /^\/admin\/productos\/[^/]+$/.test(pathname ?? "") &&
+    searchParams?.get("tab") === "landing";
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "Configuración",
     "Métodos de Pago", // Expandir Métodos de Pago por defecto
@@ -202,6 +209,17 @@ export default function AdminLayout({
   const isActive = (href: string) => pathname === href;
   const isExpanded = (label: string) => expandedItems.includes(label);
 
+  // Full-screen builder mode: bypass sidebar + header, render children directly.
+  // The Toaster is still mounted so in-app toasts (save errors, etc.) work.
+  if (isFullScreenBuilder) {
+    return (
+      <>
+        {children}
+        <Toaster position="top-right" richColors />
+      </>
+    );
+  }
+
   // Función recursiva para renderizar items con soporte para múltiples niveles
   const renderNavItem = (item: NavItem, depth: number = 0) => {
     const Icon = item.icon;
@@ -337,5 +355,19 @@ export default function AdminLayout({
       {/* Toast Notifications */}
       <Toaster position="top-right" richColors />
     </div>
+  );
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // useSearchParams() inside AdminLayoutInner requires a Suspense boundary
+  // above it (Next.js App Router requirement).
+  return (
+    <Suspense fallback={null}>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
+    </Suspense>
   );
 }
