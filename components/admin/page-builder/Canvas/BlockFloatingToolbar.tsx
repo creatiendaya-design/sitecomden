@@ -122,6 +122,7 @@ export function BlockFloatingToolbar({ block, dragHandleProps }: BlockFloatingTo
                 <DropdownMenuRadioItem value="always">Siempre</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="mobile-only">Solo mobile</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="desktop-only">Solo desktop</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="hidden">Oculto (todos)</DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>

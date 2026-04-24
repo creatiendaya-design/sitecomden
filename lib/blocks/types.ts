@@ -48,7 +48,7 @@ export type ContainerWidth = "narrow" | "normal" | "full"
 export type CornerRadius = "none" | "sm" | "md" | "lg"
 export type BorderStyle = "none" | "subtle" | "strong"
 export type ShadowStyle = "none" | "subtle" | "strong"
-export type Visibility = "always" | "mobile-only" | "desktop-only"
+export type Visibility = "always" | "mobile-only" | "desktop-only" | "hidden"
 
 /**
  * Block scope — used by the registry to filter which blocks can be added

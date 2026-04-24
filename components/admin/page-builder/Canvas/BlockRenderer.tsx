@@ -26,15 +26,24 @@ export function BlockRenderer({ block, context: _context }: BlockRendererProps) 
 
   const resolved = resolveContentForDevice(block.content, device)
   const Renderer = def.renderer
-  const isHidden =
-    (resolved.style.visibility === "mobile-only" && device === "desktop") ||
-    (resolved.style.visibility === "desktop-only" && device === "mobile")
+  const visibility = resolved.style.visibility
+  const isFullyHidden = visibility === "hidden"
+  const isDeviceHidden =
+    (visibility === "mobile-only" && device === "desktop") ||
+    (visibility === "desktop-only" && device === "mobile")
 
-  if (isHidden) {
+  if (isFullyHidden || isDeviceHidden) {
+    const hiddenLabel = isFullyHidden
+      ? "Oculto en todos los dispositivos"
+      : `Oculto en ${device === "desktop" ? "desktop" : "mobile"} (visibilidad: ${visibility})`
+
     return (
       <BlockWrapper block={block}>
-        <div className="p-6 bg-muted/60 text-center text-xs text-muted-foreground border-dashed border-2 border-muted">
-          Oculto en {device === "desktop" ? "desktop" : "mobile"} (visibilidad: {resolved.style.visibility})
+        <div className="p-6 bg-muted/60 text-center text-xs text-muted-foreground border-dashed border-2 border-muted opacity-70">
+          👁‍🗨 {hiddenLabel}
+          <div className="text-[10px] mt-1 opacity-80">
+            {def.label} — click para seleccionar y cambiar visibilidad
+          </div>
         </div>
       </BlockWrapper>
     )

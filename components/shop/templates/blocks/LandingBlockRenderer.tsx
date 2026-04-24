@@ -23,10 +23,23 @@ function isStickyTicker(b: LandingBlock): boolean {
   return data?.sticky === true;
 }
 
+// Read the Visibility setting from the v2 style zone. Blocks created in v1
+// (flat shape) have no style zone — treat them as "always" visible.
+function getVisibility(b: LandingBlock): string {
+  const c = b.content as Record<string, unknown>;
+  const style = c?.style as Record<string, unknown> | undefined;
+  return (style?.visibility as string) ?? "always";
+}
+
 export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBlockRendererProps) {
+  // Skip blocks marked as fully hidden — they should not render on the storefront
+  // at all. Device-specific visibility (mobile-only / desktop-only) is handled
+  // via CSS inside each individual block renderer.
+  const visible = blocks.filter((b) => getVisibility(b) !== "hidden");
+
   // Sticky tickers render outside normal flow, at the top.
-  const stickyTickers = blocks.filter(isStickyTicker);
-  const rest = blocks.filter((b) => !isStickyTicker(b));
+  const stickyTickers = visible.filter(isStickyTicker);
+  const rest = visible.filter((b) => !isStickyTicker(b));
 
   return (
     <>
