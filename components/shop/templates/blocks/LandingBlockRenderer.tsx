@@ -7,6 +7,7 @@ import VideoBlock from "./VideoBlock";
 import ColorsBlock from "./ColorsBlock";
 import TickerBlock from "./TickerBlock";
 import TrustBadgesBlock from "./TrustBadgesBlock";
+import RichTextBlock from "./RichTextBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -109,6 +110,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
             break;
           case "TRUST_BADGES":
             inner = <TrustBadgesBlock content={c} />;
+            break;
+          case "RICH_TEXT":
+            inner = <RichTextBlock content={c} />;
             break;
           default:
             return null;

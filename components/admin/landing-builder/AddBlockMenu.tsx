@@ -19,6 +19,7 @@ const BLOCK_ICONS: Record<LandingBlockType, string> = {
   COLORS: "🎨",
   TICKER: "📢",
   TRUST_BADGES: "🛡️",
+  RICH_TEXT: "📝",
 };
 
 interface AddBlockMenuProps {
@@ -27,7 +28,7 @@ interface AddBlockMenuProps {
 }
 
 const BLOCK_TYPES: LandingBlockType[] = [
-  "HERO", "BENEFITS", "GALLERY", "TESTIMONIALS", "VIDEO", "COLORS", "TICKER", "TRUST_BADGES",
+  "HERO", "BENEFITS", "GALLERY", "TESTIMONIALS", "VIDEO", "COLORS", "TICKER", "TRUST_BADGES", "RICH_TEXT",
 ];
 
 export default function AddBlockMenu({ onAdd, disabled }: AddBlockMenuProps) {

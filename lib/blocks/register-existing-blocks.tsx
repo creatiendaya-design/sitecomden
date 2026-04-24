@@ -15,6 +15,7 @@ const VideoBlock = dynamic(() => import("@/components/shop/templates/blocks/Vide
 const ColorsBlock = dynamic(() => import("@/components/shop/templates/blocks/ColorsBlock"))
 const TickerBlock = dynamic(() => import("@/components/shop/templates/blocks/TickerBlock"))
 const TrustBadgesBlock = dynamic(() => import("@/components/shop/templates/blocks/TrustBadgesBlock"))
+const RichTextBlock = dynamic(() => import("@/components/shop/templates/blocks/RichTextBlock"))
 
 import { HeroContentForm } from "@/components/admin/page-builder/forms/adapters/HeroContentForm"
 import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapters/BenefitsContentForm"
@@ -24,6 +25,7 @@ import { VideoContentForm } from "@/components/admin/page-builder/forms/adapters
 import { ColorsContentForm } from "@/components/admin/page-builder/forms/adapters/ColorsContentForm"
 import { TickerContentForm } from "@/components/admin/page-builder/forms/adapters/TickerContentForm"
 import { TrustBadgesContentForm } from "@/components/admin/page-builder/forms/adapters/TrustBadgesContentForm"
+import { RichTextContentForm } from "@/components/admin/page-builder/forms/adapters/RichTextContentForm"
 
 const existing: BlockDefinition[] = [
   {
@@ -121,6 +123,18 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.TRUST_BADGES,
     renderer: TrustBadgesBlock as any,
     contentForm: TrustBadgesContentForm as any,
+  },
+  {
+    type: "RICH_TEXT",
+    label: "Texto con formato",
+    icon: "Type",
+    emoji: "📝",
+    description: "Texto libre con formato (títulos, negritas, listas, enlaces)",
+    scope: "universal",
+    category: "content",
+    defaultContent: DEFAULT_CONTENT_V2.RICH_TEXT,
+    renderer: RichTextBlock as any,
+    contentForm: RichTextContentForm as any,
   },
 ]
 

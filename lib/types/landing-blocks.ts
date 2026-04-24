@@ -6,7 +6,8 @@ export type LandingBlockType =
   | "VIDEO"
   | "COLORS"
   | "TICKER"
-  | "TRUST_BADGES";
+  | "TRUST_BADGES"
+  | "RICH_TEXT";
 
 export interface HeroBlockContent {
   title: string;
@@ -83,6 +84,11 @@ export interface TrustBadgesBlockContent {
   iconStyle: "outline" | "solid";
 }
 
+export interface RichTextBlockContent {
+  html: string;
+  maxWidth?: "prose";
+}
+
 export type BlockContent =
   | HeroBlockContent
   | BenefitsBlockContent
@@ -91,7 +97,8 @@ export type BlockContent =
   | VideoBlockContent
   | ColorsBlockContent
   | TickerBlockContent
-  | TrustBadgesBlockContent;
+  | TrustBadgesBlockContent
+  | RichTextBlockContent;
 
 export interface LandingBlock {
   id: string;
@@ -112,6 +119,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   COLORS: "Colores",
   TICKER: "Ticker / Contador",
   TRUST_BADGES: "Badges de confianza",
+  RICH_TEXT: "Texto con formato",
 };
 
 export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
@@ -123,4 +131,5 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
   COLORS: { primary: "#3b82f6", background: "#ffffff", cta: "#dc2626", text: "#111827" },
   TICKER: { mode: "scrolling", sticky: false, scrollingText: "🔥 Oferta especial • Envío gratis •", speed: 30, bgColor: "#dc2626", textColor: "#ffffff" },
   TRUST_BADGES: { badges: [], layout: "horizontal", columns: 4, iconSize: "md", iconStyle: "outline" },
+  RICH_TEXT: { html: "" },
 };
