@@ -76,8 +76,12 @@ export default function RichTextEditor({
     content: content || "",
     editorProps: {
       attributes: {
+        // Editor lives in a narrow admin sidebar — viewport-scaled prose
+        // sizes (sm:prose lg:prose-lg xl:prose-2xl) made text look huge in
+        // a cramped panel. Keep a single compact scale; the storefront
+        // renderer handles responsive sizing independently.
         class:
-          "prose prose-sm sm:prose lg:prose-lg xl:prose-2xl focus:outline-none min-h-[200px] max-w-none p-4",
+          "prose prose-sm focus:outline-none min-h-[200px] max-w-none p-4",
       },
     },
     onUpdate: ({ editor }) => {
