@@ -31,6 +31,11 @@ function getVisibility(b: LandingBlock): string {
   return (style?.visibility as string) ?? "always";
 }
 
+function anchorIdOf(b: LandingBlock): string | undefined {
+  const c = b.content as Record<string, unknown>;
+  return (c?.anchorId as string | undefined) || undefined;
+}
+
 // Tailwind CSS classes that hide a block based on viewport breakpoint.
 // Uses the `lg` breakpoint (1024px) to match the editor's Desktop/Mobile
 // cutoff defined in lib/blocks/resolve.ts.
@@ -67,7 +72,7 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
           {stickyTickers.map((block) => {
             const className = getVisibilityClass(getVisibility(block));
             return (
-              <div key={block.id} className={className || undefined}>
+              <div key={block.id} id={anchorIdOf(block) || undefined} className={className || undefined}>
                 <TickerBlock content={block.content as TickerBlockContent} sticky />
               </div>
             );
@@ -106,7 +111,7 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
         }
 
         return (
-          <div key={block.id} className={className || undefined}>
+          <div key={block.id} id={anchorIdOf(block) || undefined} className={className || undefined}>
             {inner}
           </div>
         );

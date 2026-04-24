@@ -21,6 +21,10 @@ export interface BlockContentV2 {
   data: Record<string, unknown>
   style: BlockStyle
   media: BlockMedia
+  /** Optional anchor id for deep-linking: /productos/<slug>#<anchorId> */
+  anchorId?: string
+  /** Internal admin-only notes, never rendered on storefront. */
+  internalNotes?: string
 }
 
 export interface BlockStyle {
