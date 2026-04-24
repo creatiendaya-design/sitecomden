@@ -7,6 +7,7 @@ import { useBuilderStore } from "../store"
 import { getBlockDefinition } from "@/lib/blocks/registry"
 import { EmptyState } from "./EmptyState"
 import { ContentTab } from "./tabs/ContentTab"
+import { StyleTab } from "./tabs/StyleTab"
 import { AdvancedTab } from "./tabs/AdvancedTab"
 import type { BuilderContext } from "../types"
 
@@ -50,14 +51,14 @@ export function RightSidebar({ context: _context }: RightSidebarProps) {
       <Tabs defaultValue="content" className="flex-1 flex flex-col overflow-hidden">
         <TabsList className="mx-3 mt-2 shrink-0">
           <TabsTrigger value="content" className="flex-1">Contenido</TabsTrigger>
-          <TabsTrigger value="style" className="flex-1" disabled>Estilo</TabsTrigger>
+          <TabsTrigger value="style" className="flex-1">Estilo</TabsTrigger>
           <TabsTrigger value="advanced" className="flex-1">Avanzado</TabsTrigger>
         </TabsList>
         <TabsContent value="content" className="flex-1 overflow-auto p-3 mt-0">
           <ContentTab />
         </TabsContent>
         <TabsContent value="style" className="flex-1 overflow-auto p-3 mt-0">
-          <p className="text-xs text-muted-foreground">Controles de estilo en Plan 2.</p>
+          <StyleTab />
         </TabsContent>
         <TabsContent value="advanced" className="flex-1 overflow-auto p-3 mt-0">
           <AdvancedTab />
