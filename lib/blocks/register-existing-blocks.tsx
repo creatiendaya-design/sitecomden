@@ -14,6 +14,7 @@ const TestimonialsBlock = dynamic(() => import("@/components/shop/templates/bloc
 const VideoBlock = dynamic(() => import("@/components/shop/templates/blocks/VideoBlock"))
 const ColorsBlock = dynamic(() => import("@/components/shop/templates/blocks/ColorsBlock"))
 const TickerBlock = dynamic(() => import("@/components/shop/templates/blocks/TickerBlock"))
+const TrustBadgesBlock = dynamic(() => import("@/components/shop/templates/blocks/TrustBadgesBlock"))
 
 import { HeroContentForm } from "@/components/admin/page-builder/forms/adapters/HeroContentForm"
 import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapters/BenefitsContentForm"
@@ -22,6 +23,7 @@ import { TestimonialsContentForm } from "@/components/admin/page-builder/forms/a
 import { VideoContentForm } from "@/components/admin/page-builder/forms/adapters/VideoContentForm"
 import { ColorsContentForm } from "@/components/admin/page-builder/forms/adapters/ColorsContentForm"
 import { TickerContentForm } from "@/components/admin/page-builder/forms/adapters/TickerContentForm"
+import { TrustBadgesContentForm } from "@/components/admin/page-builder/forms/adapters/TrustBadgesContentForm"
 
 const existing: BlockDefinition[] = [
   {
@@ -107,6 +109,18 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.TICKER,
     renderer: TickerBlock as any,
     contentForm: TickerContentForm as any,
+  },
+  {
+    type: "TRUST_BADGES",
+    label: "Badges de confianza",
+    icon: "ShieldCheck",
+    emoji: "🛡️",
+    description: "Íconos con señales de confianza (pago seguro, envío gratis, etc.)",
+    scope: "universal",
+    category: "social-proof",
+    defaultContent: DEFAULT_CONTENT_V2.TRUST_BADGES,
+    renderer: TrustBadgesBlock as any,
+    contentForm: TrustBadgesContentForm as any,
   },
 ]
 

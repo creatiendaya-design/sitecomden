@@ -6,6 +6,7 @@ import TestimonialsBlock from "./TestimonialsBlock";
 import VideoBlock from "./VideoBlock";
 import ColorsBlock from "./ColorsBlock";
 import TickerBlock from "./TickerBlock";
+import TrustBadgesBlock from "./TrustBadgesBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -105,6 +106,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
             break;
           case "TICKER":
             inner = <TickerBlock content={c} />;
+            break;
+          case "TRUST_BADGES":
+            inner = <TrustBadgesBlock content={c} />;
             break;
           default:
             return null;

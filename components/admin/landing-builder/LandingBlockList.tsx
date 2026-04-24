@@ -45,13 +45,14 @@ import {
 
 const BLOCK_ICONS: Record<LandingBlockType, string> = {
   HERO: "🖼", BENEFITS: "✅", GALLERY: "🖼️",
-  TESTIMONIALS: "💬", VIDEO: "▶️", COLORS: "🎨", TICKER: "📢",
+  TESTIMONIALS: "💬", VIDEO: "▶️", COLORS: "🎨", TICKER: "📢", TRUST_BADGES: "🛡️",
 };
 
 const BLOCK_COLORS: Record<LandingBlockType, string> = {
   HERO: "border-l-purple-500", BENEFITS: "border-l-green-500",
   GALLERY: "border-l-blue-500", TESTIMONIALS: "border-l-blue-400",
   VIDEO: "border-l-red-500", COLORS: "border-l-yellow-500", TICKER: "border-l-amber-500",
+  TRUST_BADGES: "border-l-teal-500",
 };
 
 interface SortableBlockItemProps {
