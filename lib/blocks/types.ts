@@ -85,3 +85,40 @@ export interface BlockInstance {
   sourceTemplateBlockId?: string | null
   detached?: boolean
 }
+
+/**
+ * Declares which style-tab sections apply to a block type. Each field is
+ * opt-out (default true) EXCEPT `bgImage` which is opt-in (default false) —
+ * most blocks should not show "Imagen de fondo" as a control.
+ *
+ * A block type sets `styleSupport` in its BlockDefinition (registry) to hide
+ * irrelevant sections from the Style tab.
+ */
+export interface BlockStyleSupport {
+  backgroundColor?: boolean        // default: true
+  textColor?: boolean              // default: true
+  padding?: boolean                // default: true
+  alignment?: boolean              // default: true
+  containerWidth?: boolean         // default: true
+  cornerRadius?: boolean           // default: true
+  border?: boolean                 // default: true
+  shadow?: boolean                 // default: true
+  visibility?: boolean             // default: true
+  bgImage?: boolean                // default: FALSE (opt-in — only HERO uses it today)
+}
+
+/** Normalize a partial BlockStyleSupport to a fully-populated record. */
+export function resolveStyleSupport(partial: Partial<BlockStyleSupport> | undefined): Required<BlockStyleSupport> {
+  return {
+    backgroundColor: partial?.backgroundColor ?? true,
+    textColor: partial?.textColor ?? true,
+    padding: partial?.padding ?? true,
+    alignment: partial?.alignment ?? true,
+    containerWidth: partial?.containerWidth ?? true,
+    cornerRadius: partial?.cornerRadius ?? true,
+    border: partial?.border ?? true,
+    shadow: partial?.shadow ?? true,
+    visibility: partial?.visibility ?? true,
+    bgImage: partial?.bgImage ?? false,
+  }
+}
