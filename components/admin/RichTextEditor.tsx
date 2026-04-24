@@ -45,6 +45,10 @@ export default function RichTextEditor({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  // Track what we emitted via our own onUpdate so we don't re-setContent
+  // (and jump the cursor) when the parent echoes our change back via props.
+  const lastEmittedRef = useRef<string>("");
+
   const editor = useEditor({
     immediatelyRender: false, // ← FIX para SSR
     extensions: [
@@ -82,10 +86,6 @@ export default function RichTextEditor({
       onChange(html);
     },
   });
-
-  // Track what we emitted via our own onUpdate so we don't re-setContent
-  // (and jump the cursor) when the parent echoes our change back via props.
-  const lastEmittedRef = useRef<string>("");
 
   // Actualizar contenido cuando cambia externamente
   useEffect(() => {
