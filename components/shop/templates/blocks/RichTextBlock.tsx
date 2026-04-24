@@ -3,7 +3,7 @@
 import DOMPurify from "isomorphic-dompurify";
 import { cn } from "@/lib/utils";
 import { readContent, readStyleAndMedia } from "./_normalizeContent";
-import { applyBlockStyle } from "@/lib/blocks/apply-style";
+import { applyBlockStyle, ALIGNMENT_CLASS } from "@/lib/blocks/apply-style";
 import type { Alignment } from "@/lib/blocks/types";
 
 interface RichTextContent {
@@ -14,12 +14,6 @@ interface RichTextContent {
 interface RichTextBlockProps {
   content: RichTextContent | unknown;
 }
-
-const ALIGN_CLASS: Record<Alignment, string> = {
-  left: "text-left",
-  center: "text-center",
-  right: "text-right",
-};
 
 export default function RichTextBlock({ content: rawContent }: RichTextBlockProps) {
   const content = readContent<RichTextContent>(rawContent, "RICH_TEXT");
@@ -35,13 +29,16 @@ export default function RichTextBlock({ content: rawContent }: RichTextBlockProp
   //  - <code>, <pre> code
   //  - <h1> (previously stripped; used when admin clicks Título 1)
   //  - class attr — TipTap TextAlign uses class="text-center" etc.
-  //  - style attr — some extensions inline-style text-align
   const sanitized = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       "p", "br", "strong", "em", "u", "s", "strike", "code", "pre",
       "a", "h1", "h2", "h3", "h4", "ul", "ol", "li", "blockquote", "img",
     ],
-    ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "class", "style"],
+    // NOTE: "style" attr is intentionally excluded — TipTap TextAlign uses
+    // class="text-left/center/right" (see class entry above), which is enough
+    // for alignment. Allowing inline style{} on admin-authored HTML would
+    // widen the XSS surface unnecessarily.
+    ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "class"],
     ALLOW_DATA_ATTR: false,
   });
 
@@ -55,7 +52,7 @@ export default function RichTextBlock({ content: rawContent }: RichTextBlockProp
         ? ((rawAlign as { desktop?: Alignment; mobile?: Alignment }).desktop
           ?? (rawAlign as { desktop?: Alignment; mobile?: Alignment }).mobile)
         : undefined;
-  const alignmentClass = resolvedAlign ? ALIGN_CLASS[resolvedAlign] : "";
+  const alignmentClass = resolvedAlign ? ALIGNMENT_CLASS[resolvedAlign] : "";
 
   return (
     <section
