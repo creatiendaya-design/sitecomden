@@ -1,10 +1,10 @@
 "use client";
 
-import DOMPurify from "isomorphic-dompurify";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { readContent, readStyleAndMedia } from "./_normalizeContent";
 import { applyBlockStyle } from "@/lib/blocks/apply-style";
+import { sanitizeRichText } from "@/lib/blocks/sanitize-rich-text";
 
 interface FaqItem {
   id: string;
@@ -71,10 +71,7 @@ export default function FaqBlock({ content: rawContent }: FaqBlockProps) {
                   <div
                     className="prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(item.answer ?? "", {
-                        ALLOWED_TAGS: ["p", "br", "strong", "em", "u", "a", "ul", "ol", "li"],
-                        ALLOWED_ATTR: ["href", "target", "rel"],
-                      }),
+                      __html: sanitizeRichText(item.answer),
                     }}
                   />
                 </AccordionContent>
@@ -94,10 +91,7 @@ export default function FaqBlock({ content: rawContent }: FaqBlockProps) {
                   <div
                     className="prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(item.answer ?? "", {
-                        ALLOWED_TAGS: ["p", "br", "strong", "em", "u", "a", "ul", "ol", "li"],
-                        ALLOWED_ATTR: ["href", "target", "rel"],
-                      }),
+                      __html: sanitizeRichText(item.answer),
                     }}
                   />
                 </AccordionContent>
