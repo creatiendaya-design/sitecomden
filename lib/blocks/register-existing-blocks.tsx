@@ -12,7 +12,7 @@ const BenefitsBlock = dynamic(() => import("@/components/shop/templates/blocks/B
 const GalleryBlock = dynamic(() => import("@/components/shop/templates/blocks/GalleryBlock"))
 const TestimonialsBlock = dynamic(() => import("@/components/shop/templates/blocks/TestimonialsBlock"))
 const VideoBlock = dynamic(() => import("@/components/shop/templates/blocks/VideoBlock"))
-const ColorsBlock = dynamic(() => import("@/components/shop/templates/blocks/ColorsBlock"))
+// ColorsBlock intentionally not imported — block is deprecated from the picker
 const TickerBlock = dynamic(() => import("@/components/shop/templates/blocks/TickerBlock"))
 const TrustBadgesBlock = dynamic(() => import("@/components/shop/templates/blocks/TrustBadgesBlock"))
 const RichTextBlock = dynamic(() => import("@/components/shop/templates/blocks/RichTextBlock"))
@@ -25,7 +25,7 @@ import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapt
 import { GalleryContentForm } from "@/components/admin/page-builder/forms/adapters/GalleryContentForm"
 import { TestimonialsContentForm } from "@/components/admin/page-builder/forms/adapters/TestimonialsContentForm"
 import { VideoContentForm } from "@/components/admin/page-builder/forms/adapters/VideoContentForm"
-import { ColorsContentForm } from "@/components/admin/page-builder/forms/adapters/ColorsContentForm"
+// ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { TickerContentForm } from "@/components/admin/page-builder/forms/adapters/TickerContentForm"
 import { TrustBadgesContentForm } from "@/components/admin/page-builder/forms/adapters/TrustBadgesContentForm"
 import { RichTextContentForm } from "@/components/admin/page-builder/forms/adapters/RichTextContentForm"
@@ -94,18 +94,10 @@ const existing: BlockDefinition[] = [
     renderer: VideoBlock as any,
     contentForm: VideoContentForm as any,
   },
-  {
-    type: "COLORS",
-    label: "Paleta de colores",
-    icon: "Palette",
-    emoji: "🎨",
-    description: "Define colores de marca aplicables a la landing",
-    scope: "universal",
-    category: "visual",
-    defaultContent: DEFAULT_CONTENT_V2.COLORS,
-    renderer: ColorsBlock as any,
-    contentForm: ColorsContentForm as any,
-  },
+  // COLORS block intentionally not registered in the AddBlockPanel — it was
+  // deprecated as a standalone block. The renderer still exists for any
+  // existing COLORS blocks in the DB (they render correctly via the storefront's
+  // LandingBlockRenderer switch) but admins can no longer add new ones.
   {
     type: "TICKER",
     label: "Ticker / Contador",

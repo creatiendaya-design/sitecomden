@@ -34,6 +34,7 @@ export interface GalleryBlockContent {
   displayType: "slider" | "stacked";
   images: string[];
   showBuyButton: boolean;
+  buyButtonText?: string;
 }
 
 export interface TestimonialItem {
@@ -57,6 +58,7 @@ export interface VideoBlockContent {
   displayType: "slider" | "stacked";
   videos: VideoItem[];
   showBuyButton: boolean;
+  buyButtonText?: string;
 }
 
 export interface ColorsBlockContent {

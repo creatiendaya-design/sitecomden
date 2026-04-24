@@ -16,13 +16,15 @@ export default function VideoBlock({ content: rawContent, onBuyClick }: VideoBlo
   const content = readContent<VideoBlockContent>(rawContent, "VIDEO");
   const { style: blockStyle } = readStyleAndMedia(rawContent);
   const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
-  const { displayType, videos, showBuyButton } = content;
+  const { displayType, videos, showBuyButton, buyButtonText } = content;
   if (!videos?.length) return null;
 
+  const buttonLabel = buyButtonText?.trim() || "Comprar ahora";
+
   if (displayType === "stacked") {
-    return <VideoStacked videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
+    return <VideoStacked videos={videos} showBuyButton={showBuyButton} buttonLabel={buttonLabel} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
   }
-  return <VideoSlider videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
+  return <VideoSlider videos={videos} showBuyButton={showBuyButton} buttonLabel={buttonLabel} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
 }
 
 /**
@@ -58,12 +60,14 @@ function useVideosPerSlide(containerRef: React.RefObject<HTMLElement | null>) {
 function VideoSlider({
   videos,
   showBuyButton,
+  buttonLabel,
   onBuyClick,
   styleClass,
   inlineStyle,
 }: {
   videos: VideoItem[];
   showBuyButton: boolean;
+  buttonLabel: string;
   onBuyClick?: () => void;
   styleClass?: string;
   inlineStyle?: React.CSSProperties;
@@ -131,7 +135,7 @@ function VideoSlider({
               onClick={onBuyClick}
               className="landing-cta-btn rounded-full px-8 py-3 font-semibold shadow-md hover:scale-105 transition-transform active:scale-95"
             >
-              Comprar ahora
+              {buttonLabel}
             </button>
           </div>
         )}
@@ -143,12 +147,14 @@ function VideoSlider({
 function VideoStacked({
   videos,
   showBuyButton,
+  buttonLabel,
   onBuyClick,
   styleClass,
   inlineStyle,
 }: {
   videos: VideoItem[];
   showBuyButton: boolean;
+  buttonLabel: string;
   onBuyClick?: () => void;
   styleClass?: string;
   inlineStyle?: React.CSSProperties;
@@ -165,7 +171,7 @@ function VideoStacked({
                 onClick={onBuyClick}
                 className="landing-cta-btn w-full rounded-full py-3 font-semibold hover:scale-[1.02] transition-transform active:scale-[0.98]"
               >
-                Comprar ahora
+                {buttonLabel}
               </button>
             )}
           </div>

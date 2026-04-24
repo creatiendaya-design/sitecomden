@@ -54,8 +54,19 @@ export default function VideoBlockForm({ content, onChange }: VideoBlockFormProp
           checked={content.showBuyButton}
           onCheckedChange={(v) => onChange({ ...content, showBuyButton: v })}
         />
-        <Label>Mostrar botón &quot;Comprar ahora&quot;</Label>
+        <Label>Mostrar botón de compra</Label>
       </div>
+
+      {content.showBuyButton && (
+        <div>
+          <Label className="mb-1 block">Texto del botón</Label>
+          <Input
+            value={content.buyButtonText ?? ""}
+            onChange={(e) => onChange({ ...content, buyButtonText: e.target.value })}
+            placeholder="Comprar ahora"
+          />
+        </div>
+      )}
 
       <div className="space-y-3">
         {content.videos.map((video, i) => (

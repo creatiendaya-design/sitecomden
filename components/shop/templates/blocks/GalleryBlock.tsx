@@ -18,24 +18,28 @@ export default function GalleryBlock({ content: rawContent, onBuyClick }: Galler
   const content = readContent<GalleryBlockContent>(rawContent, "GALLERY");
   const { style: blockStyle } = readStyleAndMedia(rawContent);
   const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
-  const { displayType, images, showBuyButton } = content;
+  const { displayType, images, showBuyButton, buyButtonText } = content;
   if (!images?.length) return null;
 
+  const buttonLabel = buyButtonText?.trim() || "Comprar ahora";
+
   if (displayType === "stacked") {
-    return <GalleryStacked images={images} showBuyButton={showBuyButton} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
+    return <GalleryStacked images={images} showBuyButton={showBuyButton} buttonLabel={buttonLabel} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
   }
-  return <GallerySlider images={images} showBuyButton={showBuyButton} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
+  return <GallerySlider images={images} showBuyButton={showBuyButton} buttonLabel={buttonLabel} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
 }
 
 function GallerySlider({
   images,
   showBuyButton,
+  buttonLabel,
   onBuyClick,
   styleClass,
   inlineStyle,
 }: {
   images: string[];
   showBuyButton: boolean;
+  buttonLabel: string;
   onBuyClick?: () => void;
   styleClass?: string;
   inlineStyle?: React.CSSProperties;
@@ -100,7 +104,7 @@ function GallerySlider({
               onClick={onBuyClick}
               className="landing-cta-btn rounded-full px-8 py-3 font-semibold shadow-md hover:scale-105 transition-transform active:scale-95"
             >
-              Comprar ahora
+              {buttonLabel}
             </button>
           </div>
         )}
@@ -120,12 +124,14 @@ function GallerySlider({
 function GalleryStacked({
   images,
   showBuyButton,
+  buttonLabel,
   onBuyClick,
   styleClass,
   inlineStyle,
 }: {
   images: string[];
   showBuyButton: boolean;
+  buttonLabel: string;
   onBuyClick?: () => void;
   styleClass?: string;
   inlineStyle?: React.CSSProperties;
@@ -157,7 +163,7 @@ function GalleryStacked({
                   onClick={onBuyClick}
                   className="landing-cta-btn w-full mt-2 rounded-full py-2 font-semibold text-sm hover:scale-105 transition-transform active:scale-95"
                 >
-                  Comprar ahora
+                  {buttonLabel}
                 </button>
               )}
             </div>
