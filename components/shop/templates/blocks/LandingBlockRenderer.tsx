@@ -31,10 +31,21 @@ function getVisibility(b: LandingBlock): string {
   return (style?.visibility as string) ?? "always";
 }
 
+// Tailwind CSS classes that hide a block based on viewport breakpoint.
+// Uses the `lg` breakpoint (1024px) to match the editor's Desktop/Mobile
+// cutoff defined in lib/blocks/resolve.ts.
+//  - "mobile-only": visible on mobile, hidden on desktop   → lg:hidden
+//  - "desktop-only": visible on desktop, hidden on mobile → hidden lg:block
+function getVisibilityClass(visibility: string): string {
+  if (visibility === "mobile-only") return "lg:hidden";
+  if (visibility === "desktop-only") return "hidden lg:block";
+  return "";
+}
+
 export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBlockRendererProps) {
-  // Skip blocks marked as fully hidden — they should not render on the storefront
-  // at all. Device-specific visibility (mobile-only / desktop-only) is handled
-  // via CSS inside each individual block renderer.
+  // Skip blocks marked as fully hidden — they should not render on the
+  // storefront at all. Device-specific visibility (mobile-only / desktop-only)
+  // is applied as a Tailwind class on the wrapping div below.
   const visible = blocks.filter((b) => getVisibility(b) !== "hidden");
 
   // Sticky tickers render outside normal flow, at the top.
@@ -43,34 +54,50 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
 
   return (
     <>
-      {stickyTickers.map((block) => (
-        <TickerBlock
-          key={block.id}
-          content={block.content as TickerBlockContent}
-          sticky
-        />
-      ))}
+      {stickyTickers.map((block) => {
+        const className = getVisibilityClass(getVisibility(block));
+        return (
+          <div key={block.id} className={className || undefined}>
+            <TickerBlock content={block.content as TickerBlockContent} sticky />
+          </div>
+        );
+      })}
 
       {rest.map((block) => {
         const c = block.content as any;
+        const className = getVisibilityClass(getVisibility(block));
+        let inner: React.ReactNode = null;
         switch (block.type) {
           case "HERO":
-            return <HeroBlock key={block.id} content={c} onCtaClick={onCtaClick} />;
+            inner = <HeroBlock content={c} onCtaClick={onCtaClick} />;
+            break;
           case "BENEFITS":
-            return <BenefitsBlock key={block.id} content={c} />;
+            inner = <BenefitsBlock content={c} />;
+            break;
           case "GALLERY":
-            return <GalleryBlock key={block.id} content={c} onBuyClick={onCtaClick} />;
+            inner = <GalleryBlock content={c} onBuyClick={onCtaClick} />;
+            break;
           case "TESTIMONIALS":
-            return <TestimonialsBlock key={block.id} content={c} />;
+            inner = <TestimonialsBlock content={c} />;
+            break;
           case "VIDEO":
-            return <VideoBlock key={block.id} content={c} onBuyClick={onCtaClick} />;
+            inner = <VideoBlock content={c} onBuyClick={onCtaClick} />;
+            break;
           case "COLORS":
-            return <ColorsBlock key={block.id} content={c} />;
+            inner = <ColorsBlock content={c} />;
+            break;
           case "TICKER":
-            return <TickerBlock key={block.id} content={c} />;
+            inner = <TickerBlock content={c} />;
+            break;
           default:
             return null;
         }
+
+        return (
+          <div key={block.id} className={className || undefined}>
+            {inner}
+          </div>
+        );
       })}
     </>
   );
