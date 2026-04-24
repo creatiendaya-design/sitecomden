@@ -13,9 +13,9 @@ export default function TestimonialsBlock({ content: rawContent }: TestimonialsB
   if (!items?.length) return null;
 
   return (
-    <section className="landing-section py-14">
+    <section className="landing-section py-8 @md:py-14 @container">
       <div className="container mx-auto px-4">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-3">
           {items.map((item, i) => (
             <div key={i} className="flex flex-col gap-3 rounded-2xl border bg-white p-6 shadow-sm">
               {/* Stars */}

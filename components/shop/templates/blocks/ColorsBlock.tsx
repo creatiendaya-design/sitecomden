@@ -16,6 +16,7 @@ export default function ColorsBlock({ content: rawContent }: ColorsBlockProps) {
   if (text)       cssVars["--landing-text"]       = text;
 
   return (
+    <div className="@container">
     <style>{`
       .landing-product {
         ${primary    ? `--landing-primary: ${primary};` : ""}
@@ -26,5 +27,6 @@ export default function ColorsBlock({ content: rawContent }: ColorsBlockProps) {
       .landing-product .landing-section { background-color: var(--landing-bg, transparent); color: var(--landing-text, inherit); }
       .landing-product .landing-cta-btn { background-color: var(--landing-cta, #dc2626); color: #fff; }
     `}</style>
+    </div>
   );
 }

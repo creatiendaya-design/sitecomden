@@ -19,7 +19,7 @@ export default function TickerBlock({ content: rawContent, sticky }: TickerBlock
 
   return (
     <div
-      className={`z-40 w-full overflow-hidden text-sm font-medium select-none ${isSticky ? "sticky top-0" : ""}`}
+      className={`z-40 w-full overflow-hidden text-sm font-medium select-none @container ${isSticky ? "sticky top-0" : ""}`}
       style={{ backgroundColor: bgColor ?? "#dc2626", color: textColor ?? "#ffffff" }}
     >
       <div className={`flex items-center h-10 ${mode === "both" ? "gap-6 px-4 justify-between" : "justify-center"}`}>
