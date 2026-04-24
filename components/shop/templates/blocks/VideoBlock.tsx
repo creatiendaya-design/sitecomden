@@ -21,14 +21,33 @@ export default function VideoBlock({ content: rawContent, onBuyClick }: VideoBlo
   return <VideoSlider videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
 }
 
-function useVideosPerSlide() {
-  const [perSlide, setPerSlide] = useState(2);
+/**
+ * Measures the block's own container width (via ResizeObserver on the passed
+ * ref) and returns the number of videos that should fit per slide:
+ *   <  640px container → 1 (full-width video, one per page — mobile feel)
+ *   640-1024px         → 2
+ *   ≥ 1024px           → 3
+ *
+ * Uses container width (not window.innerWidth) so the editor's mobile preview
+ * at 375px behaves like a real phone instead of falling back to the wide
+ * browser viewport.
+ */
+function useVideosPerSlide(containerRef: React.RefObject<HTMLElement | null>) {
+  const [perSlide, setPerSlide] = useState(1);
   useEffect(() => {
-    const update = () => setPerSlide(window.innerWidth >= 1024 ? 3 : 2);
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
+    const el = containerRef.current;
+    if (!el) return;
+    const compute = () => {
+      const w = el.offsetWidth;
+      if (w >= 1024) setPerSlide(3);
+      else if (w >= 640) setPerSlide(2);
+      else setPerSlide(1);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [containerRef]);
   return perSlide;
 }
 
@@ -41,7 +60,8 @@ function VideoSlider({
   showBuyButton: boolean;
   onBuyClick?: () => void;
 }) {
-  const perSlide = useVideosPerSlide();
+  const containerRef = useRef<HTMLElement>(null);
+  const perSlide = useVideosPerSlide(containerRef);
   const [page, setPage] = useState(0);
   const [fading, setFading] = useState(false);
 
@@ -64,7 +84,7 @@ function VideoSlider({
   const next = useCallback(() => navigate(Math.min(totalPages - 1, page + 1)), [page, totalPages, navigate]);
 
   return (
-    <section className="landing-section py-12 @container">
+    <section ref={containerRef} className="landing-section py-12 @container">
       <div className="container mx-auto px-4">
         <div className="relative">
           {totalPages > 1 && (
@@ -87,7 +107,7 @@ function VideoSlider({
           )}
 
           <div
-            className={`grid gap-4 grid-cols-2 @5xl:grid-cols-3 transition-opacity duration-[180ms] ${
+            className={`grid gap-4 grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-3 transition-opacity duration-[180ms] ${
               fading ? "opacity-0" : "opacity-100"
             }`}
           >
