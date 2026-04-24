@@ -41,19 +41,20 @@ export function Canvas({ context }: CanvasProps) {
     >
       <CanvasFrame>
         {/*
-          Sticky tickers need their containing block to be the CanvasFrame's
-          scroll container — not the BlockWrapper inside BlockRenderer, which
-          is only as tall as the ticker itself and would trap sticky with no
-          movement range. Wrapping the whole BlockRenderer in a `sticky top-0`
-          div makes the wrapper the sticky element; its containing block is
-          the scroll container, giving it full range to stick as the user
-          scrolls past it.
+          Group ALL sticky tickers in ONE `position: sticky` wrapper so they
+          stack vertically at the top of the canvas and stick together —
+          same pattern as the storefront. Wrapping each ticker in its own
+          sticky div would still stick them, but they'd overlap at top-0
+          instead of stacking. A single wrapper keeps them flowing naturally
+          inside and sticking as a group.
         */}
-        {stickyTickers.map((block) => (
-          <div key={`sticky-${block.id}`} className="sticky top-0 z-40">
-            <BlockRenderer block={block} context={context} />
+        {stickyTickers.length > 0 && (
+          <div className="sticky top-0 z-40">
+            {stickyTickers.map((block) => (
+              <BlockRenderer key={`sticky-${block.id}`} block={block} context={context} />
+            ))}
           </div>
-        ))}
+        )}
 
         {blocks.length === 0 && stickyTickers.length === 0 ? (
           <EmptyCanvas />

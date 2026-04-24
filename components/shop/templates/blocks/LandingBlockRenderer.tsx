@@ -54,14 +54,26 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
 
   return (
     <>
-      {stickyTickers.map((block) => {
-        const className = getVisibilityClass(getVisibility(block));
-        return (
-          <div key={block.id} className={className || undefined}>
-            <TickerBlock content={block.content as TickerBlockContent} sticky />
-          </div>
-        );
-      })}
+      {/*
+        Group ALL sticky tickers in a single `position: sticky` wrapper so
+        they stack vertically at the top of the page and stick together as
+        the user scrolls. Rendering each in its own wrapper would trap
+        sticky in a short containing block (no scroll range) and break the
+        behavior. Order inside the stack respects the editor's position
+        field (thanks to the stable sort of `visible`).
+      */}
+      {stickyTickers.length > 0 && (
+        <div className="sticky top-0 z-40">
+          {stickyTickers.map((block) => {
+            const className = getVisibilityClass(getVisibility(block));
+            return (
+              <div key={block.id} className={className || undefined}>
+                <TickerBlock content={block.content as TickerBlockContent} sticky />
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {rest.map((block) => {
         const c = block.content as any;
