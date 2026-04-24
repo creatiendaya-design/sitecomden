@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { TickerBlockContent } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface TickerBlockProps {
   content: TickerBlockContent | unknown;
@@ -11,6 +13,10 @@ interface TickerBlockProps {
 
 export default function TickerBlock({ content: rawContent, sticky }: TickerBlockProps) {
   const content = readContent<TickerBlockContent>(rawContent, "TICKER");
+  // NOTE: we intentionally do NOT destructure/use inlineStyle — the ticker
+  // has its own bgColor/textColor that must not be overwritten.
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass } = applyBlockStyle(blockStyle);
   const { mode, scrollingText, speed, endsAt, countdownLabel, bgColor, textColor } = content;
   const isSticky = sticky ?? content.sticky;
 
@@ -19,7 +25,11 @@ export default function TickerBlock({ content: rawContent, sticky }: TickerBlock
 
   return (
     <div
-      className={`z-40 w-full overflow-hidden text-sm font-medium select-none ${isSticky ? "sticky top-0" : ""}`}
+      className={cn(
+        "z-40 w-full overflow-hidden text-sm font-medium select-none @container",
+        isSticky && "sticky top-0",
+        styleClass,
+      )}
       style={{ backgroundColor: bgColor ?? "#dc2626", color: textColor ?? "#ffffff" }}
     >
       <div className={`flex items-center h-10 ${mode === "both" ? "gap-6 px-4 justify-between" : "justify-center"}`}>

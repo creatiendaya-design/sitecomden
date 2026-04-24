@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import type { HeroBlockContent } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface HeroBlockProps {
   content: HeroBlockContent | unknown;
@@ -11,10 +13,18 @@ interface HeroBlockProps {
 
 export default function HeroBlock({ content: rawContent, onCtaClick }: HeroBlockProps) {
   const content = readContent<HeroBlockContent>(rawContent, "HERO");
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
   const { title, subtitle, bgImage, overlayColor, ctaText } = content;
 
   return (
-    <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
+    <section
+      className={cn(
+        "relative min-h-[40vh] @md:min-h-[60vh] flex items-center justify-center overflow-hidden @container",
+        styleClass,
+      )}
+      style={inlineStyle}
+    >
       {bgImage ? (
         <Image
           src={bgImage}
@@ -35,19 +45,19 @@ export default function HeroBlock({ content: rawContent, onCtaClick }: HeroBlock
       />
 
       {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 py-20 text-center text-white">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-lg">
+      <div className="relative z-10 container mx-auto px-4 py-10 @md:py-20 text-center text-white">
+        <h1 className="text-3xl @md:text-4xl @lg:text-5xl @xl:text-6xl font-bold mb-4 drop-shadow-lg">
           {title}
         </h1>
         {subtitle && (
-          <p className="text-lg sm:text-xl max-w-2xl mx-auto mb-8 text-white/90 drop-shadow">
+          <p className="text-base @md:text-lg @lg:text-xl max-w-2xl mx-auto mb-6 @md:mb-8 text-white/90 drop-shadow">
             {subtitle}
           </p>
         )}
         {ctaText && (
           <button
             onClick={onCtaClick}
-            className="landing-cta-btn inline-flex items-center justify-center rounded-full px-8 py-4 text-lg font-semibold shadow-xl transition-transform hover:scale-105 active:scale-95"
+            className="landing-cta-btn inline-flex items-center justify-center rounded-full px-6 @md:px-8 py-3 @md:py-4 text-base @md:text-lg font-semibold shadow-xl transition-transform hover:scale-105 active:scale-95"
           >
             {ctaText}
           </button>

@@ -6,10 +6,19 @@ import TestimonialsBlock from "./TestimonialsBlock";
 import VideoBlock from "./VideoBlock";
 import ColorsBlock from "./ColorsBlock";
 import TickerBlock from "./TickerBlock";
+import TrustBadgesBlock from "./TrustBadgesBlock";
+import RichTextBlock from "./RichTextBlock";
+import FaqBlock from "./FaqBlock";
+import ImageTextBlock from "./ImageTextBlock";
+import RelatedProductsBlockEditorWrapper from "./RelatedProductsBlockEditorWrapper";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
   onCtaClick?: () => void;
+  /** When rendering from a product page, the RELATED_PRODUCTS block uses
+   *  this to fetch real recommendations. When absent (editor canvas), the
+   *  block falls back to placeholder cards. */
+  currentProductId?: string;
 }
 
 // Detect sticky flag across both content shapes:
@@ -31,6 +40,11 @@ function getVisibility(b: LandingBlock): string {
   return (style?.visibility as string) ?? "always";
 }
 
+function anchorIdOf(b: LandingBlock): string | undefined {
+  const c = b.content as Record<string, unknown>;
+  return (c?.anchorId as string | undefined) || undefined;
+}
+
 // Tailwind CSS classes that hide a block based on viewport breakpoint.
 // Uses the `lg` breakpoint (1024px) to match the editor's Desktop/Mobile
 // cutoff defined in lib/blocks/resolve.ts.
@@ -42,7 +56,7 @@ function getVisibilityClass(visibility: string): string {
   return "";
 }
 
-export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBlockRendererProps) {
+export default function LandingBlockRenderer({ blocks, onCtaClick, currentProductId }: LandingBlockRendererProps) {
   // Skip blocks marked as fully hidden — they should not render on the
   // storefront at all. Device-specific visibility (mobile-only / desktop-only)
   // is applied as a Tailwind class on the wrapping div below.
@@ -67,7 +81,7 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
           {stickyTickers.map((block) => {
             const className = getVisibilityClass(getVisibility(block));
             return (
-              <div key={block.id} className={className || undefined}>
+              <div key={block.id} id={anchorIdOf(block) || undefined} className={className || undefined}>
                 <TickerBlock content={block.content as TickerBlockContent} sticky />
               </div>
             );
@@ -101,12 +115,27 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
           case "TICKER":
             inner = <TickerBlock content={c} />;
             break;
+          case "TRUST_BADGES":
+            inner = <TrustBadgesBlock content={c} />;
+            break;
+          case "RICH_TEXT":
+            inner = <RichTextBlock content={c} />;
+            break;
+          case "FAQ":
+            inner = <FaqBlock content={c} />;
+            break;
+          case "IMAGE_TEXT":
+            inner = <ImageTextBlock content={c} onCtaClick={onCtaClick} />;
+            break;
+          case "RELATED_PRODUCTS":
+            inner = <RelatedProductsBlockEditorWrapper content={c} currentProductId={currentProductId} />;
+            break;
           default:
             return null;
         }
 
         return (
-          <div key={block.id} className={className || undefined}>
+          <div key={block.id} id={anchorIdOf(block) || undefined} className={className || undefined}>
             {inner}
           </div>
         );

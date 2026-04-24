@@ -92,11 +92,79 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
     style: { ...DEFAULT_STYLE, paddingY: "sm" },
     media: {},
   },
-  // Block types added in Plan 2 — placeholder defaults so the enum is exhaustive.
-  // These will NOT be registered as addable in the AddBlockPanel (registry filter).
-  RICH_TEXT: { data: {}, style: { ...DEFAULT_STYLE }, media: {} },
-  FAQ: { data: {}, style: { ...DEFAULT_STYLE }, media: {} },
-  IMAGE_TEXT: { data: {}, style: { ...DEFAULT_STYLE }, media: {} },
-  RELATED_PRODUCTS: { data: {}, style: { ...DEFAULT_STYLE }, media: {} },
-  TRUST_BADGES: { data: {}, style: { ...DEFAULT_STYLE }, media: {} },
+  RICH_TEXT: {
+    data: {
+      html: "<p>Escribe aquí tu contenido con formato libre.</p>",
+      maxWidth: "prose",
+    },
+    style: { ...DEFAULT_STYLE, alignment: "left" },
+    media: {},
+  },
+
+  FAQ: {
+    data: {
+      title: "Preguntas frecuentes",
+      items: [
+        { id: crypto.randomUUID(), question: "¿Cuánto demora el envío?", answer: "<p>Entre 24 y 72 horas en Lima Metropolitana.</p>" },
+        { id: crypto.randomUUID(), question: "¿Puedo devolver el producto?", answer: "<p>Sí, tienes 30 días calendario para devoluciones.</p>" },
+      ],
+      allowMultipleOpen: false,
+      defaultOpenFirst: false,
+    },
+    style: { ...DEFAULT_STYLE, alignment: "left" },
+    media: {},
+  },
+
+  IMAGE_TEXT: {
+    data: {
+      title: "Característica destacada",
+      description: "<p>Describe la característica en un par de oraciones.</p>",
+      imagePosition: "left",
+      imageAlt: "Característica del producto",
+      ctaText: "",
+      ctaUrl: "",
+      ratioImageToText: "50-50",
+    },
+    style: { ...DEFAULT_STYLE, alignment: "left" },
+    media: {
+      image: { desktop: "", mobile: "" },
+    },
+  },
+
+  RELATED_PRODUCTS: {
+    data: {
+      title: "También te puede gustar",
+      mode: "auto",
+      autoFilters: {
+        source: "same-category",
+        limit: 4,
+        excludeCurrentProduct: true,
+      },
+      displayType: "carousel",
+      columnsDesktop: 4,
+      columnsMobile: 2,
+      showPrice: true,
+      showRating: false,
+      showAddToCart: false,
+    },
+    style: { ...DEFAULT_STYLE },
+    media: {},
+  },
+
+  TRUST_BADGES: {
+    data: {
+      badges: [
+        { id: crypto.randomUUID(), icon: "ShieldCheck", title: "Pago seguro", subtitle: "SSL y tarjeta cifrada" },
+        { id: crypto.randomUUID(), icon: "Truck", title: "Envío gratis", subtitle: "En compras mayores a S/150" },
+        { id: crypto.randomUUID(), icon: "RefreshCw", title: "Devoluciones", subtitle: "30 días" },
+        { id: crypto.randomUUID(), icon: "BadgeCheck", title: "Garantía", subtitle: "Productos originales" },
+      ],
+      layout: "horizontal",
+      columns: 4,
+      iconSize: "md",
+      iconStyle: "outline",
+    },
+    style: { ...DEFAULT_STYLE },
+    media: {},
+  },
 }

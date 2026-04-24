@@ -1,7 +1,9 @@
 import Image from "next/image";
 import { Star } from "lucide-react";
 import type { TestimonialsBlockContent } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface TestimonialsBlockProps {
   content: TestimonialsBlockContent | unknown;
@@ -9,13 +11,15 @@ interface TestimonialsBlockProps {
 
 export default function TestimonialsBlock({ content: rawContent }: TestimonialsBlockProps) {
   const content = readContent<TestimonialsBlockContent>(rawContent, "TESTIMONIALS");
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
   const { items } = content;
   if (!items?.length) return null;
 
   return (
-    <section className="landing-section py-14">
+    <section className={cn("landing-section py-8 @md:py-14 @container", styleClass)} style={inlineStyle}>
       <div className="container mx-auto px-4">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-3">
           {items.map((item, i) => (
             <div key={i} className="flex flex-col gap-3 rounded-2xl border bg-white p-6 shadow-sm">
               {/* Stars */}

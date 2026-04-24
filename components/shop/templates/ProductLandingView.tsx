@@ -63,7 +63,11 @@ export default function ProductLandingView({
   if (landingBlocks.length > 0) {
     return (
       <div className="landing-product">
-        <LandingBlockRenderer blocks={landingBlocks} onCtaClick={handleCtaClick} />
+        <LandingBlockRenderer
+          blocks={landingBlocks}
+          onCtaClick={handleCtaClick}
+          currentProductId={product.id}
+        />
         <CodOrderModal
           open={codOpen}
           onClose={() => setCodOpen(false)}

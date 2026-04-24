@@ -1,5 +1,7 @@
 import type { BenefitsBlockContent } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface BenefitsBlockProps {
   content: BenefitsBlockContent | unknown;
@@ -7,6 +9,8 @@ interface BenefitsBlockProps {
 
 export default function BenefitsBlock({ content: rawContent }: BenefitsBlockProps) {
   const content = readContent<BenefitsBlockContent>(rawContent, "BENEFITS");
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
   const { cards } = content;
   if (!cards?.length) return null;
 
@@ -16,7 +20,7 @@ export default function BenefitsBlock({ content: rawContent }: BenefitsBlockProp
     // not the browser viewport. That way the editor canvas (with a narrow
     // simulated frame) and the real storefront behave identically regardless
     // of the actual browser viewport width.
-    <section className="landing-section py-8 @md:py-14 @container">
+    <section className={cn("landing-section py-8 @md:py-14 @container", styleClass)} style={inlineStyle}>
       <div className="container mx-auto px-4">
         <div className="grid gap-3 @md:gap-6 grid-cols-1 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
           {cards.map((card, i) => (

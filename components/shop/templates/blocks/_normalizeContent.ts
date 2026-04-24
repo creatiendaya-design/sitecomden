@@ -1,4 +1,4 @@
-import type { BlockContentV2 } from "@/lib/blocks/types"
+import type { BlockContentV2, BlockStyle, BlockMedia } from "@/lib/blocks/types"
 
 /**
  * Detect if a content object is in v2 shape (has { data, style, media } keys).
@@ -14,19 +14,7 @@ export function isV2Content(content: unknown): content is BlockContentV2 {
   )
 }
 
-/**
- * Normalize content to a flat shape the legacy renderers expect.
- *
- * - v1 (already flat): return as-is
- * - v2: flatten by merging data + select media fields. The caller
- *   decides which media fields are relevant (depends on block type).
- *
- * For the bilingual reader pattern used in Plan 1, we flatten v2 to the v1
- * field names so the existing render logic does not need to change.
- *
- * Plan 2 replaces this with direct v2-aware renderers.
- */
-export function flattenV2Content(content: BlockContentV2, blockType: string): Record<string, unknown> {
+function flattenV2Content(content: BlockContentV2, blockType: string): Record<string, unknown> {
   const flat: Record<string, unknown> = { ...(content.data as Record<string, unknown>) }
 
   // Block-specific media flattening
@@ -48,4 +36,16 @@ export function flattenV2Content(content: BlockContentV2, blockType: string): Re
 export function readContent<T = Record<string, unknown>>(content: unknown, blockType: string): T {
   if (isV2Content(content)) return flattenV2Content(content, blockType) as T
   return (content ?? {}) as T
+}
+
+/**
+ * Returns the Level 2 style and media zones from v2 content. For legacy
+ * v1 blocks (flat content without style/media), returns empty shapes so
+ * renderers can still call applyBlockStyle without null checks.
+ */
+export function readStyleAndMedia(content: unknown): { style: BlockStyle; media: BlockMedia } {
+  if (isV2Content(content)) {
+    return { style: content.style, media: content.media }
+  }
+  return { style: {}, media: {} }
 }

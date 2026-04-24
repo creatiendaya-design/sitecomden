@@ -3,7 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Play, Volume2, VolumeX } from "lucide-react";
 import type { VideoBlockContent, VideoItem } from "@/lib/types/landing-blocks";
-import { readContent } from "./_normalizeContent";
+import { cn } from "@/lib/utils";
+import { readContent, readStyleAndMedia } from "./_normalizeContent";
+import { applyBlockStyle } from "@/lib/blocks/apply-style";
 
 interface VideoBlockProps {
   content: VideoBlockContent | unknown;
@@ -12,36 +14,66 @@ interface VideoBlockProps {
 
 export default function VideoBlock({ content: rawContent, onBuyClick }: VideoBlockProps) {
   const content = readContent<VideoBlockContent>(rawContent, "VIDEO");
-  const { displayType, videos, showBuyButton } = content;
+  const { style: blockStyle } = readStyleAndMedia(rawContent);
+  const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
+  const { displayType, videos, showBuyButton, buyButtonText } = content;
   if (!videos?.length) return null;
 
+  const buttonLabel = buyButtonText?.trim() || "Comprar ahora";
+
   if (displayType === "stacked") {
-    return <VideoStacked videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
+    return <VideoStacked videos={videos} showBuyButton={showBuyButton} buttonLabel={buttonLabel} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
   }
-  return <VideoSlider videos={videos} showBuyButton={showBuyButton} onBuyClick={onBuyClick} />;
+  return <VideoSlider videos={videos} showBuyButton={showBuyButton} buttonLabel={buttonLabel} onBuyClick={onBuyClick} styleClass={styleClass} inlineStyle={inlineStyle} />;
 }
 
-function useVideosPerSlide() {
-  const [perSlide, setPerSlide] = useState(2);
+/**
+ * Measures the block's own container width (via ResizeObserver on the passed
+ * ref) and returns the number of videos that should fit per slide:
+ *   <  640px container → 1 (full-width video, one per page — mobile feel)
+ *   640-1024px         → 2
+ *   ≥ 1024px           → 3
+ *
+ * Uses container width (not window.innerWidth) so the editor's mobile preview
+ * at 375px behaves like a real phone instead of falling back to the wide
+ * browser viewport.
+ */
+function useVideosPerSlide(containerRef: React.RefObject<HTMLElement | null>) {
+  const [perSlide, setPerSlide] = useState(1);
   useEffect(() => {
-    const update = () => setPerSlide(window.innerWidth >= 1024 ? 3 : 2);
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
+    const el = containerRef.current;
+    if (!el) return;
+    const compute = () => {
+      const w = el.offsetWidth;
+      if (w >= 1024) setPerSlide(3);
+      else if (w >= 640) setPerSlide(2);
+      else setPerSlide(1);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [containerRef]);
   return perSlide;
 }
 
 function VideoSlider({
   videos,
   showBuyButton,
+  buttonLabel,
   onBuyClick,
+  styleClass,
+  inlineStyle,
 }: {
   videos: VideoItem[];
   showBuyButton: boolean;
+  buttonLabel: string;
   onBuyClick?: () => void;
+  styleClass?: string;
+  inlineStyle?: React.CSSProperties;
 }) {
-  const perSlide = useVideosPerSlide();
+  const containerRef = useRef<HTMLElement>(null);
+  const perSlide = useVideosPerSlide(containerRef);
   const [page, setPage] = useState(0);
   const [fading, setFading] = useState(false);
 
@@ -64,7 +96,7 @@ function VideoSlider({
   const next = useCallback(() => navigate(Math.min(totalPages - 1, page + 1)), [page, totalPages, navigate]);
 
   return (
-    <section className="landing-section py-12">
+    <section ref={containerRef} className={cn("landing-section py-12 @container", styleClass)} style={inlineStyle}>
       <div className="container mx-auto px-4">
         <div className="relative">
           {totalPages > 1 && (
@@ -87,7 +119,7 @@ function VideoSlider({
           )}
 
           <div
-            className={`grid gap-4 grid-cols-2 lg:grid-cols-3 transition-opacity duration-[180ms] ${
+            className={`grid gap-4 grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-3 transition-opacity duration-[180ms] ${
               fading ? "opacity-0" : "opacity-100"
             }`}
           >
@@ -103,7 +135,7 @@ function VideoSlider({
               onClick={onBuyClick}
               className="landing-cta-btn rounded-full px-8 py-3 font-semibold shadow-md hover:scale-105 transition-transform active:scale-95"
             >
-              Comprar ahora
+              {buttonLabel}
             </button>
           </div>
         )}
@@ -115,14 +147,20 @@ function VideoSlider({
 function VideoStacked({
   videos,
   showBuyButton,
+  buttonLabel,
   onBuyClick,
+  styleClass,
+  inlineStyle,
 }: {
   videos: VideoItem[];
   showBuyButton: boolean;
+  buttonLabel: string;
   onBuyClick?: () => void;
+  styleClass?: string;
+  inlineStyle?: React.CSSProperties;
 }) {
   return (
-    <section className="landing-section py-12">
+    <section className={cn("landing-section py-12 @container", styleClass)} style={inlineStyle}>
       <div className="container mx-auto px-4">
         <div className="flex flex-col gap-8 max-w-2xl mx-auto">
         {videos.map((video, i) => (
@@ -133,7 +171,7 @@ function VideoStacked({
                 onClick={onBuyClick}
                 className="landing-cta-btn w-full rounded-full py-3 font-semibold hover:scale-[1.02] transition-transform active:scale-[0.98]"
               >
-                Comprar ahora
+                {buttonLabel}
               </button>
             )}
           </div>
