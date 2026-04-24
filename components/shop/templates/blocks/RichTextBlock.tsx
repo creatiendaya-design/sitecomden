@@ -28,17 +28,17 @@ export default function RichTextBlock({ content: rawContent }: RichTextBlockProp
   //  - <s>, <strike> strikethrough
   //  - <code>, <pre> code
   //  - <h1> (previously stripped; used when admin clicks Título 1)
-  //  - class attr — TipTap TextAlign uses class="text-center" etc.
+  //  - class + style attrs. TipTap's TextAlign extension writes alignment as
+  //    inline style="text-align: …" on <p>/<h*>, so we need "style" allowed
+  //    for alignment to survive on the storefront. DOMPurify's built-in CSS
+  //    sanitizer blocks expression(), javascript: URLs, @import, etc., which
+  //    is the right guard for admin-authored content.
   const sanitized = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       "p", "br", "strong", "em", "u", "s", "strike", "code", "pre",
       "a", "h1", "h2", "h3", "h4", "ul", "ol", "li", "blockquote", "img",
     ],
-    // NOTE: "style" attr is intentionally excluded — TipTap TextAlign uses
-    // class="text-left/center/right" (see class entry above), which is enough
-    // for alignment. Allowing inline style{} on admin-authored HTML would
-    // widen the XSS surface unnecessarily.
-    ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "class"],
+    ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "class", "style"],
     ALLOW_DATA_ATTR: false,
   });
 
