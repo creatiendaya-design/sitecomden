@@ -40,8 +40,19 @@ export function Canvas({ context }: CanvasProps) {
       }}
     >
       <CanvasFrame>
+        {/*
+          Sticky tickers need their containing block to be the CanvasFrame's
+          scroll container — not the BlockWrapper inside BlockRenderer, which
+          is only as tall as the ticker itself and would trap sticky with no
+          movement range. Wrapping the whole BlockRenderer in a `sticky top-0`
+          div makes the wrapper the sticky element; its containing block is
+          the scroll container, giving it full range to stick as the user
+          scrolls past it.
+        */}
         {stickyTickers.map((block) => (
-          <BlockRenderer key={`sticky-${block.id}`} block={block} context={context} />
+          <div key={`sticky-${block.id}`} className="sticky top-0 z-40">
+            <BlockRenderer block={block} context={context} />
+          </div>
         ))}
 
         {blocks.length === 0 && stickyTickers.length === 0 ? (
