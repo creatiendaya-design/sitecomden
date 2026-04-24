@@ -77,15 +77,25 @@ export default function RichTextEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      lastEmittedRef.current = html;
+      onChange(html);
     },
   });
 
+  // Track what we emitted via our own onUpdate so we don't re-setContent
+  // (and jump the cursor) when the parent echoes our change back via props.
+  const lastEmittedRef = useRef<string>("");
+
   // Actualizar contenido cuando cambia externamente
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content || "");
-    }
+    if (!editor) return;
+    // If the parent is echoing back what we just emitted, ignore.
+    if (content === lastEmittedRef.current) return;
+    // If content already matches, nothing to do.
+    if (content === editor.getHTML()) return;
+    // Truly external change: reset.
+    editor.commands.setContent(content || "");
   }, [content, editor]);
 
   if (!editor) {
