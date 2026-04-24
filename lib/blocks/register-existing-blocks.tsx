@@ -16,6 +16,7 @@ const ColorsBlock = dynamic(() => import("@/components/shop/templates/blocks/Col
 const TickerBlock = dynamic(() => import("@/components/shop/templates/blocks/TickerBlock"))
 const TrustBadgesBlock = dynamic(() => import("@/components/shop/templates/blocks/TrustBadgesBlock"))
 const RichTextBlock = dynamic(() => import("@/components/shop/templates/blocks/RichTextBlock"))
+const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlock"))
 
 import { HeroContentForm } from "@/components/admin/page-builder/forms/adapters/HeroContentForm"
 import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapters/BenefitsContentForm"
@@ -26,6 +27,7 @@ import { ColorsContentForm } from "@/components/admin/page-builder/forms/adapter
 import { TickerContentForm } from "@/components/admin/page-builder/forms/adapters/TickerContentForm"
 import { TrustBadgesContentForm } from "@/components/admin/page-builder/forms/adapters/TrustBadgesContentForm"
 import { RichTextContentForm } from "@/components/admin/page-builder/forms/adapters/RichTextContentForm"
+import { FaqContentForm } from "@/components/admin/page-builder/forms/adapters/FaqContentForm"
 
 const existing: BlockDefinition[] = [
   {
@@ -135,6 +137,18 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.RICH_TEXT,
     renderer: RichTextBlock as any,
     contentForm: RichTextContentForm as any,
+  },
+  {
+    type: "FAQ",
+    label: "Preguntas frecuentes",
+    icon: "HelpCircle",
+    emoji: "❓",
+    description: "Acordeón de preguntas y respuestas con SEO structured data",
+    scope: "universal",
+    category: "content",
+    defaultContent: DEFAULT_CONTENT_V2.FAQ,
+    renderer: FaqBlock as any,
+    contentForm: FaqContentForm as any,
   },
 ]
 

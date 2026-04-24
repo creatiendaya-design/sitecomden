@@ -8,6 +8,7 @@ import ColorsBlock from "./ColorsBlock";
 import TickerBlock from "./TickerBlock";
 import TrustBadgesBlock from "./TrustBadgesBlock";
 import RichTextBlock from "./RichTextBlock";
+import FaqBlock from "./FaqBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -113,6 +114,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick }: LandingBloc
             break;
           case "RICH_TEXT":
             inner = <RichTextBlock content={c} />;
+            break;
+          case "FAQ":
+            inner = <FaqBlock content={c} />;
             break;
           default:
             return null;
