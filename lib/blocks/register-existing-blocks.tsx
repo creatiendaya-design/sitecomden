@@ -45,6 +45,7 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.HERO,
     renderer: HeroBlock as any,
     contentForm: HeroContentForm as any,
+    styleSupport: { bgImage: true },
   },
   {
     type: "BENEFITS",
@@ -69,6 +70,7 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.GALLERY,
     renderer: GalleryBlock as any,
     contentForm: GalleryContentForm as any,
+    styleSupport: { textColor: false, alignment: false },
   },
   {
     type: "TESTIMONIALS",
@@ -93,6 +95,7 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.VIDEO,
     renderer: VideoBlock as any,
     contentForm: VideoContentForm as any,
+    styleSupport: { textColor: false, alignment: false },
   },
   // COLORS block intentionally not registered in the AddBlockPanel — it was
   // deprecated as a standalone block. The renderer still exists for any
@@ -109,6 +112,15 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.TICKER,
     renderer: TickerBlock as any,
     contentForm: TickerContentForm as any,
+    styleSupport: {
+      backgroundColor: false,
+      textColor: false,
+      alignment: false,
+      containerWidth: false,
+      cornerRadius: false,
+      border: false,
+      shadow: false,
+    },
   },
   {
     type: "TRUST_BADGES",
@@ -169,6 +181,7 @@ const existing: BlockDefinition[] = [
     defaultContent: DEFAULT_CONTENT_V2.RELATED_PRODUCTS,
     renderer: RelatedProductsBlockEditorWrapper as any,
     contentForm: RelatedProductsContentForm as any,
+    styleSupport: { textColor: false, alignment: false },
   },
 ]
 

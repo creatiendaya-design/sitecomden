@@ -49,7 +49,7 @@ const PADDING_CLASS: Record<PaddingSize, string> = {
   xl: "py-16 @md:py-24",
 }
 
-const ALIGNMENT_CLASS: Record<Alignment, string> = {
+export const ALIGNMENT_CLASS: Record<Alignment, string> = {
   left: "text-left",
   center: "text-center",
   right: "text-right",

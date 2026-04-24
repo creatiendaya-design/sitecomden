@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import type { BlockCategory, BlockContentV2, BlockScope, LandingBlockType } from "./types"
+import type { BlockCategory, BlockContentV2, BlockScope, BlockStyleSupport, LandingBlockType } from "./types"
 
 /**
  * Metadata and implementations for one block type.
@@ -21,6 +21,9 @@ export interface BlockDefinition {
     content: BlockContentV2
     onChange: (content: BlockContentV2) => void
   }>
+  /** Declares which style-tab sections apply to this block type. Unset
+   *  fields default per resolveStyleSupport() (all true except `bgImage`). */
+  styleSupport?: Partial<BlockStyleSupport>
 }
 
 /**

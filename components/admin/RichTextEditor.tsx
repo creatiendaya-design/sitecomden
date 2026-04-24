@@ -45,6 +45,10 @@ export default function RichTextEditor({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  // Track what we emitted via our own onUpdate so we don't re-setContent
+  // (and jump the cursor) when the parent echoes our change back via props.
+  const lastEmittedRef = useRef<string>("");
+
   const editor = useEditor({
     immediatelyRender: false, // ← FIX para SSR
     extensions: [
@@ -72,20 +76,30 @@ export default function RichTextEditor({
     content: content || "",
     editorProps: {
       attributes: {
+        // Editor lives in a narrow admin sidebar — viewport-scaled prose
+        // sizes (sm:prose lg:prose-lg xl:prose-2xl) made text look huge in
+        // a cramped panel. Keep a single compact scale; the storefront
+        // renderer handles responsive sizing independently.
         class:
-          "prose prose-sm sm:prose lg:prose-lg xl:prose-2xl focus:outline-none min-h-[200px] max-w-none p-4",
+          "prose prose-sm focus:outline-none min-h-[200px] max-w-none p-4",
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      lastEmittedRef.current = html;
+      onChange(html);
     },
   });
 
   // Actualizar contenido cuando cambia externamente
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content || "");
-    }
+    if (!editor) return;
+    // If the parent is echoing back what we just emitted, ignore.
+    if (content === lastEmittedRef.current) return;
+    // If content already matches, nothing to do.
+    if (content === editor.getHTML()) return;
+    // Truly external change: reset.
+    editor.commands.setContent(content || "");
   }, [content, editor]);
 
   if (!editor) {

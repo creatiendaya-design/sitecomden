@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import DOMPurify from "isomorphic-dompurify";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { readContent, readStyleAndMedia } from "./_normalizeContent";
 import { applyBlockStyle } from "@/lib/blocks/apply-style";
+import { sanitizeRichText } from "@/lib/blocks/sanitize-rich-text";
 
 interface ImageTextData {
   title?: string;
@@ -43,10 +43,7 @@ export default function ImageTextBlock({ content: rawContent, onCtaClick }: Imag
   const ratio = data.ratioImageToText ?? "50-50";
   const position = data.imagePosition ?? "left";
 
-  const sanitized = DOMPurify.sanitize(data.description ?? "", {
-    ALLOWED_TAGS: ["p", "br", "strong", "em", "u", "a", "ul", "ol", "li"],
-    ALLOWED_ATTR: ["href", "target", "rel"],
-  });
+  const sanitized = sanitizeRichText(data.description);
 
   return (
     <section

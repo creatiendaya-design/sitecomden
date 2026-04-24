@@ -1,9 +1,10 @@
 "use client";
 
-import DOMPurify from "isomorphic-dompurify";
 import { cn } from "@/lib/utils";
 import { readContent, readStyleAndMedia } from "./_normalizeContent";
-import { applyBlockStyle } from "@/lib/blocks/apply-style";
+import { applyBlockStyle, ALIGNMENT_CLASS } from "@/lib/blocks/apply-style";
+import { sanitizeRichText } from "@/lib/blocks/sanitize-rich-text";
+import type { Alignment } from "@/lib/blocks/types";
 
 interface RichTextContent {
   html: string;
@@ -22,10 +23,19 @@ export default function RichTextBlock({ content: rawContent }: RichTextBlockProp
   const html = content.html ?? "";
   if (!html.trim()) return null;
 
-  const sanitized = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ["p", "br", "strong", "em", "u", "a", "h2", "h3", "h4", "ul", "ol", "li", "blockquote"],
-    ALLOWED_ATTR: ["href", "target", "rel"],
-  });
+  const sanitized = sanitizeRichText(html);
+
+  // Resolve block-level alignment from Style tab -> apply to the prose div
+  // (not just the outer section) so the text actually centers/aligns.
+  const rawAlign = blockStyle?.alignment;
+  const resolvedAlign: Alignment | undefined =
+    typeof rawAlign === "string"
+      ? (rawAlign as Alignment)
+      : rawAlign && typeof rawAlign === "object"
+        ? ((rawAlign as { desktop?: Alignment; mobile?: Alignment }).desktop
+          ?? (rawAlign as { desktop?: Alignment; mobile?: Alignment }).mobile)
+        : undefined;
+  const alignmentClass = resolvedAlign ? ALIGNMENT_CLASS[resolvedAlign] : "";
 
   return (
     <section
@@ -35,8 +45,11 @@ export default function RichTextBlock({ content: rawContent }: RichTextBlockProp
       <div className="container mx-auto px-4">
         <div
           className={cn(
+            // max-w + mx-auto center the READING COLUMN; alignmentClass sets
+            // the actual TEXT alignment within that column.
             "prose prose-sm @md:prose-base max-w-[65ch] mx-auto",
             "prose-headings:font-semibold prose-a:text-primary",
+            alignmentClass,
           )}
           dangerouslySetInnerHTML={{ __html: sanitized }}
         />
