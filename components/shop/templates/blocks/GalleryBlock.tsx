@@ -39,10 +39,10 @@ function GallerySlider({
   const next = useCallback(() => setCurrent((i) => (i + 1) % images.length), [images.length]);
 
   return (
-    <section className="landing-section py-12">
+    <section className="landing-section py-12 @container">
       <div className="container mx-auto px-4">
         {/* Main image */}
-        <div className="relative aspect-[4/3] sm:aspect-video max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-lg mb-4">
+        <div className="relative aspect-[4/3] @md:aspect-video max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-lg mb-4">
           <Image
             src={images[current]}
             alt={`Imagen ${current + 1}`}
@@ -121,7 +121,7 @@ function GalleryStacked({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
-    <section className="landing-section py-12">
+    <section className="landing-section py-12 @container">
       <div className="container mx-auto px-4">
         <div className="flex flex-col gap-4 max-w-2xl mx-auto">
           {images.map((img, i) => (

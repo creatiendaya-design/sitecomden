@@ -64,7 +64,7 @@ function VideoSlider({
   const next = useCallback(() => navigate(Math.min(totalPages - 1, page + 1)), [page, totalPages, navigate]);
 
   return (
-    <section className="landing-section py-12">
+    <section className="landing-section py-12 @container">
       <div className="container mx-auto px-4">
         <div className="relative">
           {totalPages > 1 && (
@@ -87,7 +87,7 @@ function VideoSlider({
           )}
 
           <div
-            className={`grid gap-4 grid-cols-2 lg:grid-cols-3 transition-opacity duration-[180ms] ${
+            className={`grid gap-4 grid-cols-2 @5xl:grid-cols-3 transition-opacity duration-[180ms] ${
               fading ? "opacity-0" : "opacity-100"
             }`}
           >
@@ -122,7 +122,7 @@ function VideoStacked({
   onBuyClick?: () => void;
 }) {
   return (
-    <section className="landing-section py-12">
+    <section className="landing-section py-12 @container">
       <div className="container mx-auto px-4">
         <div className="flex flex-col gap-8 max-w-2xl mx-auto">
         {videos.map((video, i) => (
