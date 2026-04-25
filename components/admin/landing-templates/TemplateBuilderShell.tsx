@@ -1,9 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { PageBuilder } from "@/components/admin/page-builder/PageBuilder"
 import { useBuilderStore } from "@/components/admin/page-builder/store"
 import { DraftProtection } from "@/components/admin/page-builder/DraftProtection"
+import { saveTemplateBlocks } from "@/actions/landing-templates"
 import type { BlockInstance } from "@/lib/blocks/types"
 
 interface Props {
@@ -22,7 +25,7 @@ interface Props {
  * Differences vs. ProductLandingBuilder:
  *  - scope="page": registry hides product-only blocks (RELATED_PRODUCTS).
  *  - explicit-save model: changes accumulate in the store; the topbar's
- *    "Guardar y propagar" button (Task 9) flushes them in one transaction.
+ *    "Guardar y propagar" button flushes them in one transaction.
  *    No per-edit autosave.
  */
 export function TemplateBuilderShell({
@@ -31,7 +34,10 @@ export function TemplateBuilderShell({
   userId,
   persistedAt,
 }: Props) {
-  // No-op: in template mode, edits stay in the store. Task 9 wires saving
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  // No-op: in template mode, edits stay in the store. Saving is triggered
   // explicitly via the topbar "Guardar y propagar" button.
   const handleBlocksChange = useCallback((_next: BlockInstance[]) => {
     // Intentional no-op for explicit-save mode.
@@ -44,16 +50,43 @@ export function TemplateBuilderShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const handleSave = useCallback(() => {
+    if (isPending) return
+    const blocks = useBuilderStore.getState().blocks
+    startTransition(async () => {
+      try {
+        await saveTemplateBlocks(
+          template.id,
+          blocks.map((b) => ({
+            id: b.id,
+            type: b.type,
+            position: b.position,
+            content: b.content,
+          })),
+        )
+        // Clear the localStorage backup — persisted state is now current.
+        try {
+          localStorage.removeItem(`template-draft-${template.id}-${userId}`)
+        } catch {
+          // ignore
+        }
+        toast.success("Plantilla guardada")
+        router.refresh()
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Error al guardar"
+        toast.error(msg)
+      }
+    })
+  }, [isPending, router, template.id, userId])
+
   const actions = useMemo(
     () => ({
-      onSaveTemplate: () => {
-        // Task 9 wires this.
-      },
+      onSaveTemplate: handleSave,
       onDiscardDraft: () => {
         // Task 10 wires this.
       },
     }),
-    [],
+    [handleSave],
   )
 
   return (

@@ -1,8 +1,9 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
+import type { LandingBlockType } from "@prisma/client"
 
 export interface TemplateRow {
   id: string
@@ -187,4 +188,80 @@ export async function deleteLandingTemplate(id: string): Promise<void> {
 export async function countProductsUsingTemplate(id: string): Promise<number> {
   await protectRoute("landing_templates:view")
   return prisma.product.count({ where: { landingTemplateId: id } })
+}
+
+interface IncomingBlock {
+  id: string
+  type: LandingBlockType
+  position: number
+  content: unknown
+}
+
+/**
+ * Explicit-save for the template editor. Reconciles TemplateBlock rows inside
+ * a single transaction:
+ *  - rows not present in `incomingBlocks` are deleted
+ *  - rows whose id starts with "tmp-" (or isn't in the DB) are created
+ *  - remaining rows are updated (type/position/content)
+ *
+ * After save we bump the template's `updatedAt` and revalidate the editor
+ * path + the `template:${id}` tag used by product landing rendering.
+ *
+ * Note: newly-created blocks come back with fresh ids on the next fetch; the
+ * client calls `router.refresh()` after save, which reloads the template and
+ * replaces the builder store's snapshot with real ids.
+ */
+export async function saveTemplateBlocks(
+  templateId: string,
+  incomingBlocks: IncomingBlock[],
+): Promise<{ success: true }> {
+  await protectRoute("landing_templates:update")
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.templateBlock.findMany({
+      where: { templateId },
+      select: { id: true },
+    })
+    const existingIds = new Set(existing.map((b) => b.id))
+    const incomingIds = new Set(incomingBlocks.map((b) => b.id))
+
+    // Delete removed blocks
+    const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+    if (toDelete.length > 0) {
+      await tx.templateBlock.deleteMany({ where: { id: { in: toDelete } } })
+    }
+
+    // Upsert each incoming block
+    for (const b of incomingBlocks) {
+      // tmp- ids come from new blocks added in this session; create them.
+      if (b.id.startsWith("tmp-") || !existingIds.has(b.id)) {
+        await tx.templateBlock.create({
+          data: {
+            templateId,
+            type: b.type,
+            position: b.position,
+            content: b.content as object,
+          },
+        })
+      } else {
+        await tx.templateBlock.update({
+          where: { id: b.id },
+          data: {
+            type: b.type,
+            position: b.position,
+            content: b.content as object,
+          },
+        })
+      }
+    }
+
+    await tx.landingTemplate.update({
+      where: { id: templateId },
+      data: { updatedAt: new Date() },
+    })
+  })
+
+  updateTag(`template:${templateId}`)
+  revalidatePath(`/admin/landing-plantillas/${templateId}`)
+  return { success: true }
 }
