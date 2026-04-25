@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import LandingBlockRenderer from "@/components/shop/templates/blocks/LandingBlockRenderer"
 import type { LandingBlock } from "@/lib/types/landing-blocks"
 import { isReservedSlug } from "@/lib/pages/reserved-slugs"
+import { getActiveThemeHome } from "@/lib/themes/get-active-theme-home"
 
 interface DynamicPageParams {
   params: Promise<{ slug: string }>
@@ -11,6 +12,11 @@ interface DynamicPageParams {
 export async function generateMetadata({ params }: DynamicPageParams) {
   const { slug } = await params
   if (isReservedSlug(slug)) return {}
+  // The page assigned as the active theme's home is canonically served at "/"
+  // (Plan 6). The route handler redirects there; emit empty metadata so the
+  // SEO meta from the visit at "/<slug>" never gets indexed.
+  const themeHome = await getActiveThemeHome()
+  if (themeHome && themeHome.slug === slug) return {}
   const page = await prisma.page.findUnique({
     where: { slug, active: true },
     select: {
@@ -50,6 +56,11 @@ export async function generateMetadata({ params }: DynamicPageParams) {
 export default async function DynamicPage({ params }: DynamicPageParams) {
   const { slug } = await params
   if (isReservedSlug(slug)) notFound()
+
+  // Redirect to "/" when this slug is the active theme's home — keeps a
+  // single canonical URL for the home page.
+  const themeHome = await getActiveThemeHome()
+  if (themeHome && themeHome.slug === slug) redirect("/")
 
   const page = await prisma.page.findUnique({
     where: { slug, active: true },
