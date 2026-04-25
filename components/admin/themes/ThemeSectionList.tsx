@@ -9,6 +9,7 @@ import {
   Layers,
   ChevronRight,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import type { ThemeRow } from "@/actions/themes"
 
@@ -50,8 +51,7 @@ const SECTIONS: SectionDef[] = [
     label: "Páginas estáticas",
     description: "Nosotros, Términos, Privacidad, FAQ, Envíos…",
     icon: FileText,
-    status: "coming-soon",
-    comingPlan: "Plan 5",
+    status: "active",
   },
   {
     key: "cart",
@@ -77,6 +77,7 @@ interface Props {
 }
 
 export function ThemeSectionList({ activeTheme, onEditProductDefault }: Props) {
+  const router = useRouter()
   return (
     <div className="space-y-2">
       {SECTIONS.map((section) => {
@@ -93,7 +94,15 @@ export function ThemeSectionList({ activeTheme, onEditProductDefault }: Props) {
             key={section.key}
             type="button"
             disabled={isComingSoon}
-            onClick={isProduct ? onEditProductDefault : undefined}
+            onClick={
+              isComingSoon
+                ? undefined
+                : section.key === "product"
+                  ? onEditProductDefault
+                  : section.key === "pages"
+                    ? () => router.push("/admin/paginas")
+                    : undefined
+            }
             className={cn(
               "group flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors",
               isComingSoon

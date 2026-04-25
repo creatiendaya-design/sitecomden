@@ -20,7 +20,16 @@ export interface TemplateContext {
   }
 }
 
-export type BuilderContext = ProductContext | TemplateContext
+export interface PageContext {
+  type: "page"
+  page: {
+    id: string
+    slug: string
+    title: string
+  }
+}
+
+export type BuilderContext = ProductContext | TemplateContext | PageContext
 
 export interface PageBuilderActions {
   onApplyTemplate?: () => void

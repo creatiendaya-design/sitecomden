@@ -57,7 +57,11 @@ function AdminLayoutInner({
     /^\/admin\/landing-plantillas\/[^/]+$/.test(pathname ?? "") &&
     !/\/editar$/.test(pathname ?? "") &&  // /editar is the metadata form, keep chrome
     !/\/biblioteca$/.test(pathname ?? "")
-  const isFullScreenBuilder = isProductLandingBuilder || isTemplateEditor;
+  const isPageEditor =
+    /^\/admin\/paginas\/[^/]+$/.test(pathname ?? "") &&
+    !/\/editar$/.test(pathname ?? "");
+  const isFullScreenBuilder =
+    isProductLandingBuilder || isTemplateEditor || isPageEditor;
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "Configuración",
     "Métodos de Pago", // Expandir Métodos de Pago por defecto
@@ -116,6 +120,11 @@ function AdminLayoutInner({
       href: "/admin/landing-plantillas",
       icon: LayoutTemplate,
       label: "Plantillas de Landing",
+    },
+    {
+      href: "/admin/paginas",
+      icon: FileText,
+      label: "Páginas",
     },
     {
       href: "/admin/envios/zonas",
