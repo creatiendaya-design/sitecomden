@@ -3,7 +3,6 @@
 import { useBuilderStore } from "../../store"
 import { getBlockDefinition } from "@/lib/blocks/registry"
 import { SchemaForm } from "@/components/admin/page-builder/forms/SchemaForm"
-import type { BlockContentV2 } from "@/lib/blocks/types"
 
 export function ContentTab() {
   const selectedBlockId = useBuilderStore((s) => s.selectedBlockId)
@@ -22,33 +21,25 @@ export function ContentTab() {
     )
   }
 
-  // Prefer schema-driven form if the block has declared a contentSchema.
-  // Fall back to legacy contentForm otherwise, until all blocks are migrated.
-  if (def.contentSchema) {
-    const data = (block.content.data as Record<string, unknown>) ?? {}
+  if (!def.contentSchema) {
     return (
-      <SchemaForm
-        schema={def.contentSchema}
-        value={data}
-        onChange={(nextData) =>
-          updateBlockContent(block.id, {
-            ...block.content,
-            data: nextData,
-          })
-        }
-      />
+      <div className="p-4 text-xs text-muted-foreground">
+        Este bloque no tiene formulario configurado.
+      </div>
     )
   }
 
-  if (def.contentForm) {
-    const Form = def.contentForm
-    return (
-      <Form
-        content={block.content}
-        onChange={(newContent: BlockContentV2) => updateBlockContent(block.id, newContent)}
-      />
-    )
-  }
-
-  return <div className="p-4 text-xs text-muted-foreground">Este bloque no tiene formulario.</div>
+  const data = (block.content.data as Record<string, unknown>) ?? {}
+  return (
+    <SchemaForm
+      schema={def.contentSchema}
+      value={data}
+      onChange={(nextData) =>
+        updateBlockContent(block.id, {
+          ...block.content,
+          data: nextData,
+        })
+      }
+    />
+  )
 }
