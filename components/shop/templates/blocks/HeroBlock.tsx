@@ -35,7 +35,13 @@ export default function HeroBlock({ content: rawContent, onCtaClick }: HeroBlock
           unoptimized
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900" />
+        // Fallback dark gradient ONLY when the admin hasn't set their own
+        // background (color or gradient). Otherwise this overlay would tape
+        // over `inlineStyle.backgroundColor`/`backgroundImage`.
+        !blockStyle?.backgroundGradient &&
+        !blockStyle?.backgroundColor && (
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900" />
+        )
       )}
 
       {/* Overlay */}

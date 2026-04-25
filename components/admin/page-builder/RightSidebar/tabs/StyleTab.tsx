@@ -6,6 +6,9 @@ import { resolveStyleSupport } from "@/lib/blocks/types"
 import { getBlockDefinition } from "@/lib/blocks/registry"
 import { ColorControl } from "../controls/ColorControl"
 import { PaddingControl } from "../controls/PaddingControl"
+import { PaddingTopBottomControl } from "../controls/PaddingTopBottomControl"
+import { TypographyControl } from "../controls/TypographyControl"
+import { GradientControl } from "../controls/GradientControl"
 import { AlignmentControl } from "../controls/AlignmentControl"
 import { ContainerWidthControl } from "../controls/ContainerWidthControl"
 import { CornerRadiusControl } from "../controls/CornerRadiusControl"
@@ -35,6 +38,16 @@ export function StyleTab() {
     })
   }
 
+  // First admin interaction with the new top/bottom controls drops the legacy
+  // `paddingY` so the new fields become the source of truth.
+  function patchStyleMigratePadding(patch: Partial<BlockStyle>) {
+    const next: BlockStyle = { ...style, ...patch }
+    if ((patch.paddingTop !== undefined || patch.paddingBottom !== undefined) && next.paddingY) {
+      delete next.paddingY
+    }
+    updateBlockContent(block!.id, { ...content, style: next })
+  }
+
   function patchMedia(key: "bgImage", value: { desktop?: string; mobile?: string } | undefined) {
     updateBlockContent(block!.id, {
       ...content,
@@ -49,7 +62,14 @@ export function StyleTab() {
 
   // If nothing is supported (shouldn't happen, but guard)
   const anything =
-    showColors || support.padding || showLayout || showBorders || support.visibility || support.bgImage
+    showColors ||
+    support.padding ||
+    showLayout ||
+    showBorders ||
+    support.visibility ||
+    support.bgImage ||
+    support.typography ||
+    support.gradient
   if (!anything) {
     return (
       <div className="p-4 text-xs text-muted-foreground">
@@ -79,11 +99,40 @@ export function StyleTab() {
         </Section>
       )}
 
+      {support.gradient && (
+        <Section title="Gradiente">
+          <GradientControl
+            value={style.backgroundGradient}
+            onChange={(v) => patchStyle("backgroundGradient", v)}
+          />
+        </Section>
+      )}
+
       {support.padding && (
         <Section title="Espaciado">
-          <PaddingControl
-            value={style.paddingY}
-            onChange={(v) => patchStyle("paddingY", v)}
+          {support.paddingTopBottom ? (
+            <PaddingTopBottomControl
+              topValue={style.paddingTop ?? style.paddingY}
+              bottomValue={style.paddingBottom ?? style.paddingY}
+              onTopChange={(v) => patchStyleMigratePadding({ paddingTop: v })}
+              onBottomChange={(v) => patchStyleMigratePadding({ paddingBottom: v })}
+            />
+          ) : (
+            <PaddingControl
+              value={style.paddingY}
+              onChange={(v) => patchStyle("paddingY", v)}
+            />
+          )}
+        </Section>
+      )}
+
+      {support.typography && (
+        <Section title="Tipografía">
+          <TypographyControl
+            size={style.textSize}
+            weight={style.textWeight}
+            onSizeChange={(v) => patchStyle("textSize", v)}
+            onWeightChange={(v) => patchStyle("textWeight", v)}
           />
         </Section>
       )}
