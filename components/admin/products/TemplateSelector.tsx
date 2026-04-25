@@ -180,8 +180,19 @@ export function TemplateSelector({
         onOpenChange={setShowCreate}
         onCreated={(id) => {
           setShowCreate(false)
-          toast.success("Plantilla creada. Te llevamos al editor.")
-          router.push(`/admin/landing-plantillas/${id}`)
+          // Stay in the product builder. Refresh the dropdown so the new
+          // template shows up immediately, and surface a toast with a CTA
+          // to jump to the template editor if the admin wants — no forced
+          // navigation away from the product they were editing.
+          listLandingTemplates({ active: true })
+            .then(setTemplates)
+            .catch(() => {})
+          toast.success("Plantilla creada", {
+            action: {
+              label: "Editar plantilla",
+              onClick: () => router.push(`/admin/landing-plantillas/${id}`),
+            },
+          })
         }}
       />
 
