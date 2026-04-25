@@ -7,6 +7,7 @@ import { PageBuilder } from "@/components/admin/page-builder/PageBuilder"
 import { useBuilderStore } from "@/components/admin/page-builder/store"
 import { DraftProtection } from "@/components/admin/page-builder/DraftProtection"
 import { saveTemplateBlocks } from "@/actions/landing-templates"
+import { SaveAndPropagateDialog } from "./SaveAndPropagateDialog"
 import type { BlockInstance } from "@/lib/blocks/types"
 
 interface Props {
@@ -39,6 +40,10 @@ export function TemplateBuilderShell({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  // Snapshot of current blocks captured when opening the save dialog so its
+  // diff summary is stable even if the admin keeps editing.
+  const [saveSnapshot, setSaveSnapshot] = useState<BlockInstance[]>([])
 
   // No-op: in template mode, edits stay in the store. Saving is triggered
   // explicitly via the topbar "Guardar y propagar" button.
@@ -53,9 +58,15 @@ export function TemplateBuilderShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSave = useCallback(() => {
+  const openSaveDialog = useCallback(() => {
     if (isPending) return
-    const blocks = useBuilderStore.getState().blocks
+    setSaveSnapshot(useBuilderStore.getState().blocks)
+    setShowSaveDialog(true)
+  }, [isPending])
+
+  const confirmSave = useCallback(() => {
+    if (isPending) return
+    const blocks = saveSnapshot
     startTransition(async () => {
       try {
         await saveTemplateBlocks(
@@ -73,21 +84,22 @@ export function TemplateBuilderShell({
         } catch {
           // ignore
         }
-        toast.success("Plantilla guardada")
+        toast.success("Plantilla guardada. Cambios propagados.")
+        setShowSaveDialog(false)
         router.refresh()
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error al guardar"
         toast.error(msg)
       }
     })
-  }, [isPending, router, template.id, userId])
+  }, [isPending, router, saveSnapshot, template.id, userId])
 
   const actions = useMemo(
     () => ({
-      onSaveTemplate: handleSave,
+      onSaveTemplate: openSaveDialog,
       onDiscardDraft: () => setShowDiscardConfirm(true),
     }),
-    [handleSave],
+    [openSaveDialog],
   )
 
   return (
@@ -107,6 +119,15 @@ export function TemplateBuilderShell({
         persistedAt={persistedAt}
         showDiscardConfirm={showDiscardConfirm}
         onCloseDiscardConfirm={() => setShowDiscardConfirm(false)}
+      />
+      <SaveAndPropagateDialog
+        templateId={template.id}
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        original={initialBlocks}
+        current={saveSnapshot}
+        onConfirm={confirmSave}
+        pending={isPending}
       />
     </>
   )
