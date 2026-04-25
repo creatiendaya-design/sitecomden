@@ -4,22 +4,21 @@ import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CartCounter from "./CartCounter";
 import MobileMenu from "./MobileMenu";
-import { prisma } from "@/lib/db";
 import SearchBar from "./SearchBar";
 import { HeaderAuth } from "./HeaderAuth";
 import { getSiteSettings } from "@/lib/site-settings";
+import { getMenuBySlug } from "@/lib/menus/get-menu-by-slug";
+import { HeaderNavMenu } from "./HeaderNavMenu";
 import MobileSearch from "./MobileSearch";
 
 export default async function Header() {
-  // Obtener categorías activas
-  const categories = await prisma.category.findMany({
-    where: { active: true },
-    orderBy: { order: "asc" },
-    take: 6,
-  });
-
-  // Obtener configuración del sitio
-  const settings = await getSiteSettings();
+  // Settings + main menu (Plan 8). The menu may be null when the seed
+  // hasn't run; fall back to a minimal nav with just "Todos los Productos".
+  const [settings, menu] = await Promise.all([
+    getSiteSettings(),
+    getMenuBySlug("main"),
+  ]);
+  const menuItems = menu?.items ?? [];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -77,7 +76,7 @@ export default async function Header() {
             </Link>
 
             {/* Mobile Menu - Siempre visible */}
-            <MobileMenu categories={categories} isAdmin={false} />
+            <MobileMenu menuItems={menuItems} isAdmin={false} />
           </div>
         </div>
 
@@ -87,38 +86,22 @@ export default async function Header() {
         </div>
       </div>
 
-      {/* Navigation Links - Solo Desktop */}
+      {/* Navigation Links - Solo Desktop. Reads the active "main" menu;
+          falls back to a minimal nav when the menu is missing. */}
       <div className="border-t hidden md:block">
         <div className="container mx-auto px-4">
-          <nav className="flex h-10 items-center space-x-6 text-sm overflow-x-auto">
-            <Link
-              href="/productos"
-              className="transition-colors hover:text-foreground/80 whitespace-nowrap"
-            >
-              Todos los Productos
-            </Link>
-            {categories.map((category) => (
+          {menuItems.length > 0 ? (
+            <HeaderNavMenu items={menuItems} />
+          ) : (
+            <nav className="flex h-10 items-center space-x-6 text-sm overflow-x-auto">
               <Link
-                key={category.id}
-                href={`/categoria/${category.slug}`}
+                href="/productos"
                 className="transition-colors hover:text-foreground/80 whitespace-nowrap"
               >
-                {category.name}
+                Todos los Productos
               </Link>
-            ))}
-            <Link
-              href="/nosotros"
-              className="transition-colors hover:text-foreground/80 whitespace-nowrap"
-            >
-              Nosotros
-            </Link>
-            <Link
-              href="/contacto"
-              className="transition-colors hover:text-foreground/80 whitespace-nowrap"
-            >
-              Contacto
-            </Link>
-          </nav>
+            </nav>
+          )}
         </div>
       </div>
     </header>
