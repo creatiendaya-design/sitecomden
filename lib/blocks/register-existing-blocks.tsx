@@ -20,15 +20,12 @@ const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlo
 const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/ImageTextBlock"))
 const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
 
-import { HeroContentForm } from "@/components/admin/page-builder/forms/adapters/HeroContentForm"
 import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapters/BenefitsContentForm"
 import { GalleryContentForm } from "@/components/admin/page-builder/forms/adapters/GalleryContentForm"
 import { TestimonialsContentForm } from "@/components/admin/page-builder/forms/adapters/TestimonialsContentForm"
 import { VideoContentForm } from "@/components/admin/page-builder/forms/adapters/VideoContentForm"
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
-import { TickerContentForm } from "@/components/admin/page-builder/forms/adapters/TickerContentForm"
 import { TrustBadgesContentForm } from "@/components/admin/page-builder/forms/adapters/TrustBadgesContentForm"
-import { RichTextContentForm } from "@/components/admin/page-builder/forms/adapters/RichTextContentForm"
 import { FaqContentForm } from "@/components/admin/page-builder/forms/adapters/FaqContentForm"
 import { ImageTextContentForm } from "@/components/admin/page-builder/forms/adapters/ImageTextContentForm"
 import { RelatedProductsContentForm } from "@/components/admin/page-builder/forms/adapters/RelatedProductsContentForm"
@@ -44,7 +41,11 @@ const existing: BlockDefinition[] = [
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.HERO,
     renderer: HeroBlock as any,
-    contentForm: HeroContentForm as any,
+    contentSchema: [
+      { type: "text", key: "title", label: "Título" },
+      { type: "text", key: "subtitle", label: "Subtítulo" },
+      { type: "text", key: "ctaText", label: "Texto del botón" },
+    ],
     styleSupport: { bgImage: true },
   },
   {
@@ -111,7 +112,25 @@ const existing: BlockDefinition[] = [
     category: "visual",
     defaultContent: DEFAULT_CONTENT_V2.TICKER,
     renderer: TickerBlock as any,
-    contentForm: TickerContentForm as any,
+    contentSchema: [
+      {
+        type: "select",
+        key: "mode",
+        label: "Modo",
+        options: [
+          { value: "scrolling", label: "Solo texto scrolling" },
+          { value: "countdown", label: "Solo contador regresivo" },
+          { value: "both", label: "Scrolling + contador" },
+        ],
+      },
+      { type: "switch", key: "sticky", label: "Sticky (fijo arriba)" },
+      { type: "text", key: "scrollingText", label: "Texto scrolling", placeholder: "🔥 Oferta • Envío gratis •" },
+      { type: "number", key: "speed", label: "Velocidad (px/s)", min: 10, max: 100 },
+      { type: "text", key: "countdownLabel", label: "Etiqueta del contador" },
+      { type: "text", key: "endsAt", label: "Fecha fin (ISO datetime)", placeholder: "2026-12-31T23:59:59" },
+      { type: "color", key: "bgColor", label: "Color de fondo" },
+      { type: "color", key: "textColor", label: "Color de texto" },
+    ],
     styleSupport: {
       backgroundColor: false,
       textColor: false,
@@ -144,7 +163,14 @@ const existing: BlockDefinition[] = [
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.RICH_TEXT,
     renderer: RichTextBlock as any,
-    contentForm: RichTextContentForm as any,
+    contentSchema: [
+      {
+        type: "richtext",
+        key: "html",
+        label: "Contenido",
+        placeholder: "Escribe el contenido aquí...",
+      },
+    ],
   },
   {
     type: "FAQ",
