@@ -33,8 +33,12 @@ interface BaseFieldDef {
   label?: string
   /** Optional help text shown below the input. */
   helpText?: string
-  /** Show this field only when another field in the same schema equals a
-   *  specific value. Example: { field: "mode", equals: "auto" }. */
+  /** Show this field only when another field in the SAME schema scope equals
+   *  a specific value. Example: { field: "mode", equals: "auto" }.
+   *
+   *  Scope note: when this field lives inside a `group`, the lookup resolves
+   *  against the group's sub-object — NOT the top-level block data. Cross-group
+   *  conditional visibility is not supported. */
   showWhen?: { field: string; equals: unknown }
 }
 

@@ -29,8 +29,12 @@ interface Props {
 }
 
 export function ArrayField({ field, value, onChange }: Props) {
+  // ensureId on every item, including ones loaded from stored content. Items
+  // saved before the schema-driven editor existed may lack `id`/`_id` — without
+  // unique ids the SortableContext collapses them all to the same key and drag
+  // reordering swaps the wrong items.
   const items: Record<string, unknown>[] = Array.isArray(value)
-    ? (value as Record<string, unknown>[])
+    ? (value as Record<string, unknown>[]).map(ensureId)
     : []
 
   const sortable = field.sortable !== false
