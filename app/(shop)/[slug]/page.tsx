@@ -13,12 +13,19 @@ export async function generateMetadata({ params }: DynamicPageParams) {
   if (isReservedSlug(slug)) return {}
   const page = await prisma.page.findUnique({
     where: { slug, active: true },
-    select: { title: true, description: true },
+    select: {
+      title: true,
+      description: true,
+      seoTitle: true,
+      seoDescription: true,
+    },
   })
   if (!page) return {}
+  // SEO fields override the visible title/description; visible fields are
+  // the fallback so search engines never get an empty meta.
   return {
-    title: page.title,
-    description: page.description ?? undefined,
+    title: page.seoTitle ?? page.title,
+    description: page.seoDescription ?? page.description ?? undefined,
   }
 }
 

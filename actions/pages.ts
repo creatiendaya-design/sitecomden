@@ -11,6 +11,10 @@ export interface PageRow {
   slug: string
   title: string
   description: string | null
+  /** SEO `<title>` override; null falls back to `title`. */
+  seoTitle: string | null
+  /** SEO meta description override; null falls back to `description`. */
+  seoDescription: string | null
   active: boolean
   blockCount: number
   updatedAt: Date
@@ -29,6 +33,8 @@ export async function listPages(): Promise<PageRow[]> {
       slug: true,
       title: true,
       description: true,
+      seoTitle: true,
+      seoDescription: true,
       active: true,
       updatedAt: true,
       _count: { select: { pageBlocks: true } },
@@ -39,6 +45,8 @@ export async function listPages(): Promise<PageRow[]> {
     slug: r.slug,
     title: r.title,
     description: r.description,
+    seoTitle: r.seoTitle,
+    seoDescription: r.seoDescription,
     active: r.active,
     blockCount: r._count.pageBlocks,
     updatedAt: r.updatedAt,
@@ -60,6 +68,8 @@ export async function getPage(id: string): Promise<PageWithBlocks | null> {
     slug: p.slug,
     title: p.title,
     description: p.description,
+    seoTitle: p.seoTitle,
+    seoDescription: p.seoDescription,
     active: p.active,
     blockCount: p._count.pageBlocks,
     updatedAt: p.updatedAt,
@@ -86,6 +96,8 @@ export async function createPage(input: {
   slug: string
   title: string
   description?: string
+  seoTitle?: string
+  seoDescription?: string
 }): Promise<{ id: string }> {
   const userId = await protectRoute("pages:create")
   if (!input.title.trim()) throw new Error("El título es obligatorio")
@@ -111,6 +123,8 @@ export async function createPage(input: {
       slug,
       title: input.title.trim(),
       description: input.description?.trim() || null,
+      seoTitle: input.seoTitle?.trim() || null,
+      seoDescription: input.seoDescription?.trim() || null,
       createdBy: userId,
     },
   })
@@ -124,6 +138,8 @@ export async function updatePageMetadata(
     slug?: string
     title?: string
     description?: string | null
+    seoTitle?: string | null
+    seoDescription?: string | null
     active?: boolean
   },
 ): Promise<void> {
@@ -157,6 +173,12 @@ export async function updatePageMetadata(
       ...(input.title !== undefined && { title: input.title.trim() }),
       ...(input.description !== undefined && {
         description: input.description?.trim() || null,
+      }),
+      ...(input.seoTitle !== undefined && {
+        seoTitle: input.seoTitle?.trim() || null,
+      }),
+      ...(input.seoDescription !== undefined && {
+        seoDescription: input.seoDescription?.trim() || null,
       }),
       ...(input.active !== undefined && { active: input.active }),
     },

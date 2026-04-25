@@ -1036,15 +1036,25 @@ model LandingTemplate {
 /// via the page builder. The storefront resolves /<slug> to the active
 /// Page when one exists, falling back to hardcoded route files otherwise.
 model Page {
-  id          String      @id @default(cuid())
-  slug        String      @unique
-  title       String
-  description String?     /// SEO meta description
-  active      Boolean     @default(true)
-  createdBy   String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  pageBlocks  PageBlock[]
+  id             String      @id @default(cuid())
+  slug           String      @unique
+  /// Visible title — used as the page's main heading and as SEO title fallback.
+  title          String
+  /// Internal/visible description — used in the admin list and as SEO
+  /// description fallback. Optional.
+  description    String?
+  /// SEO `<title>` override. When null, the meta tag falls back to `title`.
+  /// Use when the visible H1 should differ from the search-result title
+  /// (e.g. brand-suffixed: "Promociones | ShopGood Perú").
+  seoTitle       String?
+  /// SEO meta description override. When null, falls back to `description`.
+  /// Aim for ~150-160 chars for best SERP truncation.
+  seoDescription String?
+  active         Boolean     @default(true)
+  createdBy      String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  pageBlocks     PageBlock[]
 
   @@index([slug, active])
 }
