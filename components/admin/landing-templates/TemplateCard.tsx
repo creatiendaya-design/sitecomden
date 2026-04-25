@@ -104,13 +104,16 @@ export function TemplateCard({ template, onMutate }: TemplateCardProps) {
           aria-label={`Abrir editor de ${template.name}`}
         >
           <div className="relative aspect-video w-full overflow-hidden bg-muted">
-            {template.thumbnail ? (
+            {/* Manual upload wins; otherwise auto-derived preview from the
+                first visual block; otherwise a category-emoji placeholder. */}
+            {template.thumbnail || template.previewImage ? (
               <Image
-                src={template.thumbnail}
+                src={template.thumbnail ?? template.previewImage!}
                 alt={template.name}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className="object-cover"
+                unoptimized
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800">
