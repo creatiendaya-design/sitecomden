@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo } from "react"
 import { PageBuilder } from "@/components/admin/page-builder/PageBuilder"
 import { useBuilderStore } from "@/components/admin/page-builder/store"
+import { DraftProtection } from "@/components/admin/page-builder/DraftProtection"
 import type { BlockInstance } from "@/lib/blocks/types"
 
 interface Props {
@@ -11,6 +12,8 @@ interface Props {
     name: string
   }
   initialBlocks: BlockInstance[]
+  userId: string
+  persistedAt: number
 }
 
 /**
@@ -22,7 +25,12 @@ interface Props {
  *    "Guardar y propagar" button (Task 9) flushes them in one transaction.
  *    No per-edit autosave.
  */
-export function TemplateBuilderShell({ template, initialBlocks }: Props) {
+export function TemplateBuilderShell({
+  template,
+  initialBlocks,
+  userId,
+  persistedAt,
+}: Props) {
   // No-op: in template mode, edits stay in the store. Task 9 wires saving
   // explicitly via the topbar "Guardar y propagar" button.
   const handleBlocksChange = useCallback((_next: BlockInstance[]) => {
@@ -49,14 +57,21 @@ export function TemplateBuilderShell({ template, initialBlocks }: Props) {
   )
 
   return (
-    <PageBuilder
-      blocks={initialBlocks}
-      onBlocksChange={handleBlocksChange}
-      scope="page"
-      context={{ type: "template", template }}
-      actions={actions}
-      title={template.name}
-      backHref="/admin/landing-plantillas"
-    />
+    <>
+      <PageBuilder
+        blocks={initialBlocks}
+        onBlocksChange={handleBlocksChange}
+        scope="page"
+        context={{ type: "template", template }}
+        actions={actions}
+        title={template.name}
+        backHref="/admin/landing-plantillas"
+      />
+      <DraftProtection
+        templateId={template.id}
+        userId={userId}
+        persistedAt={persistedAt}
+      />
+    </>
   )
 }

@@ -1,4 +1,5 @@
 import { protectRoute } from "@/lib/protect-route"
+import { getCurrentUserId } from "@/lib/auth"
 import { getLandingTemplate } from "@/actions/landing-templates"
 import { TemplateBuilderShell } from "@/components/admin/landing-templates/TemplateBuilderShell"
 import { notFound } from "next/navigation"
@@ -12,7 +13,10 @@ export default async function TemplateEditorPage({
   await protectRoute("landing_templates:update")
   const { templateId } = await params
 
-  const template = await getLandingTemplate(templateId)
+  const [template, userId] = await Promise.all([
+    getLandingTemplate(templateId),
+    getCurrentUserId(),
+  ])
   if (!template) notFound()
 
   const initialBlocks: BlockInstance[] = template.templateBlocks.map((b) => ({
@@ -26,6 +30,8 @@ export default async function TemplateEditorPage({
     <TemplateBuilderShell
       template={{ id: template.id, name: template.name }}
       initialBlocks={initialBlocks}
+      userId={userId}
+      persistedAt={template.updatedAt.getTime()}
     />
   )
 }
