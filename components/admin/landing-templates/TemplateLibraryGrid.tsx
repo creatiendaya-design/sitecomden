@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { listLandingTemplates, type TemplateRow } from "@/actions/landing-templates";
+import { getCategoryEmoji, getCategoryLabel } from "@/lib/template-categories";
 import { TemplateCard } from "./TemplateCard";
 import { CreateTemplateDialog } from "./CreateTemplateDialog";
 
@@ -137,7 +138,9 @@ export function TemplateLibraryGrid({ initialTemplates }: TemplateLibraryGridPro
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="justify-between gap-2">
               <span>
-                {categoryFilter ? `Categoría: ${categoryFilter}` : "Todas las categorías"}
+                {categoryFilter
+                  ? `Categoría: ${getCategoryLabel(categoryFilter)}`
+                  : "Todas las categorías"}
               </span>
               <ChevronDown className="h-4 w-4 opacity-60" />
             </Button>
@@ -164,7 +167,10 @@ export function TemplateLibraryGrid({ initialTemplates }: TemplateLibraryGridPro
                     setCategoryFilter(categoryFilter === cat ? null : cat)
                   }
                 >
-                  {cat}
+                  <span className="inline-flex items-center gap-2">
+                    <span aria-hidden>{getCategoryEmoji(cat)}</span>
+                    {getCategoryLabel(cat)}
+                  </span>
                 </DropdownMenuCheckboxItem>
               ))
             )}

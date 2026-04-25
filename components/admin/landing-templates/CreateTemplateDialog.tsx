@@ -14,7 +14,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createLandingTemplate } from "@/actions/landing-templates";
+import { TEMPLATE_CATEGORIES } from "@/lib/template-categories";
 
 interface CreateTemplateDialogProps {
   open: boolean;
@@ -111,13 +119,21 @@ export function CreateTemplateDialog({
 
             <div className="space-y-2">
               <Label htmlFor="template-category">Categoría</Label>
-              <Input
-                id="template-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="Ej. Ropa, Electrónica, Hogar"
-                maxLength={60}
-              />
+              <Select value={category || undefined} onValueChange={setCategory}>
+                <SelectTrigger id="template-category">
+                  <SelectValue placeholder="Selecciona una categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      <span className="inline-flex items-center gap-2">
+                        <span aria-hidden>{c.emoji}</span>
+                        {c.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

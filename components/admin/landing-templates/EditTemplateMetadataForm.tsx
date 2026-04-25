@@ -7,10 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Upload, X } from "lucide-react"
 import { toast } from "sonner"
 import { updateLandingTemplateMetadata } from "@/actions/landing-templates"
 import type { TemplateWithBlocks } from "@/actions/landing-templates"
+import { TEMPLATE_CATEGORIES } from "@/lib/template-categories"
 
 interface EditTemplateMetadataFormProps {
   template: TemplateWithBlocks
@@ -107,13 +115,25 @@ export function EditTemplateMetadataForm({ template }: EditTemplateMetadataFormP
         <Label htmlFor="category" className="text-sm font-medium">
           Categoría
         </Label>
-        <Input
-          id="category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="Categoría de la plantilla"
+        <Select
+          value={category || undefined}
+          onValueChange={setCategory}
           disabled={isPending}
-        />
+        >
+          <SelectTrigger id="category">
+            <SelectValue placeholder="Selecciona una categoría" />
+          </SelectTrigger>
+          <SelectContent>
+            {TEMPLATE_CATEGORIES.map((c) => (
+              <SelectItem key={c.value} value={c.value}>
+                <span className="inline-flex items-center gap-2">
+                  <span aria-hidden>{c.emoji}</span>
+                  {c.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Thumbnail */}
