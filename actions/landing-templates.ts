@@ -424,3 +424,16 @@ export async function detachTemplateBlock(
   revalidatePath(`/admin/productos/${productId}`)
   return { landingBlockId: created.id }
 }
+
+/**
+ * Stub — real implementation lands in Task 19. Allows the InheritanceBanner
+ * UI in Task 17 to import the symbol without a TS error.
+ */
+export async function restoreTemplateBlock(
+  productId: string,
+  landingBlockId: string,
+): Promise<void> {
+  void productId
+  void landingBlockId
+  throw new Error("Not implemented yet")
+}
