@@ -56,16 +56,26 @@ export default function RelatedProductsBlockEditorWrapper({ content, currentProd
 
   const [products, setProducts] = useState<RelatedProductCard[] | null>(null)
 
+  const mode = data.mode ?? "auto"
+  const manualIdsKey = (data.manualProductIds ?? []).join(",")
+
   useEffect(() => {
-    // Editor canvas: skip fetch, show placeholders
-    if (!currentProductId) {
+    // Manual mode: we can fetch in BOTH the canvas and the storefront because
+    // the IDs are explicit — no `currentProductId` needed.
+    // Auto mode in the canvas: skip the fetch (we don't have a current product),
+    // fall through to placeholders.
+    if (mode === "auto" && !currentProductId) {
       setProducts(null)
+      return
+    }
+    if (mode === "manual" && (data.manualProductIds?.length ?? 0) === 0) {
+      setProducts([])
       return
     }
 
     let cancelled = false
     getRelatedProducts({
-      mode: data.mode ?? "auto",
+      mode,
       productIds: data.manualProductIds,
       source: data.autoFilters?.source,
       currentProductId,
@@ -83,9 +93,20 @@ export default function RelatedProductsBlockEditorWrapper({ content, currentProd
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentProductId, data.mode, data.autoFilters?.source, data.autoFilters?.limit, data.autoFilters?.excludeCurrentProduct, limit])
+  }, [
+    currentProductId,
+    mode,
+    manualIdsKey,
+    data.autoFilters?.source,
+    data.autoFilters?.limit,
+    data.autoFilters?.excludeCurrentProduct,
+    limit,
+  ])
 
-  const showPlaceholders = !currentProductId || products === null
+  // Auto mode in the canvas keeps the placeholders. Manual mode shows the
+  // real products even on the canvas.
+  const showPlaceholders =
+    (mode === "auto" && !currentProductId) || products === null
   const list: (RelatedProductCard | null)[] = showPlaceholders
     ? Array.from({ length: Math.min(limit, 8) }, () => null)
     : products.slice(0, Math.min(limit, 8))
@@ -145,9 +166,9 @@ export default function RelatedProductsBlockEditorWrapper({ content, currentProd
             ),
           )}
         </div>
-        {!currentProductId && (
+        {mode === "auto" && !currentProductId && (
           <p className="text-center text-[11px] text-muted-foreground mt-4">
-            Los productos reales se cargan en la tienda.
+            En modo automático los productos se cargan según el producto que se está visualizando.
           </p>
         )}
       </div>
