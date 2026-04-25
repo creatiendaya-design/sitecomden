@@ -83,9 +83,12 @@ export async function resolveProductBlocksFromLoaded(
 
 async function resolveFromProduct(product: ProductWithRelations): Promise<ResolvedProductBlock[]> {
   if (!product.landingTemplateId) {
-    return product.landingBlocks
-      .filter((b) => b.sourceTemplateBlockId === null)
-      .map((b) => ({
+    const localBlocks = product.landingBlocks.filter((b) => b.sourceTemplateBlockId === null)
+
+    // If the product has its own pure-local blocks, use them — admin
+    // explicitly wanted custom content.
+    if (localBlocks.length > 0) {
+      return localBlocks.map((b) => ({
         id: b.id,
         origin: "local" as const,
         type: b.type,
@@ -94,6 +97,33 @@ async function resolveFromProduct(product: ProductWithRelations): Promise<Resolv
         sourceTemplateBlockId: null,
         hasLandingBlockRow: true,
       }))
+    }
+
+    // Otherwise, fall back to the active theme's default product landing.
+    // This is what makes "new product, no template" inherit the theme's
+    // default automatically (Plan 4).
+    const activeTheme = await prisma.theme.findFirst({
+      where: { active: true, defaultProductLandingTemplateId: { not: null } },
+      select: { defaultProductLandingTemplateId: true },
+    })
+    if (activeTheme?.defaultProductLandingTemplateId) {
+      const themeDefaultBlocks = await prisma.templateBlock.findMany({
+        where: { templateId: activeTheme.defaultProductLandingTemplateId },
+        orderBy: { position: "asc" },
+      })
+      return themeDefaultBlocks.map((tb) => ({
+        id: tb.id,
+        origin: "template" as const,
+        type: tb.type as LandingBlockType,
+        position: tb.position,
+        content: tb.content as unknown as BlockContentV2,
+        sourceTemplateBlockId: tb.id,
+        hasLandingBlockRow: false,
+      }))
+    }
+
+    // No active theme default — render nothing (existing behavior).
+    return []
   }
 
   const templateBlocks = await prisma.templateBlock.findMany({
