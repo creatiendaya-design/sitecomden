@@ -49,9 +49,10 @@ interface Props {
 
 const SHORTCUTS: { value: string; label: string }[] = [
   { value: "HOME", label: "Página de inicio" },
-  { value: "PRODUCTS_INDEX", label: "Búsqueda" },
+  { value: "PRODUCTS_INDEX", label: "Todos los productos" },
   { value: "COLLECTIONS_INDEX", label: "Todas las colecciones" },
-  { value: "PRODUCTS_INDEX_ALL", label: "Todos los productos" },
+  // NOTE: "Búsqueda" omitted — el storefront aún no tiene página dedicada
+  // de búsqueda. Cuando exista, agregar un linkType `SEARCH` distinto.
 ]
 
 const TYPES: { value: string; label: string }[] = [
@@ -60,14 +61,6 @@ const TYPES: { value: string; label: string }[] = [
   { value: "PRODUCT", label: "Producto específico" },
   { value: "EXTERNAL_URL", label: "URL externa" },
 ]
-
-// "PRODUCTS_INDEX_ALL" is a UI-only alias because the Select needs unique
-// option values but both "Búsqueda" and "Todos los productos" map to the same
-// underlying linkType (PRODUCTS_INDEX). We collapse it back when emitting.
-function normalizeLinkType(uiValue: string): string {
-  if (uiValue === "PRODUCTS_INDEX_ALL") return "PRODUCTS_INDEX"
-  return uiValue
-}
 
 /**
  * Shopify-style unified link picker. The primary Select chooses both the
@@ -115,8 +108,7 @@ export function LinkPicker({
   }, [linkType, targetId, selectedProduct?.id])
 
   const handlePrimaryChange = (uiValue: string) => {
-    const next = normalizeLinkType(uiValue)
-    onChange({ linkType: next, targetId: null, externalUrl: null })
+    onChange({ linkType: uiValue, targetId: null, externalUrl: null })
     setSelectedProduct(null)
   }
 
