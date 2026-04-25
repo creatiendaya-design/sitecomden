@@ -18,8 +18,17 @@ export default function GalleryBlock({ content: rawContent, onBuyClick }: Galler
   const content = readContent<GalleryBlockContent>(rawContent, "GALLERY");
   const { style: blockStyle } = readStyleAndMedia(rawContent);
   const { className: styleClass, style: inlineStyle } = applyBlockStyle(blockStyle);
-  const { displayType, images, showBuyButton, buyButtonText } = content;
-  if (!images?.length) return null;
+  const { displayType, showBuyButton, buyButtonText } = content;
+
+  // Backward-compat normalizer: GALLERY's data.images was originally `string[]`
+  // (legacy v1/v2). Schema-driven editor stores `{ id, url }[]` instead. Read
+  // both shapes here so old stored content keeps rendering.
+  const rawImages = content.images as unknown as Array<string | { url?: string }> | undefined;
+  const images: string[] = (rawImages ?? [])
+    .map((it) => (typeof it === "string" ? it : it?.url ?? ""))
+    .filter(Boolean);
+
+  if (!images.length) return null;
 
   const buttonLabel = buyButtonText?.trim() || "Comprar ahora";
 

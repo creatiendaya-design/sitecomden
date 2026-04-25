@@ -48,7 +48,9 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
   GALLERY: {
     data: {
       displayType: "slider",
-      images: [] as string[],
+      // Schema-driven shape: each item has { id, url }. Renderer is
+      // backward-compatible with legacy `string[]`.
+      images: [] as { id: string; url: string }[],
       showBuyButton: false,
     },
     style: { ...DEFAULT_STYLE },
