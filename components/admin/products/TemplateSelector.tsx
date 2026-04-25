@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, MoreHorizontal } from "lucide-react"
+import { Eye, MoreHorizontal, Plus } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -36,6 +36,7 @@ import {
 } from "@/actions/landing-templates"
 import { ApplyTemplateDialog } from "./ApplyTemplateDialog"
 import { SaveAsTemplateDialog } from "./SaveAsTemplateDialog"
+import { CreateTemplateDialog } from "@/components/admin/landing-templates/CreateTemplateDialog"
 import { toast } from "sonner"
 
 interface Props {
@@ -55,6 +56,7 @@ export function TemplateSelector({
   const [pending, setPending] = useState<{ template: TemplateRow } | null>(null)
   const [showSaveAs, setShowSaveAs] = useState(false)
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
   const [unlinkPending, startUnlinkTransition] = useTransition()
   const router = useRouter()
 
@@ -67,7 +69,14 @@ export function TemplateSelector({
   const handleSelectChange = (value: string) => {
     if (value === "__none__") {
       // Picking "Producto predeterminado" when already none — no-op.
-      // When already linked, the unlink flow lives in Task 19.
+      // When already linked, the user uses the menu's "Desvincular" action.
+      return
+    }
+    if (value === "__create__") {
+      // Inline-create flow, à la Shopify: open the Create modal without
+      // leaving the product builder. After creation we navigate to the
+      // template editor so the admin can build out the new template.
+      setShowCreate(true)
       return
     }
     const t = templates.find((x) => x.id === value)
@@ -95,6 +104,12 @@ export function TemplateSelector({
               {t.name}
             </SelectItem>
           ))}
+          <SelectItem value="__create__" className="text-primary">
+            <span className="inline-flex items-center gap-1.5">
+              <Plus className="h-3 w-3" />
+              Crear plantilla
+            </span>
+          </SelectItem>
         </SelectContent>
       </Select>
 
@@ -158,6 +173,16 @@ export function TemplateSelector({
         blockCount={currentBlockCount}
         open={showSaveAs}
         onOpenChange={setShowSaveAs}
+      />
+
+      <CreateTemplateDialog
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        onCreated={(id) => {
+          setShowCreate(false)
+          toast.success("Plantilla creada. Te llevamos al editor.")
+          router.push(`/admin/landing-plantillas/${id}`)
+        }}
       />
 
       <AlertDialog open={showUnlinkConfirm} onOpenChange={setShowUnlinkConfirm}>
