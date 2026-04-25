@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   Store,
   Pencil,
@@ -19,18 +20,27 @@ import {
 import { toast } from "sonner"
 import { setActiveTheme, type ThemeRow } from "@/actions/themes"
 import type { TemplateRow } from "@/actions/landing-templates"
+import type { PageRow } from "@/actions/pages"
 import { ThemeSectionList } from "./ThemeSectionList"
 import { ThemeProductDefaultPicker } from "./ThemeProductDefaultPicker"
+import { ThemeHomePagePicker } from "./ThemeHomePagePicker"
 
 interface Props {
   activeTheme: ThemeRow | null
   allThemes: ThemeRow[]
   landingTemplates: TemplateRow[]
+  pages: PageRow[]
 }
 
-export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: Props) {
+export function ActiveThemeEditor({
+  activeTheme,
+  allThemes,
+  landingTemplates,
+  pages,
+}: Props) {
   const router = useRouter()
   const [showProductDefault, setShowProductDefault] = useState(false)
+  const [showHomePage, setShowHomePage] = useState(false)
   const [pendingActivate, startActivateTransition] = useTransition()
 
   // No themes at all — defensive fallback. Themes are seeded by developers
@@ -67,7 +77,7 @@ export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: 
           Activá un tema desde la lista para empezar a editarlo.
         </p>
         <Button asChild variant="outline">
-          <a href="/admin/personalizar/temas">Ver temas</a>
+          <Link href="/admin/personalizar/temas">Ver temas</Link>
         </Button>
       </div>
     )
@@ -130,17 +140,17 @@ export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: 
           )}
 
           <Button asChild variant="outline" size="sm">
-            <a href={`/admin/personalizar/temas/${activeTheme.id}/editar`}>
+            <Link href={`/admin/personalizar/temas/${activeTheme.id}/editar`}>
               <Pencil className="mr-2 h-3.5 w-3.5" />
               Editar metadata
-            </a>
+            </Link>
           </Button>
 
           <Button asChild variant="outline" size="sm">
-            <a href="/admin/personalizar/temas">
+            <Link href="/admin/personalizar/temas">
               <ListTree className="mr-2 h-3.5 w-3.5" />
               Ver todos
-            </a>
+            </Link>
           </Button>
         </div>
       </div>
@@ -149,11 +159,12 @@ export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: 
       <ThemeSectionList
         activeTheme={activeTheme}
         onEditProductDefault={() => setShowProductDefault(true)}
+        onEditHomePage={() => setShowHomePage(true)}
       />
 
       <p className="mt-6 text-[11px] text-muted-foreground text-center">
-        Solo la sección <strong>Producto</strong> está habilitada en este momento. Las
-        demás secciones llegarán en planes posteriores (5–8).
+        Las secciones <strong>Categorías</strong> y <strong>Cart</strong>{" "}
+        llegarán en planes posteriores.
       </p>
 
       <ThemeProductDefaultPicker
@@ -164,6 +175,18 @@ export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: 
         landingTemplates={landingTemplates}
         onSaved={() => {
           setShowProductDefault(false)
+          router.refresh()
+        }}
+      />
+
+      <ThemeHomePagePicker
+        open={showHomePage}
+        onOpenChange={setShowHomePage}
+        themeId={activeTheme.id}
+        currentPageId={activeTheme.homePageId}
+        pages={pages}
+        onSaved={() => {
+          setShowHomePage(false)
           router.refresh()
         }}
       />

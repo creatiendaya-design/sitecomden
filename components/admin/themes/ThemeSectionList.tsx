@@ -35,8 +35,7 @@ const SECTIONS: SectionDef[] = [
     label: "Home",
     description: "Página de inicio de la tienda",
     icon: Home,
-    status: "coming-soon",
-    comingPlan: "Plan 6",
+    status: "active",
   },
   {
     key: "collections",
@@ -73,19 +72,28 @@ const SECTIONS: SectionDef[] = [
 interface Props {
   activeTheme: ThemeRow
   onEditProductDefault: () => void
+  onEditHomePage: () => void
 }
 
-export function ThemeSectionList({ activeTheme, onEditProductDefault }: Props) {
+export function ThemeSectionList({
+  activeTheme,
+  onEditProductDefault,
+  onEditHomePage,
+}: Props) {
   const router = useRouter()
   return (
     <div className="space-y-2">
       {SECTIONS.map((section) => {
         const Icon = section.icon
         const isProduct = section.key === "product"
+        const isHome = section.key === "home"
         const isComingSoon = section.status === "coming-soon"
         const productSummary = isProduct
           ? activeTheme.defaultProductLandingTemplateName ??
             "Sin plantilla por defecto"
+          : null
+        const homeSummary = isHome
+          ? activeTheme.homePageTitle ?? "Home por defecto (layout incorporado)"
           : null
 
         return (
@@ -98,11 +106,13 @@ export function ThemeSectionList({ activeTheme, onEditProductDefault }: Props) {
                 ? undefined
                 : section.key === "product"
                   ? onEditProductDefault
-                  : section.key === "pages"
-                    ? () => router.push("/admin/paginas")
-                    : section.key === "header-footer"
-                      ? () => router.push("/admin/menus")
-                      : undefined
+                  : section.key === "home"
+                    ? onEditHomePage
+                    : section.key === "pages"
+                      ? () => router.push("/admin/paginas")
+                      : section.key === "header-footer"
+                        ? () => router.push("/admin/menus")
+                        : undefined
             }
             className={cn(
               "group flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors",
@@ -138,6 +148,12 @@ export function ThemeSectionList({ activeTheme, onEditProductDefault }: Props) {
                 <p className="text-xs font-medium mt-1">
                   Plantilla actual:{" "}
                   <span className="text-primary">{productSummary}</span>
+                </p>
+              )}
+              {homeSummary && (
+                <p className="text-xs font-medium mt-1">
+                  Página actual:{" "}
+                  <span className="text-primary">{homeSummary}</span>
                 </p>
               )}
             </div>
