@@ -265,3 +265,42 @@ export async function saveTemplateBlocks(
   revalidatePath(`/admin/landing-plantillas/${templateId}`)
   return { success: true }
 }
+
+/**
+ * Apply a template to a product (linking) or unlink it (templateId = null).
+ *
+ * Linking semantics: every existing LandingBlock for the product is removed
+ * (locals + any detached overrides from a previous template). The product's
+ * landingTemplateId is then set to the new template; from there it renders
+ * solely from TemplateBlock rows. Future template edits propagate
+ * automatically (the product owns no overrides yet).
+ *
+ * Unlinking (templateId = null): same delete + clear pointer. Caller is
+ * expected to seed local blocks separately if they want to keep content.
+ */
+export async function applyTemplateToProduct(
+  productId: string,
+  templateId: string | null,
+): Promise<{ success: true }> {
+  await protectRoute("products:update")
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, slug: true },
+  })
+  if (!product) throw new Error("Producto no encontrado")
+
+  await prisma.$transaction(async (tx) => {
+    await tx.landingBlock.deleteMany({ where: { productId } })
+
+    await tx.product.update({
+      where: { id: productId },
+      data: { landingTemplateId: templateId },
+    })
+  })
+
+  updateTag(`product:${product.slug}`)
+  if (templateId) updateTag(`template:${templateId}`)
+  revalidatePath(`/admin/productos/${productId}`)
+  return { success: true }
+}
