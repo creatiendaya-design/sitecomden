@@ -40,7 +40,7 @@ const existing: BlockDefinition[] = [
       { type: "text", key: "subtitle", label: "Subtítulo" },
       { type: "text", key: "ctaText", label: "Texto del botón" },
     ],
-    styleSupport: { bgImage: true },
+    styleSupport: { bgImage: true, gradient: true },
   },
   {
     type: "BENEFITS",
@@ -382,6 +382,7 @@ const existing: BlockDefinition[] = [
       { type: "text", key: "ctaText", label: "Texto del botón (opcional)" },
       { type: "text", key: "ctaUrl", label: "URL del botón (opcional)" },
     ],
+    styleSupport: { gradient: true },
   },
   {
     type: "RELATED_PRODUCTS",
