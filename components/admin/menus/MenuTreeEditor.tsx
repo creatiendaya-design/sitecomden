@@ -292,7 +292,6 @@ export function MenuTreeEditor({
       {editing && (
         <MenuItemSheet
           item={editing}
-          allItems={items}
           pages={pages}
           categories={categories}
           onSave={updateItem}
