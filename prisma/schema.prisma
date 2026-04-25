@@ -1032,6 +1032,36 @@ model LandingTemplate {
   @@index([active, category])
 }
 
+/// A user-editable static page (Nosotros, Términos, FAQ, etc.) authored
+/// via the page builder. The storefront resolves /<slug> to the active
+/// Page when one exists, falling back to hardcoded route files otherwise.
+model Page {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  title       String
+  description String?     /// SEO meta description
+  active      Boolean     @default(true)
+  createdBy   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  pageBlocks  PageBlock[]
+
+  @@index([slug, active])
+}
+
+model PageBlock {
+  id        String           @id @default(cuid())
+  pageId    String
+  page      Page             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  type      LandingBlockType
+  position  Int
+  content   Json             @default("{}")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([pageId, position])
+}
+
 /// A storefront "theme" — the umbrella under which all page templates
 /// (home, cart, default product landing, static pages, …) eventually live.
 /// Plan 4 only wires `defaultProductLandingTemplateId`; the other sections
