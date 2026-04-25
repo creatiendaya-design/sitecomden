@@ -31,12 +31,21 @@ export interface BlockStyle {
   backgroundColor?: DeviceValue<string>
   textColor?: DeviceValue<string>
   paddingY?: DeviceValue<PaddingSize>
+  /** When set, replaces `paddingY` for the top side. Backward-compat: blocks
+   *  that only have `paddingY` use it for both sides via applyBlockStyle. */
+  paddingTop?: DeviceValue<PaddingSize>
+  /** When set, replaces `paddingY` for the bottom side. */
+  paddingBottom?: DeviceValue<PaddingSize>
   alignment?: DeviceValue<Alignment>
   containerWidth?: DeviceValue<ContainerWidth>
   cornerRadius?: CornerRadius
   border?: BorderStyle
   shadow?: ShadowStyle
   visibility?: Visibility
+  textSize?: DeviceValue<TextSize>
+  textWeight?: DeviceValue<TextWeight>
+  /** Linear gradient. Overrides `backgroundColor` when both are set. */
+  backgroundGradient?: BackgroundGradient
 }
 
 export interface BlockMedia {
@@ -53,6 +62,22 @@ export type CornerRadius = "none" | "sm" | "md" | "lg"
 export type BorderStyle = "none" | "subtle" | "strong"
 export type ShadowStyle = "none" | "subtle" | "strong"
 export type Visibility = "always" | "mobile-only" | "desktop-only" | "hidden"
+export type TextSize = "sm" | "base" | "lg" | "xl"
+export type TextWeight = "regular" | "medium" | "semibold" | "bold"
+
+export interface BackgroundGradient {
+  from: string                         // hex/rgb
+  to: string                           // hex/rgb
+  direction: GradientDirection
+}
+
+export type GradientDirection =
+  | "to-right"
+  | "to-left"
+  | "to-bottom"
+  | "to-top"
+  | "to-bottom-right"
+  | "to-bottom-left"
 
 /**
  * Block scope — used by the registry to filter which blocks can be added
@@ -105,6 +130,9 @@ export interface BlockStyleSupport {
   shadow?: boolean                 // default: true
   visibility?: boolean             // default: true
   bgImage?: boolean                // default: FALSE (opt-in — only HERO uses it today)
+  paddingTopBottom?: boolean       // default: true. When false, only the legacy `paddingY` (Plan 2 control) is shown.
+  typography?: boolean              // default: true.
+  gradient?: boolean                // default: false (opt-in — most blocks won't expose gradients).
 }
 
 /** Normalize a partial BlockStyleSupport to a fully-populated record. */
@@ -120,5 +148,8 @@ export function resolveStyleSupport(partial: Partial<BlockStyleSupport> | undefi
     shadow: partial?.shadow ?? true,
     visibility: partial?.visibility ?? true,
     bgImage: partial?.bgImage ?? false,
+    paddingTopBottom: partial?.paddingTopBottom ?? true,
+    typography: partial?.typography ?? true,
+    gradient: partial?.gradient ?? false,
   }
 }
