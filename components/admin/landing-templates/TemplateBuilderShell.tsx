@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useEffect, useMemo } from "react"
 import { PageBuilder } from "@/components/admin/page-builder/PageBuilder"
+import { useBuilderStore } from "@/components/admin/page-builder/store"
 import type { BlockInstance } from "@/lib/blocks/types"
 
 interface Props {
@@ -20,11 +21,6 @@ interface Props {
  *  - explicit-save model: changes accumulate in the store; the topbar's
  *    "Guardar y propagar" button (Task 9) flushes them in one transaction.
  *    No per-edit autosave.
- *
- * The store-level wiring (originalSnapshot, pendingChangeCount, the topbar's
- * conditional save UI) is added in Task 7. For now this shell mounts the
- * builder with `onBlocksChange` as a no-op so edits stay in the store but
- * don't trigger any persistence.
  */
 export function TemplateBuilderShell({ template, initialBlocks }: Props) {
   // No-op: in template mode, edits stay in the store. Task 9 wires saving
@@ -33,12 +29,32 @@ export function TemplateBuilderShell({ template, initialBlocks }: Props) {
     // Intentional no-op for explicit-save mode.
   }, [])
 
+  // Hydrate template editor state on mount (editor mode + original snapshot).
+  useEffect(() => {
+    useBuilderStore.getState().setEditorMode("template")
+    useBuilderStore.getState().setOriginalSnapshot(initialBlocks)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const actions = useMemo(
+    () => ({
+      onSaveTemplate: () => {
+        // Task 9 wires this.
+      },
+      onDiscardDraft: () => {
+        // Task 10 wires this.
+      },
+    }),
+    [],
+  )
+
   return (
     <PageBuilder
       blocks={initialBlocks}
       onBlocksChange={handleBlocksChange}
       scope="page"
       context={{ type: "template", template }}
+      actions={actions}
       title={template.name}
       backHref="/admin/landing-plantillas"
     />

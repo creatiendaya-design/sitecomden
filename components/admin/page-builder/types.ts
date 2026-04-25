@@ -25,6 +25,8 @@ export interface PageBuilderActions {
   onApplyTemplate?: () => void
   onSaveAsTemplate?: () => void
   onUnlinkTemplate?: () => void
+  onDiscardDraft?: () => void
+  onSaveTemplate?: () => void
 }
 
 export interface PageBuilderProps {

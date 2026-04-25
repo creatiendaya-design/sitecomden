@@ -4,6 +4,7 @@ import Link from "next/link"
 import { ArrowLeft, Check, Loader2, AlertCircle, MoreVertical } from "lucide-react"
 import { useBuilderStore } from "./store"
 import { DeviceToggle } from "./DeviceToggle"
+import { PendingChangesBadge } from "./PendingChangesBadge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -21,7 +22,8 @@ interface TopBarProps {
 }
 
 export function TopBar({ title, backHref, actions }: TopBarProps) {
-  const saveStatus = useBuilderStore((s) => s.saveStatus)
+  const editorMode = useBuilderStore((s) => s.editorMode)
+  const pendingCount = useBuilderStore((s) => s.pendingChangeCount)
 
   return (
     <header className="h-14 flex items-center gap-3 px-4 border-b bg-background shrink-0">
@@ -39,7 +41,32 @@ export function TopBar({ title, backHref, actions }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <SaveStatusIndicator />
+        {editorMode === "template" ? (
+          <>
+            <PendingChangesBadge />
+            {actions?.onDiscardDraft && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pendingCount === 0}
+                onClick={actions.onDiscardDraft}
+              >
+                Descartar cambios
+              </Button>
+            )}
+            {actions?.onSaveTemplate && (
+              <Button
+                size="sm"
+                disabled={pendingCount === 0}
+                onClick={actions.onSaveTemplate}
+              >
+                Guardar y propagar
+              </Button>
+            )}
+          </>
+        ) : (
+          <SaveStatusIndicator />
+        )}
         {(actions?.onApplyTemplate ||
           actions?.onSaveAsTemplate ||
           actions?.onUnlinkTemplate) && (
