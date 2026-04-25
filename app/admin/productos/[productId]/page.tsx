@@ -5,7 +5,8 @@ import { notFound } from "next/navigation"
 import EditProductForm from "@/components/admin/EditProductForm"
 import { ProductLandingBuilder } from "@/components/admin/ProductLandingBuilder"
 import { isPageBuilderV2Enabled } from "@/lib/blocks/feature-flag"
-import type { BlockInstance, BlockContentV2 } from "@/lib/blocks/types"
+import type { BlockInstance } from "@/lib/blocks/types"
+import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks"
 
 interface EditProductPageProps {
   params: Promise<{
@@ -58,19 +59,35 @@ export default async function EditProductPage({ params, searchParams }: EditProd
   // When the v2 flag is ON AND the admin opened the landing tab, render the
   // full-screen builder instead of the form-based editor.
   if (flagOn && sp.tab === "landing") {
-    const blocks: BlockInstance[] = product.landingBlocks.map((b) => ({
-      id: b.id,
-      type: b.type,
-      position: b.position,
-      content: b.content as unknown as BlockContentV2,
-      sourceTemplateBlockId: b.sourceTemplateBlockId,
-      detached: b.detached,
+    const resolved = await resolveProductBlocksFromLoaded({
+      id: product.id,
+      landingTemplateId: product.landingTemplateId,
+      landingBlocks: product.landingBlocks.map((b) => ({
+        id: b.id,
+        type: b.type,
+        position: b.position,
+        content: b.content,
+        sourceTemplateBlockId: b.sourceTemplateBlockId,
+        detached: b.detached,
+      })),
+    })
+
+    const blocks: BlockInstance[] = resolved.map((r) => ({
+      id: r.id,
+      type: r.type,
+      position: r.position,
+      content: r.content,
+      sourceTemplateBlockId: r.sourceTemplateBlockId,
+      detached: r.origin === "detached",
+      origin: r.origin,
     }))
 
     return (
       <ProductLandingBuilder
         product={{ id: product.id, slug: product.slug, name: product.name }}
         initialBlocks={blocks}
+        currentTemplateId={product.landingTemplateId}
+        currentBlockCount={resolved.length}
       />
     )
   }

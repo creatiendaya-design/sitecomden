@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { BlockInstance, LandingBlockType, BlockContentV2, Device } from "@/lib/blocks/types"
 
 export type BuilderScope = "product" | "page"
@@ -11,13 +12,22 @@ export interface ProductContext {
   }
 }
 
-// Plan 3 adds: PageContext, TemplateContext
-export type BuilderContext = ProductContext
+export interface TemplateContext {
+  type: "template"
+  template: {
+    id: string
+    name: string
+  }
+}
+
+export type BuilderContext = ProductContext | TemplateContext
 
 export interface PageBuilderActions {
   onApplyTemplate?: () => void
   onSaveAsTemplate?: () => void
   onUnlinkTemplate?: () => void
+  onDiscardDraft?: () => void
+  onSaveTemplate?: () => void
 }
 
 export interface PageBuilderProps {
@@ -28,6 +38,7 @@ export interface PageBuilderProps {
   actions?: PageBuilderActions
   title?: string
   backHref?: string
+  headerExtra?: ReactNode
 }
 
 export type SaveStatus =
