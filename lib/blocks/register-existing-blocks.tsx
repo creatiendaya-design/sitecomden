@@ -20,12 +20,8 @@ const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlo
 const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/ImageTextBlock"))
 const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
 
-import { BenefitsContentForm } from "@/components/admin/page-builder/forms/adapters/BenefitsContentForm"
 import { GalleryContentForm } from "@/components/admin/page-builder/forms/adapters/GalleryContentForm"
-import { TestimonialsContentForm } from "@/components/admin/page-builder/forms/adapters/TestimonialsContentForm"
-import { VideoContentForm } from "@/components/admin/page-builder/forms/adapters/VideoContentForm"
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
-import { TrustBadgesContentForm } from "@/components/admin/page-builder/forms/adapters/TrustBadgesContentForm"
 import { FaqContentForm } from "@/components/admin/page-builder/forms/adapters/FaqContentForm"
 import { ImageTextContentForm } from "@/components/admin/page-builder/forms/adapters/ImageTextContentForm"
 import { RelatedProductsContentForm } from "@/components/admin/page-builder/forms/adapters/RelatedProductsContentForm"
@@ -58,7 +54,26 @@ const existing: BlockDefinition[] = [
     category: "visual",
     defaultContent: DEFAULT_CONTENT_V2.BENEFITS,
     renderer: BenefitsBlock as any,
-    contentForm: BenefitsContentForm as any,
+    contentSchema: [
+      {
+        type: "array",
+        key: "cards",
+        label: "Tarjetas",
+        addButtonText: "+ Agregar tarjeta",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          icon: "✅",
+          title: "Beneficio",
+          description: "Descripción",
+        }),
+        itemLabel: (it) => (it.title as string) || "Sin título",
+        itemSchema: [
+          { type: "text", key: "icon", label: "Ícono (emoji o nombre)" },
+          { type: "text", key: "title", label: "Título" },
+          { type: "textarea", key: "description", label: "Descripción", rows: 2 },
+        ],
+      },
+    ],
   },
   {
     type: "GALLERY",
@@ -83,7 +98,38 @@ const existing: BlockDefinition[] = [
     category: "social-proof",
     defaultContent: DEFAULT_CONTENT_V2.TESTIMONIALS,
     renderer: TestimonialsBlock as any,
-    contentForm: TestimonialsContentForm as any,
+    contentSchema: [
+      {
+        type: "array",
+        key: "items",
+        label: "Testimonios",
+        addButtonText: "+ Agregar testimonio",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          name: "Cliente",
+          text: "Excelente producto",
+          rating: 5,
+        }),
+        itemLabel: (it) => (it.name as string) || "Sin nombre",
+        itemSchema: [
+          { type: "text", key: "name", label: "Nombre" },
+          { type: "text", key: "photo", label: "URL de foto (opcional)" },
+          { type: "textarea", key: "text", label: "Testimonio", rows: 3 },
+          {
+            type: "select",
+            key: "rating",
+            label: "Calificación",
+            options: [
+              { value: 1, label: "★" },
+              { value: 2, label: "★★" },
+              { value: 3, label: "★★★" },
+              { value: 4, label: "★★★★" },
+              { value: 5, label: "★★★★★" },
+            ],
+          },
+        ],
+      },
+    ],
   },
   {
     type: "VIDEO",
@@ -95,7 +141,41 @@ const existing: BlockDefinition[] = [
     category: "media",
     defaultContent: DEFAULT_CONTENT_V2.VIDEO,
     renderer: VideoBlock as any,
-    contentForm: VideoContentForm as any,
+    contentSchema: [
+      {
+        type: "select",
+        key: "displayType",
+        label: "Tipo de display",
+        options: [
+          { value: "slider", label: "Slider" },
+          { value: "stacked", label: "Apilado" },
+        ],
+      },
+      { type: "switch", key: "showBuyButton", label: "Mostrar botón de compra" },
+      { type: "text", key: "buyButtonText", label: "Texto del botón", placeholder: "Comprar ahora" },
+      {
+        type: "array",
+        key: "videos",
+        label: "Videos",
+        addButtonText: "+ Agregar video",
+        newItem: () => ({ id: crypto.randomUUID(), url: "", title: "", provider: "youtube" }),
+        itemLabel: (it) => (it.title as string) || (it.url as string) || "Video",
+        itemSchema: [
+          { type: "text", key: "url", label: "URL del video" },
+          { type: "text", key: "title", label: "Título (opcional)" },
+          {
+            type: "select",
+            key: "provider",
+            label: "Proveedor",
+            options: [
+              { value: "youtube", label: "YouTube" },
+              { value: "vimeo", label: "Vimeo" },
+              { value: "upload", label: "Subido" },
+            ],
+          },
+        ],
+      },
+    ],
     styleSupport: { textColor: false, alignment: false },
   },
   // COLORS block intentionally not registered in the AddBlockPanel — it was
@@ -151,7 +231,65 @@ const existing: BlockDefinition[] = [
     category: "social-proof",
     defaultContent: DEFAULT_CONTENT_V2.TRUST_BADGES,
     renderer: TrustBadgesBlock as any,
-    contentForm: TrustBadgesContentForm as any,
+    contentSchema: [
+      {
+        type: "select",
+        key: "layout",
+        label: "Layout",
+        options: [
+          { value: "horizontal", label: "Horizontal (grid)" },
+          { value: "vertical", label: "Vertical (lista)" },
+        ],
+      },
+      {
+        type: "select",
+        key: "columns",
+        label: "Columnas",
+        options: [
+          { value: 2, label: "2" },
+          { value: 3, label: "3" },
+          { value: 4, label: "4" },
+          { value: 5, label: "5" },
+        ],
+      },
+      {
+        type: "select",
+        key: "iconSize",
+        label: "Tamaño de íconos",
+        options: [
+          { value: "sm", label: "Pequeño" },
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+        ],
+      },
+      {
+        type: "array",
+        key: "badges",
+        label: "Badges",
+        addButtonText: "+ Agregar badge",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          icon: "Shield",
+          title: "Nuevo badge",
+          subtitle: "",
+        }),
+        itemLabel: (it) => (it.title as string) || "Sin título",
+        itemSchema: [
+          {
+            type: "icon",
+            key: "icon",
+            label: "Ícono (Lucide)",
+            curated: [
+              "Shield", "ShieldCheck", "Lock", "Truck", "Package", "RefreshCw",
+              "Award", "Star", "Heart", "Gift", "Clock", "BadgeCheck",
+              "CreditCard", "Headphones", "Phone", "Globe",
+            ],
+          },
+          { type: "text", key: "title", label: "Título" },
+          { type: "text", key: "subtitle", label: "Subtítulo (opcional)" },
+        ],
+      },
+    ],
   },
   {
     type: "RICH_TEXT",
