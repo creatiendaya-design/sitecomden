@@ -79,6 +79,7 @@ export default async function EditProductPage({ params, searchParams }: EditProd
       content: r.content,
       sourceTemplateBlockId: r.sourceTemplateBlockId,
       detached: r.origin === "detached",
+      origin: r.origin,
     }))
 
     return (

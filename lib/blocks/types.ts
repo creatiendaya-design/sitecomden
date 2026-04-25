@@ -106,9 +106,15 @@ export interface BlockInstance {
   type: LandingBlockType
   position: number
   content: BlockContentV2
-  // Sync metadata (populated in Plan 3; harmless here)
+  // Sync metadata
   sourceTemplateBlockId?: string | null
   detached?: boolean
+  /** Where this block's content is sourced from at render time:
+   *   - "template": served directly from a TemplateBlock (no LandingBlock row)
+   *   - "detached": LandingBlock override of a TemplateBlock (locally edited)
+   *   - "local":   pure-local LandingBlock (not tied to any template)
+   *  Set by the resolver in resolve-product-blocks.ts. Defaults to "local". */
+  origin?: "template" | "detached" | "local"
 }
 
 /**
