@@ -1,5 +1,6 @@
 import type { ComponentType } from "react"
 import type { BlockCategory, BlockContentV2, BlockScope, BlockStyleSupport, LandingBlockType } from "./types"
+import type { FormSchema } from "./schema/types"
 
 /**
  * Metadata and implementations for one block type.
@@ -16,8 +17,16 @@ export interface BlockDefinition {
   /** Renderer component used in both the canvas preview and the storefront.
    * Receives resolved (device-flattened) content. */
   renderer: ComponentType<{ content: BlockContentV2 }>
-  /** Form component used in the right panel "Contenido" tab. */
-  contentForm: ComponentType<{
+  /** JSON schema describing this block's content.data fields. The ContentTab
+   *  renders a generic SchemaForm from this. This is the preferred way to
+   *  declare a block's editor form. */
+  contentSchema?: FormSchema
+  /** Legacy hand-coded form. Used only by GALLERY today, whose data shape
+   *  (`images: string[]`) doesn't fit the schema's `array` primitive without
+   *  a one-time migration of stored content. Slated for removal once GALLERY
+   *  is migrated in a follow-up plan; until then, blocks fall through to this
+   *  branch in ContentTab when no `contentSchema` is declared. */
+  contentForm?: ComponentType<{
     content: BlockContentV2
     onChange: (content: BlockContentV2) => void
   }>
