@@ -122,6 +122,11 @@ function AdminLayoutInner({
       label: "Plantillas de Landing",
     },
     {
+      href: "/admin/paginas",
+      icon: FileText,
+      label: "Páginas",
+    },
+    {
       href: "/admin/envios/zonas",
       icon: Truck,
       label: "Envíos",
