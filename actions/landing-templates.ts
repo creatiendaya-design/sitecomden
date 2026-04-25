@@ -165,6 +165,14 @@ export async function toggleLandingTemplateActive(id: string): Promise<void> {
 export async function deleteLandingTemplate(id: string): Promise<void> {
   await protectRoute("landing_templates:delete")
 
+  // Pre-fetch slugs of products that will lose their template link, so we can
+  // invalidate their cached pages AFTER the delete. ON DELETE SET NULL on
+  // Product.landingTemplateId fires during the delete, so we read first.
+  const linkedProducts = await prisma.product.findMany({
+    where: { landingTemplateId: id },
+    select: { slug: true },
+  })
+
   // Orphan handling: any LandingBlock that referenced one of this template's
   // blocks (via sourceTemplateBlockId) becomes pure-local. The Prisma schema
   // does NOT cascade that link, so do it explicitly first.
@@ -182,6 +190,10 @@ export async function deleteLandingTemplate(id: string): Promise<void> {
   // Delete the template (cascades to TemplateBlock; SET NULL on Product.landingTemplateId).
   await prisma.landingTemplate.delete({ where: { id } })
 
+  updateTag(`template:${id}`)
+  for (const p of linkedProducts) {
+    updateTag(`product:${p.slug}`)
+  }
   revalidatePath("/admin/landing-plantillas")
 }
 
