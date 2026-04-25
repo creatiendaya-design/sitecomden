@@ -18,18 +18,8 @@ export interface BlockDefinition {
    * Receives resolved (device-flattened) content. */
   renderer: ComponentType<{ content: BlockContentV2 }>
   /** JSON schema describing this block's content.data fields. The ContentTab
-   *  renders a generic SchemaForm from this. This is the preferred way to
-   *  declare a block's editor form. */
+   *  renders a generic SchemaForm from this. */
   contentSchema?: FormSchema
-  /** Legacy hand-coded form. Used only by GALLERY today, whose data shape
-   *  (`images: string[]`) doesn't fit the schema's `array` primitive without
-   *  a one-time migration of stored content. Slated for removal once GALLERY
-   *  is migrated in a follow-up plan; until then, blocks fall through to this
-   *  branch in ContentTab when no `contentSchema` is declared. */
-  contentForm?: ComponentType<{
-    content: BlockContentV2
-    onChange: (content: BlockContentV2) => void
-  }>
   /** Declares which style-tab sections apply to this block type. Unset
    *  fields default per resolveStyleSupport() (all true except `bgImage`). */
   styleSupport?: Partial<BlockStyleSupport>

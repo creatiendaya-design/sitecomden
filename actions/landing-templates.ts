@@ -4,13 +4,20 @@ import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
 import type { LandingBlockType, Prisma } from "@prisma/client"
+import { extractPreviewImage } from "@/lib/blocks/extract-preview-image"
 
 export interface TemplateRow {
   id: string
   name: string
   description: string | null
-  category: string | null
+  /** Manual override uploaded via "Editar metadata". When null, the UI falls
+   *  back to `previewImage` (auto-extracted from the first visual block). */
   thumbnail: string | null
+  /** Auto-derived preview: first usable image found across the template's
+   *  blocks (HERO bgImage, IMAGE_TEXT image, GALLERY first, VIDEO first
+   *  thumbnail). Null when no block carries an image. */
+  previewImage: string | null
+  category: string | null
   active: boolean
   blockCount: number
   productCount: number
@@ -57,6 +64,14 @@ export async function listLandingTemplates(filters?: ListFilters): Promise<Templ
       _count: {
         select: { templateBlocks: true, products: true },
       },
+      // Eager-load blocks so we can derive a preview image without an N+1
+      // query per template card. We only need enough fields to find the first
+      // visual asset; ordered by position so the lookup matches what the
+      // editor would render at the top.
+      templateBlocks: {
+        orderBy: { position: "asc" },
+        select: { type: true, content: true },
+      },
     },
     orderBy: { updatedAt: "desc" },
   })
@@ -67,6 +82,7 @@ export async function listLandingTemplates(filters?: ListFilters): Promise<Templ
     description: r.description,
     category: r.category,
     thumbnail: r.thumbnail,
+    previewImage: extractPreviewImage(r.templateBlocks),
     active: r.active,
     blockCount: r._count.templateBlocks,
     productCount: r._count.products,
@@ -92,6 +108,7 @@ export async function getLandingTemplate(id: string): Promise<TemplateWithBlocks
     description: t.description,
     category: t.category,
     thumbnail: t.thumbnail,
+    previewImage: extractPreviewImage(t.templateBlocks),
     active: t.active,
     updatedAt: t.updatedAt,
     blockCount: t._count.templateBlocks,

@@ -29,25 +29,14 @@ import {
   toggleLandingTemplateActive,
   type TemplateRow,
 } from "@/actions/landing-templates";
+import { getCategoryEmoji } from "@/lib/template-categories";
 
 interface TemplateCardProps {
   template: TemplateRow;
   onMutate: () => void;
 }
 
-function categoryEmoji(category: string | null): string {
-  if (!category) return "📄";
-  const normalized = category.toLowerCase();
-  if (normalized.includes("ropa") || normalized.includes("moda")) return "👕";
-  if (normalized.includes("zapat") || normalized.includes("calzado")) return "👟";
-  if (normalized.includes("electr") || normalized.includes("tech")) return "💻";
-  if (normalized.includes("hogar") || normalized.includes("casa")) return "🏠";
-  if (normalized.includes("deport")) return "⚽";
-  if (normalized.includes("beller") || normalized.includes("belle")) return "💄";
-  if (normalized.includes("comida") || normalized.includes("aliment")) return "🍽";
-  if (normalized.includes("juguet")) return "🧸";
-  return "📄";
-}
+// categoryEmoji moved to lib/template-categories.ts as getCategoryEmoji.
 
 export function TemplateCard({ template, onMutate }: TemplateCardProps) {
   const router = useRouter();
@@ -104,19 +93,22 @@ export function TemplateCard({ template, onMutate }: TemplateCardProps) {
           aria-label={`Abrir editor de ${template.name}`}
         >
           <div className="relative aspect-video w-full overflow-hidden bg-muted">
-            {template.thumbnail ? (
+            {/* Manual upload wins; otherwise auto-derived preview from the
+                first visual block; otherwise a category-emoji placeholder. */}
+            {template.thumbnail || template.previewImage ? (
               <Image
-                src={template.thumbnail}
+                src={template.thumbnail ?? template.previewImage!}
                 alt={template.name}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className="object-cover"
+                unoptimized
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800">
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
                   <span className="text-4xl" aria-hidden>
-                    {categoryEmoji(template.category)}
+                    {getCategoryEmoji(template.category)}
                   </span>
                   <LayoutTemplate className="h-5 w-5 opacity-60" aria-hidden />
                 </div>
