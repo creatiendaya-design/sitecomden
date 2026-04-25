@@ -304,3 +304,65 @@ export async function applyTemplateToProduct(
   revalidatePath(`/admin/productos/${productId}`)
   return { success: true }
 }
+
+export async function saveProductLandingAsTemplate(
+  productId: string,
+  metadata: { name: string; description?: string; category?: string },
+): Promise<{ templateId: string }> {
+  const userId = await protectRoute("landing_templates:create")
+
+  if (!metadata.name.trim()) {
+    throw new Error("El nombre es obligatorio")
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, slug: true, landingBlocks: { orderBy: { position: "asc" } } },
+  })
+  if (!product) throw new Error("Producto no encontrado")
+  if (product.landingBlocks.length === 0) {
+    throw new Error("El producto no tiene bloques para guardar como plantilla")
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Create the new template.
+    const template = await tx.landingTemplate.create({
+      data: {
+        name: metadata.name.trim(),
+        description: metadata.description?.trim() || null,
+        category: metadata.category?.trim() || null,
+        createdBy: userId,
+      },
+    })
+
+    // 2. Copy each LandingBlock as a TemplateBlock with identical type/position/content.
+    if (product.landingBlocks.length > 0) {
+      await tx.templateBlock.createMany({
+        data: product.landingBlocks.map((b) => ({
+          templateId: template.id,
+          type: b.type,
+          position: b.position,
+          content: b.content as object,
+        })),
+      })
+    }
+
+    // 3. Link the product to the new template.
+    await tx.product.update({
+      where: { id: productId },
+      data: { landingTemplateId: template.id },
+    })
+
+    // 4. Delete the product's LandingBlock rows — they are now served from
+    //    the template via the resolver.
+    await tx.landingBlock.deleteMany({ where: { productId } })
+
+    return { templateId: template.id }
+  })
+
+  updateTag(`product:${product.slug}`)
+  updateTag(`template:${result.templateId}`)
+  revalidatePath("/admin/landing-plantillas")
+  revalidatePath(`/admin/productos/${productId}`)
+  return result
+}

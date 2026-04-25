@@ -21,6 +21,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { listLandingTemplates, type TemplateRow } from "@/actions/landing-templates"
 import { ApplyTemplateDialog } from "./ApplyTemplateDialog"
+import { SaveAsTemplateDialog } from "./SaveAsTemplateDialog"
 import { toast } from "sonner"
 
 interface Props {
@@ -38,6 +39,7 @@ export function TemplateSelector({
 }: Props) {
   const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [pending, setPending] = useState<{ template: TemplateRow } | null>(null)
+  const [showSaveAs, setShowSaveAs] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -100,7 +102,12 @@ export function TemplateSelector({
               <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuItem disabled>Guardar como plantilla... (Task 15)</DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setShowSaveAs(true)}
+            disabled={currentBlockCount === 0}
+          >
+            Guardar como plantilla...
+          </DropdownMenuItem>
           {currentTemplate && (
             <DropdownMenuItem disabled className="text-destructive">
               Desvincular plantilla (Task 19)
@@ -126,6 +133,13 @@ export function TemplateSelector({
           }}
         />
       )}
+
+      <SaveAsTemplateDialog
+        productId={productId}
+        blockCount={currentBlockCount}
+        open={showSaveAs}
+        onOpenChange={setShowSaveAs}
+      />
     </div>
   )
 }
