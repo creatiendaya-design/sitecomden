@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import ProductTracking from "./tracking-client";
 import ProductStandardView from "@/components/shop/templates/ProductStandardView";
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
+import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks";
+import type { LandingBlock } from "@/lib/types/landing-blocks";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -111,6 +113,30 @@ export default async function ProductDetailPage({
     sku: product.sku || undefined,
   };
 
+  // Resolve blocks: merges template inheritance + detached overrides + locals.
+  const resolvedBlocks = await resolveProductBlocksFromLoaded({
+    id: product.id,
+    landingTemplateId: (product as any).landingTemplateId ?? null,
+    landingBlocks: ((product as any).landingBlocks ?? []).map((b: any) => ({
+      id: b.id,
+      type: b.type,
+      position: b.position,
+      content: b.content,
+      sourceTemplateBlockId: b.sourceTemplateBlockId ?? null,
+      detached: b.detached ?? false,
+    })),
+  });
+
+  const renderableLandingBlocks: LandingBlock[] = resolvedBlocks.map((r) => ({
+    id: r.id,
+    productId: product.id,
+    type: r.type,
+    position: r.position,
+    content: r.content as unknown as LandingBlock["content"],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }));
+
   // Serializar product (Prisma Decimal/Date → JS plain objects)
   const serializedProductFull = {
     ...product,
@@ -119,10 +145,10 @@ export default async function ProductDetailPage({
     weight: product.weight ? Number(product.weight) : null,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
-    landingBlocks: ((product as any).landingBlocks ?? []).map((b: any) => ({
+    landingBlocks: renderableLandingBlocks.map((b) => ({
       ...b,
-      createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
-      updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt,
+      createdAt: b.createdAt.toISOString(),
+      updatedAt: b.updatedAt.toISOString(),
     })),
   };
 
@@ -136,7 +162,7 @@ export default async function ProductDetailPage({
     initialComparePrice,
     inStock,
     totalStock,
-    landingBlocks: serializedProductFull.landingBlocks,
+    landingBlocks: renderableLandingBlocks,
   };
 
   return (
