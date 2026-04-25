@@ -18,14 +18,32 @@ export async function generateMetadata({ params }: DynamicPageParams) {
       description: true,
       seoTitle: true,
       seoDescription: true,
+      seoImage: true,
+      noIndex: true,
     },
   })
   if (!page) return {}
   // SEO fields override the visible title/description; visible fields are
   // the fallback so search engines never get an empty meta.
+  const title = page.seoTitle ?? page.title
+  const description = page.seoDescription ?? page.description ?? undefined
+  const imageUrl = page.seoImage ?? undefined
+
   return {
-    title: page.seoTitle ?? page.title,
-    description: page.seoDescription ?? page.description ?? undefined,
+    title,
+    description,
+    robots: page.noIndex ? { index: false, follow: false } : undefined,
+    openGraph: {
+      title,
+      description,
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
+    },
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
   }
 }
 

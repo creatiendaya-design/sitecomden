@@ -1050,6 +1050,13 @@ model Page {
   /// SEO meta description override. When null, falls back to `description`.
   /// Aim for ~150-160 chars for best SERP truncation.
   seoDescription String?
+  /// Open Graph image URL — preview shown when the page is shared on
+  /// WhatsApp, Facebook, LinkedIn, Twitter, etc. Recommended 1200×630.
+  seoImage       String?
+  /// When true, emits <meta name="robots" content="noindex,nofollow">.
+  /// Useful for internal / temporary landing pages that shouldn't appear
+  /// in search engines.
+  noIndex        Boolean     @default(false)
   active         Boolean     @default(true)
   createdBy      String?
   createdAt      DateTime    @default(now())

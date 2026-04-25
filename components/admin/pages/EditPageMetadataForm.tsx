@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
+import { Upload, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,8 +23,27 @@ export function EditPageMetadataForm({ page }: EditPageMetadataFormProps) {
   const [description, setDescription] = useState(page.description ?? "")
   const [seoTitle, setSeoTitle] = useState(page.seoTitle ?? "")
   const [seoDescription, setSeoDescription] = useState(page.seoDescription ?? "")
+  const [seoImage, setSeoImage] = useState<string | null>(page.seoImage ?? null)
+  const [noIndex, setNoIndex] = useState(page.noIndex)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [active, setActive] = useState(page.active)
   const [pending, startTransition] = useTransition()
+
+  async function handleImageUpload(file: File): Promise<void> {
+    setUploadingImage(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+      const { url } = (await res.json()) as { url: string }
+      setSeoImage(url)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al subir la imagen")
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,6 +56,8 @@ export function EditPageMetadataForm({ page }: EditPageMetadataFormProps) {
           description: description.trim() || null,
           seoTitle: seoTitle.trim() || null,
           seoDescription: seoDescription.trim() || null,
+          seoImage: seoImage || null,
+          noIndex,
           active,
         })
         toast.success("Página actualizada")
@@ -137,6 +160,70 @@ export function EditPageMetadataForm({ page }: EditPageMetadataFormProps) {
           <p className="text-xs text-muted-foreground">
             {seoDescription.length}/160 caracteres recomendados (máximo 200).
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Imagen para redes (Open Graph)</Label>
+          <p className="text-xs text-muted-foreground">
+            Aparece cuando alguien comparte el link en WhatsApp, Facebook,
+            LinkedIn, etc. Recomendado 1200×630.
+          </p>
+          {seoImage ? (
+            <div className="relative aspect-[1200/630] w-full max-w-md overflow-hidden rounded-md border bg-muted">
+              <Image
+                src={seoImage}
+                alt="Vista previa OG"
+                fill
+                className="object-cover"
+                unoptimized
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute right-2 top-2 h-6 w-6 shadow"
+                onClick={() => setSeoImage(null)}
+                aria-label="Quitar imagen OG"
+                disabled={pending || uploadingImage}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ) : (
+            <label className="flex max-w-md cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-dashed p-4 text-xs text-muted-foreground hover:bg-muted/40">
+              <Upload className="h-3.5 w-3.5" />
+              {uploadingImage ? "Subiendo..." : "Subir imagen"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={pending || uploadingImage}
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) handleImageUpload(f)
+                  e.target.value = ""
+                }}
+              />
+            </label>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 rounded-md border p-3">
+          <Switch
+            id="page-noindex"
+            checked={noIndex}
+            onCheckedChange={setNoIndex}
+            disabled={pending}
+          />
+          <div className="flex-1">
+            <Label htmlFor="page-noindex" className="text-sm">
+              No indexar en buscadores
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Activá esto para landing internas o promociones temporales que no
+              quieras que aparezcan en Google.
+            </p>
+          </div>
         </div>
       </div>
 

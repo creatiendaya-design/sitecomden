@@ -15,6 +15,10 @@ export interface PageRow {
   seoTitle: string | null
   /** SEO meta description override; null falls back to `description`. */
   seoDescription: string | null
+  /** Open Graph image URL; null = no image in social previews. */
+  seoImage: string | null
+  /** When true, emit `<meta name="robots" content="noindex,nofollow">`. */
+  noIndex: boolean
   active: boolean
   blockCount: number
   updatedAt: Date
@@ -35,6 +39,8 @@ export async function listPages(): Promise<PageRow[]> {
       description: true,
       seoTitle: true,
       seoDescription: true,
+      seoImage: true,
+      noIndex: true,
       active: true,
       updatedAt: true,
       _count: { select: { pageBlocks: true } },
@@ -47,6 +53,8 @@ export async function listPages(): Promise<PageRow[]> {
     description: r.description,
     seoTitle: r.seoTitle,
     seoDescription: r.seoDescription,
+    seoImage: r.seoImage,
+    noIndex: r.noIndex,
     active: r.active,
     blockCount: r._count.pageBlocks,
     updatedAt: r.updatedAt,
@@ -70,6 +78,8 @@ export async function getPage(id: string): Promise<PageWithBlocks | null> {
     description: p.description,
     seoTitle: p.seoTitle,
     seoDescription: p.seoDescription,
+    seoImage: p.seoImage,
+    noIndex: p.noIndex,
     active: p.active,
     blockCount: p._count.pageBlocks,
     updatedAt: p.updatedAt,
@@ -98,6 +108,8 @@ export async function createPage(input: {
   description?: string
   seoTitle?: string
   seoDescription?: string
+  seoImage?: string
+  noIndex?: boolean
 }): Promise<{ id: string }> {
   const userId = await protectRoute("pages:create")
   if (!input.title.trim()) throw new Error("El título es obligatorio")
@@ -125,6 +137,8 @@ export async function createPage(input: {
       description: input.description?.trim() || null,
       seoTitle: input.seoTitle?.trim() || null,
       seoDescription: input.seoDescription?.trim() || null,
+      seoImage: input.seoImage?.trim() || null,
+      noIndex: input.noIndex ?? false,
       createdBy: userId,
     },
   })
@@ -140,6 +154,8 @@ export async function updatePageMetadata(
     description?: string | null
     seoTitle?: string | null
     seoDescription?: string | null
+    seoImage?: string | null
+    noIndex?: boolean
     active?: boolean
   },
 ): Promise<void> {
@@ -180,6 +196,10 @@ export async function updatePageMetadata(
       ...(input.seoDescription !== undefined && {
         seoDescription: input.seoDescription?.trim() || null,
       }),
+      ...(input.seoImage !== undefined && {
+        seoImage: input.seoImage?.trim() || null,
+      }),
+      ...(input.noIndex !== undefined && { noIndex: input.noIndex }),
       ...(input.active !== undefined && { active: input.active }),
     },
   })
