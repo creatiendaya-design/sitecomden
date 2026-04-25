@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
-import type { LandingBlockType } from "@prisma/client"
+import type { LandingBlockType, Prisma } from "@prisma/client"
 
 export interface TemplateRow {
   id: string
@@ -365,4 +365,62 @@ export async function saveProductLandingAsTemplate(
   revalidatePath("/admin/landing-plantillas")
   revalidatePath(`/admin/productos/${productId}`)
   return result
+}
+
+/**
+ * Detach a single inherited TemplateBlock for a product. Creates a LandingBlock
+ * row that mirrors the TemplateBlock content (same type/position/content) and
+ * marks it `detached = true` with `sourceTemplateBlockId` pointing back. From
+ * this point the resolver returns the local override (origin = "detached")
+ * instead of the inherited template content; subsequent template edits no
+ * longer affect this product's copy.
+ *
+ * Idempotent — if a detached override already exists for the same template
+ * block (e.g. double-click race), returns the existing one instead of throwing.
+ */
+export async function detachTemplateBlock(
+  productId: string,
+  templateBlockId: string,
+): Promise<{ landingBlockId: string }> {
+  await protectRoute("products:update")
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, slug: true, landingTemplateId: true },
+  })
+  if (!product) throw new Error("Producto no encontrado")
+  if (!product.landingTemplateId) throw new Error("El producto no tiene plantilla asignada")
+
+  const templateBlock = await prisma.templateBlock.findUnique({
+    where: { id: templateBlockId },
+    select: { id: true, templateId: true, type: true, position: true, content: true },
+  })
+  if (!templateBlock) throw new Error("Bloque de plantilla no encontrado")
+  if (templateBlock.templateId !== product.landingTemplateId) {
+    throw new Error("El bloque no pertenece a la plantilla del producto")
+  }
+
+  const existing = await prisma.landingBlock.findFirst({
+    where: { productId, sourceTemplateBlockId: templateBlockId },
+    select: { id: true },
+  })
+  if (existing) {
+    return { landingBlockId: existing.id }
+  }
+
+  const created = await prisma.landingBlock.create({
+    data: {
+      productId,
+      type: templateBlock.type,
+      position: templateBlock.position,
+      content: templateBlock.content as Prisma.InputJsonValue,
+      sourceTemplateBlockId: templateBlock.id,
+      detached: true,
+    },
+    select: { id: true },
+  })
+
+  updateTag(`product:${product.slug}`)
+  revalidatePath(`/admin/productos/${productId}`)
+  return { landingBlockId: created.id }
 }
