@@ -20,7 +20,6 @@ const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlo
 const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/ImageTextBlock"))
 const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
 
-import { GalleryContentForm } from "@/components/admin/page-builder/forms/adapters/GalleryContentForm"
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
 
@@ -91,7 +90,30 @@ const existing: BlockDefinition[] = [
     category: "media",
     defaultContent: DEFAULT_CONTENT_V2.GALLERY,
     renderer: GalleryBlock as any,
-    contentForm: GalleryContentForm as any,
+    contentSchema: [
+      {
+        type: "select",
+        key: "displayType",
+        label: "Tipo de display",
+        options: [
+          { value: "slider", label: "Slider" },
+          { value: "stacked", label: "Apilado" },
+        ],
+      },
+      { type: "switch", key: "showBuyButton", label: "Mostrar botón de compra" },
+      { type: "text", key: "buyButtonText", label: "Texto del botón", placeholder: "Comprar ahora" },
+      {
+        type: "array",
+        key: "images",
+        label: "Imágenes",
+        addButtonText: "+ Agregar imagen",
+        newItem: () => ({ id: crypto.randomUUID(), url: "" }),
+        itemLabel: (_it, i) => `Imagen ${i + 1}`,
+        itemSchema: [
+          { type: "image", key: "url", label: "Imagen", deviceOverride: false },
+        ],
+      },
+    ],
     styleSupport: { textColor: false, alignment: false },
   },
   {
