@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { ArrowLeft, Check, Loader2, AlertCircle, MoreVertical } from "lucide-react"
 import { useBuilderStore } from "./store"
@@ -19,9 +20,10 @@ interface TopBarProps {
   title?: string
   backHref?: string
   actions?: PageBuilderActions
+  headerExtra?: ReactNode
 }
 
-export function TopBar({ title, backHref, actions }: TopBarProps) {
+export function TopBar({ title, backHref, actions, headerExtra }: TopBarProps) {
   const editorMode = useBuilderStore((s) => s.editorMode)
   const pendingCount = useBuilderStore((s) => s.pendingChangeCount)
 
@@ -41,6 +43,7 @@ export function TopBar({ title, backHref, actions }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {headerExtra}
         {editorMode === "template" ? (
           <>
             <PendingChangesBadge />

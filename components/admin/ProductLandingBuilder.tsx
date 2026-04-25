@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react"
 import { PageBuilder } from "./page-builder/PageBuilder"
 import { useBuilderStore } from "./page-builder/store"
 import { syncProductLandingBlocks } from "@/actions/landing-blocks"
+import { TemplateSelector } from "./products/TemplateSelector"
 import type { BlockInstance } from "@/lib/blocks/types"
 import { toast } from "sonner"
 
@@ -14,11 +15,18 @@ interface ProductLandingBuilderProps {
     name: string
   }
   initialBlocks: BlockInstance[]
+  currentTemplateId: string | null
+  currentBlockCount: number
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 600
 
-export function ProductLandingBuilder({ product, initialBlocks }: ProductLandingBuilderProps) {
+export function ProductLandingBuilder({
+  product,
+  initialBlocks,
+  currentTemplateId,
+  currentBlockCount,
+}: ProductLandingBuilderProps) {
   // No mirror state: the Zustand store in PageBuilder is the single source of
   // truth after the initial hydration. Holding mirror state here would create
   // a ping-pong loop (store → onBlocksChange → setState → prop → useEffect → store).
@@ -90,6 +98,14 @@ export function ProductLandingBuilder({ product, initialBlocks }: ProductLanding
       context={{ type: "product", product }}
       title={product.name}
       backHref={`/admin/productos/${product.id}`}
+      headerExtra={
+        <TemplateSelector
+          productId={product.id}
+          productSlug={product.slug}
+          currentTemplateId={currentTemplateId}
+          currentBlockCount={currentBlockCount}
+        />
+      }
     />
   )
 }

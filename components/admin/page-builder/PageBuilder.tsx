@@ -20,6 +20,7 @@ export function PageBuilder({
   actions,
   title,
   backHref,
+  headerExtra,
 }: PageBuilderProps) {
   // Ensure registry is populated (idempotent)
   useEffect(() => {
@@ -55,7 +56,7 @@ export function PageBuilder({
 
   return (
     <div className="h-screen flex flex-col bg-muted/20">
-      <TopBar title={title} backHref={backHref} actions={actions} />
+      <TopBar title={title} backHref={backHref} actions={actions} headerExtra={headerExtra} />
       <div className="flex-1 flex overflow-hidden">
         <LeftSidebar scope={scope} />
         <Canvas context={context} />

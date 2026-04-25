@@ -71,6 +71,8 @@ export default async function EditProductPage({ params, searchParams }: EditProd
       <ProductLandingBuilder
         product={{ id: product.id, slug: product.slug, name: product.name }}
         initialBlocks={blocks}
+        currentTemplateId={product.landingTemplateId}
+        currentBlockCount={product.landingBlocks.length}
       />
     )
   }
