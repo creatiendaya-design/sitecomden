@@ -61,6 +61,45 @@ export async function listPages(): Promise<PageRow[]> {
   }))
 }
 
+/**
+ * Slim variant of `listPages` for use inside the theme picker UI. Gated by
+ * `themes:update` (not `pages:view`) so an admin who can edit themes but
+ * not browse the full Pages section can still pick a home page.
+ */
+export async function listPagesForThemePicker(): Promise<PageRow[]> {
+  await protectRoute("themes:update")
+  const rows = await prisma.page.findMany({
+    where: { active: true },
+    orderBy: { title: "asc" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      seoTitle: true,
+      seoDescription: true,
+      seoImage: true,
+      noIndex: true,
+      active: true,
+      updatedAt: true,
+      _count: { select: { pageBlocks: true } },
+    },
+  })
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    description: r.description,
+    seoTitle: r.seoTitle,
+    seoDescription: r.seoDescription,
+    seoImage: r.seoImage,
+    noIndex: r.noIndex,
+    active: r.active,
+    blockCount: r._count.pageBlocks,
+    updatedAt: r.updatedAt,
+  }))
+}
+
 export async function getPage(id: string): Promise<PageWithBlocks | null> {
   await protectRoute("pages:view")
   const p = await prisma.page.findUnique({

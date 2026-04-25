@@ -12,62 +12,72 @@ export interface ThemeRow {
   defaultProductLandingTemplateId: string | null
   /** Joined name of the default landing template, for UI display. */
   defaultProductLandingTemplateName: string | null
+  /** Page rendered at "/" when this theme is active. Null = legacy hardcoded home. */
+  homePageId: string | null
+  /** Joined title of the home page, for UI display. */
+  homePageTitle: string | null
+  /** Joined slug of the home page, for UI display + redirect handling. */
+  homePageSlug: string | null
   updatedAt: Date
+}
+
+const themeIncludes = {
+  defaultProductLandingTemplate: { select: { id: true, name: true } },
+  homePage: { select: { id: true, title: true, slug: true } },
+} as const
+
+type ThemeWithJoins = {
+  id: string
+  name: string
+  description: string | null
+  active: boolean
+  defaultProductLandingTemplateId: string | null
+  defaultProductLandingTemplate: { id: string; name: string } | null
+  homePageId: string | null
+  homePage: { id: string; title: string; slug: string } | null
+  updatedAt: Date
+}
+
+function toThemeRow(t: ThemeWithJoins): ThemeRow {
+  return {
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    active: t.active,
+    defaultProductLandingTemplateId: t.defaultProductLandingTemplateId,
+    defaultProductLandingTemplateName: t.defaultProductLandingTemplate?.name ?? null,
+    homePageId: t.homePageId,
+    homePageTitle: t.homePage?.title ?? null,
+    homePageSlug: t.homePage?.slug ?? null,
+    updatedAt: t.updatedAt,
+  }
 }
 
 export async function listThemes(): Promise<ThemeRow[]> {
   await protectRoute("themes:view")
   const rows = await prisma.theme.findMany({
     orderBy: [{ active: "desc" }, { updatedAt: "desc" }],
-    include: {
-      defaultProductLandingTemplate: { select: { id: true, name: true } },
-    },
+    include: themeIncludes,
   })
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    description: r.description,
-    active: r.active,
-    defaultProductLandingTemplateId: r.defaultProductLandingTemplateId,
-    defaultProductLandingTemplateName: r.defaultProductLandingTemplate?.name ?? null,
-    updatedAt: r.updatedAt,
-  }))
+  return rows.map(toThemeRow)
 }
 
 export async function getActiveTheme(): Promise<ThemeRow | null> {
   await protectRoute("themes:view")
   const t = await prisma.theme.findFirst({
     where: { active: true },
-    include: { defaultProductLandingTemplate: { select: { id: true, name: true } } },
+    include: themeIncludes,
   })
-  if (!t) return null
-  return {
-    id: t.id,
-    name: t.name,
-    description: t.description,
-    active: t.active,
-    defaultProductLandingTemplateId: t.defaultProductLandingTemplateId,
-    defaultProductLandingTemplateName: t.defaultProductLandingTemplate?.name ?? null,
-    updatedAt: t.updatedAt,
-  }
+  return t ? toThemeRow(t) : null
 }
 
 export async function getTheme(id: string): Promise<ThemeRow | null> {
   await protectRoute("themes:view")
   const t = await prisma.theme.findUnique({
     where: { id },
-    include: { defaultProductLandingTemplate: { select: { id: true, name: true } } },
+    include: themeIncludes,
   })
-  if (!t) return null
-  return {
-    id: t.id,
-    name: t.name,
-    description: t.description,
-    active: t.active,
-    defaultProductLandingTemplateId: t.defaultProductLandingTemplateId,
-    defaultProductLandingTemplateName: t.defaultProductLandingTemplate?.name ?? null,
-    updatedAt: t.updatedAt,
-  }
+  return t ? toThemeRow(t) : null
 }
 
 export async function createTheme(input: {
@@ -101,9 +111,23 @@ export async function updateThemeMetadata(
     name?: string
     description?: string | null
     defaultProductLandingTemplateId?: string | null
+    homePageId?: string | null
   },
 ): Promise<void> {
   await protectRoute("themes:update")
+
+  // Validate the new home page exists + is active. Picking an inactive page
+  // as home would silently break "/" until reactivated, so we reject upfront.
+  if (input.homePageId) {
+    const page = await prisma.page.findUnique({
+      where: { id: input.homePageId },
+      select: { active: true },
+    })
+    if (!page) throw new Error("La página seleccionada no existe.")
+    if (!page.active) {
+      throw new Error("La página seleccionada está oculta. Activala antes de asignarla como home.")
+    }
+  }
 
   const t = await prisma.theme.update({
     where: { id },
@@ -115,15 +139,21 @@ export async function updateThemeMetadata(
       ...(input.defaultProductLandingTemplateId !== undefined && {
         defaultProductLandingTemplateId: input.defaultProductLandingTemplateId,
       }),
+      ...(input.homePageId !== undefined && {
+        homePageId: input.homePageId,
+      }),
     },
     select: { active: true },
   })
 
   updateTag(`theme:${id}`)
-  // If we touched the active theme's default landing, every product without
-  // its own landingTemplateId on the storefront needs to refresh. Bump a
-  // global tag (storefront fetchers will be wired to it in subsequent plans).
-  if (t.active) updateTag("active-theme")
+  // If we touched the active theme, the storefront home + any product without
+  // its own landingTemplateId need to refresh. Bump both global tags.
+  if (t.active) {
+    updateTag("active-theme")
+    updateTag("active-theme-home")
+    revalidatePath("/")
+  }
   revalidatePath("/admin/personalizar")
   revalidatePath(`/admin/personalizar/temas/${id}/editar`)
 }
@@ -139,6 +169,8 @@ export async function setActiveTheme(id: string): Promise<void> {
   })
 
   updateTag("active-theme")
+  updateTag("active-theme-home")
+  revalidatePath("/")
   revalidatePath("/admin/personalizar")
   revalidatePath("/admin/personalizar/temas")
 }
