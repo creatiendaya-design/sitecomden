@@ -11,8 +11,15 @@ export interface ProductContext {
   }
 }
 
-// Plan 3 adds: PageContext, TemplateContext
-export type BuilderContext = ProductContext
+export interface TemplateContext {
+  type: "template"
+  template: {
+    id: string
+    name: string
+  }
+}
+
+export type BuilderContext = ProductContext | TemplateContext
 
 export interface PageBuilderActions {
   onApplyTemplate?: () => void
