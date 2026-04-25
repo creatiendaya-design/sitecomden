@@ -25,11 +25,21 @@ interface Props {
   /** Timestamp of the last persisted update for this template (compare against
    *  backup.savedAt to decide whether to prompt for recovery). */
   persistedAt: number
+  /** When true, opens the discard-changes confirm dialog. */
+  showDiscardConfirm: boolean
+  onCloseDiscardConfirm: () => void
 }
 
-export function DraftProtection({ templateId, userId, persistedAt }: Props) {
+export function DraftProtection({
+  templateId,
+  userId,
+  persistedAt,
+  showDiscardConfirm,
+  onCloseDiscardConfirm,
+}: Props) {
   const blocks = useBuilderStore((s) => s.blocks)
   const pendingCount = useBuilderStore((s) => s.pendingChangeCount)
+  const originalSnapshot = useBuilderStore((s) => s.originalSnapshot)
   const setBlocks = useBuilderStore((s) => s.setBlocks)
 
   const [recoverPayload, setRecoverPayload] = useState<DraftPayload | null>(null)
@@ -65,13 +75,24 @@ export function DraftProtection({ templateId, userId, persistedAt }: Props) {
     return () => clearInterval(handle)
   }, [blocks, pendingCount, storageKey])
 
+  // 3. Warn the user before leaving/refreshing when there are pending changes.
+  useEffect(() => {
+    if (pendingCount === 0) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", handler)
+    return () => window.removeEventListener("beforeunload", handler)
+  }, [pendingCount])
+
   const handleRecover = () => {
     if (!recoverPayload) return
     setBlocks(recoverPayload.blocks)
     setRecoverPayload(null)
   }
 
-  const handleDiscard = () => {
+  const handleDiscardBackup = () => {
     try {
       localStorage.removeItem(storageKey)
     } catch {
@@ -80,23 +101,64 @@ export function DraftProtection({ templateId, userId, persistedAt }: Props) {
     setRecoverPayload(null)
   }
 
-  if (!recoverPayload) return null
+  const handleConfirmDiscard = () => {
+    // Revert blocks back to the original snapshot, clear localStorage.
+    setBlocks(originalSnapshot)
+    try {
+      localStorage.removeItem(storageKey)
+    } catch {
+      // ignore
+    }
+    onCloseDiscardConfirm()
+  }
 
   return (
-    <AlertDialog open onOpenChange={(o) => !o && handleDiscard()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Recuperar cambios no guardados</AlertDialogTitle>
-          <AlertDialogDescription>
-            Encontramos un borrador de tu sesión anterior con cambios sin
-            guardar. ¿Querés recuperarlos o descartarlos?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleDiscard}>Descartar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleRecover}>Recuperar</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <>
+      {recoverPayload && (
+        <AlertDialog open onOpenChange={(o) => !o && handleDiscardBackup()}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Recuperar cambios no guardados</AlertDialogTitle>
+              <AlertDialogDescription>
+                Encontramos un borrador de tu sesión anterior con cambios sin
+                guardar. ¿Querés recuperarlos o descartarlos?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleDiscardBackup}>
+                Descartar
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleRecover}>
+                Recuperar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      <AlertDialog
+        open={showDiscardConfirm}
+        onOpenChange={(o) => !o && onCloseDiscardConfirm()}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar cambios</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se perderán {pendingCount}{" "}
+              {pendingCount === 1 ? "cambio" : "cambios"} sin guardar.
+              ¿Continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={onCloseDiscardConfirm}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDiscard}>
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

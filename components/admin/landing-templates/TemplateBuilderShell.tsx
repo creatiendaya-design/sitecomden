@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { PageBuilder } from "@/components/admin/page-builder/PageBuilder"
@@ -27,6 +27,8 @@ interface Props {
  *  - explicit-save model: changes accumulate in the store; the topbar's
  *    "Guardar y propagar" button flushes them in one transaction.
  *    No per-edit autosave.
+ *  - DraftProtection handles localStorage backups, recover modal,
+ *    beforeunload warning and the discard-changes confirm.
  */
 export function TemplateBuilderShell({
   template,
@@ -36,6 +38,7 @@ export function TemplateBuilderShell({
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
 
   // No-op: in template mode, edits stay in the store. Saving is triggered
   // explicitly via the topbar "Guardar y propagar" button.
@@ -82,9 +85,7 @@ export function TemplateBuilderShell({
   const actions = useMemo(
     () => ({
       onSaveTemplate: handleSave,
-      onDiscardDraft: () => {
-        // Task 10 wires this.
-      },
+      onDiscardDraft: () => setShowDiscardConfirm(true),
     }),
     [handleSave],
   )
@@ -104,6 +105,8 @@ export function TemplateBuilderShell({
         templateId={template.id}
         userId={userId}
         persistedAt={persistedAt}
+        showDiscardConfirm={showDiscardConfirm}
+        onCloseDiscardConfirm={() => setShowDiscardConfirm(false)}
       />
     </>
   )
