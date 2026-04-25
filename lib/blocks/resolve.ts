@@ -49,12 +49,17 @@ function resolveStyle(style: BlockStyle, device: Device): BlockStyle {
     backgroundColor: resolveForDevice(style.backgroundColor, device),
     textColor: resolveForDevice(style.textColor, device),
     paddingY: resolveForDevice(style.paddingY, device),
+    paddingTop: resolveForDevice(style.paddingTop, device),
+    paddingBottom: resolveForDevice(style.paddingBottom, device),
+    textSize: resolveForDevice(style.textSize, device),
+    textWeight: resolveForDevice(style.textWeight, device),
     alignment: resolveForDevice(style.alignment, device),
     containerWidth: resolveForDevice(style.containerWidth, device),
     cornerRadius: style.cornerRadius,
     border: style.border,
     shadow: style.shadow,
     visibility: style.visibility,
+    backgroundGradient: style.backgroundGradient,
   }
 }
 

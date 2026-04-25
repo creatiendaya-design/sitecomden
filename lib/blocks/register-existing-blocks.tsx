@@ -40,7 +40,16 @@ const existing: BlockDefinition[] = [
       { type: "text", key: "subtitle", label: "Subtítulo" },
       { type: "text", key: "ctaText", label: "Texto del botón" },
     ],
-    styleSupport: { bgImage: true, gradient: true },
+    styleSupport: {
+      bgImage: true,
+      gradient: true,
+      // The Hero's heading, subtitle and CTA all use their own typography +
+      // text-color + alignment to keep the design coherent. Hide the controls
+      // from the Style tab so admins don't see options that don't apply.
+      textColor: false,
+      alignment: false,
+      typography: false,
+    },
   },
   {
     type: "BENEFITS",
