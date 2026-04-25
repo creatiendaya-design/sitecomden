@@ -25,7 +25,8 @@ import {
   X,
   Shield,
   Users,
-  Asterisk
+  Asterisk,
+  LayoutTemplate
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -98,6 +99,11 @@ function AdminLayoutInner({
       href: "/admin/productos",
       icon: Package,
       label: "Productos",
+    },
+    {
+      href: "/admin/landing-plantillas",
+      icon: LayoutTemplate,
+      label: "Plantillas de Landing",
     },
     {
       href: "/admin/envios/zonas",
