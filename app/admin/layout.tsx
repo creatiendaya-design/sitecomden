@@ -103,7 +103,7 @@ function AdminLayoutInner({
     {
       href: "/admin/landing-plantillas",
       icon: LayoutTemplate,
-      label: "Plantillas de Landing",
+      label: "Personalizar tienda",
     },
     {
       href: "/admin/envios/zonas",

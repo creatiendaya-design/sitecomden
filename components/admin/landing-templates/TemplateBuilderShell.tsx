@@ -8,6 +8,7 @@ import { useBuilderStore } from "@/components/admin/page-builder/store"
 import { DraftProtection } from "@/components/admin/page-builder/DraftProtection"
 import { saveTemplateBlocks } from "@/actions/landing-templates"
 import { SaveAndPropagateDialog } from "./SaveAndPropagateDialog"
+import { TemplatePicker } from "./TemplatePicker"
 import type { BlockInstance } from "@/lib/blocks/types"
 
 interface Props {
@@ -111,7 +112,8 @@ export function TemplateBuilderShell({
         context={{ type: "template", template }}
         actions={actions}
         title={template.name}
-        backHref="/admin/landing-plantillas"
+        backHref="/admin/landing-plantillas/biblioteca"
+        headerExtra={<TemplatePicker currentTemplateId={template.id} />}
       />
       <DraftProtection
         templateId={template.id}

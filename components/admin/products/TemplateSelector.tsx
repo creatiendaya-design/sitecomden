@@ -131,7 +131,7 @@ export function TemplateSelector({
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
-            onClick={() => router.push("/admin/landing-plantillas")}
+            onClick={() => router.push("/admin/landing-plantillas/biblioteca")}
           >
             <FolderOpen className="mr-2 h-3.5 w-3.5" />
             Ver biblioteca de plantillas
