@@ -131,7 +131,11 @@ export interface BlockStyleSupport {
   visibility?: boolean             // default: true
   bgImage?: boolean                // default: FALSE (opt-in — only HERO uses it today)
   paddingTopBottom?: boolean       // default: true. When false, only the legacy `paddingY` (Plan 2 control) is shown.
-  typography?: boolean              // default: true.
+  /** Default: FALSE (opt-in). Existing blocks hardcode text-* / font-* on
+   *  their internal headings/buttons, so wrapper-level utilities can't win
+   *  the cascade and the control would feel broken to admins. Block authors
+   *  must opt in once they've made their internals respond to the wrapper. */
+  typography?: boolean
   gradient?: boolean                // default: false (opt-in — most blocks won't expose gradients).
 }
 
@@ -149,7 +153,7 @@ export function resolveStyleSupport(partial: Partial<BlockStyleSupport> | undefi
     visibility: partial?.visibility ?? true,
     bgImage: partial?.bgImage ?? false,
     paddingTopBottom: partial?.paddingTopBottom ?? true,
-    typography: partial?.typography ?? true,
+    typography: partial?.typography ?? false,
     gradient: partial?.gradient ?? false,
   }
 }

@@ -43,12 +43,11 @@ const existing: BlockDefinition[] = [
     styleSupport: {
       bgImage: true,
       gradient: true,
-      // The Hero's heading, subtitle and CTA all use their own typography +
-      // text-color + alignment to keep the design coherent. Hide the controls
-      // from the Style tab so admins don't see options that don't apply.
+      // The Hero's heading, subtitle and CTA all hardcode their own text
+      // color and alignment to keep the design coherent against any bg
+      // image, so the matching controls are hidden from the Style tab.
       textColor: false,
       alignment: false,
-      typography: false,
     },
   },
   {
