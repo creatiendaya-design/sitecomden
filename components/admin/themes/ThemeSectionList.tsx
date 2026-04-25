@@ -66,8 +66,7 @@ const SECTIONS: SectionDef[] = [
     label: "Header & Footer",
     description: "Navegación principal y pie de tienda",
     icon: Layers,
-    status: "coming-soon",
-    comingPlan: "Plan 8",
+    status: "active",
   },
 ]
 
@@ -101,7 +100,9 @@ export function ThemeSectionList({ activeTheme, onEditProductDefault }: Props) {
                   ? onEditProductDefault
                   : section.key === "pages"
                     ? () => router.push("/admin/paginas")
-                    : undefined
+                    : section.key === "header-footer"
+                      ? () => router.push("/admin/menus")
+                      : undefined
             }
             className={cn(
               "group flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors",

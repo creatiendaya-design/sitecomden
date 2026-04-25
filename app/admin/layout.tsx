@@ -60,8 +60,11 @@ function AdminLayoutInner({
   const isPageEditor =
     /^\/admin\/paginas\/[^/]+$/.test(pathname ?? "") &&
     !/\/editar$/.test(pathname ?? "");
+  const isMenuEditor =
+    /^\/admin\/menus\/[^/]+$/.test(pathname ?? "") &&
+    !/\/editar$/.test(pathname ?? "");
   const isFullScreenBuilder =
-    isProductLandingBuilder || isTemplateEditor || isPageEditor;
+    isProductLandingBuilder || isTemplateEditor || isPageEditor || isMenuEditor;
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "Configuración",
     "Métodos de Pago", // Expandir Métodos de Pago por defecto
@@ -125,6 +128,11 @@ function AdminLayoutInner({
       href: "/admin/paginas",
       icon: FileText,
       label: "Páginas",
+    },
+    {
+      href: "/admin/menus",
+      icon: Menu,
+      label: "Menús",
     },
     {
       href: "/admin/envios/zonas",

@@ -1066,6 +1066,57 @@ model Page {
   @@index([slug, active])
 }
 
+/// A named, hierarchical navigation menu (e.g. "main", "footer", "sidebar").
+/// Plans 6/8 reference menus by slug to render the storefront's nav surfaces.
+model Menu {
+  id          String     @id @default(cuid())
+  /// Slug used by the storefront to fetch the menu (e.g. "main", "footer-info").
+  /// Must be unique. Lowercase + dashes only.
+  slug        String     @unique
+  /// Admin-facing display name.
+  title       String
+  description String?
+  active      Boolean    @default(true)
+  items       MenuItem[]
+  createdBy   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([slug, active])
+}
+
+model MenuItem {
+  id            String     @id @default(cuid())
+  menuId        String
+  menu          Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  /// Self-referential parent for one level of nesting (max depth 2 in v1).
+  parentId      String?
+  parent        MenuItem?  @relation("MenuItemNesting", fields: [parentId], references: [id], onDelete: Cascade)
+  children      MenuItem[] @relation("MenuItemNesting")
+  position      Int
+  /// Visible label shown in the menu.
+  label         String
+  /// Discriminator. Valid values:
+  ///   PAGE, PRODUCT, CATEGORY, EXTERNAL_URL,
+  ///   HOME, PRODUCTS_INDEX, COLLECTIONS_INDEX
+  /// Stored as String (not enum) to avoid migration churn when adding new types.
+  linkType      String
+  /// Generic target reference, interpreted per linkType:
+  ///   PAGE          → Page.id
+  ///   PRODUCT       → Product.id
+  ///   CATEGORY      → Category.id
+  ///   EXTERNAL_URL  → null (uses externalUrl)
+  ///   HOME / *_INDEX → null
+  targetId      String?
+  /// Used only when linkType == EXTERNAL_URL.
+  externalUrl   String?
+  openInNewTab  Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([menuId, parentId, position])
+}
+
 model PageBlock {
   id        String           @id @default(cuid())
   pageId    String
