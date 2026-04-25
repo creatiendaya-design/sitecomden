@@ -145,6 +145,7 @@ export async function updateLandingTemplateMetadata(
     },
   })
 
+  updateTag(`template:${id}`)
   revalidatePath("/admin/landing-plantillas")
 }
 
@@ -159,6 +160,7 @@ export async function toggleLandingTemplateActive(id: string): Promise<void> {
     data: { active: !t.active },
   })
 
+  updateTag(`template:${id}`)
   revalidatePath("/admin/landing-plantillas")
 }
 
