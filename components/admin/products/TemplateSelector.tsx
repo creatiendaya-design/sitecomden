@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, MoreHorizontal } from "lucide-react"
 import {
@@ -18,8 +18,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
-import { listLandingTemplates, type TemplateRow } from "@/actions/landing-templates"
+import {
+  listLandingTemplates,
+  unlinkTemplateFromProduct,
+  type TemplateRow,
+} from "@/actions/landing-templates"
 import { ApplyTemplateDialog } from "./ApplyTemplateDialog"
 import { SaveAsTemplateDialog } from "./SaveAsTemplateDialog"
 import { toast } from "sonner"
@@ -40,6 +54,8 @@ export function TemplateSelector({
   const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [pending, setPending] = useState<{ template: TemplateRow } | null>(null)
   const [showSaveAs, setShowSaveAs] = useState(false)
+  const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false)
+  const [unlinkPending, startUnlinkTransition] = useTransition()
   const router = useRouter()
 
   useEffect(() => {
@@ -109,8 +125,11 @@ export function TemplateSelector({
             Guardar como plantilla...
           </DropdownMenuItem>
           {currentTemplate && (
-            <DropdownMenuItem disabled className="text-destructive">
-              Desvincular plantilla (Task 19)
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => setShowUnlinkConfirm(true)}
+            >
+              Desvincular plantilla
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -140,6 +159,42 @@ export function TemplateSelector({
         open={showSaveAs}
         onOpenChange={setShowSaveAs}
       />
+
+      <AlertDialog open={showUnlinkConfirm} onOpenChange={setShowUnlinkConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desvincular plantilla</AlertDialogTitle>
+            <AlertDialogDescription>
+              Los bloques heredados de la plantilla se convertirán en bloques
+              locales del producto. Tus personalizaciones se conservan. El
+              producto queda independiente — los cambios futuros a la plantilla
+              ya no le afectarán.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unlinkPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={unlinkPending}
+              onClick={() => {
+                startUnlinkTransition(async () => {
+                  try {
+                    await unlinkTemplateFromProduct(productId)
+                    toast.success("Plantilla desvinculada")
+                    setShowUnlinkConfirm(false)
+                    router.refresh()
+                  } catch (err) {
+                    toast.error(
+                      err instanceof Error ? err.message : "Error al desvincular",
+                    )
+                  }
+                })
+              }}
+            >
+              {unlinkPending ? "Desvinculando..." : "Desvincular"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -426,14 +426,96 @@ export async function detachTemplateBlock(
 }
 
 /**
- * Stub — real implementation lands in Task 19. Allows the InheritanceBanner
- * UI in Task 17 to import the symbol without a TS error.
+ * Restore a single detached block back to its template by deleting the
+ * LandingBlock override row. The resolver will fall back to the TemplateBlock
+ * on the next read.
  */
 export async function restoreTemplateBlock(
   productId: string,
   landingBlockId: string,
 ): Promise<void> {
-  void productId
-  void landingBlockId
-  throw new Error("Not implemented yet")
+  await protectRoute("products:update")
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, slug: true },
+  })
+  if (!product) throw new Error("Producto no encontrado")
+
+  await prisma.landingBlock.deleteMany({
+    where: { id: landingBlockId, productId },
+  })
+
+  updateTag(`product:${product.slug}`)
+  revalidatePath(`/admin/productos/${productId}`)
+}
+
+/**
+ * Unlink a product from its template: every TemplateBlock the product was
+ * inheriting becomes a pure-local LandingBlock (content copied), every
+ * detached LandingBlock loses its sourceTemplateBlockId / detached flag and
+ * stays as a local block, and Product.landingTemplateId is cleared.
+ */
+export async function unlinkTemplateFromProduct(productId: string): Promise<void> {
+  await protectRoute("products:update")
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: {
+      id: true,
+      slug: true,
+      landingTemplateId: true,
+      landingBlocks: {
+        select: { id: true, sourceTemplateBlockId: true, detached: true },
+      },
+    },
+  })
+  if (!product) throw new Error("Producto no encontrado")
+  if (!product.landingTemplateId) return // already unlinked
+
+  const templateBlocks = await prisma.templateBlock.findMany({
+    where: { templateId: product.landingTemplateId },
+    orderBy: { position: "asc" },
+  })
+
+  const detachedSourceIds = new Set(
+    product.landingBlocks
+      .filter((b) => b.detached && b.sourceTemplateBlockId)
+      .map((b) => b.sourceTemplateBlockId!),
+  )
+
+  await prisma.$transaction(async (tx) => {
+    if (detachedSourceIds.size > 0) {
+      await tx.landingBlock.updateMany({
+        where: {
+          productId,
+          sourceTemplateBlockId: { in: [...detachedSourceIds] },
+          detached: true,
+        },
+        data: { sourceTemplateBlockId: null, detached: false },
+      })
+    }
+
+    const inheritedTemplateBlocks = templateBlocks.filter((tb) => !detachedSourceIds.has(tb.id))
+    if (inheritedTemplateBlocks.length > 0) {
+      await tx.landingBlock.createMany({
+        data: inheritedTemplateBlocks.map((tb) => ({
+          productId,
+          type: tb.type,
+          position: tb.position,
+          content: tb.content as Prisma.InputJsonValue,
+          sourceTemplateBlockId: null,
+          detached: false,
+        })),
+      })
+    }
+
+    await tx.product.update({
+      where: { id: productId },
+      data: { landingTemplateId: null },
+    })
+  })
+
+  updateTag(`product:${product.slug}`)
+  revalidatePath(`/admin/productos/${productId}`)
 }
