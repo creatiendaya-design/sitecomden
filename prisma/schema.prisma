@@ -1062,6 +1062,8 @@ model Page {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   pageBlocks     PageBlock[]
+  /** Themes that point to this page as their storefront home. */
+  themesUsingAsHome Theme[]
 
   @@index([slug, active])
 }
@@ -1146,6 +1148,10 @@ model Theme {
   /// their own template render with no landing blocks.
   defaultProductLandingTemplateId String?
   defaultProductLandingTemplate   LandingTemplate? @relation(fields: [defaultProductLandingTemplateId], references: [id], onDelete: SetNull)
+  /// Page rendered at the storefront root (/) when this theme is active.
+  /// Null = fall back to the legacy hardcoded home layout (Plan 6).
+  homePageId                      String?
+  homePage                        Page?            @relation(fields: [homePageId], references: [id], onDelete: SetNull)
   createdBy                       String?
   createdAt                       DateTime @default(now())
   updatedAt                       DateTime @updatedAt
