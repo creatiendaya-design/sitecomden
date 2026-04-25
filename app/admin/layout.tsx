@@ -130,6 +130,11 @@ function AdminLayoutInner({
       label: "Páginas",
     },
     {
+      href: "/admin/menus",
+      icon: Menu,
+      label: "Menús",
+    },
+    {
       href: "/admin/envios/zonas",
       icon: Truck,
       label: "Envíos",
