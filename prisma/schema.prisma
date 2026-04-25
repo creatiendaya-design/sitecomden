@@ -1026,8 +1026,33 @@ model LandingTemplate {
   updatedAt      DateTime        @updatedAt
   templateBlocks TemplateBlock[]
   products       Product[]
+  /** Themes that use this landing template as their default product page. */
+  themesUsingAsDefault Theme[]
 
   @@index([active, category])
+}
+
+/// A storefront "theme" — the umbrella under which all page templates
+/// (home, cart, default product landing, static pages, …) eventually live.
+/// Plan 4 only wires `defaultProductLandingTemplateId`; the other sections
+/// are added in subsequent plans (5, 6, 7…).
+model Theme {
+  id                              String   @id @default(cuid())
+  name                            String
+  description                     String?
+  /// Whether this theme is the currently active theme. Enforced as a
+  /// singleton in code (only one theme has active=true at a time).
+  active                          Boolean  @default(false)
+  /// Default product landing template — used when a product has no
+  /// landingTemplateId of its own. Null = no default; products without
+  /// their own template render with no landing blocks.
+  defaultProductLandingTemplateId String?
+  defaultProductLandingTemplate   LandingTemplate? @relation(fields: [defaultProductLandingTemplateId], references: [id], onDelete: SetNull)
+  createdBy                       String?
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  @@index([active])
 }
 
 model TemplateBlock {
