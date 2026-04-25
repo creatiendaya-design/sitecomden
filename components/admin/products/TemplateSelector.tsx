@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, MoreHorizontal, Plus } from "lucide-react"
+import { Eye, FolderOpen, MoreHorizontal, Plus } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -121,18 +121,22 @@ export function TemplateSelector({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {currentTemplate && (
-            <>
-              <DropdownMenuItem
-                onClick={() =>
-                  router.push(`/admin/landing-plantillas/${currentTemplate.id}`)
-                }
-              >
-                <Eye className="mr-2 h-3.5 w-3.5" />
-                Editar plantilla
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
+            <DropdownMenuItem
+              onClick={() =>
+                router.push(`/admin/landing-plantillas/${currentTemplate.id}`)
+              }
+            >
+              <Eye className="mr-2 h-3.5 w-3.5" />
+              Editar plantilla actual
+            </DropdownMenuItem>
           )}
+          <DropdownMenuItem
+            onClick={() => router.push("/admin/landing-plantillas")}
+          >
+            <FolderOpen className="mr-2 h-3.5 w-3.5" />
+            Ver biblioteca de plantillas
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => setShowSaveAs(true)}
             disabled={currentBlockCount === 0}
