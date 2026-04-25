@@ -11,6 +11,7 @@ import { RichTextField } from "@/lib/blocks/schema/primitives/RichTextField"
 import { IconField } from "@/lib/blocks/schema/primitives/IconField"
 import { GroupField } from "@/lib/blocks/schema/primitives/GroupField"
 import { ArrayField } from "@/lib/blocks/schema/primitives/ArrayField"
+import { ProductPickerField } from "@/lib/blocks/schema/primitives/ProductPickerField"
 
 interface Props {
   schema: FormSchema
@@ -79,9 +80,7 @@ function FieldRenderer({
     case "array":
       return <ArrayField field={field} value={fieldValue} onChange={onChangeField} />
     case "product-picker":
-      // ProductPickerField is added in Task 7. Until then, render nothing —
-      // no block migrated in earlier tasks uses product-picker, so this is safe.
-      return null
+      return <ProductPickerField field={field} value={fieldValue} onChange={onChangeField} />
     case "custom": {
       const Comp = field.component
       return <Comp value={fieldValue} onChange={onChangeField} />
