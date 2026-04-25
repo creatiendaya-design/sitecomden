@@ -33,6 +33,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
   listMenus,
   deleteMenu,
   toggleMenuActive,
@@ -80,7 +88,7 @@ export function MenuListGrid({ initialMenus }: MenuListGridProps) {
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Nuevo menú
+          Crear menú
         </Button>
       </div>
 
@@ -96,15 +104,26 @@ export function MenuListGrid({ initialMenus }: MenuListGridProps) {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {menus.map((menu) => (
-            <MenuCard
-              key={menu.id}
-              menu={menu}
-              onMutate={refreshMenus}
-              dateFormatter={dateFormatter}
-            />
-          ))}
+        <div className="rounded-lg border bg-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-1/2">Menú</TableHead>
+                <TableHead>Elementos del menú</TableHead>
+                <TableHead className="w-[60px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {menus.map((menu) => (
+                <MenuRowItem
+                  key={menu.id}
+                  menu={menu}
+                  onMutate={refreshMenus}
+                  dateFormatter={dateFormatter}
+                />
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -123,7 +142,7 @@ interface MenuCardProps {
   dateFormatter: Intl.DateTimeFormat
 }
 
-function MenuCard({ menu, onMutate, dateFormatter }: MenuCardProps) {
+function MenuRowItem({ menu, onMutate, dateFormatter: _dateFormatter }: MenuCardProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
@@ -162,21 +181,30 @@ function MenuCard({ menu, onMutate, dateFormatter }: MenuCardProps) {
 
   return (
     <>
-      <div className="group relative overflow-hidden rounded-lg border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
-        <div className="flex items-start justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => router.push(editorHref)}
-            className="flex-1 min-w-0 text-left focus:outline-none"
-          >
-            <h3 className="truncate font-semibold text-foreground">
-              {menu.title}
-            </h3>
-            <code className="mt-1 inline-block truncate text-xs text-muted-foreground">
-              /{menu.slug}
-            </code>
-          </button>
-
+      <TableRow
+        className="cursor-pointer hover:bg-muted/50"
+        onClick={() => router.push(editorHref)}
+      >
+        <TableCell className="align-top py-3">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{menu.title}</span>
+            {!menu.active && (
+              <Badge variant="secondary" className="text-[10px]">
+                Inactivo
+              </Badge>
+            )}
+          </div>
+          <code className="mt-0.5 block text-xs text-muted-foreground">
+            /{menu.slug}
+          </code>
+        </TableCell>
+        <TableCell className="align-top py-3 text-sm text-muted-foreground">
+          {menu.itemCount} {menu.itemCount === 1 ? "elemento" : "elementos"}
+        </TableCell>
+        <TableCell
+          className="align-top py-3"
+          onClick={(e) => e.stopPropagation()}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -227,29 +255,8 @@ function MenuCard({ menu, onMutate, dateFormatter }: MenuCardProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-
-        {menu.description ? (
-          <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-            {menu.description}
-          </p>
-        ) : (
-          <p className="mt-3 text-sm italic text-muted-foreground/70">
-            Sin descripción
-          </p>
-        )}
-
-        <div className="mt-4 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>
-            {menu.itemCount}{" "}
-            {menu.itemCount === 1 ? "item" : "items"}
-          </span>
-          <div className="flex items-center gap-2">
-            {!menu.active && <Badge variant="secondary">Inactivo</Badge>}
-            <span>{dateFormatter.format(menu.updatedAt)}</span>
-          </div>
-        </div>
-      </div>
+        </TableCell>
+      </TableRow>
 
       <AlertDialog
         open={confirmDeleteOpen}

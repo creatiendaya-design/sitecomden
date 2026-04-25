@@ -220,7 +220,13 @@ export function MenuTreeEditor({
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <h1 className="font-medium text-sm truncate flex-1">{menu.title}</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="font-medium text-sm truncate leading-tight">{menu.title}</h1>
+          <p className="text-[11px] text-muted-foreground leading-tight">
+            Identificador:{" "}
+            <code className="text-[11px]">{menu.slug}</code>
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
