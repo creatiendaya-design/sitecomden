@@ -36,26 +36,10 @@ interface BuilderState {
   removeBlock: (id: string) => BlockInstance[]
 }
 
+import { computeTemplateDiff, diffCount as diffCountFromHelper } from "@/lib/blocks/template-diff"
+
 function diffCount(a: BlockInstance[], b: BlockInstance[]): number {
-  const aById = new Map(a.map((x) => [x.id, x]))
-  const bById = new Map(b.map((x) => [x.id, x]))
-  let count = 0
-  // added (in b not in a) + removed (in a not in b)
-  for (const id of bById.keys()) if (!aById.has(id)) count++
-  for (const id of aById.keys()) if (!bById.has(id)) count++
-  // modified (in both, content/position/type differ)
-  for (const [id, ax] of aById) {
-    const bx = bById.get(id)
-    if (!bx) continue
-    if (
-      ax.type !== bx.type ||
-      ax.position !== bx.position ||
-      JSON.stringify(ax.content) !== JSON.stringify(bx.content)
-    ) {
-      count++
-    }
-  }
-  return count
+  return diffCountFromHelper(computeTemplateDiff(a, b))
 }
 
 export const useBuilderStore = create<BuilderState>((set, get) => ({
