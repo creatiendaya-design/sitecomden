@@ -46,11 +46,18 @@ function AdminLayoutInner({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Detect the full-screen page builder route so we can render it WITHOUT
-  // the admin sidebar and top header. Matches: /admin/productos/<id>?tab=landing
-  const isFullScreenBuilder =
+  // Detect the full-screen page builder routes so we render them WITHOUT
+  // the admin sidebar and top header. Two cases:
+  //  - Product landing builder: /admin/productos/<id>?tab=landing
+  //  - Template editor:         /admin/landing-plantillas/<id>
+  const isProductLandingBuilder =
     /^\/admin\/productos\/[^/]+$/.test(pathname ?? "") &&
     searchParams?.get("tab") === "landing";
+  const isTemplateEditor =
+    /^\/admin\/landing-plantillas\/[^/]+$/.test(pathname ?? "") &&
+    !/\/editar$/.test(pathname ?? "") &&  // /editar is the metadata form, keep chrome
+    !/\/biblioteca$/.test(pathname ?? "")
+  const isFullScreenBuilder = isProductLandingBuilder || isTemplateEditor;
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "Configuración",
     "Métodos de Pago", // Expandir Métodos de Pago por defecto
