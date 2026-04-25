@@ -22,9 +22,7 @@ const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/sho
 
 import { GalleryContentForm } from "@/components/admin/page-builder/forms/adapters/GalleryContentForm"
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
-import { FaqContentForm } from "@/components/admin/page-builder/forms/adapters/FaqContentForm"
-import { ImageTextContentForm } from "@/components/admin/page-builder/forms/adapters/ImageTextContentForm"
-import { RelatedProductsContentForm } from "@/components/admin/page-builder/forms/adapters/RelatedProductsContentForm"
+import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
 
 const existing: BlockDefinition[] = [
   {
@@ -320,7 +318,27 @@ const existing: BlockDefinition[] = [
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.FAQ,
     renderer: FaqBlock as any,
-    contentForm: FaqContentForm as any,
+    contentSchema: [
+      { type: "text", key: "title", label: "Título (opcional)" },
+      { type: "switch", key: "allowMultipleOpen", label: "Permitir varias abiertas" },
+      { type: "switch", key: "defaultOpenFirst", label: "Abrir la primera por defecto" },
+      {
+        type: "array",
+        key: "items",
+        label: "Preguntas",
+        addButtonText: "+ Agregar pregunta",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          question: "Nueva pregunta",
+          answer: "<p>Respuesta</p>",
+        }),
+        itemLabel: (it) => (it.question as string) || "Sin pregunta",
+        itemSchema: [
+          { type: "text", key: "question", label: "Pregunta" },
+          { type: "richtext", key: "answer", label: "Respuesta" },
+        ],
+      },
+    ],
   },
   {
     type: "IMAGE_TEXT",
@@ -332,7 +350,38 @@ const existing: BlockDefinition[] = [
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.IMAGE_TEXT,
     renderer: ImageTextBlock as any,
-    contentForm: ImageTextContentForm as any,
+    contentSchema: [
+      { type: "text", key: "title", label: "Título" },
+      { type: "richtext", key: "description", label: "Descripción" },
+      {
+        type: "custom",
+        key: "__imageMedia",
+        label: "Imagen",
+        component: ImageTextMediaField,
+      },
+      {
+        type: "select",
+        key: "imagePosition",
+        label: "Posición imagen (desktop)",
+        options: [
+          { value: "left", label: "Izquierda" },
+          { value: "right", label: "Derecha" },
+        ],
+      },
+      {
+        type: "select",
+        key: "ratioImageToText",
+        label: "Proporción",
+        options: [
+          { value: "40-60", label: "40 / 60" },
+          { value: "50-50", label: "50 / 50" },
+          { value: "60-40", label: "60 / 40" },
+        ],
+      },
+      { type: "text", key: "imageAlt", label: "Alt text", placeholder: "Descripción para lectores" },
+      { type: "text", key: "ctaText", label: "Texto del botón (opcional)" },
+      { type: "text", key: "ctaUrl", label: "URL del botón (opcional)" },
+    ],
   },
   {
     type: "RELATED_PRODUCTS",
@@ -344,7 +393,59 @@ const existing: BlockDefinition[] = [
     category: "commerce",
     defaultContent: DEFAULT_CONTENT_V2.RELATED_PRODUCTS,
     renderer: RelatedProductsBlockEditorWrapper as any,
-    contentForm: RelatedProductsContentForm as any,
+    contentSchema: [
+      { type: "text", key: "title", label: "Título", placeholder: "También te puede gustar" },
+      {
+        type: "select",
+        key: "mode",
+        label: "Modo",
+        options: [
+          { value: "auto", label: "Automático" },
+          { value: "manual", label: "Manual" },
+        ],
+      },
+      {
+        type: "group",
+        key: "autoFilters",
+        label: "Filtros automáticos",
+        showWhen: { field: "mode", equals: "auto" },
+        schema: [
+          {
+            type: "select",
+            key: "source",
+            label: "Fuente",
+            options: [
+              { value: "same-category", label: "Misma categoría" },
+              { value: "same-tags", label: "Comparten categorías" },
+              { value: "best-sellers", label: "Más vendidos (90 días)" },
+              { value: "recently-added", label: "Más recientes" },
+            ],
+          },
+          { type: "number", key: "limit", label: "Cantidad", min: 1, max: 12 },
+          { type: "switch", key: "excludeCurrentProduct", label: "Excluir el producto actual" },
+        ],
+      },
+      {
+        type: "product-picker",
+        key: "manualProductIds",
+        label: "Productos",
+        multiple: true,
+        showWhen: { field: "mode", equals: "manual" },
+      },
+      {
+        type: "select",
+        key: "columnsDesktop",
+        label: "Columnas desktop",
+        options: [{ value: 3, label: "3" }, { value: 4, label: "4" }, { value: 5, label: "5" }],
+      },
+      {
+        type: "select",
+        key: "columnsMobile",
+        label: "Columnas mobile",
+        options: [{ value: 1, label: "1" }, { value: 2, label: "2" }],
+      },
+      { type: "switch", key: "showPrice", label: "Mostrar precio" },
+    ],
     styleSupport: { textColor: false, alignment: false },
   },
 ]
