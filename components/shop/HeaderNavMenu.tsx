@@ -12,8 +12,13 @@ interface Props {
 }
 
 export function HeaderNavMenu({ items }: Props) {
+  // NOTE: do NOT use overflow-x-auto on this <nav>. Setting any non-visible
+  // overflow-x value forces overflow-y to clip in most browsers (the
+  // "overflow visible quirk"), which would hide the dropdown panels
+  // emerging downward from parent items. The desktop nav is hidden below
+  // md anyway, so horizontal overflow is rarely an issue.
   return (
-    <nav className="flex h-10 items-center space-x-6 text-sm overflow-x-auto">
+    <nav className="flex h-10 items-center space-x-6 text-sm flex-wrap">
       {items.map((item) => (
         <NavItem key={item.id} item={item} />
       ))}
