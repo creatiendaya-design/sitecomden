@@ -4,8 +4,6 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Store,
-  Plus,
-  ChevronRight,
   Pencil,
   ListTree,
   Loader2,
@@ -23,7 +21,6 @@ import { setActiveTheme, type ThemeRow } from "@/actions/themes"
 import type { TemplateRow } from "@/actions/landing-templates"
 import { ThemeSectionList } from "./ThemeSectionList"
 import { ThemeProductDefaultPicker } from "./ThemeProductDefaultPicker"
-import { CreateThemeDialog } from "./CreateThemeDialog"
 
 interface Props {
   activeTheme: ThemeRow | null
@@ -33,46 +30,36 @@ interface Props {
 
 export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: Props) {
   const router = useRouter()
-  const [showCreate, setShowCreate] = useState(false)
   const [showProductDefault, setShowProductDefault] = useState(false)
   const [pendingActivate, startActivateTransition] = useTransition()
 
-  // No themes at all → onboarding
+  // No themes at all — defensive fallback. Themes are seeded by developers
+  // (see scripts/seed-themes.ts), so admins should never hit this in practice.
+  // The UI does NOT offer "Create theme" because that's a developer concern,
+  // not a store-owner one.
   if (allThemes.length === 0) {
     return (
-      <>
-        <div className="container mx-auto py-16 max-w-xl text-center">
-          <div className="mx-auto mb-6 inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <Store className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold mb-2">Aún no tenés ningún tema</h1>
-          <p className="text-sm text-muted-foreground mb-6">
-            Un tema agrupa el diseño de toda tu tienda: home, productos, cart,
-            páginas estáticas, etc. Empezá creando tu primer tema.
-          </p>
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Crear primer tema
-          </Button>
+      <div className="container mx-auto py-16 max-w-xl text-center">
+        <div className="mx-auto mb-6 inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <Store className="h-6 w-6 text-muted-foreground" />
         </div>
-
-        <CreateThemeDialog
-          open={showCreate}
-          onOpenChange={setShowCreate}
-          onCreated={(id) => {
-            setShowCreate(false)
-            toast.success("Tema creado y activado")
-            router.refresh()
-            router.push(`/admin/personalizar/temas/${id}/editar`)
-          }}
-        />
-      </>
+        <h1 className="text-2xl font-bold mb-2">Sin temas instalados</h1>
+        <p className="text-sm text-muted-foreground">
+          Tu tienda no tiene ningún tema instalado todavía. Pedile al
+          desarrollador que ejecute{" "}
+          <code className="text-xs bg-muted px-1 py-0.5 rounded">
+            npx tsx scripts/seed-themes.ts
+          </code>
+          .
+        </p>
+      </div>
     )
   }
 
   if (!activeTheme) {
-    // There ARE themes but none active — shouldn't happen because creating
-    // the first theme auto-activates. Provide a recovery UI just in case.
+    // There ARE themes but none active — shouldn't happen because the seed
+    // marks the first theme as active and the admin can't deactivate without
+    // activating another. Provide a recovery UI just in case.
     return (
       <div className="container mx-auto py-16 max-w-xl text-center">
         <h1 className="text-xl font-bold mb-2">Sin tema activo</h1>
@@ -155,11 +142,6 @@ export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: 
               Ver todos
             </a>
           </Button>
-
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="mr-2 h-3.5 w-3.5" />
-            Crear tema
-          </Button>
         </div>
       </div>
 
@@ -173,17 +155,6 @@ export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: 
         Solo la sección <strong>Producto</strong> está habilitada en este momento. Las
         demás secciones llegarán en planes posteriores (5–8).
       </p>
-
-      <CreateThemeDialog
-        open={showCreate}
-        onOpenChange={setShowCreate}
-        onCreated={(id) => {
-          setShowCreate(false)
-          toast.success("Tema creado")
-          router.refresh()
-          router.push(`/admin/personalizar/temas/${id}/editar`)
-        }}
-      />
 
       <ThemeProductDefaultPicker
         open={showProductDefault}
@@ -199,7 +170,3 @@ export function ActiveThemeEditor({ activeTheme, allThemes, landingTemplates }: 
     </div>
   )
 }
-
-// Re-export the chevron — used inside ThemeSectionList. Keeps the icon set
-// localized to this folder for easy theme-wide tweaks later.
-export { ChevronRight as SectionChevron }

@@ -3,11 +3,9 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Plus,
   MoreHorizontal,
   Pencil,
   CheckCircle2,
-  Trash2,
   Store,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -16,26 +14,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import {
-  deleteTheme,
   setActiveTheme,
   type ThemeRow,
 } from "@/actions/themes"
-import { CreateThemeDialog } from "./CreateThemeDialog"
 
 interface Props {
   initialThemes: ThemeRow[]
@@ -43,8 +28,6 @@ interface Props {
 
 export function ThemeListGrid({ initialThemes }: Props) {
   const router = useRouter()
-  const [showCreate, setShowCreate] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState<ThemeRow | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
@@ -64,48 +47,29 @@ export function ThemeListGrid({ initialThemes }: Props) {
     })
   }
 
-  const handleDelete = (theme: ThemeRow) => {
-    setPendingId(theme.id)
-    startTransition(async () => {
-      try {
-        await deleteTheme(theme.id)
-        toast.success("Tema eliminado")
-        setConfirmDelete(null)
-        router.refresh()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar")
-      } finally {
-        setPendingId(null)
-      }
-    })
-  }
-
   return (
     <div className="container mx-auto py-8 max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Temas</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Cada tema agrupa el diseño de tu tienda. Solo un tema puede estar
-            activo a la vez.
+            Solo un tema puede estar activo a la vez. Los temas son
+            instalados por el desarrollador — no se crean desde el admin.
           </p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo tema
-        </Button>
       </div>
 
       {initialThemes.length === 0 ? (
         <div className="rounded-lg border border-dashed py-16 text-center">
           <Store className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground mb-4">
-            Aún no tenés ningún tema.
+          <p className="text-sm text-muted-foreground">
+            Tu tienda no tiene ningún tema instalado todavía. Pedile al
+            desarrollador que ejecute{" "}
+            <code className="text-xs bg-muted px-1 py-0.5 rounded">
+              npx tsx scripts/seed-themes.ts
+            </code>
+            .
           </p>
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Crear primer tema
-          </Button>
         </div>
       ) : (
         <div className="grid gap-4 @md:grid-cols-2 @lg:grid-cols-3">
@@ -160,18 +124,6 @@ export function ThemeListGrid({ initialThemes }: Props) {
                       <Pencil className="mr-2 h-3.5 w-3.5" />
                       Editar metadata
                     </DropdownMenuItem>
-                    {!theme.active && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => setConfirmDelete(theme)}
-                        >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </>
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -192,41 +144,6 @@ export function ThemeListGrid({ initialThemes }: Props) {
           ))}
         </div>
       )}
-
-      <CreateThemeDialog
-        open={showCreate}
-        onOpenChange={setShowCreate}
-        onCreated={(id) => {
-          setShowCreate(false)
-          router.refresh()
-          router.push(`/admin/personalizar/temas/${id}/editar`)
-        }}
-      />
-
-      <AlertDialog
-        open={!!confirmDelete}
-        onOpenChange={(o) => !o && setConfirmDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar tema</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Eliminar el tema <strong>{confirmDelete?.name}</strong>? Los
-              productos sin plantilla propia perderán su default si este tema
-              estaba siendo usado como default. Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => confirmDelete && handleDelete(confirmDelete)}
-              disabled={pendingId === confirmDelete?.id}
-            >
-              {pendingId === confirmDelete?.id ? "Eliminando…" : "Eliminar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
