@@ -1,13 +1,15 @@
 import { Facebook, Instagram, Twitter } from "lucide-react"
 import { getSiteSettings } from "@/lib/site-settings"
-import { getMenuBySlug } from "@/lib/menus/get-menu-by-slug"
+import { getThemedMenu } from "@/lib/menus/get-themed-menu"
 import { resolveMenuItemHref } from "@/lib/menus/resolve-link"
 import Link from "next/link"
 
 export default async function Footer() {
+  // Plan 9: theme-aware menu fetch. Falls back to slug "footer" when the
+  // active/preview theme has no footerMenuId assigned.
   const [settings, menu] = await Promise.all([
     getSiteSettings(),
-    getMenuBySlug("footer"),
+    getThemedMenu("footer"),
   ])
 
   // Each root item with children becomes a link column. Root items WITHOUT

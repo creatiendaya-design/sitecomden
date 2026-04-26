@@ -7,16 +7,16 @@ import MobileMenu from "./MobileMenu";
 import SearchBar from "./SearchBar";
 import { HeaderAuth } from "./HeaderAuth";
 import { getSiteSettings } from "@/lib/site-settings";
-import { getMenuBySlug } from "@/lib/menus/get-menu-by-slug";
+import { getThemedMenu } from "@/lib/menus/get-themed-menu";
 import { HeaderNavMenu } from "./HeaderNavMenu";
 import MobileSearch from "./MobileSearch";
 
 export default async function Header() {
-  // Settings + main menu (Plan 8). The menu may be null when the seed
-  // hasn't run; fall back to a minimal nav with just "Todos los Productos".
+  // Settings + header menu. Plan 9: the active/preview theme can override
+  // which menu serves as the header; falls back to slug "main" otherwise.
   const [settings, menu] = await Promise.all([
     getSiteSettings(),
-    getMenuBySlug("main"),
+    getThemedMenu("header"),
   ]);
   const menuItems = menu?.items ?? [];
 
