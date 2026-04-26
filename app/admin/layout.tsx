@@ -64,8 +64,14 @@ function AdminLayoutInner({
   const isMenuEditor =
     /^\/admin\/menus\/[^/]+$/.test(pathname ?? "") &&
     !/\/editar$/.test(pathname ?? "");
+  const isCategoryBuilder =
+    /^\/admin\/categorias\/[^/]+\/builder$/.test(pathname ?? "");
   const isFullScreenBuilder =
-    isProductLandingBuilder || isTemplateEditor || isPageEditor || isMenuEditor;
+    isProductLandingBuilder ||
+    isTemplateEditor ||
+    isPageEditor ||
+    isMenuEditor ||
+    isCategoryBuilder;
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "Configuración",
     "Métodos de Pago", // Expandir Métodos de Pago por defecto
