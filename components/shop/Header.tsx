@@ -40,7 +40,9 @@ export default async function Header() {
               </div>
             ) : (
               <>
-                <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                {/* Logo placeholder uses brand-primary so theme switching
+                    visibly retints the corner without code changes. */}
+                <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-brand bg-brand-primary text-brand-primary-foreground">
                   <span className="text-lg md:text-xl font-bold">SG</span>
                 </div>
                 <span className="hidden font-bold sm:inline-block ml-2">
