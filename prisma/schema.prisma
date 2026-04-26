@@ -169,6 +169,9 @@ enum LandingBlockType {
   IMAGE_TEXT
   RELATED_PRODUCTS
   TRUST_BADGES
+  // Plan 7.1 — configurable product grid for category builders. When
+  // present in a category's blocks, replaces the auto-generated grid.
+  PRODUCT_GRID
 }
 
 model ProductCategory {
