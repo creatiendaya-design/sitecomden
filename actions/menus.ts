@@ -54,6 +54,37 @@ export async function listMenus(): Promise<MenuRow[]> {
   }))
 }
 
+/**
+ * Slim variant of `listMenus` for use inside the theme picker UI. Gated by
+ * `themes:update` (not `menus:view`) so an admin who can edit themes but
+ * not browse the full Menus section can still pick header/footer menus.
+ */
+export async function listMenusForThemePicker(): Promise<MenuRow[]> {
+  await protectRoute("themes:update")
+  const rows = await prisma.menu.findMany({
+    where: { active: true },
+    orderBy: { title: "asc" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      active: true,
+      updatedAt: true,
+      _count: { select: { items: true } },
+    },
+  })
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    description: r.description,
+    active: r.active,
+    itemCount: r._count.items,
+    updatedAt: r.updatedAt,
+  }))
+}
+
 export async function getMenu(id: string): Promise<MenuWithItems | null> {
   await protectRoute("menus:view")
   const m = await prisma.menu.findUnique({

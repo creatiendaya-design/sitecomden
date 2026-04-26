@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { resolveActiveTheme } from "./resolve-active-theme"
 
 export interface ActiveThemeHome {
   pageId: string
@@ -18,46 +19,44 @@ export interface ActiveThemeHome {
 }
 
 /**
- * Fetches the page assigned as home on the currently active theme, with its
- * blocks already loaded. Returns null when:
+ * Fetches the page assigned as home on the currently active (or previewed)
+ * theme, with its blocks already loaded. Returns null when:
  *   - there is no active theme,
- *   - the active theme has no homePageId,
+ *   - the resolved theme has no homePageId,
  *   - the assigned page is inactive or has been deleted.
  *
  * The storefront route at `/` calls this and falls back to the legacy
  * hardcoded home layout when this returns null, so the system is safe even
- * before any seed runs.
+ * before any seed runs. Plan 9 made this preview-aware.
  */
 export async function getActiveThemeHome(): Promise<ActiveThemeHome | null> {
-  const theme = await prisma.theme.findFirst({
-    where: { active: true, homePageId: { not: null } },
+  const theme = await resolveActiveTheme()
+  if (!theme?.homePageId) return null
+
+  const page = await prisma.page.findUnique({
+    where: { id: theme.homePageId },
     select: {
-      homePage: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      seoTitle: true,
+      seoDescription: true,
+      seoImage: true,
+      noIndex: true,
+      active: true,
+      pageBlocks: {
+        orderBy: { position: "asc" },
         select: {
           id: true,
-          slug: true,
-          title: true,
-          description: true,
-          seoTitle: true,
-          seoDescription: true,
-          seoImage: true,
-          noIndex: true,
-          active: true,
-          pageBlocks: {
-            orderBy: { position: "asc" },
-            select: {
-              id: true,
-              type: true,
-              position: true,
-              content: true,
-            },
-          },
+          type: true,
+          position: true,
+          content: true,
         },
       },
     },
   })
 
-  const page = theme?.homePage
   if (!page || !page.active) return null
 
   return {

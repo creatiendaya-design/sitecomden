@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import type { LandingBlockType, BlockContentV2 } from "@/lib/blocks/types"
+import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme"
 
 export type BlockOrigin = "template" | "detached" | "local"
 
@@ -99,13 +100,10 @@ async function resolveFromProduct(product: ProductWithRelations): Promise<Resolv
       }))
     }
 
-    // Otherwise, fall back to the active theme's default product landing.
-    // This is what makes "new product, no template" inherit the theme's
-    // default automatically (Plan 4).
-    const activeTheme = await prisma.theme.findFirst({
-      where: { active: true, defaultProductLandingTemplateId: { not: null } },
-      select: { defaultProductLandingTemplateId: true },
-    })
+    // Otherwise, fall back to the active (or previewed) theme's default
+    // product landing. Plan 4 introduced the inheritance; Plan 9 made it
+    // preview-aware so admins previewing a theme see its product defaults.
+    const activeTheme = await resolveActiveTheme()
     if (activeTheme?.defaultProductLandingTemplateId) {
       const themeDefaultBlocks = await prisma.templateBlock.findMany({
         where: { templateId: activeTheme.defaultProductLandingTemplateId },

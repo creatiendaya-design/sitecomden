@@ -18,12 +18,22 @@ export interface ThemeRow {
   homePageTitle: string | null
   /** Joined slug of the home page, for UI display + redirect handling. */
   homePageSlug: string | null
+  /** Menu rendered in the storefront header. Null = fallback to slug "main". */
+  headerMenuId: string | null
+  headerMenuTitle: string | null
+  headerMenuSlug: string | null
+  /** Menu rendered in the storefront footer. Null = fallback to slug "footer". */
+  footerMenuId: string | null
+  footerMenuTitle: string | null
+  footerMenuSlug: string | null
   updatedAt: Date
 }
 
 const themeIncludes = {
   defaultProductLandingTemplate: { select: { id: true, name: true } },
   homePage: { select: { id: true, title: true, slug: true } },
+  headerMenu: { select: { id: true, title: true, slug: true } },
+  footerMenu: { select: { id: true, title: true, slug: true } },
 } as const
 
 type ThemeWithJoins = {
@@ -35,6 +45,10 @@ type ThemeWithJoins = {
   defaultProductLandingTemplate: { id: string; name: string } | null
   homePageId: string | null
   homePage: { id: string; title: string; slug: string } | null
+  headerMenuId: string | null
+  headerMenu: { id: string; title: string; slug: string } | null
+  footerMenuId: string | null
+  footerMenu: { id: string; title: string; slug: string } | null
   updatedAt: Date
 }
 
@@ -49,6 +63,12 @@ function toThemeRow(t: ThemeWithJoins): ThemeRow {
     homePageId: t.homePageId,
     homePageTitle: t.homePage?.title ?? null,
     homePageSlug: t.homePage?.slug ?? null,
+    headerMenuId: t.headerMenuId,
+    headerMenuTitle: t.headerMenu?.title ?? null,
+    headerMenuSlug: t.headerMenu?.slug ?? null,
+    footerMenuId: t.footerMenuId,
+    footerMenuTitle: t.footerMenu?.title ?? null,
+    footerMenuSlug: t.footerMenu?.slug ?? null,
     updatedAt: t.updatedAt,
   }
 }
@@ -112,6 +132,8 @@ export async function updateThemeMetadata(
     description?: string | null
     defaultProductLandingTemplateId?: string | null
     homePageId?: string | null
+    headerMenuId?: string | null
+    footerMenuId?: string | null
   },
 ): Promise<void> {
   await protectRoute("themes:update")
@@ -129,6 +151,26 @@ export async function updateThemeMetadata(
     }
   }
 
+  // Same validation for header/footer menus — assigning an inactive menu
+  // would render an empty header/footer.
+  for (const [field, label] of [
+    [input.headerMenuId, "header"],
+    [input.footerMenuId, "footer"],
+  ] as const) {
+    if (field) {
+      const menu = await prisma.menu.findUnique({
+        where: { id: field },
+        select: { active: true },
+      })
+      if (!menu) throw new Error(`El menú asignado al ${label} no existe.`)
+      if (!menu.active) {
+        throw new Error(
+          `El menú asignado al ${label} está oculto. Activalo antes de asignarlo.`,
+        )
+      }
+    }
+  }
+
   const t = await prisma.theme.update({
     where: { id },
     data: {
@@ -142,16 +184,23 @@ export async function updateThemeMetadata(
       ...(input.homePageId !== undefined && {
         homePageId: input.homePageId,
       }),
+      ...(input.headerMenuId !== undefined && {
+        headerMenuId: input.headerMenuId,
+      }),
+      ...(input.footerMenuId !== undefined && {
+        footerMenuId: input.footerMenuId,
+      }),
     },
     select: { active: true },
   })
 
   updateTag(`theme:${id}`)
   // If we touched the active theme, the storefront home + any product without
-  // its own landingTemplateId need to refresh. Bump both global tags.
+  // its own landingTemplateId + header/footer menus need to refresh.
   if (t.active) {
     updateTag("active-theme")
     updateTag("active-theme-home")
+    updateTag("active-theme-menus")
     revalidatePath("/")
   }
   revalidatePath("/admin/personalizar")
@@ -170,6 +219,7 @@ export async function setActiveTheme(id: string): Promise<void> {
 
   updateTag("active-theme")
   updateTag("active-theme-home")
+  updateTag("active-theme-menus")
   revalidatePath("/")
   revalidatePath("/admin/personalizar")
   revalidatePath("/admin/personalizar/temas")
