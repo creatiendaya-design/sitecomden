@@ -1085,7 +1085,9 @@ model Page {
   updatedAt      DateTime    @updatedAt
   pageBlocks     PageBlock[]
   /** Themes that point to this page as their storefront home. */
-  themesUsingAsHome Theme[]
+  themesUsingAsHome Theme[] @relation("ThemeHomePage")
+  /** Themes that point to this page as their cart-blocks wrapper. */
+  themesUsingAsCart Theme[] @relation("ThemeCartPage")
 
   @@index([slug, active])
 }
@@ -1212,7 +1214,11 @@ model Theme {
   /// Page rendered at the storefront root (/) when this theme is active.
   /// Null = fall back to the legacy hardcoded home layout (Plan 6).
   homePageId                      String?
-  homePage                        Page?            @relation(fields: [homePageId], references: [id], onDelete: SetNull)
+  homePage                        Page?            @relation("ThemeHomePage", fields: [homePageId], references: [id], onDelete: SetNull)
+  /// Page whose blocks are rendered above the storefront cart UI (Plan 10).
+  /// Null = no blocks; cart UI shows alone.
+  cartPageId                      String?
+  cartPage                        Page?            @relation("ThemeCartPage", fields: [cartPageId], references: [id], onDelete: SetNull)
   /// Menu rendered in the storefront header. Null = fetch by slug "main"
   /// (Plan 9 fallback for legacy compatibility).
   headerMenuId                    String?
