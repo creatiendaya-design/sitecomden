@@ -43,7 +43,7 @@ function generateNonce(): string {
  * - En desarrollo: agrega 'unsafe-eval' (Next.js HMR) y 'unsafe-inline' como
  *   fallback para navegadores que ignoran strict-dynamic.
  */
-function buildCsp(nonce: string): string {
+function buildCsp(nonce: string, allowSameOriginEmbed: boolean): string {
   const scriptSrc = [
     "'self'",
     `'nonce-${nonce}'`,
@@ -77,7 +77,9 @@ function buildCsp(nonce: string): string {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    // Plan 13: relax frame-ancestors when the request is the Customizer
+    // iframe (signaled by ?theme-preview=). Anywhere else stays locked.
+    `frame-ancestors ${allowSameOriginEmbed ? "'self'" : "'none'"}`,
     ...(isProduction ? ['upgrade-insecure-requests'] : []),
   ];
 
@@ -87,10 +89,20 @@ function buildCsp(nonce: string): string {
 /**
  * Aplica Security Headers a la respuesta
  */
-function applySecurityHeaders(response: NextResponse, nonce: string) {
+function applySecurityHeaders(
+  response: NextResponse,
+  nonce: string,
+  allowSameOriginEmbed: boolean = false,
+) {
   const headers = response.headers;
 
-  headers.set('X-Frame-Options', 'DENY');
+  // Plan 13: SAMEORIGIN when the request is for an admin Customizer iframe
+  // (presence of ?theme-preview=). DENY everywhere else — clickjacking
+  // protection stays intact for normal traffic.
+  headers.set(
+    'X-Frame-Options',
+    allowSameOriginEmbed ? 'SAMEORIGIN' : 'DENY',
+  );
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   headers.set('X-XSS-Protection', '1; mode=block');
@@ -105,7 +117,7 @@ function applySecurityHeaders(response: NextResponse, nonce: string) {
     ].join(', ')
   );
 
-  headers.set('Content-Security-Policy', buildCsp(nonce));
+  headers.set('Content-Security-Policy', buildCsp(nonce, allowSameOriginEmbed));
 
   if (isProduction) {
     headers.set(
@@ -294,21 +306,32 @@ export default clerkMiddleware((auth, req) => {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(NONCE_HEADER, nonce);
 
+  // Plan 13 — copy ?theme-preview=<id> into a request header so the theme
+  // resolver can pick it up without prop-drilling searchParams. The
+  // Customizer iframe relies on this to render the right theme. Presence
+  // of the query also unlocks SAMEORIGIN frame embedding so the iframe
+  // can render at all.
+  const themePreviewParam = req.nextUrl.searchParams.get("theme-preview");
+  const allowSameOriginEmbed = Boolean(themePreviewParam);
+  if (themePreviewParam) {
+    requestHeaders.set("x-theme-preview-id", themePreviewParam);
+  }
+
   // ✅ 3. Manejar rutas admin (tu lógica original)
   const adminResult = handleAdminRoutes(req, requestHeaders);
   if (adminResult) {
-    return applySecurityHeaders(adminResult, nonce);
+    return applySecurityHeaders(adminResult, nonce, allowSameOriginEmbed);
   }
 
   // ✅ 4. Rutas públicas de shop (tu lógica original)
   if (isPublicRoute(req)) {
     const response = NextResponse.next({ request: { headers: requestHeaders } });
-    return applySecurityHeaders(response, nonce);
+    return applySecurityHeaders(response, nonce, allowSameOriginEmbed);
   }
 
   // ✅ 5. Otras rutas (como /cuenta)
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  return applySecurityHeaders(response, nonce);
+  return applySecurityHeaders(response, nonce, allowSameOriginEmbed);
 });
 
 export const config = {

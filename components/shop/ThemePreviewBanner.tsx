@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { Eye } from "lucide-react"
 import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme"
 
@@ -13,6 +12,13 @@ import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme"
  * Because resolveActiveTheme uses cookies(), embedding this server component
  * marks the layout as dynamic — that's intentional: the storefront is
  * already dynamic (it queries Prisma) so there's no perf hit.
+ *
+ * IMPORTANT: the exit link is a plain <a> (not next/link's <Link>). next/link
+ * does client-side navigation that doesn't follow API-route redirects nor
+ * propagate Set-Cookie headers from the redirect — clicking the <Link>
+ * "did nothing". A plain <a> triggers a full browser navigation, the browser
+ * follows the 307 to "/", and the Set-Cookie header that expires the cookie
+ * is honored as part of that navigation chain.
  */
 export default async function ThemePreviewBanner() {
   const theme = await resolveActiveTheme()
@@ -32,13 +38,17 @@ export default async function ThemePreviewBanner() {
           previa. Solo vos lo ves; los clientes siguen viendo el tema activo.
         </span>
       </div>
-      <Link
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages
+            -- Plan 9: must be a plain <a> so the browser does a full
+            navigation that follows the 307 redirect AND honors the
+            Set-Cookie that expires theme-preview-id. <Link> would do a
+            client-side soft navigation and the cookie would never expire. */}
+      <a
         href="/api/admin/themes/exit-preview"
         className="rounded-md bg-amber-950/90 px-3 py-1 text-xs font-medium text-amber-50 hover:bg-amber-950 transition-colors"
-        prefetch={false}
       >
         Salir del preview
-      </Link>
+      </a>
     </div>
   )
 }

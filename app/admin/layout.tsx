@@ -66,12 +66,15 @@ function AdminLayoutInner({
     !/\/editar$/.test(pathname ?? "");
   const isCategoryBuilder =
     /^\/admin\/categorias\/[^/]+\/builder$/.test(pathname ?? "");
+  const isThemeCustomizer =
+    /^\/admin\/personalizar\/temas\/[^/]+\/customize$/.test(pathname ?? "");
   const isFullScreenBuilder =
     isProductLandingBuilder ||
     isTemplateEditor ||
     isPageEditor ||
     isMenuEditor ||
-    isCategoryBuilder;
+    isCategoryBuilder ||
+    isThemeCustomizer;
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "Configuración",
     "Métodos de Pago", // Expandir Métodos de Pago por defecto

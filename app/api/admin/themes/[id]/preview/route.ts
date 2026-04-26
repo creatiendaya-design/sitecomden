@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { prisma } from "@/lib/db"
 import { requirePermission } from "@/lib/auth"
 import { THEME_PREVIEW_COOKIE } from "@/lib/themes/resolve-active-theme"
@@ -15,8 +14,13 @@ interface RouteParams {
  *
  * GET is supported so admins can hit this URL from a plain link / new tab.
  * POST is also accepted for fetch-based flows.
+ *
+ * IMPORTANT: we set the Set-Cookie header DIRECTLY on the redirect response
+ * (response.cookies.set) instead of using cookies() from next/headers,
+ * because Next.js doesn't reliably merge the request-scoped cookie store
+ * into a user-returned NextResponse. The exit-preview route does the same.
  */
-async function handle(_request: NextRequest, params: RouteParams["params"]) {
+async function handle(request: NextRequest, params: RouteParams["params"]) {
   const { user, response } = await requirePermission("themes:update")
   if (response) return response
 
@@ -35,8 +39,12 @@ async function handle(_request: NextRequest, params: RouteParams["params"]) {
     )
   }
 
-  const cookieStore = await cookies()
-  cookieStore.set(THEME_PREVIEW_COOKIE, theme.id, {
+  // Avoid an unused-var lint hit while keeping the variable available for
+  // future use (audit logging, etc.).
+  void user
+
+  const redirect = NextResponse.redirect(new URL("/", request.url))
+  redirect.cookies.set(THEME_PREVIEW_COOKIE, theme.id, {
     httpOnly: false, // banner client component reads this to know preview is on
     sameSite: "lax",
     path: "/",
@@ -44,12 +52,7 @@ async function handle(_request: NextRequest, params: RouteParams["params"]) {
     // accidentally-left preview cookie self-clears the same day.
     maxAge: 60 * 60 * 4,
   })
-
-  // Avoid an unused-var lint hit while keeping the variable available for
-  // future use (audit logging, etc.).
-  void user
-
-  return NextResponse.redirect(new URL("/", _request.url))
+  return redirect
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {

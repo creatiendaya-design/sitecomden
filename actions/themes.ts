@@ -276,3 +276,119 @@ export async function deleteTheme(id: string): Promise<void> {
   await prisma.theme.delete({ where: { id } })
   revalidatePath("/admin/personalizar/temas")
 }
+
+/**
+ * Plan 13 — auto-creates a Page for the theme's Home section when none
+ * exists, then returns its id. Used by the Customizer so the admin sees
+ * an "Editar contenido" path directly (no dropdown picker, mirroring
+ * Shopify's UX where Home is conceptually a fixed surface).
+ *
+ * If the theme already has a homePageId, returns it unchanged.
+ */
+export async function ensureHomePageForTheme(
+  themeId: string,
+): Promise<{ pageId: string; created: boolean }> {
+  await protectRoute("themes:update")
+  const theme = await prisma.theme.findUnique({
+    where: { id: themeId },
+    select: { id: true, name: true, homePageId: true, active: true },
+  })
+  if (!theme) throw new Error("Tema no encontrado")
+
+  if (theme.homePageId) {
+    return { pageId: theme.homePageId, created: false }
+  }
+
+  const slug = await uniqueSlug(`home-${themeId.slice(0, 8)}`)
+
+  const page = await prisma.page.create({
+    data: {
+      slug,
+      title: `Home — ${theme.name}`,
+      description: "Página de inicio de la tienda. Editala desde el Customizer.",
+      active: true,
+    },
+    select: { id: true },
+  })
+
+  await prisma.theme.update({
+    where: { id: themeId },
+    data: { homePageId: page.id },
+  })
+
+  if (theme.active) {
+    updateTag("active-theme")
+    updateTag("active-theme-home")
+    revalidatePath("/")
+  }
+  updateTag(`theme:${themeId}`)
+  revalidatePath(`/admin/personalizar/temas/${themeId}/customize`)
+  return { pageId: page.id, created: true }
+}
+
+/**
+ * Same idea as ensureHomePageForTheme but for the Cart blocks page.
+ */
+export async function ensureCartPageForTheme(
+  themeId: string,
+): Promise<{ pageId: string; created: boolean }> {
+  await protectRoute("themes:update")
+  const theme = await prisma.theme.findUnique({
+    where: { id: themeId },
+    select: { id: true, name: true, cartPageId: true, active: true },
+  })
+  if (!theme) throw new Error("Tema no encontrado")
+
+  if (theme.cartPageId) {
+    return { pageId: theme.cartPageId, created: false }
+  }
+
+  const slug = await uniqueSlug(`cart-${themeId.slice(0, 8)}`)
+
+  const page = await prisma.page.create({
+    data: {
+      slug,
+      title: `Carrito — ${theme.name}`,
+      description:
+        "Bloques que se renderizan arriba del UI del carrito. Editala desde el Customizer.",
+      active: true,
+    },
+    select: { id: true },
+  })
+
+  await prisma.theme.update({
+    where: { id: themeId },
+    data: { cartPageId: page.id },
+  })
+
+  if (theme.active) {
+    updateTag("active-theme")
+    updateTag("active-theme-cart")
+    revalidatePath("/carrito")
+  }
+  updateTag(`theme:${themeId}`)
+  revalidatePath(`/admin/personalizar/temas/${themeId}/customize`)
+  return { pageId: page.id, created: true }
+}
+
+/**
+ * Tries the desired slug first; on collision appends `-2`, `-3`, ... until
+ * unique. Pages are unique by slug across the whole DB, so we need to
+ * disambiguate when admins have multiple themes that auto-created homes.
+ */
+async function uniqueSlug(desired: string): Promise<string> {
+  let candidate = desired
+  let n = 2
+  // Bounded iteration just in case — 50 is far beyond any realistic case.
+  for (let i = 0; i < 50; i++) {
+    const exists = await prisma.page.findUnique({
+      where: { slug: candidate },
+      select: { id: true },
+    })
+    if (!exists) return candidate
+    candidate = `${desired}-${n}`
+    n += 1
+  }
+  // Defensive fallback — extremely unlikely.
+  return `${desired}-${Date.now().toString(36)}`
+}

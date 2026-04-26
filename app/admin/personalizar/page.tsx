@@ -1,29 +1,13 @@
-import { protectRoute } from "@/lib/protect-route"
-import { getActiveTheme, listThemes } from "@/actions/themes"
-import { listLandingTemplates } from "@/actions/landing-templates"
-import { listPagesForThemePicker } from "@/actions/pages"
-import { listMenusForThemePicker } from "@/actions/menus"
-import { ActiveThemeEditor } from "@/components/admin/themes/ActiveThemeEditor"
+import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
-export default async function PersonalizarPage() {
-  await protectRoute("themes:view")
-  const [activeTheme, allThemes, landingTemplates, pages, menus] =
-    await Promise.all([
-      getActiveTheme(),
-      listThemes(),
-      listLandingTemplates({ active: true }),
-      listPagesForThemePicker(),
-      listMenusForThemePicker(),
-    ])
-  return (
-    <ActiveThemeEditor
-      activeTheme={activeTheme}
-      allThemes={allThemes}
-      landingTemplates={landingTemplates}
-      pages={pages}
-      menus={menus}
-    />
-  )
+/**
+ * Plan 13 — /admin/personalizar redirects to the themes list. Like
+ * Shopify's /admin/themes, that's where admins land to pick which theme
+ * to edit. The legacy section-list editor (modals) was replaced by the
+ * Customizer (split-screen) reachable via "Editar tema" on each card.
+ */
+export default function PersonalizarPage() {
+  redirect("/admin/personalizar/temas")
 }
