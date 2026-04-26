@@ -1,14 +1,10 @@
 "use client"
 
-import {
-  Smartphone,
-  Tablet,
-  Monitor,
-  Loader2,
-} from "lucide-react"
+import { Smartphone, Tablet, Monitor } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { PagePicker } from "./PagePicker"
+import { SaveStatusIndicator } from "./SaveStatusIndicator"
 import type { PageTarget } from "./page-targets"
 
 export type DeviceMode = "desktop" | "tablet" | "mobile"
@@ -20,9 +16,6 @@ interface Props {
   onTargetChange: (key: string) => void
   device: DeviceMode
   onDeviceChange: (device: DeviceMode) => void
-  isDirty: boolean
-  pending: boolean
-  onSave: () => void
   onExit: () => void
 }
 
@@ -32,15 +25,20 @@ const DEVICES: { key: DeviceMode; icon: typeof Smartphone; label: string }[] = [
   { key: "mobile", icon: Smartphone, label: "Mobile" },
 ]
 
+/**
+ * Plan 13 — Customizer top toolbar.
+ *
+ * Auto-save model: every change (block edit, header/footer menu pick)
+ * persists in the background. There's no manual Save button — only a
+ * status indicator showing "Guardando…" / "Guardado". Mirrors the
+ * non-draft autosave UX we already use in /admin/paginas/[id].
+ */
 export function CustomizerToolbar({
   targets,
   currentTargetKey,
   onTargetChange,
   device,
   onDeviceChange,
-  isDirty,
-  pending,
-  onSave,
   onExit,
 }: Props) {
   return (
@@ -75,20 +73,11 @@ export function CustomizerToolbar({
         ))}
       </div>
 
-      {/* Right: save + exit */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onExit} disabled={pending}>
+      {/* Right: save status + exit */}
+      <div className="flex items-center gap-3">
+        <SaveStatusIndicator />
+        <Button variant="ghost" size="sm" onClick={onExit}>
           Salir
-        </Button>
-        <Button size="sm" onClick={onSave} disabled={!isDirty || pending}>
-          {pending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Guardando…
-            </>
-          ) : (
-            "Guardar"
-          )}
         </Button>
       </div>
     </div>
