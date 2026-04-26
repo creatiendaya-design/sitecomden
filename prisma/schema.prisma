@@ -27,8 +27,14 @@ model Category {
   order  Int     @default(0)
   active Boolean @default(true)
 
-  products   ProductCategory[]
-  conditions CategoryCondition[]
+  /// When true, the storefront hides the auto-generated product grid on the
+  /// category page so categoryBlocks can render a fully custom landing
+  /// (Plan 7). Defaults to false — grid renders below the blocks.
+  hideProductGrid Boolean @default(false)
+
+  products       ProductCategory[]
+  conditions     CategoryCondition[]
+  categoryBlocks CategoryBlock[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -37,6 +43,22 @@ model Category {
   @@index([active])
   @@index([parentId])
   @@index([collectionType])
+}
+
+/// Optional landing blocks rendered above the product grid on a category
+/// page. Mirrors the PageBlock model — same renderer, same content shape,
+/// but scoped to a Category instead of a Page (Plan 7).
+model CategoryBlock {
+  id         String           @id @default(cuid())
+  categoryId String
+  category   Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  type       LandingBlockType
+  position   Int
+  content    Json             @default("{}")
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([categoryId, position])
 }
 
 enum CollectionType {
