@@ -25,6 +25,7 @@ import type { MenuRow } from "@/actions/menus"
 import { ThemeSectionList } from "./ThemeSectionList"
 import { ThemeProductDefaultPicker } from "./ThemeProductDefaultPicker"
 import { ThemeHomePagePicker } from "./ThemeHomePagePicker"
+import { ThemeCartPagePicker } from "./ThemeCartPagePicker"
 import { ThemeMenuPicker } from "./ThemeMenuPicker"
 
 interface Props {
@@ -45,6 +46,7 @@ export function ActiveThemeEditor({
   const router = useRouter()
   const [showProductDefault, setShowProductDefault] = useState(false)
   const [showHomePage, setShowHomePage] = useState(false)
+  const [showCartPage, setShowCartPage] = useState(false)
   const [showHeaderFooter, setShowHeaderFooter] = useState(false)
   const [pendingActivate, startActivateTransition] = useTransition()
 
@@ -165,12 +167,9 @@ export function ActiveThemeEditor({
         activeTheme={activeTheme}
         onEditProductDefault={() => setShowProductDefault(true)}
         onEditHomePage={() => setShowHomePage(true)}
+        onEditCartPage={() => setShowCartPage(true)}
         onEditHeaderFooter={() => setShowHeaderFooter(true)}
       />
-
-      <p className="mt-6 text-[11px] text-muted-foreground text-center">
-        La sección <strong>Cart</strong> llegará en un plan posterior.
-      </p>
 
       <ThemeProductDefaultPicker
         open={showProductDefault}
@@ -192,6 +191,18 @@ export function ActiveThemeEditor({
         pages={pages}
         onSaved={() => {
           setShowHomePage(false)
+          router.refresh()
+        }}
+      />
+
+      <ThemeCartPagePicker
+        open={showCartPage}
+        onOpenChange={setShowCartPage}
+        themeId={activeTheme.id}
+        currentPageId={activeTheme.cartPageId}
+        pages={pages}
+        onSaved={() => {
+          setShowCartPage(false)
           router.refresh()
         }}
       />

@@ -54,9 +54,9 @@ const SECTIONS: SectionDef[] = [
   {
     key: "cart",
     label: "Cart",
-    description: "Carrito de compras",
+    description: "Bloques sobre el UI del carrito",
     icon: ShoppingCart,
-    status: "coming-soon",
+    status: "active",
   },
   {
     key: "header-footer",
@@ -71,6 +71,7 @@ interface Props {
   activeTheme: ThemeRow
   onEditProductDefault: () => void
   onEditHomePage: () => void
+  onEditCartPage: () => void
   onEditHeaderFooter: () => void
 }
 
@@ -78,6 +79,7 @@ export function ThemeSectionList({
   activeTheme,
   onEditProductDefault,
   onEditHomePage,
+  onEditCartPage,
   onEditHeaderFooter,
 }: Props) {
   const router = useRouter()
@@ -87,6 +89,7 @@ export function ThemeSectionList({
         const Icon = section.icon
         const isProduct = section.key === "product"
         const isHome = section.key === "home"
+        const isCart = section.key === "cart"
         const isHeaderFooter = section.key === "header-footer"
         const isComingSoon = section.status === "coming-soon"
         const productSummary = isProduct
@@ -95,6 +98,9 @@ export function ThemeSectionList({
           : null
         const homeSummary = isHome
           ? activeTheme.homePageTitle ?? "Home por defecto (layout incorporado)"
+          : null
+        const cartSummary = isCart
+          ? activeTheme.cartPageTitle ?? "Sin bloques (solo UI del carrito)"
           : null
         const headerFooterSummary = isHeaderFooter
           ? `Header: ${activeTheme.headerMenuTitle ?? "main (default)"} · Footer: ${activeTheme.footerMenuTitle ?? "footer (default)"}`
@@ -112,13 +118,15 @@ export function ThemeSectionList({
                   ? onEditProductDefault
                   : section.key === "home"
                     ? onEditHomePage
-                    : section.key === "pages"
-                      ? () => router.push("/admin/paginas")
-                      : section.key === "collections"
-                        ? () => router.push("/admin/categorias")
-                        : section.key === "header-footer"
-                          ? onEditHeaderFooter
-                          : undefined
+                    : section.key === "cart"
+                      ? onEditCartPage
+                      : section.key === "pages"
+                        ? () => router.push("/admin/paginas")
+                        : section.key === "collections"
+                          ? () => router.push("/admin/categorias")
+                          : section.key === "header-footer"
+                            ? onEditHeaderFooter
+                            : undefined
             }
             className={cn(
               "group flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors",
@@ -160,6 +168,12 @@ export function ThemeSectionList({
                 <p className="text-xs font-medium mt-1">
                   Página actual:{" "}
                   <span className="text-primary">{homeSummary}</span>
+                </p>
+              )}
+              {cartSummary && (
+                <p className="text-xs font-medium mt-1">
+                  Página actual:{" "}
+                  <span className="text-primary">{cartSummary}</span>
                 </p>
               )}
               {headerFooterSummary && (
