@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import EditCategoryForm from "@/components/admin/EditCategoryForm";
+import { CategoryDesignSection } from "@/components/admin/categorias/CategoryDesignSection";
 
 interface EditCategoryPageProps {
   params: Promise<{
@@ -17,7 +18,7 @@ export default async function EditCategoryPage({ params }: EditCategoryPageProps
     where: { id: categoryId },
     include: {
       _count: {
-        select: { products: true },
+        select: { products: true, categoryBlocks: true },
       },
       products: {
         select: {
@@ -53,5 +54,14 @@ export default async function EditCategoryPage({ params }: EditCategoryPageProps
     })),
   };
 
-  return <EditCategoryForm category={serializedCategory} />;
+  return (
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
+      <CategoryDesignSection
+        categoryId={category.id}
+        blockCount={category._count.categoryBlocks}
+        hideProductGrid={category.hideProductGrid}
+      />
+      <EditCategoryForm category={serializedCategory} />
+    </div>
+  );
 }
