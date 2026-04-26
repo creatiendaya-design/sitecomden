@@ -1226,6 +1226,13 @@ model Theme {
   /// Menu rendered in the storefront footer. Null = fetch by slug "footer".
   footerMenuId                    String?
   footerMenu                      Menu?            @relation("ThemeFooterMenu", fields: [footerMenuId], references: [id], onDelete: SetNull)
+  /// Visual design tokens (colors, fonts, scale, radii) — Plan 11.
+  /// Materialized into a single class-scoped stylesheet served via
+  /// /api/themes/tokens.css; the storefront layout sets body class
+  /// `theme-<slug>` to pick the right scope. Default {} means "use the
+  /// system fallbacks" — the storefront keeps working even before any
+  /// theme has tokens authored.
+  tokens                          Json             @default("{}")
   createdBy                       String?
   createdAt                       DateTime @default(now())
   updatedAt                       DateTime @updatedAt
