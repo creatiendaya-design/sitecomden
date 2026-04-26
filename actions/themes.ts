@@ -18,6 +18,10 @@ export interface ThemeRow {
   homePageTitle: string | null
   /** Joined slug of the home page, for UI display + redirect handling. */
   homePageSlug: string | null
+  /** Page whose blocks render above the cart UI. Null = no blocks. */
+  cartPageId: string | null
+  cartPageTitle: string | null
+  cartPageSlug: string | null
   /** Menu rendered in the storefront header. Null = fallback to slug "main". */
   headerMenuId: string | null
   headerMenuTitle: string | null
@@ -32,6 +36,7 @@ export interface ThemeRow {
 const themeIncludes = {
   defaultProductLandingTemplate: { select: { id: true, name: true } },
   homePage: { select: { id: true, title: true, slug: true } },
+  cartPage: { select: { id: true, title: true, slug: true } },
   headerMenu: { select: { id: true, title: true, slug: true } },
   footerMenu: { select: { id: true, title: true, slug: true } },
 } as const
@@ -45,6 +50,8 @@ type ThemeWithJoins = {
   defaultProductLandingTemplate: { id: string; name: string } | null
   homePageId: string | null
   homePage: { id: string; title: string; slug: string } | null
+  cartPageId: string | null
+  cartPage: { id: string; title: string; slug: string } | null
   headerMenuId: string | null
   headerMenu: { id: string; title: string; slug: string } | null
   footerMenuId: string | null
@@ -63,6 +70,9 @@ function toThemeRow(t: ThemeWithJoins): ThemeRow {
     homePageId: t.homePageId,
     homePageTitle: t.homePage?.title ?? null,
     homePageSlug: t.homePage?.slug ?? null,
+    cartPageId: t.cartPageId,
+    cartPageTitle: t.cartPage?.title ?? null,
+    cartPageSlug: t.cartPage?.slug ?? null,
     headerMenuId: t.headerMenuId,
     headerMenuTitle: t.headerMenu?.title ?? null,
     headerMenuSlug: t.headerMenu?.slug ?? null,
@@ -132,6 +142,7 @@ export async function updateThemeMetadata(
     description?: string | null
     defaultProductLandingTemplateId?: string | null
     homePageId?: string | null
+    cartPageId?: string | null
     headerMenuId?: string | null
     footerMenuId?: string | null
   },
@@ -148,6 +159,18 @@ export async function updateThemeMetadata(
     if (!page) throw new Error("La página seleccionada no existe.")
     if (!page.active) {
       throw new Error("La página seleccionada está oculta. Activala antes de asignarla como home.")
+    }
+  }
+
+  // Same validation for the cart page.
+  if (input.cartPageId) {
+    const page = await prisma.page.findUnique({
+      where: { id: input.cartPageId },
+      select: { active: true },
+    })
+    if (!page) throw new Error("La página seleccionada no existe.")
+    if (!page.active) {
+      throw new Error("La página seleccionada está oculta. Activala antes de asignarla al carrito.")
     }
   }
 
@@ -184,6 +207,9 @@ export async function updateThemeMetadata(
       ...(input.homePageId !== undefined && {
         homePageId: input.homePageId,
       }),
+      ...(input.cartPageId !== undefined && {
+        cartPageId: input.cartPageId,
+      }),
       ...(input.headerMenuId !== undefined && {
         headerMenuId: input.headerMenuId,
       }),
@@ -200,8 +226,10 @@ export async function updateThemeMetadata(
   if (t.active) {
     updateTag("active-theme")
     updateTag("active-theme-home")
+    updateTag("active-theme-cart")
     updateTag("active-theme-menus")
     revalidatePath("/")
+    revalidatePath("/carrito")
   }
   revalidatePath("/admin/personalizar")
   revalidatePath(`/admin/personalizar/temas/${id}/editar`)
@@ -219,8 +247,10 @@ export async function setActiveTheme(id: string): Promise<void> {
 
   updateTag("active-theme")
   updateTag("active-theme-home")
+  updateTag("active-theme-cart")
   updateTag("active-theme-menus")
   revalidatePath("/")
+  revalidatePath("/carrito")
   revalidatePath("/admin/personalizar")
   revalidatePath("/admin/personalizar/temas")
 }

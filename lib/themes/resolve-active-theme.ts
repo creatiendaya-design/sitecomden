@@ -9,6 +9,7 @@ export interface ResolvedThemeRender {
   id: string
   name: string
   homePageId: string | null
+  cartPageId: string | null
   headerMenuId: string | null
   footerMenuId: string | null
   defaultProductLandingTemplateId: string | null
@@ -61,6 +62,7 @@ const themeRenderSelect = {
   id: true,
   name: true,
   homePageId: true,
+  cartPageId: true,
   headerMenuId: true,
   footerMenuId: true,
   defaultProductLandingTemplateId: true,
