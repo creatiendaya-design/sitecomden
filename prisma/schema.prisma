@@ -1132,6 +1132,41 @@ model PageBlock {
   @@index([pageId, position])
 }
 
+/// A storefront legal/policy document (Términos, Privacidad, Envíos,
+/// Devoluciones, etc.). Modeled after Shopify's Policy concept: a single
+/// rich-text body, separated from the page builder because policies are
+/// long flat text and admins almost never want layout customization here.
+/// Served at /politicas/<slug>.
+model Policy {
+  id             String   @id @default(cuid())
+  /// URL slug used in /politicas/<slug>. Lowercase + dashes only.
+  slug           String   @unique
+  /// Visible H1 + nav title.
+  title          String
+  /// Full rich-text body (HTML produced by the Tiptap editor).
+  body           String   @default("")
+  active         Boolean  @default(true)
+  /// SEO `<title>` override; null falls back to `title`.
+  seoTitle       String?
+  /// SEO meta description override.
+  seoDescription String?
+  /// Open Graph image URL.
+  seoImage       String?
+  /// When true, emit `<meta name="robots" content="noindex,nofollow">`.
+  noIndex        Boolean  @default(false)
+  /// Optional discriminator so the system can auto-link "the privacy policy"
+  /// from checkout/footer regardless of slug. Stored as String (not enum)
+  /// to allow new types without migrations. Examples:
+  ///   TERMS, PRIVACY, SHIPPING, REFUND, OTHER
+  policyType     String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([slug, active])
+  @@index([policyType])
+}
+
 /// A storefront "theme" — the umbrella under which all page templates
 /// (home, cart, default product landing, static pages, …) eventually live.
 /// Plan 4 only wires `defaultProductLandingTemplateId`; the other sections
