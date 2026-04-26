@@ -7,6 +7,7 @@ import {
   Pencil,
   CheckCircle2,
   Store,
+  Eye,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
@@ -105,15 +107,26 @@ export function ThemeListGrid({ initialThemes }: Props) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <a
+                        href={`/api/admin/themes/${theme.id}/preview`}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        <Eye className="mr-2 h-3.5 w-3.5" />
+                        Vista previa
+                      </a>
+                    </DropdownMenuItem>
                     {!theme.active && (
                       <DropdownMenuItem
                         onClick={() => handleActivate(theme)}
                         disabled={pendingId === theme.id}
                       >
                         <CheckCircle2 className="mr-2 h-3.5 w-3.5" />
-                        Activar
+                        Activar para todos
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() =>
                         router.push(
