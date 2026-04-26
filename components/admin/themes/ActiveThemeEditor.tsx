@@ -21,15 +21,18 @@ import { toast } from "sonner"
 import { setActiveTheme, type ThemeRow } from "@/actions/themes"
 import type { TemplateRow } from "@/actions/landing-templates"
 import type { PageRow } from "@/actions/pages"
+import type { MenuRow } from "@/actions/menus"
 import { ThemeSectionList } from "./ThemeSectionList"
 import { ThemeProductDefaultPicker } from "./ThemeProductDefaultPicker"
 import { ThemeHomePagePicker } from "./ThemeHomePagePicker"
+import { ThemeMenuPicker } from "./ThemeMenuPicker"
 
 interface Props {
   activeTheme: ThemeRow | null
   allThemes: ThemeRow[]
   landingTemplates: TemplateRow[]
   pages: PageRow[]
+  menus: MenuRow[]
 }
 
 export function ActiveThemeEditor({
@@ -37,10 +40,12 @@ export function ActiveThemeEditor({
   allThemes,
   landingTemplates,
   pages,
+  menus,
 }: Props) {
   const router = useRouter()
   const [showProductDefault, setShowProductDefault] = useState(false)
   const [showHomePage, setShowHomePage] = useState(false)
+  const [showHeaderFooter, setShowHeaderFooter] = useState(false)
   const [pendingActivate, startActivateTransition] = useTransition()
 
   // No themes at all — defensive fallback. Themes are seeded by developers
@@ -160,11 +165,11 @@ export function ActiveThemeEditor({
         activeTheme={activeTheme}
         onEditProductDefault={() => setShowProductDefault(true)}
         onEditHomePage={() => setShowHomePage(true)}
+        onEditHeaderFooter={() => setShowHeaderFooter(true)}
       />
 
       <p className="mt-6 text-[11px] text-muted-foreground text-center">
-        Las secciones <strong>Categorías</strong> y <strong>Cart</strong>{" "}
-        llegarán en planes posteriores.
+        La sección <strong>Cart</strong> llegará en un plan posterior.
       </p>
 
       <ThemeProductDefaultPicker
@@ -187,6 +192,19 @@ export function ActiveThemeEditor({
         pages={pages}
         onSaved={() => {
           setShowHomePage(false)
+          router.refresh()
+        }}
+      />
+
+      <ThemeMenuPicker
+        open={showHeaderFooter}
+        onOpenChange={setShowHeaderFooter}
+        themeId={activeTheme.id}
+        currentHeaderMenuId={activeTheme.headerMenuId}
+        currentFooterMenuId={activeTheme.footerMenuId}
+        menus={menus}
+        onSaved={() => {
+          setShowHeaderFooter(false)
           router.refresh()
         }}
       />

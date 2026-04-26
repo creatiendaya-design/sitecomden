@@ -42,8 +42,7 @@ const SECTIONS: SectionDef[] = [
     label: "Categorías",
     description: "Listado de productos por categoría",
     icon: LayoutGrid,
-    status: "coming-soon",
-    comingPlan: "Plan 7",
+    status: "active",
   },
   {
     key: "pages",
@@ -58,7 +57,6 @@ const SECTIONS: SectionDef[] = [
     description: "Carrito de compras",
     icon: ShoppingCart,
     status: "coming-soon",
-    comingPlan: "Plan 8",
   },
   {
     key: "header-footer",
@@ -73,12 +71,14 @@ interface Props {
   activeTheme: ThemeRow
   onEditProductDefault: () => void
   onEditHomePage: () => void
+  onEditHeaderFooter: () => void
 }
 
 export function ThemeSectionList({
   activeTheme,
   onEditProductDefault,
   onEditHomePage,
+  onEditHeaderFooter,
 }: Props) {
   const router = useRouter()
   return (
@@ -87,6 +87,7 @@ export function ThemeSectionList({
         const Icon = section.icon
         const isProduct = section.key === "product"
         const isHome = section.key === "home"
+        const isHeaderFooter = section.key === "header-footer"
         const isComingSoon = section.status === "coming-soon"
         const productSummary = isProduct
           ? activeTheme.defaultProductLandingTemplateName ??
@@ -94,6 +95,9 @@ export function ThemeSectionList({
           : null
         const homeSummary = isHome
           ? activeTheme.homePageTitle ?? "Home por defecto (layout incorporado)"
+          : null
+        const headerFooterSummary = isHeaderFooter
+          ? `Header: ${activeTheme.headerMenuTitle ?? "main (default)"} · Footer: ${activeTheme.footerMenuTitle ?? "footer (default)"}`
           : null
 
         return (
@@ -110,9 +114,11 @@ export function ThemeSectionList({
                     ? onEditHomePage
                     : section.key === "pages"
                       ? () => router.push("/admin/paginas")
-                      : section.key === "header-footer"
-                        ? () => router.push("/admin/menus")
-                        : undefined
+                      : section.key === "collections"
+                        ? () => router.push("/admin/categorias")
+                        : section.key === "header-footer"
+                          ? onEditHeaderFooter
+                          : undefined
             }
             className={cn(
               "group flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors",
@@ -154,6 +160,11 @@ export function ThemeSectionList({
                 <p className="text-xs font-medium mt-1">
                   Página actual:{" "}
                   <span className="text-primary">{homeSummary}</span>
+                </p>
+              )}
+              {headerFooterSummary && (
+                <p className="text-xs font-medium mt-1 truncate">
+                  <span className="text-primary">{headerFooterSummary}</span>
                 </p>
               )}
             </div>
