@@ -4,6 +4,7 @@ import LandingBlockRenderer from "@/components/shop/templates/blocks/LandingBloc
 import type { LandingBlock } from "@/lib/types/landing-blocks"
 import { isReservedSlug } from "@/lib/pages/reserved-slugs"
 import { getActiveThemeHome } from "@/lib/themes/get-active-theme-home"
+import { getActiveThemeCart } from "@/lib/themes/get-active-theme-cart"
 
 interface DynamicPageParams {
   params: Promise<{ slug: string }>
@@ -12,11 +13,16 @@ interface DynamicPageParams {
 export async function generateMetadata({ params }: DynamicPageParams) {
   const { slug } = await params
   if (isReservedSlug(slug)) return {}
-  // The page assigned as the active theme's home is canonically served at "/"
-  // (Plan 6). The route handler redirects there; emit empty metadata so the
-  // SEO meta from the visit at "/<slug>" never gets indexed.
-  const themeHome = await getActiveThemeHome()
+  // Pages assigned as the active theme's home (Plan 6) or cart (Plan 10)
+  // are canonically served at "/" and "/carrito" respectively. The route
+  // handler redirects there; emit empty metadata so the SEO meta from the
+  // visit at "/<slug>" never gets indexed.
+  const [themeHome, themeCart] = await Promise.all([
+    getActiveThemeHome(),
+    getActiveThemeCart(),
+  ])
   if (themeHome && themeHome.slug === slug) return {}
+  if (themeCart && themeCart.slug === slug) return {}
   const page = await prisma.page.findUnique({
     where: { slug, active: true },
     select: {
@@ -57,10 +63,16 @@ export default async function DynamicPage({ params }: DynamicPageParams) {
   const { slug } = await params
   if (isReservedSlug(slug)) notFound()
 
-  // Redirect to "/" when this slug is the active theme's home — keeps a
-  // single canonical URL for the home page.
-  const themeHome = await getActiveThemeHome()
+  // Redirect to canonical URLs when this slug matches a theme-managed page:
+  //   home → /
+  //   cart → /carrito
+  // Keeps a single URL per surface for SEO + bookmark consistency.
+  const [themeHome, themeCart] = await Promise.all([
+    getActiveThemeHome(),
+    getActiveThemeCart(),
+  ])
   if (themeHome && themeHome.slug === slug) redirect("/")
+  if (themeCart && themeCart.slug === slug) redirect("/carrito")
 
   const page = await prisma.page.findUnique({
     where: { slug, active: true },
