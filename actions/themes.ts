@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
+import type { ThemeTokens } from "@/lib/themes/tokens"
 
 export interface ThemeRow {
   id: string
@@ -30,6 +31,9 @@ export interface ThemeRow {
   footerMenuId: string | null
   footerMenuTitle: string | null
   footerMenuSlug: string | null
+  /** Visual design tokens (Plan 11). May be partial or empty {}; consumers
+   *  call `resolveTokens()` to merge with system defaults. */
+  tokens: ThemeTokens
   updatedAt: Date
 }
 
@@ -56,6 +60,7 @@ type ThemeWithJoins = {
   headerMenu: { id: string; title: string; slug: string } | null
   footerMenuId: string | null
   footerMenu: { id: string; title: string; slug: string } | null
+  tokens: unknown
   updatedAt: Date
 }
 
@@ -79,6 +84,7 @@ function toThemeRow(t: ThemeWithJoins): ThemeRow {
     footerMenuId: t.footerMenuId,
     footerMenuTitle: t.footerMenu?.title ?? null,
     footerMenuSlug: t.footerMenu?.slug ?? null,
+    tokens: (t.tokens as ThemeTokens) ?? {},
     updatedAt: t.updatedAt,
   }
 }
@@ -145,6 +151,7 @@ export async function updateThemeMetadata(
     cartPageId?: string | null
     headerMenuId?: string | null
     footerMenuId?: string | null
+    tokens?: ThemeTokens
   },
 ): Promise<void> {
   await protectRoute("themes:update")
@@ -216,6 +223,9 @@ export async function updateThemeMetadata(
       ...(input.footerMenuId !== undefined && {
         footerMenuId: input.footerMenuId,
       }),
+      ...(input.tokens !== undefined && {
+        tokens: input.tokens as object,
+      }),
     },
     select: { active: true },
   })
@@ -228,6 +238,7 @@ export async function updateThemeMetadata(
     updateTag("active-theme-home")
     updateTag("active-theme-cart")
     updateTag("active-theme-menus")
+    updateTag("active-theme-tokens")
     revalidatePath("/")
     revalidatePath("/carrito")
   }
