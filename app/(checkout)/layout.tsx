@@ -7,6 +7,8 @@ import { getActivePixels } from "@/actions/tracking-pixels";
 import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
 import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
 import Script from "next/script";
+import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme";
+import { getThemesHash } from "@/lib/themes/get-themes-hash";
 
 export default async function CheckoutLayout({
   children,
@@ -18,6 +20,14 @@ export default async function CheckoutLayout({
 
   // ✅ Obtener píxeles activos
   const { pixels } = await getActivePixels();
+
+  // Plan 11: theme tokens — checkout inherits the same brand identity as
+  // the storefront so the buy flow stays visually consistent.
+  const [theme, themesHash] = await Promise.all([
+    resolveActiveTheme(),
+    getThemesHash(),
+  ]);
+  const themeClass = theme ? `theme-${theme.id}` : undefined;
 
   // Structured Data para la organización
   const organizationSchema = {
@@ -37,6 +47,9 @@ export default async function CheckoutLayout({
 
   return (
     <>
+      {/* Plan 11: shared theme tokens stylesheet (same hash & cache as the
+          storefront layout). */}
+      <link rel="stylesheet" href={`/api/themes/tokens.css?h=${themesHash}`} />
       {/* Structured Data de Organización */}
       <script
         type="application/ld+json"
@@ -54,8 +67,8 @@ export default async function CheckoutLayout({
         strategy="lazyOnload"
         nonce={nonce}
       />
-      
-      <div className="flex min-h-screen flex-col">
+
+      <div className={`flex min-h-screen flex-col${themeClass ? ` ${themeClass}` : ""}`}>
         <CheckoutHeader />
         <main className="flex-1 bg-slate-50/50">{children}</main>
         <CheckoutFooter />

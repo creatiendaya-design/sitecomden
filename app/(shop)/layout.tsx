@@ -6,6 +6,8 @@ import ThemePreviewBanner from "@/components/shop/ThemePreviewBanner";
 import { getActivePixels } from "@/actions/tracking-pixels";
 import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
 import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
+import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme";
+import { getThemesHash } from "@/lib/themes/get-themes-hash";
 export default async function ShopLayout({
   children,
 }: {
@@ -13,6 +15,15 @@ export default async function ShopLayout({
 }) {
   const settings = await getSiteSettings();
   const nonce = await getCspNonce();
+  // Plan 11: pull the active/preview theme + tokens-stylesheet hash so we
+  // can scope storefront rendering with `.theme-<id>` and load the right
+  // CSS file. The hash is derived from MAX(theme.updatedAt) + active id so
+  // the URL only changes when an admin edits or switches themes.
+  const [theme, themesHash] = await Promise.all([
+    resolveActiveTheme(),
+    getThemesHash(),
+  ]);
+  const themeClass = theme ? `theme-${theme.id}` : undefined;
 
   // Structured Data para la organización
   const organizationSchema = {
@@ -44,6 +55,10 @@ export default async function ShopLayout({
  const { pixels } = await getActivePixels();
   return (
     <>
+      {/* Plan 11: theme tokens stylesheet. URL changes (?h=...) when any
+          theme is edited so browsers/CDNs hit the immutable cache the rest
+          of the time. Scoped via the .theme-<id> wrapper below. */}
+      <link rel="stylesheet" href={`/api/themes/tokens.css?h=${themesHash}`} />
      <ConsentAwarePixels pixels={pixels} nonce={nonce} />
       <CookieConsentBanner />
       {/* Structured Data de Organización */}
@@ -52,9 +67,10 @@ export default async function ShopLayout({
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
-      
-      {/* Header y Footer directo - SIN LayoutWrapper */}
-      <div className="flex min-h-screen flex-col">
+
+      {/* Theme scope: every storefront rule that uses var(--theme-*) lives
+          under this wrapper, so admin pages never inherit storefront tokens. */}
+      <div className={`flex min-h-screen flex-col${themeClass ? ` ${themeClass}` : ""}`}>
         <ThemePreviewBanner />
         <Header />
         <main className="flex-1">{children}</main>
