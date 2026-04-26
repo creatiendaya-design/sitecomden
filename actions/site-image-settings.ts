@@ -1,6 +1,7 @@
 "use server";
 
 import { put } from "@vercel/blob";
+import { updateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export type SiteImageSettings = {
@@ -62,12 +63,16 @@ export async function uploadSiteImage(formData: FormData) {
         key: settingKey,
         value: { url: blob.url },
         category: imageType === "ogImage" ? "seo" : "general", // ✅ Categoría correcta
-        description: 
-          imageType === "logo" ? "Logo del sitio" : 
+        description:
+          imageType === "logo" ? "Logo del sitio" :
           imageType === "favicon" ? "Favicon del sitio" :
           "Imagen Open Graph", // ✅ Agregado
       },
     });
+
+    // Plan 12: bust the cached site settings so the new logo/favicon/og
+    // image surfaces on the next storefront request.
+    updateTag("site-settings");
 
     return {
       success: true,

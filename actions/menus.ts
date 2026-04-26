@@ -197,6 +197,10 @@ export async function updateMenuMetadata(
 
   if (previous?.slug) updateTag(`menu:${previous.slug}`)
   if (nextSlug && nextSlug !== previous?.slug) updateTag(`menu:${nextSlug}`)
+  // Plan 12: also bust the per-id cache (used when a theme references the
+  // menu by id) and the umbrella tag the storefront uses.
+  updateTag(`menu-id:${id}`)
+  updateTag("active-theme-menus")
   revalidatePath("/admin/menus")
   revalidatePath(`/admin/menus/${id}`)
 }
@@ -307,6 +311,10 @@ export async function saveMenuItems(
   })
 
   updateTag(`menu:${menu.slug}`)
+  // Plan 12: items changed → both per-slug and per-id caches need busting,
+  // plus the umbrella tag the storefront uses.
+  updateTag(`menu-id:${menuId}`)
+  updateTag("active-theme-menus")
   revalidatePath(`/admin/menus/${menuId}`)
   return { success: true }
 }
@@ -320,6 +328,8 @@ export async function deleteMenu(id: string): Promise<void> {
   if (!m) return
   await prisma.menu.delete({ where: { id } })
   updateTag(`menu:${m.slug}`)
+  updateTag(`menu-id:${id}`)
+  updateTag("active-theme-menus")
   revalidatePath("/admin/menus")
 }
 

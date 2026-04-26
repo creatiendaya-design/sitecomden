@@ -245,6 +245,9 @@ export async function updatePageMetadata(
 
   if (previous?.slug) updateTag(`page:${previous.slug}`)
   if (nextSlug && nextSlug !== previous?.slug) updateTag(`page:${nextSlug}`)
+  // Plan 12: home/cart resolvers cache page-with-blocks reads by id, so
+  // metadata edits must bust the per-id cache too.
+  updateTag(`page-blocks:${id}`)
   revalidatePath("/admin/paginas")
   revalidatePath(`/admin/paginas/${id}`)
 }
@@ -312,6 +315,8 @@ export async function savePageBlocks(
   })
 
   updateTag(`page:${page.slug}`)
+  // Plan 12: per-id cache used by home/cart resolvers must also be busted.
+  updateTag(`page-blocks:${pageId}`)
   revalidatePath(`/admin/paginas/${pageId}`)
   return { success: true }
 }
@@ -325,6 +330,7 @@ export async function deletePage(id: string): Promise<void> {
   if (!p) return
   await prisma.page.delete({ where: { id } })
   updateTag(`page:${p.slug}`)
+  updateTag(`page-blocks:${id}`)
   revalidatePath("/admin/paginas")
 }
 

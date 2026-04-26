@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { updateTag } from "next/cache";
 import { requirePermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -70,6 +71,10 @@ export async function POST(request: Request) {
       });
 
     await Promise.all(updates);
+
+    // Plan 12: invalidate the cached getSiteSettings() so storefront layouts
+    // see the new values on the next request.
+    updateTag("site-settings");
 
     return NextResponse.json({ success: true });
   } catch (error) {
