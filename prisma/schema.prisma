@@ -1102,6 +1102,10 @@ model Menu {
   description String?
   active      Boolean    @default(true)
   items       MenuItem[]
+  /** Themes that point to this menu as their storefront header (Plan 9). */
+  themesUsingAsHeader Theme[] @relation("ThemeHeaderMenu")
+  /** Themes that point to this menu as their storefront footer (Plan 9). */
+  themesUsingAsFooter Theme[] @relation("ThemeFooterMenu")
   createdBy   String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -1209,6 +1213,13 @@ model Theme {
   /// Null = fall back to the legacy hardcoded home layout (Plan 6).
   homePageId                      String?
   homePage                        Page?            @relation(fields: [homePageId], references: [id], onDelete: SetNull)
+  /// Menu rendered in the storefront header. Null = fetch by slug "main"
+  /// (Plan 9 fallback for legacy compatibility).
+  headerMenuId                    String?
+  headerMenu                      Menu?            @relation("ThemeHeaderMenu", fields: [headerMenuId], references: [id], onDelete: SetNull)
+  /// Menu rendered in the storefront footer. Null = fetch by slug "footer".
+  footerMenuId                    String?
+  footerMenu                      Menu?            @relation("ThemeFooterMenu", fields: [footerMenuId], references: [id], onDelete: SetNull)
   createdBy                       String?
   createdAt                       DateTime @default(now())
   updatedAt                       DateTime @updatedAt
