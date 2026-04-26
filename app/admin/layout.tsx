@@ -26,7 +26,8 @@ import {
   Shield,
   Users,
   Asterisk,
-  LayoutTemplate
+  LayoutTemplate,
+  ScrollText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -128,6 +129,11 @@ function AdminLayoutInner({
       href: "/admin/paginas",
       icon: FileText,
       label: "Páginas",
+    },
+    {
+      href: "/admin/politicas",
+      icon: ScrollText,
+      label: "Políticas",
     },
     {
       href: "/admin/menus",
