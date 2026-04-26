@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   resolveTokens,
@@ -14,6 +15,28 @@ export interface ThemesCssBundle {
 }
 
 /**
+ * Plan 12 perf: tags `active-theme-tokens` (bumped on token edits) and
+ * `active-theme` (bumped on theme switch). Single in-memory cache key so
+ * every storefront request hits memory, not Postgres, until an admin edit
+ * invalidates it. The hash returned is also embedded in the route URL,
+ * giving us long-tail browser/CDN cache on top of this server cache.
+ */
+const fetchThemesForCss = unstable_cache(
+  () =>
+    prisma.theme.findMany({
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        active: true,
+        tokens: true,
+        updatedAt: true,
+      },
+    }),
+  ["themes-for-css"],
+  { tags: ["active-theme-tokens", "active-theme"] },
+)
+
+/**
  * Generates the storefront's themes stylesheet — a single CSS body with
  * one rule per theme keyed by `.theme-<slug>` plus a `:root` fallback that
  * uses the currently-active theme's tokens. The storefront layout sets
@@ -26,15 +49,7 @@ export interface ThemesCssBundle {
 export async function getThemesCssBundle(): Promise<ThemesCssBundle> {
   // Pull all themes + their tokens. Each theme uses its own id as the
   // class scope so even non-active themes can be previewed via the cookie.
-  const themes = await prisma.theme.findMany({
-    orderBy: { id: "asc" },
-    select: {
-      id: true,
-      active: true,
-      tokens: true,
-      updatedAt: true,
-    },
-  })
+  const themes = await fetchThemesForCss()
 
   if (themes.length === 0) {
     // No themes installed yet. Tailwind uses inline fallbacks

@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export interface SiteSettings {
@@ -64,9 +65,20 @@ function extractSettingValue(value: any): any {
 
 /**
  * Obtiene todas las configuraciones del sitio
- * Si no existen en la BD, las crea automáticamente
+ * Si no existen en la BD, las crea automáticamente.
+ *
+ * Plan 12 perf: wrapped with unstable_cache + tag `site-settings`. Every
+ * storefront layout calls this 2-3 times per render; without caching it
+ * was the third-noisiest fetcher behind theme + menus. Mutations (admin
+ * settings save) must call `updateTag("site-settings")` to invalidate.
  */
-export async function getSiteSettings(): Promise<SiteSettings> {
+export const getSiteSettings = unstable_cache(
+  _getSiteSettings,
+  ["site-settings"],
+  { tags: ["site-settings"] },
+);
+
+async function _getSiteSettings(): Promise<SiteSettings> {
   try {
     const settings = await prisma.setting.findMany({
       where: {
@@ -83,7 +95,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     if (!settings || settings.length === 0) {
       console.log('🔧 No settings found, creating defaults...');
       await createDefaultSettings();
-      
+
       // Volver a consultar
       const newSettings = await prisma.setting.findMany({
         where: {
