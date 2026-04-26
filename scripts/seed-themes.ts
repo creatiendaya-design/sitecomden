@@ -19,6 +19,10 @@ interface SeedTheme {
    *  If the named template doesn't exist, the theme is still created without
    *  a default — the admin can pick one from the editor. */
   defaultProductLandingTemplateName?: string
+  /** Visual design tokens (Plan 11). Optional — empty {} means "use system
+   *  defaults", which match the existing look. Override fields here when a
+   *  theme should ship with a distinctive identity out of the box. */
+  tokens?: object
 }
 
 const THEMES: SeedTheme[] = [
@@ -27,6 +31,9 @@ const THEMES: SeedTheme[] = [
     description:
       "Tema inicial de la tienda. Editalo para personalizar el diseño global.",
     defaultProductLandingTemplateName: "Producto simple",
+    // Empty tokens — falls back to the conservative defaults defined in
+    // lib/themes/tokens.ts so adopting Plan 11 doesn't change the look.
+    tokens: {},
   },
 ]
 
@@ -64,6 +71,7 @@ async function main() {
         // The first seeded theme becomes active automatically.
         active: i === 0,
         defaultProductLandingTemplateId,
+        tokens: (t.tokens ?? {}) as object,
       },
     })
     console.log(
