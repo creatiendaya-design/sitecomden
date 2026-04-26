@@ -10,7 +10,8 @@ export type LandingBlockType =
   | "RICH_TEXT"
   | "FAQ"
   | "IMAGE_TEXT"
-  | "RELATED_PRODUCTS";
+  | "RELATED_PRODUCTS"
+  | "PRODUCT_GRID";
 
 export interface HeroBlockContent {
   title: string;
@@ -128,6 +129,14 @@ export interface RelatedProductsBlockContent {
   showAddToCart: boolean;
 }
 
+export interface ProductGridBlockContent {
+  title?: string;
+  columnsDesktop: 2 | 3 | 4 | 5;
+  columnsMobile: 1 | 2;
+  maxItems: number;
+  sort: "manual" | "price_asc" | "price_desc" | "newest" | "featured";
+}
+
 export type BlockContent =
   | HeroBlockContent
   | BenefitsBlockContent
@@ -140,7 +149,8 @@ export type BlockContent =
   | RichTextBlockContent
   | FaqBlockContent
   | ImageTextBlockContent
-  | RelatedProductsBlockContent;
+  | RelatedProductsBlockContent
+  | ProductGridBlockContent;
 
 export interface LandingBlock {
   id: string;
@@ -165,6 +175,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   FAQ: "Preguntas frecuentes",
   IMAGE_TEXT: "Imagen + Texto",
   RELATED_PRODUCTS: "Productos relacionados",
+  PRODUCT_GRID: "Grid de productos",
 };
 
 export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
@@ -187,5 +198,12 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
     showPrice: true,
     showRating: false,
     showAddToCart: false,
+  },
+  PRODUCT_GRID: {
+    title: "",
+    columnsDesktop: 4,
+    columnsMobile: 2,
+    maxItems: 12,
+    sort: "manual",
   },
 };

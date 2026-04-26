@@ -23,6 +23,7 @@ const BLOCK_ICONS: Record<LandingBlockType, string> = {
   FAQ: "❓",
   IMAGE_TEXT: "🖼️",
   RELATED_PRODUCTS: "🛒",
+  PRODUCT_GRID: "🛍️",
 };
 
 interface AddBlockMenuProps {

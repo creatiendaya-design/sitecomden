@@ -44,14 +44,24 @@ export function getAllBlockDefinitions(): BlockDefinition[] {
 }
 
 /**
- * Returns block definitions filterable by scope. Use this in the
- * AddBlockPanel: in a product context, scope="product" blocks are shown;
- * in a template context (Plan 3), only universal blocks are shown.
+ * Builder scope drives which blocks the AddBlockPanel offers:
+ *   - "product":  universal + product-only blocks (RELATED_PRODUCTS, etc.)
+ *   - "page":     universal-only (template editor + page/home/cart builders)
+ *   - "category": universal + category-only blocks (PRODUCT_GRID, etc.)
  */
-export function getBlockDefinitionsForScope(scope: "product" | "page"): BlockDefinition[] {
+export type BuilderRegistryScope = "product" | "page" | "category"
+
+/**
+ * Returns block definitions filterable by builder scope. Each builder type
+ * sees its allowed BlockScope values. Universal blocks always appear.
+ */
+export function getBlockDefinitionsForScope(scope: BuilderRegistryScope): BlockDefinition[] {
   return getAllBlockDefinitions().filter((def) => {
-    if (scope === "page") return def.scope === "universal"
-    return true
+    if (def.scope === "universal") return true
+    if (scope === "product") return def.scope === "product"
+    if (scope === "category") return def.scope === "category"
+    // "page" sees universal only.
+    return false
   })
 }
 
@@ -59,7 +69,7 @@ export function getBlockDefinitionsForScope(scope: "product" | "page"): BlockDef
  * Group block definitions by category for display in the Add panel.
  */
 export function getBlockDefinitionsByCategory(
-  scope: "product" | "page"
+  scope: BuilderRegistryScope
 ): Record<BlockCategory, BlockDefinition[]> {
   const result: Record<string, BlockDefinition[]> = {
     content: [],

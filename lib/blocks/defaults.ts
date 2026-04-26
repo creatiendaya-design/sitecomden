@@ -169,4 +169,16 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
     style: { ...DEFAULT_STYLE },
     media: {},
   },
+
+  PRODUCT_GRID: {
+    data: {
+      title: "",
+      columnsDesktop: 4,
+      columnsMobile: 2,
+      maxItems: 12,
+      sort: "manual",
+    },
+    style: { ...DEFAULT_STYLE, paddingY: "md" },
+    media: {},
+  },
 }

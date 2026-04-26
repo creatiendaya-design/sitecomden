@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import type { BlockInstance, LandingBlockType, BlockContentV2, Device } from "@/lib/blocks/types"
 
-export type BuilderScope = "product" | "page"
+export type BuilderScope = "product" | "page" | "category"
 
 export interface ProductContext {
   type: "product"

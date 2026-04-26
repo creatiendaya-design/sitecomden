@@ -83,10 +83,11 @@ export type GradientDirection =
  * Block scope — used by the registry to filter which blocks can be added
  * in a given builder context.
  *
- *  - universal: can be added in any context (product, page, template)
- *  - product:   can only be added when BuilderContext is a product
+ *  - universal: can be added in any context (product, page, template, category, cart)
+ *  - product:   only when BuilderContext is a product (e.g. RELATED_PRODUCTS)
+ *  - category:  only when BuilderContext is a category (e.g. PRODUCT_GRID)
  */
-export type BlockScope = "universal" | "product"
+export type BlockScope = "universal" | "product" | "category"
 
 export type BlockCategory =
   | "content"
