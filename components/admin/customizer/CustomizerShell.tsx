@@ -3,19 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import {
-  ChevronLeft,
-  Eye,
-  Layers,
-  Loader2,
-  Settings,
-} from "lucide-react"
+import { ChevronLeft, Eye, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import {
   ensureCartPageForTheme,
   ensureHomePageForTheme,
-  updateThemeMetadata,
   type ThemeRow,
 } from "@/actions/themes"
 import type { TemplateRow } from "@/actions/landing-templates"
@@ -27,8 +19,7 @@ import {
   type DeviceMode,
 } from "./CustomizerToolbar"
 import { CustomizerPreview } from "./CustomizerPreview"
-import { EmbeddedBlocksEditor } from "./EmbeddedBlocksEditor"
-import { ThemeSettingsPanel } from "./ThemeSettingsPanel"
+import { ZoneList } from "./ZoneList"
 import { RightSidebar } from "@/components/admin/page-builder/RightSidebar/RightSidebar"
 import {
   buildPageTargets,
@@ -37,6 +28,9 @@ import {
 
 interface Props {
   theme: ThemeRow
+  // landingTemplates kept in props for backward compatibility with the
+  // page route, but the picker for it lives outside the customizer now
+  // (theme metadata page) — pending product-section analysis.
   landingTemplates: TemplateRow[]
   pages: PageRow[]
   menus: MenuRow[]
@@ -48,25 +42,19 @@ interface Props {
   initialBlocks: BlockInstance[]
 }
 
-type LeftTab = "blocks" | "settings"
-
 /**
  * Plan 13 — Customizer split-screen shell (Shopify-style).
  *
  * Layout:
- *  - Toolbar (top): page picker, device toggle, Save (theme settings)
- *  - Left column: tabs Bloques / Tema
- *      · Bloques: page-builder LeftSidebar (block list, drag, add) wired
- *        to the active page's blocks via EmbeddedBlocksEditor
- *      · Tema: pickers for Header menu, Footer menu, Producto template
- *  - Center column: storefront iframe with `?theme-preview=<id>` so the
- *    iframe always renders THIS theme regardless of which is active
+ *  - Toolbar (top): page picker, device toggle, Salir
+ *  - Left column: single ZoneList with three zones (Encabezado /
+ *    Plantilla / Pie de página). All settings auto-save — no Save button.
+ *  - Center column: storefront iframe with `?theme-preview=<id>`.
  *  - Right column: page-builder RightSidebar — visible only when a block
- *    is selected (Shopify-style: settings appear when you pick a section)
+ *    is selected (Shopify-style: settings appear when you pick a section).
  */
 export function CustomizerShell({
   theme,
-  landingTemplates,
   pages,
   menus,
   sampleProductSlug,
@@ -79,20 +67,6 @@ export function CustomizerShell({
   const router = useRouter()
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
 
-  // ---------- Theme settings draft (manual save) ----------
-  const [draft, setDraft] = useState({
-    headerMenuId: theme.headerMenuId,
-    footerMenuId: theme.footerMenuId,
-    defaultProductLandingTemplateId: theme.defaultProductLandingTemplateId,
-  })
-  const [pendingSave, setPendingSave] = useState(false)
-
-  const isThemeDirty =
-    draft.headerMenuId !== theme.headerMenuId ||
-    draft.footerMenuId !== theme.footerMenuId ||
-    draft.defaultProductLandingTemplateId !==
-      theme.defaultProductLandingTemplateId
-
   // ---------- Page-type selector ----------
   const targets = useMemo(
     () =>
@@ -100,8 +74,16 @@ export function CustomizerShell({
         pages,
         sampleProductSlug,
         sampleCategorySlug,
+        homePageId: theme.homePageId,
+        cartPageId: theme.cartPageId,
       }),
-    [pages, sampleProductSlug, sampleCategorySlug],
+    [
+      pages,
+      sampleProductSlug,
+      sampleCategorySlug,
+      theme.homePageId,
+      theme.cartPageId,
+    ],
   )
   const currentTarget =
     findTarget(targets, targetKey) ?? targets[0] ?? null
@@ -126,38 +108,17 @@ export function CustomizerShell({
     [router, theme.id],
   )
 
-  // ---------- Save flow (theme settings only — blocks autosave) ----------
-  const handleSave = useCallback(async () => {
-    if (pendingSave || !isThemeDirty) return
-    setPendingSave(true)
-    try {
-      await updateThemeMetadata(theme.id, draft)
-      toast.success("Tema guardado")
-      iframeRef.current?.contentWindow?.location.reload()
-      router.refresh()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar")
-    } finally {
-      setPendingSave(false)
-    }
-  }, [draft, isThemeDirty, pendingSave, router, theme.id])
+  // Iframe refresh after any save (blocks autosave or settings autosave).
+  const handleAnySaved = useCallback(() => {
+    iframeRef.current?.contentWindow?.location.reload()
+    router.refresh()
+  }, [router])
 
   const handleExit = useCallback(() => {
-    if (isThemeDirty) {
-      const confirmed = window.confirm(
-        "Tenés cambios del tema sin guardar. ¿Salir igual?",
-      )
-      if (!confirmed) return
-    }
     router.push("/admin/personalizar/temas")
-  }, [isThemeDirty, router])
+  }, [router])
 
-  // Iframe refresh on block autosave
-  const handleBlocksSaved = useCallback(() => {
-    iframeRef.current?.contentWindow?.location.reload()
-  }, [])
-
-  // ---------- Auto-create home/cart page when admin lands on an empty target ----------
+  // ---------- Auto-create home/cart page for empty targets ----------
   const [creatingPage, setCreatingPage] = useState(false)
   const handleCreateMissingPage = useCallback(async () => {
     if (creatingPage) return
@@ -182,9 +143,6 @@ export function CustomizerShell({
     }
   }, [creatingPage, targetKey, theme.id, router])
 
-  // ---------- Left-panel tab ----------
-  const [leftTab, setLeftTab] = useState<LeftTab>("blocks")
-
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
       <CustomizerToolbar
@@ -194,54 +152,39 @@ export function CustomizerShell({
         onTargetChange={handleTargetChange}
         device={device}
         onDeviceChange={setDevice}
-        isDirty={isThemeDirty}
-        pending={pendingSave}
-        onSave={handleSave}
         onExit={handleExit}
       />
 
       <div className="flex flex-1 min-h-0">
-        {/* Left column: tabs + content */}
+        {/* Left column: zones */}
         <div className="w-[340px] shrink-0 flex flex-col bg-card border-r overflow-hidden">
           <CustomizerHeaderRow
             themeName={theme.name}
             onExit={handleExit}
           />
-          <LeftTabs
-            current={leftTab}
-            onChange={setLeftTab}
-            targetLabel={currentTarget?.label ?? "Tienda"}
-          />
 
-          {leftTab === "blocks" && (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              {editablePageId ? (
-                <EmbeddedBlocksEditor
-                  pageId={editablePageId}
-                  initialBlocks={initialBlocks}
-                  onSaved={handleBlocksSaved}
-                />
-              ) : (
-                <BlocksUnavailable
-                  targetKey={targetKey}
-                  targetLabel={currentTarget?.label ?? "esta plantilla"}
-                  onCreate={handleCreateMissingPage}
-                  pending={creatingPage}
-                />
-              )}
-            </div>
-          )}
-
-          {leftTab === "settings" && (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <ThemeSettingsPanel
-                draft={draft}
-                onDraftChange={setDraft}
-                landingTemplates={landingTemplates}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {editablePageId ? (
+              <ZoneList
+                themeId={theme.id}
+                initialHeaderMenuId={theme.headerMenuId}
+                initialFooterMenuId={theme.footerMenuId}
                 menus={menus}
+                editablePageId={editablePageId}
+                initialBlocks={initialBlocks}
+                targetLabel={currentTarget?.label ?? "Plantilla"}
+                onBlocksSaved={handleAnySaved}
+                onSettingsSaved={handleAnySaved}
               />
-            </div>
-          )}
+            ) : (
+              <BlocksUnavailable
+                targetKey={targetKey}
+                targetLabel={currentTarget?.label ?? "esta plantilla"}
+                onCreate={handleCreateMissingPage}
+                pending={creatingPage}
+              />
+            )}
+          </div>
         </div>
 
         {/* Center column: iframe */}
@@ -260,8 +203,8 @@ export function CustomizerShell({
           )}
         </main>
 
-        {/* Right column: block settings (only meaningful in Bloques tab) */}
-        {leftTab === "blocks" && editablePageId && (
+        {/* Right column: block settings (only when a block is selected) */}
+        {editablePageId && (
           <RightSidebar
             context={{
               type: "page",
@@ -300,51 +243,6 @@ function CustomizerHeaderRow({
         <Eye className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="truncate">{themeName}</span>
       </div>
-    </div>
-  )
-}
-
-interface LeftTabsProps {
-  current: LeftTab
-  onChange: (tab: LeftTab) => void
-  targetLabel: string
-}
-
-function LeftTabs({ current, onChange, targetLabel }: LeftTabsProps) {
-  const tabs: { key: LeftTab; label: string; icon: typeof Layers }[] = [
-    { key: "blocks", label: "Bloques", icon: Layers },
-    { key: "settings", label: "Tema", icon: Settings },
-  ]
-  return (
-    <div className="border-b">
-      <div className="flex">
-        {tabs.map((t) => {
-          const Icon = t.icon
-          const active = current === t.key
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => onChange(t.key)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-              aria-pressed={active}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
-      {current === "blocks" && (
-        <div className="px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-t bg-muted/30">
-          Editando: <span className="font-semibold normal-case text-foreground">{targetLabel}</span>
-        </div>
-      )}
     </div>
   )
 }
