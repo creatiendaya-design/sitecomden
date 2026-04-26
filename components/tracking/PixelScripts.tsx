@@ -9,9 +9,10 @@ interface PixelScriptsProps {
     config: any;
     testMode: boolean;
   }>;
+  nonce?: string;
 }
 
-export default function PixelScripts({ pixels }: PixelScriptsProps) {
+export default function PixelScripts({ pixels, nonce }: PixelScriptsProps) {
   return (
     <>
       {pixels.map((pixel) => {
@@ -21,9 +22,9 @@ export default function PixelScripts({ pixels }: PixelScriptsProps) {
           case "TIKTOK":
             return <TikTokPixel key="tt" config={pixel.config} testMode={pixel.testMode} />;
           case "GOOGLE_ADS":
-            return <GoogleAdsPixel key="ga" config={pixel.config} />;
+            return <GoogleAdsPixel key="ga" config={pixel.config} nonce={nonce} />;
           case "GOOGLE_ANALYTICS":
-            return <GoogleAnalyticsPixel key="ga4" config={pixel.config} />;
+            return <GoogleAnalyticsPixel key="ga4" config={pixel.config} nonce={nonce} />;
           default:
             return null;
         }
@@ -151,15 +152,16 @@ function TikTokPixel({ config, testMode }: { config: any; testMode: boolean }) {
 // GOOGLE ADS CONVERSION TRACKING
 // ============================================
 
-function GoogleAdsPixel({ config }: { config: any }) {
+function GoogleAdsPixel({ config, nonce }: { config: any; nonce?: string }) {
   return (
     <>
       <Script
         id="google-ads-script"
         src={`https://www.googletagmanager.com/gtag/js?id=${config.conversionId}`}
         strategy="afterInteractive"
+        nonce={nonce}
       />
-      <Script id="google-ads-init" strategy="afterInteractive">
+      <Script id="google-ads-init" strategy="afterInteractive" nonce={nonce}>
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
@@ -175,15 +177,16 @@ function GoogleAdsPixel({ config }: { config: any }) {
 // GOOGLE ANALYTICS 4
 // ============================================
 
-function GoogleAnalyticsPixel({ config }: { config: any }) {
+function GoogleAnalyticsPixel({ config, nonce }: { config: any; nonce?: string }) {
   return (
     <>
       <Script
         id="google-analytics-script"
         src={`https://www.googletagmanager.com/gtag/js?id=${config.measurementId}`}
         strategy="afterInteractive"
+        nonce={nonce}
       />
-      <Script id="google-analytics-init" strategy="afterInteractive">
+      <Script id="google-analytics-init" strategy="afterInteractive" nonce={nonce}>
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}

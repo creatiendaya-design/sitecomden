@@ -1,4 +1,5 @@
 import { getSiteSettings } from "@/lib/site-settings";
+import { getCspNonce } from "@/lib/csp";
 import Header from "@/components/shop/Header";
 import Footer from "@/components/shop/Footer";
 import ThemePreviewBanner from "@/components/shop/ThemePreviewBanner";
@@ -11,6 +12,7 @@ export default async function ShopLayout({
   children: React.ReactNode;
 }) {
   const settings = await getSiteSettings();
+  const nonce = await getCspNonce();
 
   // Structured Data para la organización
   const organizationSchema = {
@@ -42,11 +44,12 @@ export default async function ShopLayout({
  const { pixels } = await getActivePixels();
   return (
     <>
-     <ConsentAwarePixels pixels={pixels} />
+     <ConsentAwarePixels pixels={pixels} nonce={nonce} />
       <CookieConsentBanner />
       {/* Structured Data de Organización */}
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
       

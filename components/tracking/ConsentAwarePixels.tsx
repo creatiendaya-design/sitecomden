@@ -10,9 +10,10 @@ interface ConsentAwarePixelsProps {
     config: any;
     testMode: boolean;
   }>;
+  nonce?: string;
 }
 
-export default function ConsentAwarePixels({ pixels }: ConsentAwarePixelsProps) {
+export default function ConsentAwarePixels({ pixels, nonce }: ConsentAwarePixelsProps) {
   const [hasConsent, setHasConsent] = useState(false);
 
   useEffect(() => {
@@ -25,5 +26,5 @@ export default function ConsentAwarePixels({ pixels }: ConsentAwarePixelsProps) 
   }, []);
 
   if (!hasConsent || pixels.length === 0) return null;
-  return <PixelScripts pixels={pixels} />;
+  return <PixelScripts pixels={pixels} nonce={nonce} />;
 }

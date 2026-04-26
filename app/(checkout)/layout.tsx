@@ -2,6 +2,7 @@ import CheckoutHeader from "@/components/shop/CheckoutHeader";
 import "@/app/styles/checkout.css";
 import CheckoutFooter from "@/components/shop/CheckoutFooter";
 import { getSiteSettings } from "@/lib/site-settings";
+import { getCspNonce } from "@/lib/csp";
 import { getActivePixels } from "@/actions/tracking-pixels";
 import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
 import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
@@ -13,7 +14,8 @@ export default async function CheckoutLayout({
   children: React.ReactNode;
 }) {
   const settings = await getSiteSettings();
-  
+  const nonce = await getCspNonce();
+
   // ✅ Obtener píxeles activos
   const { pixels } = await getActivePixels();
 
@@ -38,17 +40,19 @@ export default async function CheckoutLayout({
       {/* Structured Data de Organización */}
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
-      
+
       {/* Píxeles de Tracking (solo con consentimiento) */}
-      <ConsentAwarePixels pixels={pixels} />
+      <ConsentAwarePixels pixels={pixels} nonce={nonce} />
       <CookieConsentBanner />
-      
+
       {/* Culqi Script */}
       <Script
         src="https://checkout.culqi.com/js/v4"
         strategy="lazyOnload"
+        nonce={nonce}
       />
       
       <div className="flex min-h-screen flex-col">

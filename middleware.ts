@@ -18,83 +18,95 @@ import type { NextRequest } from 'next/server';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+const NONCE_HEADER = 'x-nonce';
+
 // ========================================
 // FUNCIONES DE SEGURIDAD
 // ========================================
 
 /**
- * Aplica Security Headers a la respuesta
+ * Genera un nonce criptográfico (Edge-compatible) en base64.
  */
-function applySecurityHeaders(response: NextResponse) {
-  const headers = response.headers;
+function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
 
-  // 🔒 Prevenir clickjacking (iframe embedding)
-  headers.set('X-Frame-Options', 'DENY');
+/**
+ * Construye la directiva CSP usando un nonce dinámico + strict-dynamic.
+ * - En producción: sin 'unsafe-inline' / 'unsafe-eval' en script-src.
+ * - En desarrollo: agrega 'unsafe-eval' (Next.js HMR) y 'unsafe-inline' como
+ *   fallback para navegadores que ignoran strict-dynamic.
+ */
+function buildCsp(nonce: string): string {
+  const scriptSrc = [
+    "'self'",
+    `'nonce-${nonce}'`,
+    "'strict-dynamic'",
+    // Fallback para navegadores que no soportan strict-dynamic
+    'https:',
+    "'unsafe-inline'",
+    ...(isProduction ? [] : ["'unsafe-eval'"]),
+  ].join(' ');
 
-  // 🔒 Prevenir MIME type sniffing
-  headers.set('X-Content-Type-Options', 'nosniff');
-
-  // 🔒 Referrer policy (no enviar referrer a otros sitios)
-  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-  // 🔒 XSS Protection (legacy, pero no hace daño)
-  headers.set('X-XSS-Protection', '1; mode=block');
-
-  // 🔒 Permissions Policy (limitar features del browser)
-  headers.set(
-    'Permissions-Policy',
-    [
-      'camera=()',           // No camera
-      'microphone=()',       // No microphone
-      'geolocation=(self)',  // Geolocation solo en mismo origen
-      'interest-cohort=()',  // No FLoC tracking
-    ].join(', ')
-  );
-
-  // 🔒 Content Security Policy (CSP)
-  const cspDirectives = [
+  const directives = [
     "default-src 'self'",
-    
-    // Scripts: permitir inline + eval (Next.js) + Culqi + Vercel + Clerk
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.culqi.com https://*.vercel-insights.com https://*.vercel-analytics.com https://*.clerk.accounts.dev https://*.clerk.com",
-    
-    // Estilos: permitir inline (Tailwind/shadcn)
+    `script-src ${scriptSrc}`,
+
+    // Estilos: Tailwind/shadcn requieren inline. Sin alternativa práctica.
     "style-src 'self' 'unsafe-inline'",
-    
-    // Imágenes: cualquier origen (productos de CDN)
+
+    // Imágenes: CDNs de productos
     "img-src 'self' data: https: blob:",
-    
-    // Fuentes: permitir data URIs
+
+    // Fuentes: data URIs para fonts opcionales
     "font-src 'self' data:",
-    
+
     // Conexiones: APIs necesarias
-    "connect-src 'self' https://api.culqi.com https://*.vercel-insights.com https://*.vercel-analytics.com https://*.vercel.app https://*.clerk.accounts.dev https://*.clerk.com",
-    
-    // Frames: Culqi + Clerk
+    "connect-src 'self' https://api.culqi.com https://*.vercel-insights.com https://*.vercel-analytics.com https://*.vercel.app https://*.clerk.accounts.dev https://*.clerk.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com https://connect.facebook.net https://www.facebook.com",
+
+    // Frames: pasarelas de pago + Clerk
     "frame-src 'self' https://checkout.culqi.com https://*.clerk.accounts.dev https://*.clerk.com",
-    
-    // Media: solo mismo origen
+
     "media-src 'self'",
-    
-    // Object/embed: bloquear
     "object-src 'none'",
-    
-    // Base URI: solo mismo origen
     "base-uri 'self'",
-    
-    // Form action: solo mismo origen
     "form-action 'self'",
-    
-    // Frame ancestors: ninguno (previene embedding)
     "frame-ancestors 'none'",
-    
-    // Upgrade insecure requests en producción
     ...(isProduction ? ['upgrade-insecure-requests'] : []),
   ];
 
-  headers.set('Content-Security-Policy', cspDirectives.join('; '));
+  return directives.join('; ');
+}
 
-  // 🔒 HSTS (HTTPS only) - SOLO EN PRODUCCIÓN
+/**
+ * Aplica Security Headers a la respuesta
+ */
+function applySecurityHeaders(response: NextResponse, nonce: string) {
+  const headers = response.headers;
+
+  headers.set('X-Frame-Options', 'DENY');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  headers.set('X-XSS-Protection', '1; mode=block');
+
+  headers.set(
+    'Permissions-Policy',
+    [
+      'camera=()',
+      'microphone=()',
+      'geolocation=(self)',
+      'interest-cohort=()',
+    ].join(', ')
+  );
+
+  headers.set('Content-Security-Policy', buildCsp(nonce));
+
   if (isProduction) {
     headers.set(
       'Strict-Transport-Security',
@@ -187,7 +199,7 @@ function getClientIp(req: NextRequest): string {
 // LÓGICA DE ADMIN (Tu código original)
 // ========================================
 
-function handleAdminRoutes(req: NextRequest) {
+function handleAdminRoutes(req: NextRequest, requestHeaders: Headers) {
   const { pathname } = req.nextUrl;
 
   // Solo procesar rutas que empiezan con /admin
@@ -197,17 +209,17 @@ function handleAdminRoutes(req: NextRequest) {
 
   // ✅ Rutas públicas de admin (login/register)
   if (pathname.startsWith('/admin-auth/')) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // ✅ Redirect pages (admin/login → admin-auth/login)
   if (pathname === '/admin/login' || pathname === '/admin/register') {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // ✅ Root admin redirect (dejar que page.tsx lo maneje)
   if (pathname === '/admin') {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // ✅ Verificar cookie admin_session para rutas protegidas
@@ -217,7 +229,7 @@ function handleAdminRoutes(req: NextRequest) {
   }
 
   // ⭐ Agregar userId al header para verificación de permisos
-  const response = NextResponse.next();
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-user-id', adminSession.value);
   return response;
 }
@@ -257,7 +269,7 @@ export default clerkMiddleware((auth, req) => {
     });
 
     // TODO: Agregar a SecurityLog en base de datos
-    
+
     return NextResponse.json(
       { error: 'Request blocked' },
       { status: 403 }
@@ -277,22 +289,26 @@ export default clerkMiddleware((auth, req) => {
     );
   }
 
+  // 🔐 Generar nonce único por request y exponerlo a Server Components
+  const nonce = generateNonce();
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set(NONCE_HEADER, nonce);
+
   // ✅ 3. Manejar rutas admin (tu lógica original)
-  const adminResult = handleAdminRoutes(req);
+  const adminResult = handleAdminRoutes(req, requestHeaders);
   if (adminResult) {
-    // Aplicar security headers a la respuesta
-    return applySecurityHeaders(adminResult);
+    return applySecurityHeaders(adminResult, nonce);
   }
 
   // ✅ 4. Rutas públicas de shop (tu lógica original)
   if (isPublicRoute(req)) {
-    const response = NextResponse.next();
-    return applySecurityHeaders(response);
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    return applySecurityHeaders(response, nonce);
   }
 
   // ✅ 5. Otras rutas (como /cuenta)
-  const response = NextResponse.next();
-  return applySecurityHeaders(response);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  return applySecurityHeaders(response, nonce);
 });
 
 export const config = {

@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
 import { Toaster } from "sonner";
 import { getSiteSettings } from "@/lib/site-settings";
+import { getCspNonce } from "@/lib/csp";
 import "./globals.css";
 import "@/app/styles/prose-content.css";
 
@@ -84,13 +85,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = await getCspNonce();
+
   return (
-    <ClerkProvider localization={esES}>
+    <ClerkProvider localization={esES} nonce={nonce}>
       <html lang="es" suppressHydrationWarning>
         <body
           className={`${rubik.variable} ${nunitoSans.variable} ${geistMono.variable} antialiased`}
