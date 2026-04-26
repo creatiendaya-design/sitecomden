@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db"
 import { resolveActiveTheme } from "./resolve-active-theme"
+import { fetchPageWithBlocks } from "@/lib/pages/fetch-page-with-blocks"
 
 export interface ActiveThemeHome {
   pageId: string
@@ -27,35 +27,14 @@ export interface ActiveThemeHome {
  *
  * The storefront route at `/` calls this and falls back to the legacy
  * hardcoded home layout when this returns null, so the system is safe even
- * before any seed runs. Plan 9 made this preview-aware.
+ * before any seed runs. Plan 9 made this preview-aware. Plan 12 caches
+ * the inner fetchPageWithBlocks() so repeat visits skip the DB.
  */
 export async function getActiveThemeHome(): Promise<ActiveThemeHome | null> {
   const theme = await resolveActiveTheme()
   if (!theme?.homePageId) return null
 
-  const page = await prisma.page.findUnique({
-    where: { id: theme.homePageId },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      description: true,
-      seoTitle: true,
-      seoDescription: true,
-      seoImage: true,
-      noIndex: true,
-      active: true,
-      pageBlocks: {
-        orderBy: { position: "asc" },
-        select: {
-          id: true,
-          type: true,
-          position: true,
-          content: true,
-        },
-      },
-    },
-  })
+  const page = await fetchPageWithBlocks(theme.homePageId)
 
   if (!page || !page.active) return null
 
@@ -68,11 +47,6 @@ export async function getActiveThemeHome(): Promise<ActiveThemeHome | null> {
     seoDescription: page.seoDescription,
     seoImage: page.seoImage,
     noIndex: page.noIndex,
-    blocks: page.pageBlocks.map((b) => ({
-      id: b.id,
-      type: b.type,
-      position: b.position,
-      content: b.content,
-    })),
+    blocks: page.pageBlocks,
   }
 }

@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db"
 import { resolveActiveTheme } from "./resolve-active-theme"
+import { fetchPageWithBlocks } from "@/lib/pages/fetch-page-with-blocks"
 
 export interface ActiveThemeCart {
   pageId: string
@@ -22,30 +22,13 @@ export interface ActiveThemeCart {
  * The /carrito route renders these blocks ABOVE the cart UI; falling back to
  * null means the page renders just the cart UI as before (Plan 10).
  *
- * Preview-aware via resolveActiveTheme.
+ * Preview-aware via resolveActiveTheme. Plan 12 caches the page fetch.
  */
 export async function getActiveThemeCart(): Promise<ActiveThemeCart | null> {
   const theme = await resolveActiveTheme()
   if (!theme?.cartPageId) return null
 
-  const page = await prisma.page.findUnique({
-    where: { id: theme.cartPageId },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      active: true,
-      pageBlocks: {
-        orderBy: { position: "asc" },
-        select: {
-          id: true,
-          type: true,
-          position: true,
-          content: true,
-        },
-      },
-    },
-  })
+  const page = await fetchPageWithBlocks(theme.cartPageId)
 
   if (!page || !page.active) return null
 
@@ -53,11 +36,6 @@ export async function getActiveThemeCart(): Promise<ActiveThemeCart | null> {
     pageId: page.id,
     slug: page.slug,
     title: page.title,
-    blocks: page.pageBlocks.map((b) => ({
-      id: b.id,
-      type: b.type,
-      position: b.position,
-      content: b.content,
-    })),
+    blocks: page.pageBlocks,
   }
 }
