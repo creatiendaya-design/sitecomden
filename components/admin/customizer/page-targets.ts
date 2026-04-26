@@ -35,12 +35,20 @@ interface BuildArgs {
   sampleProductSlug?: string | null
   /** Sample category slug (lowest order). Optional. */
   sampleCategorySlug?: string | null
+  /** Page id bound to the active theme as Home — excluded from the
+   *  "Páginas" submenu so it doesn't appear twice (already in
+   *  "Plantillas" as "Página de inicio"). */
+  homePageId?: string | null
+  /** Same idea for the Cart page. */
+  cartPageId?: string | null
 }
 
 export function buildPageTargets({
   pages,
   sampleProductSlug,
   sampleCategorySlug,
+  homePageId,
+  cartPageId,
 }: BuildArgs): PageTarget[] {
   const targets: PageTarget[] = [
     {
@@ -84,8 +92,15 @@ export function buildPageTargets({
   }
 
   // One entry per active Page so admin can pick a specific static page
-  // from the submenu (Nosotros, FAQ, etc.).
+  // from the submenu (Nosotros, FAQ, etc.). Pages bound to the theme as
+  // Home or Cart are skipped — they already appear in "Plantillas" as
+  // "Página de inicio" / "Carrito" with their canonical paths (/, /carrito).
+  // Showing them twice was confusing (Shopify-style customizers don't).
+  const reservedPageIds = new Set(
+    [homePageId, cartPageId].filter((id): id is string => Boolean(id)),
+  )
   for (const p of pages.filter((pg) => pg.active)) {
+    if (reservedPageIds.has(p.id)) continue
     targets.push({
       key: `page:${p.id}`,
       label: p.title,
