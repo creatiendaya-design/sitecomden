@@ -46,9 +46,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const hasBlocks = blocks.length > 0;
   const firstBlockIsHero = blocks[0]?.type === "HERO";
   const showAutoHeader = !hasBlocks || !firstBlockIsHero;
-  // hideProductGrid only takes effect when the admin has actually authored
-  // blocks — otherwise the page would be empty.
-  const showProductGrid = !(category.hideProductGrid && hasBlocks);
+  // Plan 7.1: when the admin added a PRODUCT_GRID block, it owns the grid
+  // — the auto-generated one below would duplicate the products list.
+  const hasProductGridBlock = blocks.some((b) => b.type === "PRODUCT_GRID");
+  // The legacy hideProductGrid toggle remains for landings 100% custom
+  // without a PRODUCT_GRID block. Either path suppresses the auto-grid.
+  const showProductGrid =
+    !hasProductGridBlock && !(category.hideProductGrid && hasBlocks);
 
   let serializedProducts: Awaited<ReturnType<typeof loadCategoryProducts>> = [];
   if (showProductGrid) {
@@ -59,7 +63,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     <>
       {hasBlocks && (
         <div className="flex flex-col">
-          <LandingBlockRenderer blocks={blocks} />
+          <LandingBlockRenderer blocks={blocks} currentCategoryId={category.id} />
         </div>
       )}
 

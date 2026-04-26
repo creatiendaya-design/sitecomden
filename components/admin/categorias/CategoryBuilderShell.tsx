@@ -78,7 +78,7 @@ export function CategoryBuilderShell({
     <PageBuilder
       blocks={initialBlocks}
       onBlocksChange={handleBlocksChange}
-      scope="page"
+      scope="category"
       context={{ type: "category", category }}
       title={category.name}
       backHref={`/admin/categorias/${category.id}`}
