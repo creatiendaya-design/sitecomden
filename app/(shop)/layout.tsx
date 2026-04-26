@@ -1,6 +1,7 @@
 import { getSiteSettings } from "@/lib/site-settings";
 import Header from "@/components/shop/Header";
 import Footer from "@/components/shop/Footer";
+import ThemePreviewBanner from "@/components/shop/ThemePreviewBanner";
 import { getActivePixels } from "@/actions/tracking-pixels";
 import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
 import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
@@ -51,6 +52,7 @@ export default async function ShopLayout({
       
       {/* Header y Footer directo - SIN LayoutWrapper */}
       <div className="flex min-h-screen flex-col">
+        <ThemePreviewBanner />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
