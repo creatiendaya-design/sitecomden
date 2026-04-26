@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/db"
 import { getCurrentUserOrNull } from "@/lib/auth"
@@ -29,34 +30,43 @@ export interface ResolvedThemeRender {
  *
  * Returns null when there is no active theme at all (uninitialized store).
  */
-export async function resolveActiveTheme(): Promise<ResolvedThemeRender | null> {
-  // Step 1 — short-circuit: cookie must be present at all to attempt preview.
-  const cookieStore = await cookies()
-  const previewCookie = cookieStore.get(THEME_PREVIEW_COOKIE)?.value
+/**
+ * Plan 12 perf: wrapped with React.cache so 5+ callers per request
+ * (Header, Footer, ThemePreviewBanner, layout, page-level fetchers) all
+ * dedupe to a single Postgres roundtrip. Cache scope is one request — no
+ * cross-request leakage. Cookie path stays correct because cookies()
+ * already opts the request out of static rendering.
+ */
+export const resolveActiveTheme = cache(
+  async (): Promise<ResolvedThemeRender | null> => {
+    // Step 1 — short-circuit: cookie must be present at all to attempt preview.
+    const cookieStore = await cookies()
+    const previewCookie = cookieStore.get(THEME_PREVIEW_COOKIE)?.value
 
-  if (previewCookie) {
-    // Step 2 — verify the visitor is an admin. We never trust the cookie
-    // alone, since a hostile visitor could otherwise set their own cookie
-    // and force a non-public theme onto themselves (low risk, but still).
-    const user = await getCurrentUserOrNull()
-    if (user) {
-      const previewTheme = await prisma.theme.findUnique({
-        where: { id: previewCookie },
-        select: themeRenderSelect,
-      })
-      if (previewTheme) {
-        return { ...previewTheme, isPreview: true }
+    if (previewCookie) {
+      // Step 2 — verify the visitor is an admin. We never trust the cookie
+      // alone, since a hostile visitor could otherwise set their own cookie
+      // and force a non-public theme onto themselves (low risk, but still).
+      const user = await getCurrentUserOrNull()
+      if (user) {
+        const previewTheme = await prisma.theme.findUnique({
+          where: { id: previewCookie },
+          select: themeRenderSelect,
+        })
+        if (previewTheme) {
+          return { ...previewTheme, isPreview: true }
+        }
+        // Cookie pointed at a deleted theme — fall through to active.
       }
-      // Cookie pointed at a deleted theme — fall through to active.
     }
-  }
 
-  const active = await prisma.theme.findFirst({
-    where: { active: true },
-    select: themeRenderSelect,
-  })
-  return active ? { ...active, isPreview: false } : null
-}
+    const active = await prisma.theme.findFirst({
+      where: { active: true },
+      select: themeRenderSelect,
+    })
+    return active ? { ...active, isPreview: false } : null
+  },
+)
 
 const themeRenderSelect = {
   id: true,

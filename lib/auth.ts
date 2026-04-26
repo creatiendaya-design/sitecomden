@@ -19,6 +19,7 @@
  *   const user = await getCurrentUser();
  */
 
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
@@ -92,7 +93,14 @@ export async function getCurrentUser(): Promise<UserWithRole> {
  * 
  * Útil para verificaciones condicionales
  */
-export async function getCurrentUserOrNull(): Promise<UserWithRole | null> {
+/**
+ * Plan 12 perf: wrapped with React.cache so the same request never makes
+ * two admin-session lookups. Multiple callers per request (preview banner,
+ * resolveActiveTheme, protectRoute helpers) all share one DB roundtrip.
+ */
+export const getCurrentUserOrNull = cache(_getCurrentUserOrNull);
+
+async function _getCurrentUserOrNull(): Promise<UserWithRole | null> {
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get("admin_session");
@@ -102,12 +110,12 @@ export async function getCurrentUserOrNull(): Promise<UserWithRole | null> {
     }
 
     const user = await prisma.user.findUnique({
-      where: { 
+      where: {
         id: sessionCookie.value,
-        active: true 
+        active: true
       },
-      include: { 
-        role: true 
+      include: {
+        role: true
       },
     });
 
