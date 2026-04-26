@@ -3,25 +3,25 @@
  * already renders them via hardcoded route files in app/(shop)/<slug>/page.tsx
  * (or other system routes that must never collide).
  *
- * Plan 5 keeps the hardcoded files untouched — when one of these slugs is
- * created in the DB, the storefront would still serve the hardcoded version
- * (Next.js prefers static routes over the catch-all). To avoid the
- * "I created a page but it doesn't render" confusion, we block these slugs
- * at the server-action layer with a clear error message.
- *
- * Plan 5.5 (future): migrate each hardcoded page to a seeded Page record and
- * delete the file. Then the corresponding entry can be removed from this list.
+ * Plan 5.6 migrated `nosotros` and `preguntas` to seeded Page records, so
+ * those slugs were freed. The legal policies (terminos / privacidad / envios
+ * / devoluciones) now live under /politicas/<slug> as Policy entities; their
+ * old top-level slugs remain reserved because the route files still exist as
+ * 301 redirects.
  */
 export const RESERVED_PAGE_SLUGS = new Set<string>([
-  // Hardcoded content pages (currently in app/(shop)/<slug>/page.tsx).
-  "nosotros",
+  // Hardcoded content routes still served from app/(shop)/<slug>/page.tsx.
+  "contacto",
+  "diagnostico",
+
+  // Old policy slugs — kept reserved while the redirect routes exist.
   "terminos",
   "privacidad",
   "envios",
-  "preguntas",
-  "contacto",
   "devoluciones",
-  "diagnostico",
+
+  // New policies index — Pages can never claim this prefix.
+  "politicas",
 
   // System / commerce routes that must never collide.
   "carrito",
