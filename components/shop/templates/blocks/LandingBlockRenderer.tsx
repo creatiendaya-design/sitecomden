@@ -11,6 +11,7 @@ import RichTextBlock from "./RichTextBlock";
 import FaqBlock from "./FaqBlock";
 import ImageTextBlock from "./ImageTextBlock";
 import RelatedProductsBlockEditorWrapper from "./RelatedProductsBlockEditorWrapper";
+import ProductGridBlock from "./ProductGridBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -19,6 +20,9 @@ interface LandingBlockRendererProps {
    *  this to fetch real recommendations. When absent (editor canvas), the
    *  block falls back to placeholder cards. */
   currentProductId?: string;
+  /** When rendering from a category page (Plan 7.1), the PRODUCT_GRID
+   *  block uses this to fetch the category's products server-side. */
+  currentCategoryId?: string;
 }
 
 // Detect sticky flag across both content shapes:
@@ -56,7 +60,7 @@ function getVisibilityClass(visibility: string): string {
   return "";
 }
 
-export default function LandingBlockRenderer({ blocks, onCtaClick, currentProductId }: LandingBlockRendererProps) {
+export default function LandingBlockRenderer({ blocks, onCtaClick, currentProductId, currentCategoryId }: LandingBlockRendererProps) {
   // Skip blocks marked as fully hidden — they should not render on the
   // storefront at all. Device-specific visibility (mobile-only / desktop-only)
   // is applied as a Tailwind class on the wrapping div below.
@@ -129,6 +133,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             break;
           case "RELATED_PRODUCTS":
             inner = <RelatedProductsBlockEditorWrapper content={c} currentProductId={currentProductId} />;
+            break;
+          case "PRODUCT_GRID":
+            inner = <ProductGridBlock content={c} categoryId={currentCategoryId ?? null} />;
             break;
           default:
             return null;

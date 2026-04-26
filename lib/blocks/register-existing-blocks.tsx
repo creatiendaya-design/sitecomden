@@ -19,6 +19,7 @@ const RichTextBlock = dynamic(() => import("@/components/shop/templates/blocks/R
 const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlock"))
 const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/ImageTextBlock"))
 const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
+const ProductGridBlockEditor = dynamic(() => import("@/components/shop/templates/blocks/ProductGridBlockEditor"))
 
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
@@ -476,6 +477,66 @@ const existing: BlockDefinition[] = [
         options: [{ value: 1, label: "1" }, { value: 2, label: "2" }],
       },
       { type: "switch", key: "showPrice", label: "Mostrar precio" },
+    ],
+    styleSupport: { textColor: false, alignment: false },
+  },
+  {
+    type: "PRODUCT_GRID",
+    label: "Grid de productos",
+    icon: "LayoutGrid",
+    emoji: "🛍️",
+    description:
+      "Listado de productos de la categoría — reemplaza el grid auto-generado",
+    scope: "category",
+    category: "commerce",
+    defaultContent: DEFAULT_CONTENT_V2.PRODUCT_GRID,
+    renderer: ProductGridBlockEditor as any,
+    contentSchema: [
+      {
+        type: "text",
+        key: "title",
+        label: "Título (opcional)",
+        placeholder: "Todos los productos",
+      },
+      {
+        type: "select",
+        key: "columnsDesktop",
+        label: "Columnas desktop",
+        options: [
+          { value: 2, label: "2" },
+          { value: 3, label: "3" },
+          { value: 4, label: "4" },
+          { value: 5, label: "5" },
+        ],
+      },
+      {
+        type: "select",
+        key: "columnsMobile",
+        label: "Columnas mobile",
+        options: [
+          { value: 1, label: "1" },
+          { value: 2, label: "2" },
+        ],
+      },
+      {
+        type: "number",
+        key: "maxItems",
+        label: "Cantidad máxima",
+        min: 4,
+        max: 48,
+      },
+      {
+        type: "select",
+        key: "sort",
+        label: "Orden",
+        options: [
+          { value: "manual", label: "Manual (orden de la categoría)" },
+          { value: "newest", label: "Más recientes" },
+          { value: "featured", label: "Destacados primero" },
+          { value: "price_asc", label: "Precio: menor a mayor" },
+          { value: "price_desc", label: "Precio: mayor a menor" },
+        ],
+      },
     ],
     styleSupport: { textColor: false, alignment: false },
   },
