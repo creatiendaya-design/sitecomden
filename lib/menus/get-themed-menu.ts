@@ -1,7 +1,66 @@
+import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/db"
 import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme"
 import { getMenuBySlug, type ResolvedMenu } from "./get-menu-by-slug"
 import { resolveMenuFromRow } from "./resolve-menu"
+
+interface RawMenuRow {
+  id: string
+  slug: string
+  title: string
+  active: boolean
+  items: {
+    id: string
+    parentId: string | null
+    position: number
+    label: string
+    linkType: string
+    targetId: string | null
+    externalUrl: string | null
+    openInNewTab: boolean
+  }[]
+}
+
+/**
+ * Plan 12 perf: cached DB read for a menu by id (used when the theme
+ * points at a specific menu via headerMenuId / footerMenuId).
+ *   - `menu-id:<id>` is the per-row tag (would need a updateTag on edit;
+ *     we already bump `active-theme-menus` from actions/menus.ts which is
+ *     enough for the storefront to refresh).
+ *   - `active-theme-menus` is the umbrella tag bumped on any menu edit
+ *     OR on theme switch.
+ */
+function fetchMenuRowByIdUncached(id: string): Promise<RawMenuRow | null> {
+  return prisma.menu.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      active: true,
+      items: {
+        orderBy: [{ parentId: "asc" }, { position: "asc" }],
+        select: {
+          id: true,
+          parentId: true,
+          position: true,
+          label: true,
+          linkType: true,
+          targetId: true,
+          externalUrl: true,
+          openInNewTab: true,
+        },
+      },
+    },
+  })
+}
+
+const fetchMenuRowById = (id: string) =>
+  unstable_cache(
+    () => fetchMenuRowByIdUncached(id),
+    ["menu-by-id", id],
+    { tags: [`menu-id:${id}`, "active-theme-menus"] },
+  )()
 
 /**
  * Storefront menu fetcher (Plan 9). Resolution order:
@@ -22,14 +81,7 @@ export async function getThemedMenu(
     surface === "header" ? theme?.headerMenuId : theme?.footerMenuId
 
   if (themeMenuId) {
-    const themeMenu = await prisma.menu.findUnique({
-      where: { id: themeMenuId },
-      include: {
-        items: {
-          orderBy: [{ parentId: "asc" }, { position: "asc" }],
-        },
-      },
-    })
+    const themeMenu = await fetchMenuRowById(themeMenuId)
     if (themeMenu && themeMenu.active) {
       return resolveMenuFromRow(themeMenu)
     }
