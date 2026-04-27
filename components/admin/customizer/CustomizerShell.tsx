@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ChevronLeft, Eye, Loader2 } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Loader2,
+  Palette,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   ensureCartPageForTheme,
@@ -19,7 +25,9 @@ import {
   type DeviceMode,
 } from "./CustomizerToolbar"
 import { CustomizerPreview } from "./CustomizerPreview"
+import { CustomizerTokensPanel } from "./CustomizerTokensPanel"
 import { ZoneList } from "./ZoneList"
+import { ColorSchemesProvider } from "./color-schemes-context"
 import { RightSidebar } from "@/components/admin/page-builder/RightSidebar/RightSidebar"
 import {
   buildPageTargets,
@@ -66,6 +74,12 @@ export function CustomizerShell({
 }: Props) {
   const router = useRouter()
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+
+  // Plan 13 — left-panel view: "sections" (default zone list) or "tokens"
+  // (theme-wide colors / fonts / scale). Tokens live in their own view
+  // because they're a global concern, not a per-section concern, and they
+  // batch-save on demand instead of autosaving each color tweak.
+  const [panelView, setPanelView] = useState<"sections" | "tokens">("sections")
 
   // ---------- Page-type selector ----------
   const targets = useMemo(
@@ -156,35 +170,60 @@ export function CustomizerShell({
       />
 
       <div className="flex flex-1 min-h-0">
-        {/* Left column: zones */}
+        {/* Left column: sections list OR tokens editor */}
         <div className="w-[340px] shrink-0 flex flex-col bg-card border-r overflow-hidden">
-          <CustomizerHeaderRow
-            themeName={theme.name}
-            onExit={handleExit}
-          />
+          {panelView === "sections" ? (
+            <>
+              <CustomizerHeaderRow
+                themeName={theme.name}
+                onExit={handleExit}
+              />
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            {editablePageId ? (
-              <ZoneList
-                themeId={theme.id}
-                initialHeaderMenuId={theme.headerMenuId}
-                initialFooterMenuId={theme.footerMenuId}
-                menus={menus}
-                editablePageId={editablePageId}
-                initialBlocks={initialBlocks}
-                targetLabel={currentTarget?.label ?? "Plantilla"}
-                onBlocksSaved={handleAnySaved}
-                onSettingsSaved={handleAnySaved}
-              />
-            ) : (
-              <BlocksUnavailable
-                targetKey={targetKey}
-                targetLabel={currentTarget?.label ?? "esta plantilla"}
-                onCreate={handleCreateMissingPage}
-                pending={creatingPage}
-              />
-            )}
-          </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {editablePageId ? (
+                  <ZoneList
+                    themeId={theme.id}
+                    initialHeaderMenuId={theme.headerMenuId}
+                    initialFooterMenuId={theme.footerMenuId}
+                    menus={menus}
+                    editablePageId={editablePageId}
+                    initialBlocks={initialBlocks}
+                    targetLabel={currentTarget?.label ?? "Plantilla"}
+                    onBlocksSaved={handleAnySaved}
+                    onSettingsSaved={handleAnySaved}
+                  />
+                ) : (
+                  <BlocksUnavailable
+                    targetKey={targetKey}
+                    targetLabel={currentTarget?.label ?? "esta plantilla"}
+                    onCreate={handleCreateMissingPage}
+                    pending={creatingPage}
+                  />
+                )}
+              </div>
+
+              {/* Footer link to switch into the tokens editor. Mirrors
+                  Shopify's "Theme settings" affordance at the bottom of
+                  the customizer sidebar. */}
+              <button
+                type="button"
+                onClick={() => setPanelView("tokens")}
+                className="flex items-center justify-between gap-2 border-t px-4 py-3 text-sm hover:bg-muted/40 transition-colors"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Palette className="h-3.5 w-3.5 text-muted-foreground" />
+                  Configuración del tema
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </>
+          ) : (
+            <CustomizerTokensPanel
+              theme={theme}
+              onBack={() => setPanelView("sections")}
+              onSaved={handleAnySaved}
+            />
+          )}
         </div>
 
         {/* Center column: iframe */}
@@ -203,18 +242,23 @@ export function CustomizerShell({
           )}
         </main>
 
-        {/* Right column: block settings (only when a block is selected) */}
-        {editablePageId && (
-          <RightSidebar
-            context={{
-              type: "page",
-              page: {
-                id: editablePageId,
-                slug: editablePageTitle ?? "page",
-                title: editablePageTitle ?? "Página",
-              },
-            }}
-          />
+        {/* Right column: block settings (only meaningful in sections
+            view; the tokens view is full-bleed in the left panel).
+            ColorSchemesProvider exposes the theme's schemes to the block
+            StyleTab so the per-block scheme picker can populate. */}
+        {panelView === "sections" && editablePageId && (
+          <ColorSchemesProvider schemes={theme.colorSchemes}>
+            <RightSidebar
+              context={{
+                type: "page",
+                page: {
+                  id: editablePageId,
+                  slug: editablePageTitle ?? "page",
+                  title: editablePageTitle ?? "Página",
+                },
+              }}
+            />
+          </ColorSchemesProvider>
         )}
       </div>
     </div>

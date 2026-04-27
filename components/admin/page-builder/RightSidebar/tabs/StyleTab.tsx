@@ -16,6 +16,7 @@ import { BorderControl } from "../controls/BorderControl"
 import { ShadowControl } from "../controls/ShadowControl"
 import { VisibilityControl } from "../controls/VisibilityControl"
 import { ImageControl } from "../controls/ImageControl"
+import { ColorSchemeControl } from "../controls/ColorSchemeControl"
 
 export function StyleTab() {
   const selectedBlockId = useBuilderStore((s) => s.selectedBlockId)
@@ -80,6 +81,14 @@ export function StyleTab() {
 
   return (
     <div className="space-y-6">
+      {/* Plan 13.1 — color scheme picker. Hides itself when there are
+          fewer than 2 schemes available (e.g. brand-new theme or builder
+          rendered outside the customizer). */}
+      <ColorSchemeControl
+        value={style.colorSchemeId}
+        onChange={(v) => patchStyle("colorSchemeId", v)}
+      />
+
       {showColors && (
         <Section title="Colores">
           {support.backgroundColor && (
