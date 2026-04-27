@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
 import type { ThemeTokens } from "@/lib/themes/tokens"
+import {
+  resolveColorSchemes,
+  type ColorSchemeArray,
+} from "@/lib/themes/color-schemes"
 
 export interface ThemeRow {
   id: string
@@ -34,6 +38,11 @@ export interface ThemeRow {
   /** Visual design tokens (Plan 11). May be partial or empty {}; consumers
    *  call `resolveTokens()` to merge with system defaults. */
   tokens: ThemeTokens
+  /** Plan 13.1 — named color schemes the admin can author and any block
+   *  can pick via `style.colorSchemeId`. The first scheme is the theme
+   *  default. Always at least one entry: when the DB column is `[]`, the
+   *  resolver synthesizes a scheme from `tokens.colors`. */
+  colorSchemes: ColorSchemeArray
   updatedAt: Date
 }
 
@@ -61,6 +70,7 @@ type ThemeWithJoins = {
   footerMenuId: string | null
   footerMenu: { id: string; title: string; slug: string } | null
   tokens: unknown
+  colorSchemes: unknown
   updatedAt: Date
 }
 
@@ -85,6 +95,10 @@ function toThemeRow(t: ThemeWithJoins): ThemeRow {
     footerMenuTitle: t.footerMenu?.title ?? null,
     footerMenuSlug: t.footerMenu?.slug ?? null,
     tokens: (t.tokens as ThemeTokens) ?? {},
+    colorSchemes: resolveColorSchemes(
+      t.colorSchemes,
+      t.tokens as ThemeTokens | null,
+    ),
     updatedAt: t.updatedAt,
   }
 }
@@ -152,6 +166,7 @@ export async function updateThemeMetadata(
     headerMenuId?: string | null
     footerMenuId?: string | null
     tokens?: ThemeTokens
+    colorSchemes?: ColorSchemeArray
   },
 ): Promise<void> {
   await protectRoute("themes:update")
@@ -225,6 +240,9 @@ export async function updateThemeMetadata(
       }),
       ...(input.tokens !== undefined && {
         tokens: input.tokens as object,
+      }),
+      ...(input.colorSchemes !== undefined && {
+        colorSchemes: input.colorSchemes as unknown as object,
       }),
     },
     select: { active: true },

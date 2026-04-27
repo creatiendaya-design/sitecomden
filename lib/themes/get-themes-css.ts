@@ -5,6 +5,11 @@ import {
   tokensToCssRule,
   type ThemeTokens,
 } from "./tokens"
+import {
+  resolveColorSchemes,
+  schemeToCssLines,
+  type ColorScheme,
+} from "./color-schemes"
 
 export interface ThemesCssBundle {
   /** Final CSS body. Stable hash → safe to serve with immutable cache. */
@@ -29,6 +34,7 @@ const fetchThemesForCss = unstable_cache(
         id: true,
         active: true,
         tokens: true,
+        colorSchemes: true,
         updatedAt: true,
       },
     }),
@@ -37,47 +43,57 @@ const fetchThemesForCss = unstable_cache(
 )
 
 /**
- * Generates the storefront's themes stylesheet — a single CSS body with
- * one rule per theme keyed by `.theme-<slug>` plus a `:root` fallback that
- * uses the currently-active theme's tokens. The storefront layout sets
- * `<body class="theme-<slug>">` so the right rule wins.
+ * Generates the storefront's themes stylesheet. Two layers per theme:
  *
- * Plan 11 — served via /api/themes/tokens.css with hash-based cache busting.
- * Active themes are read from the DB; the hash is derived from the max
- * updatedAt + active id so any token edit produces a new URL.
+ *   1. Default tokens scoped to `.theme-<id>` — colors of the theme's
+ *      first scheme + fonts + scale.
+ *   2. One rule per extra color scheme:
+ *      `.theme-<id> [data-color-scheme="<schemeId>"] { --theme-bg: ... }`
+ *      Blocks emit `data-color-scheme` to opt into a non-default scheme;
+ *      child elements then resolve `var(--theme-*)` to the scheme colors.
+ *
+ * Plan 11 introduced the per-theme stylesheet; Plan 13.1 extends it with
+ * Shopify-style schemes that any block can pick.
  */
 export async function getThemesCssBundle(): Promise<ThemesCssBundle> {
-  // Pull all themes + their tokens. Each theme uses its own id as the
-  // class scope so even non-active themes can be previewed via the cookie.
   const themes = await fetchThemesForCss()
 
   if (themes.length === 0) {
-    // No themes installed yet. Tailwind uses inline fallbacks
-    // (`var(--theme-primary, <hex>)`) for unscoped pages so the storefront
-    // still renders. We emit an empty body so the endpoint returns valid
-    // CSS rather than a 404.
     return { css: "/* no themes installed */\n", hash: "fallback" }
   }
 
-  // We deliberately do NOT emit a :root rule. The storefront layout wraps
-  // all rendered output in `<div class="theme-<id>">`, scoping these
-  // tokens to the storefront only. Admin pages don't see them, so the
-  // admin design system stays independent.
   const rules: string[] = []
   const active = themes.find((t) => t.active)
 
   for (const t of themes) {
+    const tokens = resolveTokens(t.tokens as ThemeTokens | null)
+    const schemes = resolveColorSchemes(t.colorSchemes, t.tokens as ThemeTokens | null)
+    const themeSelector = `.theme-${cssIdentSafe(t.id)}`
+
+    // Layer 1: theme defaults — fonts, scale, AND the colors of the FIRST
+    // scheme (the theme default). Any block that doesn't pick a scheme
+    // inherits these.
+    const defaultScheme: ColorScheme = schemes[0]
+    const defaultRule = themeRule(themeSelector, tokens, defaultScheme)
+    rules.push(defaultRule)
+
+    // Layer 2: per-scheme overrides. We skip the first scheme — it's
+    // already encoded in layer 1 — and emit overrides for the rest.
+    for (let i = 1; i < schemes.length; i++) {
+      const scheme = schemes[i]
+      const lines = schemeToCssLines(scheme)
+      rules.push(
+        `${themeSelector} [data-color-scheme="${cssAttrSafe(scheme.id)}"] {\n${lines.join("\n")}\n}`,
+      )
+    }
+    // Also emit a rule for the first scheme by id so blocks can
+    // explicitly pick the default scheme via `data-color-scheme="<id>"`
+    // when nesting under another scheme (override → revert pattern).
     rules.push(
-      tokensToCssRule(
-        `.theme-${cssIdentSafe(t.id)}`,
-        resolveTokens(t.tokens as ThemeTokens | null),
-      ),
+      `${themeSelector} [data-color-scheme="${cssAttrSafe(defaultScheme.id)}"] {\n${schemeToCssLines(defaultScheme).join("\n")}\n}`,
     )
   }
 
-  // Hash combines the highest updatedAt + active id so:
-  //   - editing any theme's tokens → new hash → cache miss
-  //   - switching active theme → new hash (same edit time, different id)
   const maxTs = themes.reduce(
     (acc, t) => Math.max(acc, t.updatedAt.getTime()),
     0,
@@ -91,10 +107,32 @@ export async function getThemesCssBundle(): Promise<ThemesCssBundle> {
 }
 
 /**
- * Strips characters that aren't valid in CSS class names. cuids are
- * already safe, but if someone manually inserts a theme with a weirder id
- * we fail safe rather than emit broken CSS.
+ * Builds the theme-default CSS rule by combining tokens (fonts/scale +
+ * fallback colors from the legacy `tokens.colors`) with the first
+ * scheme's colors. Scheme colors win where they overlap with tokens.
  */
+function themeRule(
+  selector: string,
+  tokens: ReturnType<typeof resolveTokens>,
+  scheme: ColorScheme,
+): string {
+  // Reuse tokensToCssRule for fonts + scale; then layer in the scheme.
+  const tokenLines = tokensToCssRule(selector, tokens)
+    .replace(`${selector} {\n`, "")
+    .replace(/\n\}$/, "")
+    .split("\n")
+    // Drop legacy color lines so the scheme owns them — avoids double
+    // declarations and keeps the rule deterministic.
+    .filter((line) => !/--theme-(primary|primary-foreground|accent|accent-foreground|bg|text|muted|border):/.test(line))
+
+  const schemeLines = schemeToCssLines(scheme)
+  return `${selector} {\n${[...tokenLines, ...schemeLines].join("\n")}\n}`
+}
+
 function cssIdentSafe(input: string): string {
   return input.replace(/[^a-zA-Z0-9_-]/g, "_")
+}
+
+function cssAttrSafe(input: string): string {
+  return input.replace(/["\\]/g, "")
 }
