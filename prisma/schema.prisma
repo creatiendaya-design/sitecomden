@@ -1245,6 +1245,15 @@ model Theme {
   /// the default for blocks without an explicit pick. Empty array =
   /// fall back to the legacy `tokens.colors` palette.
   colorSchemes                    Json             @default("[]")
+  /// Plan 16 — per-theme catalog of section types this theme exposes.
+  /// Shape: { header?: string[], footer?: string[] }. Empty {} = permissive
+  /// default (all registry types available). The customizer's
+  /// AddSectionPanel intersects the registry with this catalog.
+  sectionCatalog                  Json             @default("{}")
+  /// Plan 16 — ordered Header / Footer sections that drive the storefront
+  /// header and footer. Replaces the legacy single-Menu reference model
+  /// once Phase 2 (contract migration) drops headerMenuId/footerMenuId.
+  sections                        ThemeSection[]
   createdBy                       String?
   createdAt                       DateTime @default(now())
   updatedAt                       DateTime @updatedAt
@@ -1263,4 +1272,49 @@ model TemplateBlock {
   updatedAt  DateTime         @updatedAt
 
   @@index([templateId, position])
+}
+
+/// Plan 16 — one section instance inside a theme's Header or Footer group.
+/// Ordered by `position` within `(themeId, group)`. `content` follows the
+/// same convention as LandingBlock.content: schema-defined fields at the
+/// top level plus an optional `style` BlockStyle.
+model ThemeSection {
+  id        String              @id @default(cuid())
+  themeId   String
+  theme     Theme               @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  group     ThemeSectionGroup
+  /// Type id from lib/theme-sections/registry.ts (e.g. "HEADER_MAIN").
+  /// String — not enum — so adding a section type does not require migration.
+  type      String
+  position  Int
+  content   Json                @default("{}")
+  /// Toggle visibility from the customizer eye icon without destroying content.
+  enabled   Boolean             @default(true)
+  blocks    ThemeSectionBlock[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([themeId, group, position])
+}
+
+/// Plan 16 — sub-block inside a ThemeSection (e.g. a LINK_COLUMN inside
+/// FOOTER_COLUMNS, a MEGA_MENU_PANEL inside MEGA_MENU). Ordered by
+/// `position` within its parent section.
+model ThemeSectionBlock {
+  id        String       @id @default(cuid())
+  sectionId String
+  section   ThemeSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  type      String
+  position  Int
+  content   Json         @default("{}")
+  enabled   Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([sectionId, position])
+}
+
+enum ThemeSectionGroup {
+  HEADER
+  FOOTER
 }
