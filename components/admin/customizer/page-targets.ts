@@ -30,6 +30,9 @@ export interface PageTarget {
 
 interface BuildArgs {
   pages: PageRow[]
+  /** Plan 14 — all active categories the customizer can edit as
+   *  "Categoría / <name>" entries in the page picker. */
+  categoryTargets?: { id: string; name: string; slug: string }[]
   /** Sample product slug (newest active). Optional — falls back to
    *  /productos when no products exist. */
   sampleProductSlug?: string | null
@@ -45,6 +48,7 @@ interface BuildArgs {
 
 export function buildPageTargets({
   pages,
+  categoryTargets,
   sampleProductSlug,
   sampleCategorySlug,
   homePageId,
@@ -106,6 +110,18 @@ export function buildPageTargets({
       label: p.title,
       path: `/${p.slug}`,
       group: "Páginas",
+      isSpecific: true,
+    })
+  }
+
+  // Plan 14 — one entry per category so the admin can edit each
+  // category's landing blocks from the customizer. Same pattern as Pages.
+  for (const c of categoryTargets ?? []) {
+    targets.push({
+      key: `category:${c.id}`,
+      label: c.name,
+      path: `/categoria/${c.slug}`,
+      group: "Categorías",
       isSpecific: true,
     })
   }

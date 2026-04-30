@@ -17,8 +17,9 @@ import {
   type ThemeRow,
 } from "@/actions/themes"
 import type { TemplateRow } from "@/actions/landing-templates"
-import type { PageRow } from "@/actions/pages"
+import { savePageBlocks, type PageRow } from "@/actions/pages"
 import type { MenuRow } from "@/actions/menus"
+import { saveCategoryBlocks } from "@/actions/categories-blocks"
 import type { BlockInstance } from "@/lib/blocks/types"
 import {
   CustomizerToolbar,
@@ -29,10 +30,20 @@ import { CustomizerTokensPanel } from "./CustomizerTokensPanel"
 import { ZoneList } from "./ZoneList"
 import { ColorSchemesProvider } from "./color-schemes-context"
 import { RightSidebar } from "@/components/admin/page-builder/RightSidebar/RightSidebar"
+import type { EditorBlock } from "./EmbeddedBlocksEditor"
 import {
   buildPageTargets,
   findTarget,
 } from "./page-targets"
+
+/**
+ * Plan 14 — the customizer can edit either a Page (home, cart, static
+ * page) or a Category landing. The surface kind drives which save action
+ * the EmbeddedBlocksEditor wires.
+ */
+export type EditableSurface =
+  | { kind: "page"; id: string; title: string | null }
+  | { kind: "category"; id: string; title: string }
 
 interface Props {
   theme: ThemeRow
@@ -42,11 +53,14 @@ interface Props {
   landingTemplates: TemplateRow[]
   pages: PageRow[]
   menus: MenuRow[]
+  /** All Pages + Categories the page picker should expose. The customize
+   *  page server-fetches these and forwards them so the picker dropdown
+   *  can list real options. */
+  categoryTargets: { id: string; name: string; slug: string }[]
   sampleProductSlug: string | null
   sampleCategorySlug: string | null
   targetKey: string
-  editablePageId: string | null
-  editablePageTitle: string | null
+  editableSurface: EditableSurface | null
   initialBlocks: BlockInstance[]
 }
 
@@ -65,11 +79,11 @@ export function CustomizerShell({
   theme,
   pages,
   menus,
+  categoryTargets,
   sampleProductSlug,
   sampleCategorySlug,
   targetKey,
-  editablePageId,
-  editablePageTitle,
+  editableSurface,
   initialBlocks,
 }: Props) {
   const router = useRouter()
@@ -81,11 +95,50 @@ export function CustomizerShell({
   // batch-save on demand instead of autosaving each color tweak.
   const [panelView, setPanelView] = useState<"sections" | "tokens">("sections")
 
+  // Plan 14 — editor key + save callback for the embedded blocks editor.
+  // Differs by surface kind: pages persist via savePageBlocks, categories
+  // via saveCategoryBlocks. The editor itself is surface-agnostic.
+  const editorKey = editableSurface
+    ? `${editableSurface.kind}-${editableSurface.id}`
+    : null
+  const saveBlocks = useCallback(
+    async (next: EditorBlock[]) => {
+      if (!editableSurface) return
+      if (editableSurface.kind === "page") {
+        await savePageBlocks(
+          editableSurface.id,
+          next.map((b) => ({
+            id: b.id,
+            type: b.type as Parameters<
+              typeof savePageBlocks
+            >[1][number]["type"],
+            position: b.position,
+            content: b.content,
+          })),
+        )
+      } else {
+        await saveCategoryBlocks(
+          editableSurface.id,
+          next.map((b) => ({
+            id: b.id,
+            type: b.type as Parameters<
+              typeof saveCategoryBlocks
+            >[1][number]["type"],
+            position: b.position,
+            content: b.content,
+          })),
+        )
+      }
+    },
+    [editableSurface],
+  )
+
   // ---------- Page-type selector ----------
   const targets = useMemo(
     () =>
       buildPageTargets({
         pages,
+        categoryTargets,
         sampleProductSlug,
         sampleCategorySlug,
         homePageId: theme.homePageId,
@@ -93,6 +146,7 @@ export function CustomizerShell({
       }),
     [
       pages,
+      categoryTargets,
       sampleProductSlug,
       sampleCategorySlug,
       theme.homePageId,
@@ -180,14 +234,15 @@ export function CustomizerShell({
               />
 
               <div className="flex-1 min-h-0 overflow-y-auto">
-                {editablePageId ? (
+                {editorKey ? (
                   <ZoneList
                     themeId={theme.id}
                     initialHeaderMenuId={theme.headerMenuId}
                     initialFooterMenuId={theme.footerMenuId}
                     menus={menus}
-                    editablePageId={editablePageId}
+                    editorKey={editorKey}
                     initialBlocks={initialBlocks}
+                    saveBlocks={saveBlocks}
                     targetLabel={currentTarget?.label ?? "Plantilla"}
                     onBlocksSaved={handleAnySaved}
                     onSettingsSaved={handleAnySaved}
@@ -246,15 +301,20 @@ export function CustomizerShell({
             view; the tokens view is full-bleed in the left panel).
             ColorSchemesProvider exposes the theme's schemes to the block
             StyleTab so the per-block scheme picker can populate. */}
-        {panelView === "sections" && editablePageId && (
+        {panelView === "sections" && editableSurface && (
           <ColorSchemesProvider schemes={theme.colorSchemes}>
             <RightSidebar
               context={{
                 type: "page",
+                // RightSidebar's PageContext accepts both Page-bound and
+                // Category-bound surfaces — its current consumers only
+                // read id/title for breadcrumb display, so we forward
+                // whichever surface the customizer is editing without
+                // introducing a separate CategoryContext today.
                 page: {
-                  id: editablePageId,
-                  slug: editablePageTitle ?? "page",
-                  title: editablePageTitle ?? "Página",
+                  id: editableSurface.id,
+                  slug: editableSurface.title ?? "page",
+                  title: editableSurface.title ?? "Plantilla",
                 },
               }}
             />
