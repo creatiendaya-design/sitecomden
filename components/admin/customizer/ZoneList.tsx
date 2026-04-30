@@ -19,7 +19,10 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { updateThemeMetadata } from "@/actions/themes"
 import type { MenuRow } from "@/actions/menus"
-import { EmbeddedBlocksEditor } from "./EmbeddedBlocksEditor"
+import {
+  EmbeddedBlocksEditor,
+  type EditorBlock,
+} from "./EmbeddedBlocksEditor"
 import type { BlockInstance } from "@/lib/blocks/types"
 
 const NONE = "__none__"
@@ -31,11 +34,15 @@ interface Props {
   initialHeaderMenuId: string | null
   initialFooterMenuId: string | null
   menus: MenuRow[]
-  /** Page id whose blocks belong to the Plantilla zone. Null when the
-   *  current target doesn't have an editable Page (e.g. /productos
-   *  index — system route, not page-builder). */
-  editablePageId: string | null
+  /** Stable editor key for the current target (e.g. `page-<id>` or
+   *  `category-<id>`). Null when the current target doesn't have an
+   *  editable surface (e.g. /productos index). When null, the Plantilla
+   *  zone shows a placeholder instead of the embedded editor. */
+  editorKey: string | null
   initialBlocks: BlockInstance[]
+  /** Customizer-supplied save fn for the Plantilla zone — wires either
+   *  savePageBlocks or saveCategoryBlocks depending on the target type. */
+  saveBlocks: (blocks: EditorBlock[]) => Promise<void>
   targetLabel: string
   onBlocksSaved?: () => void
   onSettingsSaved?: () => void
@@ -59,8 +66,9 @@ export function ZoneList({
   initialHeaderMenuId,
   initialFooterMenuId,
   menus,
-  editablePageId,
+  editorKey,
   initialBlocks,
+  saveBlocks,
   targetLabel,
   onBlocksSaved,
   onSettingsSaved,
@@ -90,10 +98,11 @@ export function ZoneList({
         icon={LayoutTemplate}
         sublabel={targetLabel}
       >
-        {editablePageId ? (
+        {editorKey ? (
           <EmbeddedBlocksEditor
-            pageId={editablePageId}
+            editorKey={editorKey}
             initialBlocks={initialBlocks}
+            saveBlocks={saveBlocks}
             onSaved={onBlocksSaved}
           />
         ) : (
