@@ -7,8 +7,13 @@ export type { ThemeSectionGroup }
 
 /**
  * The shape persisted in `ThemeSection.content` and `ThemeSectionBlock.content`.
- * Mirrors the convention used for landing blocks: schema-defined fields at the
- * top level plus an optional `style` (BlockStyle from lib/blocks/types.ts).
+ *
+ * Intentionally simpler than `BlockContentV2`: no `data` / `media` zones —
+ * schema-form fields are stored directly at the top level. Theme sections
+ * don't need per-device media overrides like landing blocks do, and the
+ * extra `data` envelope adds no value here. The `style` key reuses the
+ * same `BlockStyle` from `lib/blocks/types.ts` so `apply-style.ts` can
+ * be reused via a thin adapter (see `lib/theme-sections/apply-style.ts`).
  */
 export interface ThemeSectionContent {
   [key: string]: unknown
