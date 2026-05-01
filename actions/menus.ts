@@ -331,48 +331,64 @@ export async function saveMenuItems(
       await tx.menuItem.deleteMany({ where: { id: { in: toDelete } } })
     }
 
-    // Pass 1 — items with no parent (or with parent that already has a real id).
-    // Pass 2 — items whose parent was a tmp- id that we mapped in pass 1.
-    const roots = items.filter((i) => i.parentId === null)
-    const children = items.filter((i) => i.parentId !== null)
+    // Topological insert: each pass inserts items whose parent is already
+    // resolved (root, previously inserted in this transaction, or pre-existing).
+    // Repeat until none remain. If a pass makes no progress, the payload has
+    // a cycle or an unreachable parent — abort.
+    let pending: ValidatedItem[] = [...items]
+    let lastSize = -1
 
-    for (const it of roots) {
-      const data = {
-        menuId,
-        parentId: null,
-        position: it.position,
-        label: it.label,
-        linkType: it.linkType,
-        targetId: it.targetId,
-        externalUrl: it.externalUrl,
-        openInNewTab: it.openInNewTab,
+    while (pending.length > 0 && pending.length !== lastSize) {
+      lastSize = pending.length
+      const next: ValidatedItem[] = []
+
+      for (const it of pending) {
+        const parentResolved =
+          it.parentId === null ||
+          tmpToReal.has(it.parentId) ||
+          existingIds.has(it.parentId)
+
+        if (!parentResolved) {
+          next.push(it)
+          continue
+        }
+
+        const realParentId =
+          it.parentId === null
+            ? null
+            : tmpToReal.get(it.parentId) ?? it.parentId
+
+        const data = {
+          menuId,
+          parentId: realParentId,
+          position: it.position,
+          label: it.label,
+          linkType: it.linkType,
+          targetId: it.targetId,
+          externalUrl: it.externalUrl,
+          openInNewTab: it.openInNewTab,
+        }
+
+        const isNew = it.id.startsWith("tmp-") || !existingIds.has(it.id)
+        if (isNew) {
+          const created = await tx.menuItem.create({
+            data,
+            select: { id: true },
+          })
+          tmpToReal.set(it.id, created.id)
+        } else {
+          await tx.menuItem.update({ where: { id: it.id }, data })
+          tmpToReal.set(it.id, it.id)
+        }
       }
-      if (it.id.startsWith("tmp-") || !existingIds.has(it.id)) {
-        const created = await tx.menuItem.create({ data, select: { id: true } })
-        tmpToReal.set(it.id, created.id)
-      } else {
-        await tx.menuItem.update({ where: { id: it.id }, data })
-        tmpToReal.set(it.id, it.id)
-      }
+
+      pending = next
     }
 
-    for (const it of children) {
-      const realParentId = tmpToReal.get(it.parentId!) ?? it.parentId!
-      const data = {
-        menuId,
-        parentId: realParentId,
-        position: it.position,
-        label: it.label,
-        linkType: it.linkType,
-        targetId: it.targetId,
-        externalUrl: it.externalUrl,
-        openInNewTab: it.openInNewTab,
-      }
-      if (it.id.startsWith("tmp-") || !existingIds.has(it.id)) {
-        await tx.menuItem.create({ data })
-      } else {
-        await tx.menuItem.update({ where: { id: it.id }, data })
-      }
+    if (pending.length > 0) {
+      throw new Error(
+        "No se pudo guardar el menú: referencia inválida en parentId",
+      )
     }
 
     await tx.menu.update({
