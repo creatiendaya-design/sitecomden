@@ -40,6 +40,7 @@ import {
   useThemeSectionsStore,
   type SectionDraft,
 } from "./theme-sections-store"
+import { useBuilderStore } from "@/components/admin/page-builder/store"
 import type { EditorBlock } from "./EmbeddedBlocksEditor"
 import {
   buildPageTargets,
@@ -244,6 +245,23 @@ export function CustomizerShell({
   const footerDirty = useThemeSectionsStore((s) => s.footerDirty)
   const replaceGroup = useThemeSectionsStore((s) => s.replaceGroup)
   const themeSectionsSelected = useThemeSectionsStore((s) => s.selected)
+  const selectThemeSection = useThemeSectionsStore((s) => s.select)
+
+  // Coordinate selection between the two zones so only ONE thing is selected
+  // at a time. The right sidebar's conditional gives priority to theme-section
+  // selections, so without this, clicking a Plantilla block while a header /
+  // footer section is selected would silently keep showing the header/footer
+  // form. Each effect only fires when ITS watched value transitions to truthy,
+  // so they don't ping-pong: clearing the other side leaves it null, and the
+  // other effect's `if (truthy)` guard keeps it dormant.
+  const builderSelectedBlockId = useBuilderStore((s) => s.selectedBlockId)
+  const selectBuilderBlock = useBuilderStore((s) => s.selectBlock)
+  useEffect(() => {
+    if (builderSelectedBlockId) selectThemeSection(null)
+  }, [builderSelectedBlockId, selectThemeSection])
+  useEffect(() => {
+    if (themeSectionsSelected) selectBuilderBlock(null)
+  }, [themeSectionsSelected, selectBuilderBlock])
 
   useDebouncedSaveGroup(
     theme.id,
