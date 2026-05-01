@@ -8,9 +8,15 @@ const linkColumnDefinition: ThemeSectionBlockDefinition = {
   maxPerSection: 6,
   fields: [
     { type: "text", key: "title", label: "Título de la columna" },
-    { type: "menu-item-list", key: "links", label: "Enlaces", maxLinks: 15 },
+    {
+      type: "menu-picker",
+      key: "menuId",
+      label: "Menú a mostrar",
+      helpText:
+        "Los ítems del menú aparecen como enlaces de la columna. Creá o editá menús en /admin/menus.",
+    },
   ],
-  defaultContent: { title: "Tienda", links: [] },
+  defaultContent: { title: "Tienda", menuId: null },
 }
 
 const textColumnDefinition: ThemeSectionBlockDefinition = {
