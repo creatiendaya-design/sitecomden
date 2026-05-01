@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/db"
 import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme"
 import type { Device } from "@/lib/blocks/types"
@@ -7,6 +8,32 @@ import type {
   ResolvedThemeSectionBlock,
   ThemeSectionContent,
 } from "./types"
+
+/**
+ * Plan 16 perf: per-(theme, group) cached read of the section rows. Tagged
+ * `theme-sections-<themeId>-<group>` so save actions can invalidate
+ * precisely without nuking the storefront layout's site-settings / pixels
+ * / theme-meta caches. Device flattening happens AFTER the cache hit
+ * because it's a CPU-only transform of the cached rows.
+ */
+function buildCachedFetch(themeId: string, group: ThemeSectionGroup) {
+  const tag = `theme-sections-${themeId}-${group}`
+  return unstable_cache(
+    () =>
+      prisma.themeSection.findMany({
+        where: { themeId, group, enabled: true },
+        orderBy: { position: "asc" },
+        include: {
+          blocks: {
+            where: { enabled: true },
+            orderBy: { position: "asc" },
+          },
+        },
+      }),
+    [tag],
+    { tags: [tag] },
+  )
+}
 
 /**
  * Fetch the active (or preview) theme's sections in a group, ordered by
@@ -22,16 +49,8 @@ export async function getThemedSections(
   const theme = await resolveActiveTheme()
   if (!theme) return []
 
-  const rows = await prisma.themeSection.findMany({
-    where: { themeId: theme.id, group, enabled: true },
-    orderBy: { position: "asc" },
-    include: {
-      blocks: {
-        where: { enabled: true },
-        orderBy: { position: "asc" },
-      },
-    },
-  })
+  const fetchRows = buildCachedFetch(theme.id, group)
+  const rows = await fetchRows()
 
   return rows.map((row) => ({
     id: row.id,

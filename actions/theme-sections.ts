@@ -2,13 +2,28 @@
 
 import { z } from "zod"
 import { prisma } from "@/lib/db"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
 import type { ThemeSectionGroup } from "@prisma/client"
 import {
   getThemeSectionDefinition,
   getSectionBlockDefinition,
 } from "@/lib/theme-sections/registry"
+
+/**
+ * Plan 16 perf: tag-based invalidation. Section CRUD/save no longer calls
+ * `revalidatePath("/")` because that nukes the layout-level caches
+ * (site-settings, tracking-pixels, theme-meta) which don't change when
+ * sections are edited — re-running them on every autosave is the main
+ * driver of slow iframe refresh during the customizer. Instead we
+ * invalidate only the per-(theme, group) tag that `getThemedSections`
+ * uses, plus the admin customize path so the page-level data fetch picks
+ * up the new state.
+ */
+function invalidateSectionGroup(themeId: string, group: ThemeSectionGroup) {
+  updateTag(`theme-sections-${themeId}-${group}`)
+  revalidatePath(`/admin/personalizar/temas/${themeId}/customize`)
+}
 
 // ---------- Row types ----------
 
@@ -94,8 +109,7 @@ export async function addThemeSection(
     include: { blocks: { orderBy: { position: "asc" } } },
   })
 
-  revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${input.themeId}/customize`)
+  invalidateSectionGroup(input.themeId, input.group)
 
   return {
     id: created.id,
@@ -122,14 +136,13 @@ export async function removeThemeSection(sectionId: string): Promise<void> {
   await protectRoute("themes:update")
   const section = await prisma.themeSection.findUnique({
     where: { id: sectionId },
-    select: { themeId: true },
+    select: { themeId: true, group: true },
   })
   if (!section) return
 
   await prisma.themeSection.delete({ where: { id: sectionId } })
 
-  revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${section.themeId}/customize`)
+  invalidateSectionGroup(section.themeId, section.group)
 }
 
 // ---------- Reorder sections ----------
@@ -157,8 +170,7 @@ export async function reorderThemeSections(
     ),
   )
 
-  revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${input.themeId}/customize`)
+  invalidateSectionGroup(input.themeId, input.group)
 }
 
 // ---------- Update section content ----------
@@ -178,11 +190,10 @@ export async function updateThemeSectionContent(
   const section = await prisma.themeSection.update({
     where: { id: input.sectionId },
     data: { content: input.content as object },
-    select: { themeId: true },
+    select: { themeId: true, group: true },
   })
 
-  revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${section.themeId}/customize`)
+  invalidateSectionGroup(section.themeId, section.group)
 }
 
 // ---------- Toggle enabled ----------
@@ -195,10 +206,9 @@ export async function toggleThemeSectionEnabled(
   const section = await prisma.themeSection.update({
     where: { id: sectionId },
     data: { enabled },
-    select: { themeId: true },
+    select: { themeId: true, group: true },
   })
-  revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${section.themeId}/customize`)
+  invalidateSectionGroup(section.themeId, section.group)
 }
 
 // ---------- Sub-block CRUD ----------
@@ -217,7 +227,12 @@ export async function addThemeSectionBlock(
 
   const parent = await prisma.themeSection.findUniqueOrThrow({
     where: { id: input.sectionId },
-    select: { type: true, themeId: true, blocks: { select: { type: true } } },
+    select: {
+      type: true,
+      themeId: true,
+      group: true,
+      blocks: { select: { type: true } },
+    },
   })
 
   const def = getSectionBlockDefinition(parent.type, input.type)
@@ -249,8 +264,7 @@ export async function addThemeSectionBlock(
     },
   })
 
-  revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${parent.themeId}/customize`)
+  invalidateSectionGroup(parent.themeId, parent.group)
 
   return {
     id: created.id,
@@ -266,12 +280,11 @@ export async function removeThemeSectionBlock(blockId: string): Promise<void> {
   await protectRoute("themes:update")
   const block = await prisma.themeSectionBlock.findUnique({
     where: { id: blockId },
-    select: { section: { select: { themeId: true } } },
+    select: { section: { select: { themeId: true, group: true } } },
   })
   if (!block) return
   await prisma.themeSectionBlock.delete({ where: { id: blockId } })
-  revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${block.section.themeId}/customize`)
+  invalidateSectionGroup(block.section.themeId, block.section.group)
 }
 
 const reorderBlocksSchema = z.object({
@@ -297,11 +310,10 @@ export async function reorderThemeSectionBlocks(
 
   const section = await prisma.themeSection.findUnique({
     where: { id: input.sectionId },
-    select: { themeId: true },
+    select: { themeId: true, group: true },
   })
   if (section) {
-    revalidatePath("/")
-    revalidatePath(`/admin/personalizar/temas/${section.themeId}/customize`)
+    invalidateSectionGroup(section.themeId, section.group)
   }
 }
 
@@ -320,10 +332,9 @@ export async function updateThemeSectionBlockContent(
   const block = await prisma.themeSectionBlock.update({
     where: { id: input.blockId },
     data: { content: input.content as object },
-    select: { section: { select: { themeId: true } } },
+    select: { section: { select: { themeId: true, group: true } } },
   })
-  revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${block.section.themeId}/customize`)
+  invalidateSectionGroup(block.section.themeId, block.section.group)
 }
 
 // ---------- Batch save (for autosave) ----------
@@ -466,7 +477,7 @@ export async function saveThemeSectionGroup(
     })
   })
 
-  revalidatePath("/")
+  invalidateSectionGroup(input.themeId, input.group)
 
   return {
     success: true,

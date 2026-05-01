@@ -223,9 +223,20 @@ export function CustomizerShell({
 
   // ---------- Plan 16 — theme-sections store hydration + autosave ----------
   const hydrateThemeSections = useThemeSectionsStore((s) => s.hydrate)
+  // Hydrate the store ONCE per theme.id. We intentionally exclude
+  // headerSections / footerSections from the dep array: subsequent saves
+  // already merge the persisted snapshot into the store via replaceGroup(),
+  // and Next.js auto-refresh after server actions changes the prop array
+  // references on every save. Re-running hydrate on those reference
+  // changes would reset `selected` to null (right sidebar collapses to
+  // "Plantilla") and discard any in-flight local edits.
+  const hydratedThemeIdRef = useRef<string | null>(null)
   useEffect(() => {
+    if (hydratedThemeIdRef.current === theme.id) return
+    hydratedThemeIdRef.current = theme.id
     hydrateThemeSections(theme.id, headerSections, footerSections)
-  }, [hydrateThemeSections, theme.id, headerSections, footerSections])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme.id, hydrateThemeSections])
 
   const headerDrafts = useThemeSectionsStore((s) => s.header)
   const footerDrafts = useThemeSectionsStore((s) => s.footer)
