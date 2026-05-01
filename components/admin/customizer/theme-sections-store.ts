@@ -35,6 +35,13 @@ interface Store {
   header: SectionDraft[]
   footer: SectionDraft[]
   selected: SidebarTarget
+  /** Group-level dirty flags. Set true on every mutation that affects a
+   *  group's section list (add / remove / reorder / toggle / content edit
+   *  / block CRUD). Reset to false by `markGroupSaved` after a successful
+   *  autosave round-trip. The autosave hook reads these flags so deletions
+   *  (which leave no per-draft dirty trace) still trigger a save. */
+  headerDirty: boolean
+  footerDirty: boolean
 
   /** Replace local state with what came from the server. Called on first
    *  mount and after every successful save (so persisted ids replace tmp- ids). */
@@ -43,6 +50,11 @@ interface Store {
     header: ThemeSectionRow[],
     footer: ThemeSectionRow[],
   ) => void
+
+  /** Called by the autosave hook after `saveThemeSectionGroup` resolves
+   *  successfully. Clears the group's dirty flag so the hook doesn't
+   *  spin in a save loop. */
+  markGroupSaved: (group: ThemeSectionGroup) => void
 
   select: (target: SidebarTarget) => void
 
@@ -112,6 +124,8 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
   header: [],
   footer: [],
   selected: null,
+  headerDirty: false,
+  footerDirty: false,
 
   hydrate(themeId, header, footer) {
     set({
@@ -120,7 +134,13 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
       footer: footer.map(rowToDraft),
       // Reset selection on hydrate to avoid pointing at a stale id.
       selected: null,
+      headerDirty: false,
+      footerDirty: false,
     })
+  },
+
+  markGroupSaved(group) {
+    set(group === "HEADER" ? { headerDirty: false } : { footerDirty: false })
   },
 
   select(target) {
@@ -154,21 +174,27 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
     }
     set((s) =>
       group === "HEADER"
-        ? { header: [...s.header, newSection] }
-        : { footer: [...s.footer, newSection] },
+        ? { header: [...s.header, newSection], headerDirty: true }
+        : { footer: [...s.footer, newSection], footerDirty: true },
     )
     return id
   },
 
   removeSection(sectionId) {
-    set((s) => ({
-      header: s.header.filter((x) => x.id !== sectionId),
-      footer: s.footer.filter((x) => x.id !== sectionId),
-      selected:
-        s.selected?.kind === "section" && s.selected.sectionId === sectionId
-          ? null
-          : s.selected,
-    }))
+    set((s) => {
+      const inHeader = s.header.some((x) => x.id === sectionId)
+      const inFooter = s.footer.some((x) => x.id === sectionId)
+      return {
+        header: s.header.filter((x) => x.id !== sectionId),
+        footer: s.footer.filter((x) => x.id !== sectionId),
+        selected:
+          s.selected?.kind === "section" && s.selected.sectionId === sectionId
+            ? null
+            : s.selected,
+        headerDirty: inHeader ? true : s.headerDirty,
+        footerDirty: inFooter ? true : s.footerDirty,
+      }
+    })
   },
 
   reorderSections(group, orderedIds) {
@@ -182,35 +208,51 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
           return { ...item, position: idx, dirty: true }
         })
         .filter((x): x is SectionDraft => x !== null)
-      return group === "HEADER" ? { header: reordered } : { footer: reordered }
+      return group === "HEADER"
+        ? { header: reordered, headerDirty: true }
+        : { footer: reordered, footerDirty: true }
     })
   },
 
   updateSectionContent(sectionId, content) {
-    set((s) => ({
-      header: s.header.map((x) =>
-        x.id === sectionId ? { ...x, content, dirty: true } : x,
-      ),
-      footer: s.footer.map((x) =>
-        x.id === sectionId ? { ...x, content, dirty: true } : x,
-      ),
-    }))
+    set((s) => {
+      const inHeader = s.header.some((x) => x.id === sectionId)
+      const inFooter = s.footer.some((x) => x.id === sectionId)
+      return {
+        header: s.header.map((x) =>
+          x.id === sectionId ? { ...x, content, dirty: true } : x,
+        ),
+        footer: s.footer.map((x) =>
+          x.id === sectionId ? { ...x, content, dirty: true } : x,
+        ),
+        headerDirty: inHeader ? true : s.headerDirty,
+        footerDirty: inFooter ? true : s.footerDirty,
+      }
+    })
   },
 
   toggleSectionEnabled(sectionId) {
-    set((s) => ({
-      header: s.header.map((x) =>
-        x.id === sectionId ? { ...x, enabled: !x.enabled, dirty: true } : x,
-      ),
-      footer: s.footer.map((x) =>
-        x.id === sectionId ? { ...x, enabled: !x.enabled, dirty: true } : x,
-      ),
-    }))
+    set((s) => {
+      const inHeader = s.header.some((x) => x.id === sectionId)
+      const inFooter = s.footer.some((x) => x.id === sectionId)
+      return {
+        header: s.header.map((x) =>
+          x.id === sectionId ? { ...x, enabled: !x.enabled, dirty: true } : x,
+        ),
+        footer: s.footer.map((x) =>
+          x.id === sectionId ? { ...x, enabled: !x.enabled, dirty: true } : x,
+        ),
+        headerDirty: inHeader ? true : s.headerDirty,
+        footerDirty: inFooter ? true : s.footerDirty,
+      }
+    })
   },
 
   addBlock(sectionId, type, defaultContent) {
     const id = tmpId("b")
     set((s) => {
+      const inHeader = s.header.some((sec) => sec.id === sectionId)
+      const inFooter = s.footer.some((sec) => sec.id === sectionId)
       const patch = (list: SectionDraft[]) =>
         list.map((sec) => {
           if (sec.id !== sectionId) return sec
@@ -232,13 +274,24 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
             ],
           }
         })
-      return { header: patch(s.header), footer: patch(s.footer) }
+      return {
+        header: patch(s.header),
+        footer: patch(s.footer),
+        headerDirty: inHeader ? true : s.headerDirty,
+        footerDirty: inFooter ? true : s.footerDirty,
+      }
     })
     return id
   },
 
   removeBlock(blockId) {
     set((s) => {
+      const inHeader = s.header.some((sec) =>
+        sec.blocks.some((b) => b.id === blockId),
+      )
+      const inFooter = s.footer.some((sec) =>
+        sec.blocks.some((b) => b.id === blockId),
+      )
       const patch = (list: SectionDraft[]) =>
         list.map((sec) => ({
           ...sec,
@@ -252,12 +305,16 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
           s.selected?.kind === "section-block" && s.selected.blockId === blockId
             ? null
             : s.selected,
+        headerDirty: inHeader ? true : s.headerDirty,
+        footerDirty: inFooter ? true : s.footerDirty,
       }
     })
   },
 
   reorderBlocks(sectionId, orderedIds) {
     set((s) => {
+      const inHeader = s.header.some((sec) => sec.id === sectionId)
+      const inFooter = s.footer.some((sec) => sec.id === sectionId)
       const patch = (list: SectionDraft[]) =>
         list.map((sec) => {
           if (sec.id !== sectionId) return sec
@@ -271,12 +328,23 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
             .filter((x): x is BlockDraft => x !== null)
           return { ...sec, blocks: reordered, dirty: true }
         })
-      return { header: patch(s.header), footer: patch(s.footer) }
+      return {
+        header: patch(s.header),
+        footer: patch(s.footer),
+        headerDirty: inHeader ? true : s.headerDirty,
+        footerDirty: inFooter ? true : s.footerDirty,
+      }
     })
   },
 
   updateBlockContent(blockId, content) {
     set((s) => {
+      const inHeader = s.header.some((sec) =>
+        sec.blocks.some((b) => b.id === blockId),
+      )
+      const inFooter = s.footer.some((sec) =>
+        sec.blocks.some((b) => b.id === blockId),
+      )
       const patch = (list: SectionDraft[]) =>
         list.map((sec) => {
           if (!sec.blocks.some((b) => b.id === blockId)) return sec
@@ -288,12 +356,23 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
             ),
           }
         })
-      return { header: patch(s.header), footer: patch(s.footer) }
+      return {
+        header: patch(s.header),
+        footer: patch(s.footer),
+        headerDirty: inHeader ? true : s.headerDirty,
+        footerDirty: inFooter ? true : s.footerDirty,
+      }
     })
   },
 
   toggleBlockEnabled(blockId) {
     set((s) => {
+      const inHeader = s.header.some((sec) =>
+        sec.blocks.some((b) => b.id === blockId),
+      )
+      const inFooter = s.footer.some((sec) =>
+        sec.blocks.some((b) => b.id === blockId),
+      )
       const patch = (list: SectionDraft[]) =>
         list.map((sec) => {
           if (!sec.blocks.some((b) => b.id === blockId)) return sec
@@ -305,7 +384,12 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
             ),
           }
         })
-      return { header: patch(s.header), footer: patch(s.footer) }
+      return {
+        header: patch(s.header),
+        footer: patch(s.footer),
+        headerDirty: inHeader ? true : s.headerDirty,
+        footerDirty: inFooter ? true : s.footerDirty,
+      }
     })
   },
 

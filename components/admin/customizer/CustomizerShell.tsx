@@ -223,10 +223,27 @@ export function CustomizerShell({
 
   const headerDrafts = useThemeSectionsStore((s) => s.header)
   const footerDrafts = useThemeSectionsStore((s) => s.footer)
+  const headerDirty = useThemeSectionsStore((s) => s.headerDirty)
+  const footerDirty = useThemeSectionsStore((s) => s.footerDirty)
+  const markGroupSaved = useThemeSectionsStore((s) => s.markGroupSaved)
   const themeSectionsSelected = useThemeSectionsStore((s) => s.selected)
 
-  useDebouncedSaveGroup(theme.id, "HEADER", headerDrafts, handleAnySaved)
-  useDebouncedSaveGroup(theme.id, "FOOTER", footerDrafts, handleAnySaved)
+  useDebouncedSaveGroup(
+    theme.id,
+    "HEADER",
+    headerDrafts,
+    headerDirty,
+    markGroupSaved,
+    handleAnySaved,
+  )
+  useDebouncedSaveGroup(
+    theme.id,
+    "FOOTER",
+    footerDrafts,
+    footerDirty,
+    markGroupSaved,
+    handleAnySaved,
+  )
 
   const handleExit = useCallback(() => {
     router.push("/admin/personalizar/temas")
@@ -389,14 +406,16 @@ function useDebouncedSaveGroup(
   themeId: string,
   group: "HEADER" | "FOOTER",
   drafts: SectionDraft[],
+  groupDirty: boolean,
+  markGroupSaved: (group: "HEADER" | "FOOTER") => void,
   onSaved: () => void,
 ) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    const isDirty = drafts.some(
-      (s) => s.dirty || s.blocks.some((b) => b.dirty),
-    )
-    if (!isDirty) return
+    // Group-level dirty flag is the source of truth: it captures both
+    // per-draft edits AND deletions (which leave no per-draft dirty
+    // trace because the deleted draft is gone from the array).
+    if (!groupDirty) return
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(async () => {
       try {
@@ -418,6 +437,7 @@ function useDebouncedSaveGroup(
             })),
           })),
         )
+        markGroupSaved(group)
         onSaved()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Error al guardar")
@@ -426,7 +446,7 @@ function useDebouncedSaveGroup(
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [drafts, themeId, group, onSaved])
+  }, [drafts, themeId, group, groupDirty, markGroupSaved, onSaved])
 }
 
 function CustomizerHeaderRow({
