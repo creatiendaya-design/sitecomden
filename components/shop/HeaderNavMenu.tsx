@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { ChevronDown, ChevronRight } from "lucide-react"
 import { MenuLink } from "./MenuLink"
 import { resolveMenuItemHref } from "@/lib/menus/resolve-link"
@@ -57,14 +57,20 @@ function NavItem({
   useEffect(() => () => cancelClose(), [])
 
   // Auto-flip fly-out at depth >= 1 if it would overflow the viewport.
-  useEffect(() => {
+  // useLayoutEffect is intentional: this is a DOM-measurement → state-sync
+  // pattern that must run before the browser paints to avoid a visible flicker.
+  // depth is intentionally omitted from deps: it is a prop that is stable for
+  // the lifetime of a mounted NavItem instance and can never change in-place.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useLayoutEffect(() => {
     if (!open || depth === 0 || !panelRef.current) {
       setFlip(false)
       return
     }
     const rect = panelRef.current.getBoundingClientRect()
     if (rect.right > window.innerWidth - 8) setFlip(true)
-  }, [open, depth])
+  }, [open])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   // Close on outside click while open.
   useEffect(() => {
@@ -83,6 +89,7 @@ function NavItem({
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Escape") {
+      e.stopPropagation()
       setOpen(false)
       ;(e.currentTarget.querySelector("button, a") as HTMLElement | null)?.focus()
     } else if (e.key === "ArrowRight" && hasChildren && !open) {
@@ -166,6 +173,7 @@ function NavItem({
       <div
         ref={panelRef}
         role="menu"
+        inert={!open || undefined}
         className={cn(
           panelPositionClass,
           "z-50 min-w-[220px]",
