@@ -5,6 +5,7 @@ import { getTheme } from "@/actions/themes"
 import { listLandingTemplates } from "@/actions/landing-templates"
 import { listPagesForThemePicker } from "@/actions/pages"
 import { listMenusForThemePicker } from "@/actions/menus"
+import { listThemeSections } from "@/actions/theme-sections"
 import {
   CustomizerShell,
   type EditableSurface,
@@ -79,6 +80,16 @@ export default async function CustomizeThemePage({
 
   if (!theme) notFound()
 
+  // Plan 16 — Fetch the ordered HEADER / FOOTER theme sections + the
+  // per-theme section catalog. The customizer hydrates its zustand store
+  // from these on mount; autosave round-trips replace tmp- ids on next
+  // server render via router.refresh().
+  const [headerSections, footerSections] = await Promise.all([
+    listThemeSections(theme.id, "HEADER"),
+    listThemeSections(theme.id, "FOOTER"),
+  ])
+  const sectionCatalog = theme.sectionCatalog
+
   // ---------- Resolve which surface (Page or Category) the target maps to ----------
   let editableSurface: EditableSurface | null = null
   let initialBlocks: BlockInstance[] = []
@@ -135,6 +146,9 @@ export default async function CustomizeThemePage({
       targetKey={targetKey}
       editableSurface={editableSurface}
       initialBlocks={initialBlocks}
+      headerSections={headerSections}
+      footerSections={footerSections}
+      sectionCatalog={sectionCatalog}
     />
   )
 }

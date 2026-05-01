@@ -8,6 +8,7 @@ import {
   resolveColorSchemes,
   type ColorSchemeArray,
 } from "@/lib/themes/color-schemes"
+import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
 
 export interface ThemeRow {
   id: string
@@ -43,6 +44,9 @@ export interface ThemeRow {
    *  default. Always at least one entry: when the DB column is `[]`, the
    *  resolver synthesizes a scheme from `tokens.colors`. */
   colorSchemes: ColorSchemeArray
+  /** Plan 16 — per-theme catalog of allowed section types per group. Empty
+   *  `{}` means permissive (all registry types available). */
+  sectionCatalog: ThemeSectionCatalog
   updatedAt: Date
 }
 
@@ -71,6 +75,7 @@ type ThemeWithJoins = {
   footerMenu: { id: string; title: string; slug: string } | null
   tokens: unknown
   colorSchemes: unknown
+  sectionCatalog: unknown
   updatedAt: Date
 }
 
@@ -99,6 +104,7 @@ function toThemeRow(t: ThemeWithJoins): ThemeRow {
       t.colorSchemes,
       t.tokens as ThemeTokens | null,
     ),
+    sectionCatalog: (t.sectionCatalog as ThemeSectionCatalog | null) ?? {},
     updatedAt: t.updatedAt,
   }
 }

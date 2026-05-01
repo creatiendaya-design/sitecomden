@@ -20,7 +20,12 @@ import type { TemplateRow } from "@/actions/landing-templates"
 import { savePageBlocks, type PageRow } from "@/actions/pages"
 import type { MenuRow } from "@/actions/menus"
 import { saveCategoryBlocks } from "@/actions/categories-blocks"
+import {
+  saveThemeSectionGroup,
+  type ThemeSectionRow,
+} from "@/actions/theme-sections"
 import type { BlockInstance } from "@/lib/blocks/types"
+import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
 import {
   CustomizerToolbar,
   type DeviceMode,
@@ -30,6 +35,11 @@ import { CustomizerTokensPanel } from "./CustomizerTokensPanel"
 import { ZoneList } from "./ZoneList"
 import { ColorSchemesProvider } from "./color-schemes-context"
 import { RightSidebar } from "@/components/admin/page-builder/RightSidebar/RightSidebar"
+import { ThemeSectionRightSidebar } from "./ThemeSectionRightSidebar"
+import {
+  useThemeSectionsStore,
+  type SectionDraft,
+} from "./theme-sections-store"
 import type { EditorBlock } from "./EmbeddedBlocksEditor"
 import {
   buildPageTargets,
@@ -62,6 +72,12 @@ interface Props {
   targetKey: string
   editableSurface: EditableSurface | null
   initialBlocks: BlockInstance[]
+  /** Plan 16 — server-fetched ordered HEADER theme sections (with blocks). */
+  headerSections: ThemeSectionRow[]
+  /** Plan 16 — server-fetched ordered FOOTER theme sections (with blocks). */
+  footerSections: ThemeSectionRow[]
+  /** Plan 16 — per-theme allowed section types per group. */
+  sectionCatalog: ThemeSectionCatalog
 }
 
 /**
@@ -78,13 +94,15 @@ interface Props {
 export function CustomizerShell({
   theme,
   pages,
-  menus,
   categoryTargets,
   sampleProductSlug,
   sampleCategorySlug,
   targetKey,
   editableSurface,
   initialBlocks,
+  headerSections,
+  footerSections,
+  sectionCatalog,
 }: Props) {
   const router = useRouter()
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
@@ -182,6 +200,19 @@ export function CustomizerShell({
     router.refresh()
   }, [router])
 
+  // ---------- Plan 16 — theme-sections store hydration + autosave ----------
+  const hydrateThemeSections = useThemeSectionsStore((s) => s.hydrate)
+  useEffect(() => {
+    hydrateThemeSections(theme.id, headerSections, footerSections)
+  }, [hydrateThemeSections, theme.id, headerSections, footerSections])
+
+  const headerDrafts = useThemeSectionsStore((s) => s.header)
+  const footerDrafts = useThemeSectionsStore((s) => s.footer)
+  const themeSectionsSelected = useThemeSectionsStore((s) => s.selected)
+
+  useDebouncedSaveGroup(theme.id, "HEADER", headerDrafts, handleAnySaved)
+  useDebouncedSaveGroup(theme.id, "FOOTER", footerDrafts, handleAnySaved)
+
   const handleExit = useCallback(() => {
     router.push("/admin/personalizar/temas")
   }, [router])
@@ -237,15 +268,12 @@ export function CustomizerShell({
                 {editorKey ? (
                   <ZoneList
                     themeId={theme.id}
-                    initialHeaderMenuId={theme.headerMenuId}
-                    initialFooterMenuId={theme.footerMenuId}
-                    menus={menus}
                     editorKey={editorKey}
                     initialBlocks={initialBlocks}
                     saveBlocks={saveBlocks}
                     targetLabel={currentTarget?.label ?? "Plantilla"}
                     onBlocksSaved={handleAnySaved}
-                    onSettingsSaved={handleAnySaved}
+                    sectionCatalog={sectionCatalog}
                   />
                 ) : (
                   <BlocksUnavailable
@@ -299,30 +327,88 @@ export function CustomizerShell({
 
         {/* Right column: block settings (only meaningful in sections
             view; the tokens view is full-bleed in the left panel).
-            ColorSchemesProvider exposes the theme's schemes to the block
-            StyleTab so the per-block scheme picker can populate. */}
-        {panelView === "sections" && editableSurface && (
-          <ColorSchemesProvider schemes={theme.colorSchemes}>
-            <RightSidebar
-              context={{
-                type: "page",
-                // RightSidebar's PageContext accepts both Page-bound and
-                // Category-bound surfaces — its current consumers only
-                // read id/title for breadcrumb display, so we forward
-                // whichever surface the customizer is editing without
-                // introducing a separate CategoryContext today.
-                page: {
-                  id: editableSurface.id,
-                  slug: editableSurface.title ?? "page",
-                  title: editableSurface.title ?? "Plantilla",
-                },
-              }}
-            />
-          </ColorSchemesProvider>
-        )}
+            Plan 16: when a theme section / section-block is selected,
+            we render ThemeSectionRightSidebar (it reads from the
+            theme-sections store). Otherwise — and only when there's an
+            editable page/category surface — we fall back to the
+            page-builder RightSidebar, wrapped in ColorSchemesProvider
+            so its StyleTab scheme picker can populate. */}
+        {panelView === "sections" &&
+          (themeSectionsSelected ? (
+            <ThemeSectionRightSidebar />
+          ) : editableSurface ? (
+            <ColorSchemesProvider schemes={theme.colorSchemes}>
+              <RightSidebar
+                context={{
+                  type: "page",
+                  // RightSidebar's PageContext accepts both Page-bound
+                  // and Category-bound surfaces — its current consumers
+                  // only read id/title for breadcrumb display, so we
+                  // forward whichever surface the customizer is editing
+                  // without introducing a separate CategoryContext today.
+                  page: {
+                    id: editableSurface.id,
+                    slug: editableSurface.title ?? "page",
+                    title: editableSurface.title ?? "Plantilla",
+                  },
+                }}
+              />
+            </ColorSchemesProvider>
+          ) : null)}
       </div>
     </div>
   )
+}
+
+/**
+ * Debounced autosave for a HEADER or FOOTER theme-sections group. Fires
+ * 800ms after the last edit, but only if any draft is dirty (so initial
+ * hydration doesn't trigger a no-op save). Keeps the call inside the
+ * Shell file because it closes over saveThemeSectionGroup + the toast
+ * surface, and pulling it out adds little value at one caller per group.
+ */
+function useDebouncedSaveGroup(
+  themeId: string,
+  group: "HEADER" | "FOOTER",
+  drafts: SectionDraft[],
+  onSaved: () => void,
+) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const isDirty = drafts.some(
+      (s) => s.dirty || s.blocks.some((b) => b.dirty),
+    )
+    if (!isDirty) return
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(async () => {
+      try {
+        await saveThemeSectionGroup(
+          themeId,
+          group,
+          drafts.map((s) => ({
+            id: s.id,
+            type: s.type,
+            position: s.position,
+            content: s.content,
+            enabled: s.enabled,
+            blocks: s.blocks.map((b) => ({
+              id: b.id,
+              type: b.type,
+              position: b.position,
+              content: b.content,
+              enabled: b.enabled,
+            })),
+          })),
+        )
+        onSaved()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al guardar")
+      }
+    }, 800)
+    return () => {
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [drafts, themeId, group, onSaved])
 }
 
 function CustomizerHeaderRow({
