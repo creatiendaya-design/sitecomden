@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
+import { z } from "zod"
+import { MAX_MENU_DEPTH } from "@/lib/menus/constants"
 
 export interface MenuRow {
   id: string
@@ -185,11 +187,39 @@ interface IncomingItem {
   openInNewTab: boolean
 }
 
+const linkTypeEnum = z.enum([
+  "HOME",
+  "PRODUCTS_INDEX",
+  "COLLECTIONS_INDEX",
+  "PAGE",
+  "PRODUCT",
+  "CATEGORY",
+  "EXTERNAL_URL",
+])
+
+const incomingItemSchema = z.object({
+  id: z.string().min(1),
+  parentId: z.string().nullable(),
+  position: z.number().int().min(0),
+  label: z.string().trim().min(1).max(120),
+  linkType: linkTypeEnum,
+  targetId: z.string().nullable(),
+  externalUrl: z
+    .string()
+    .url()
+    .nullable()
+    .or(z.literal("").transform(() => null)),
+  openInNewTab: z.boolean(),
+})
+
+const incomingItemsSchema = z.array(incomingItemSchema)
+
 export async function saveMenuItems(
   menuId: string,
   incoming: IncomingItem[],
 ): Promise<{ success: true }> {
   await protectRoute("menus:update")
+  const items = incomingItemsSchema.parse(incoming)
 
   const menu = await prisma.menu.findUnique({
     where: { id: menuId },
@@ -209,7 +239,7 @@ export async function saveMenuItems(
       select: { id: true },
     })
     const existingIds = new Set(existing.map((b) => b.id))
-    const incomingIds = new Set(incoming.map((b) => b.id))
+    const incomingIds = new Set(items.map((b) => b.id))
 
     const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
     if (toDelete.length > 0) {
@@ -219,7 +249,7 @@ export async function saveMenuItems(
       // then deleting the child errors. Sort: leaves first.
       const childOf = new Map<string, string[]>()
       for (const e of existing) {
-        const parent = incoming.find((i) => i.id === e.id)?.parentId ?? null
+        const parent = items.find((i) => i.id === e.id)?.parentId ?? null
         if (parent) {
           if (!childOf.has(parent)) childOf.set(parent, [])
           childOf.get(parent)!.push(e.id)
@@ -231,8 +261,8 @@ export async function saveMenuItems(
 
     // Pass 1 — items with no parent (or with parent that already has a real id).
     // Pass 2 — items whose parent was a tmp- id that we mapped in pass 1.
-    const roots = incoming.filter((i) => i.parentId === null)
-    const children = incoming.filter((i) => i.parentId !== null)
+    const roots = items.filter((i) => i.parentId === null)
+    const children = items.filter((i) => i.parentId !== null)
 
     for (const it of roots) {
       const data = {
