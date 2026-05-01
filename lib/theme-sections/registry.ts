@@ -6,10 +6,7 @@ import type {
 } from "./types"
 import { announcementBarDefinition } from "./schema/announcement-bar"
 import { headerMainDefinition } from "./schema/header-main"
-import { headerLogoDefinition } from "./schema/header-logo"
-import { headerNavDefinition } from "./schema/header-nav"
 import { megaMenuDefinition } from "./schema/mega-menu"
-import { headerSearchDefinition } from "./schema/header-search"
 import { headerPromoBannerDefinition } from "./schema/header-promo-banner"
 import { footerColumnsDefinition } from "./schema/footer-columns"
 import { footerNewsletterDefinition } from "./schema/footer-newsletter"
@@ -21,10 +18,7 @@ import { footerCopyrightDefinition } from "./schema/footer-copyright"
 const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   announcementBarDefinition,
   headerMainDefinition,
-  headerLogoDefinition,
-  headerNavDefinition,
   megaMenuDefinition,
-  headerSearchDefinition,
   headerPromoBannerDefinition,
   footerColumnsDefinition,
   footerNewsletterDefinition,

@@ -1,10 +1,7 @@
 import type { ResolvedThemeSection } from "@/lib/theme-sections/types"
 import { AnnouncementBar } from "./header/AnnouncementBar"
 import { HeaderMain } from "./header/HeaderMain"
-import { HeaderLogo } from "./header/HeaderLogo"
-import { HeaderNav } from "./header/HeaderNav"
 import { MegaMenu } from "./header/MegaMenu"
-import { HeaderSearch } from "./header/HeaderSearch"
 import { HeaderPromoBanner } from "./header/HeaderPromoBanner"
 import { FooterColumns } from "./footer/FooterColumns"
 import { FooterNewsletter } from "./footer/FooterNewsletter"
@@ -25,10 +22,7 @@ type RendererComponent = (props: {
 const HEADER_RENDERERS: Record<string, RendererComponent> = {
   ANNOUNCEMENT_BAR: AnnouncementBar,
   HEADER_MAIN: HeaderMain,
-  HEADER_LOGO: HeaderLogo,
-  HEADER_NAV: HeaderNav,
   MEGA_MENU: MegaMenu,
-  HEADER_SEARCH: HeaderSearch,
   HEADER_PROMO_BANNER: HeaderPromoBanner,
 }
 
