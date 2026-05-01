@@ -18,8 +18,6 @@ export interface ResolvedThemeRender {
   name: string
   homePageId: string | null
   cartPageId: string | null
-  headerMenuId: string | null
-  footerMenuId: string | null
   defaultProductLandingTemplateId: string | null
   /** True when this theme is being previewed (admin saw their preview cookie),
    *  false when this is the live "active" theme served to all visitors. */
@@ -87,7 +85,5 @@ const themeRenderSelect = {
   name: true,
   homePageId: true,
   cartPageId: true,
-  headerMenuId: true,
-  footerMenuId: true,
   defaultProductLandingTemplateId: true,
 } as const

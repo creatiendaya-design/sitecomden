@@ -18,7 +18,6 @@ import {
 } from "@/actions/themes"
 import type { TemplateRow } from "@/actions/landing-templates"
 import { savePageBlocks, type PageRow } from "@/actions/pages"
-import type { MenuRow } from "@/actions/menus"
 import { saveCategoryBlocks } from "@/actions/categories-blocks"
 import {
   saveThemeSectionGroup,
@@ -63,7 +62,6 @@ interface Props {
   // (theme metadata page) — pending product-section analysis.
   landingTemplates: TemplateRow[]
   pages: PageRow[]
-  menus: MenuRow[]
   /** All Pages + Categories the page picker should expose. The customize
    *  page server-fetches these and forwards them so the picker dropdown
    *  can list real options. */

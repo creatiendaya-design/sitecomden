@@ -1107,10 +1107,6 @@ model Menu {
   description String?
   active      Boolean    @default(true)
   items       MenuItem[]
-  /** Themes that point to this menu as their storefront header (Plan 9). */
-  themesUsingAsHeader Theme[] @relation("ThemeHeaderMenu")
-  /** Themes that point to this menu as their storefront footer (Plan 9). */
-  themesUsingAsFooter Theme[] @relation("ThemeFooterMenu")
   createdBy   String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -1222,13 +1218,6 @@ model Theme {
   /// Null = no blocks; cart UI shows alone.
   cartPageId                      String?
   cartPage                        Page?            @relation("ThemeCartPage", fields: [cartPageId], references: [id], onDelete: SetNull)
-  /// Menu rendered in the storefront header. Null = fetch by slug "main"
-  /// (Plan 9 fallback for legacy compatibility).
-  headerMenuId                    String?
-  headerMenu                      Menu?            @relation("ThemeHeaderMenu", fields: [headerMenuId], references: [id], onDelete: SetNull)
-  /// Menu rendered in the storefront footer. Null = fetch by slug "footer".
-  footerMenuId                    String?
-  footerMenu                      Menu?            @relation("ThemeFooterMenu", fields: [footerMenuId], references: [id], onDelete: SetNull)
   /// Visual design tokens (colors, fonts, scale, radii) — Plan 11.
   /// Materialized into a single class-scoped stylesheet served via
   /// /api/themes/tokens.css; the storefront layout sets body class
@@ -1252,7 +1241,7 @@ model Theme {
   sectionCatalog                  Json             @default("{}")
   /// Plan 16 — ordered Header / Footer sections that drive the storefront
   /// header and footer. Replaces the legacy single-Menu reference model
-  /// once Phase 2 (contract migration) drops headerMenuId/footerMenuId.
+  /// (Phase E dropped the legacy headerMenuId/footerMenuId columns).
   sections                        ThemeSection[]
   createdBy                       String?
   createdAt                       DateTime @default(now())

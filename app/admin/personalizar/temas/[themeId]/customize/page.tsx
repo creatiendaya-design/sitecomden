@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db"
 import { getTheme } from "@/actions/themes"
 import { listLandingTemplates } from "@/actions/landing-templates"
 import { listPagesForThemePicker } from "@/actions/pages"
-import { listMenusForThemePicker } from "@/actions/menus"
 import { listThemeSections } from "@/actions/theme-sections"
 import {
   CustomizerShell,
@@ -49,7 +48,6 @@ export default async function CustomizeThemePage({
     theme,
     landingTemplates,
     pages,
-    menus,
     sampleProduct,
     sampleCategory,
     activeCategories,
@@ -57,7 +55,6 @@ export default async function CustomizeThemePage({
     getTheme(themeId),
     listLandingTemplates({ active: true }),
     listPagesForThemePicker(),
-    listMenusForThemePicker(),
     prisma.product.findFirst({
       where: { active: true },
       orderBy: { createdAt: "desc" },
@@ -139,7 +136,6 @@ export default async function CustomizeThemePage({
       theme={theme}
       landingTemplates={landingTemplates}
       pages={pages}
-      menus={menus}
       categoryTargets={activeCategories}
       sampleProductSlug={sampleProduct?.slug ?? null}
       sampleCategorySlug={sampleCategory?.slug ?? null}

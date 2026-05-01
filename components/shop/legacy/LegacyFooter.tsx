@@ -1,15 +1,16 @@
 import { Facebook, Instagram, Twitter } from "lucide-react"
 import { getSiteSettings } from "@/lib/site-settings"
-import { getThemedMenu } from "@/lib/menus/get-themed-menu"
+import { getMenuBySlug } from "@/lib/menus/get-menu-by-slug"
 import { resolveMenuItemHref } from "@/lib/menus/resolve-link"
 import Link from "next/link"
 
 export default async function LegacyFooter() {
-  // Plan 9: theme-aware menu fetch. Falls back to slug "footer" when the
-  // active/preview theme has no footerMenuId assigned.
+  // Plan 16 Phase E: legacy fallback now reads the menu by slug since
+  // Theme.footerMenuId was dropped — sections drive the storefront footer
+  // for any real theme.
   const [settings, menu] = await Promise.all([
     getSiteSettings(),
-    getThemedMenu("footer"),
+    getMenuBySlug("footer"),
   ])
 
   // Each root item with children becomes a link column. Root items WITHOUT

@@ -7,16 +7,17 @@ import MobileMenu from "../MobileMenu";
 import SearchBar from "../SearchBar";
 import { HeaderAuth } from "../HeaderAuth";
 import { getSiteSettings } from "@/lib/site-settings";
-import { getThemedMenu } from "@/lib/menus/get-themed-menu";
+import { getMenuBySlug } from "@/lib/menus/get-menu-by-slug";
 import { HeaderNavMenu } from "../HeaderNavMenu";
 import MobileSearch from "../MobileSearch";
 
 export default async function LegacyHeader() {
-  // Settings + header menu. Plan 9: the active/preview theme can override
-  // which menu serves as the header; falls back to slug "main" otherwise.
+  // Settings + header menu. Plan 16 Phase E: the legacy fallback now reads
+  // the menu by slug ("main") since Theme.headerMenuId was dropped — sections
+  // (ThemeSection rows) drive the storefront header for any real theme.
   const [settings, menu] = await Promise.all([
     getSiteSettings(),
-    getThemedMenu("header"),
+    getMenuBySlug("main"),
   ]);
   const menuItems = menu?.items ?? [];
 
