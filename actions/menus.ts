@@ -228,6 +228,15 @@ function computeDepth(
   if (seen.has(itemId)) {
     throw new Error("Ciclo detectado en el árbol del menú")
   }
+  // Early bail-out before recursing further: caps stack depth at MAX_MENU_DEPTH
+  // regardless of payload size. assertDepthAndAcyclic still surfaces the
+  // user-facing depth message — this throw protects against malicious payloads
+  // (e.g. 10k-deep chains) reaching Node's recursion limit.
+  if (seen.size >= MAX_MENU_DEPTH) {
+    throw new Error(
+      `El menú no puede tener más de ${MAX_MENU_DEPTH} niveles`,
+    )
+  }
   const it = byId.get(itemId)
   if (!it || it.parentId === null) return 0
   seen.add(itemId)
