@@ -204,11 +204,13 @@ const incomingItemSchema = z.object({
   label: z.string().trim().min(1).max(120),
   linkType: linkTypeEnum,
   targetId: z.string().nullable(),
+  // externalUrl is stored as-is. URL well-formedness is enforced at the form
+  // boundary (LinkPicker) and only matters when linkType === "EXTERNAL_URL".
+  // Validating here would reject existing data with partial/malformed URLs.
   externalUrl: z
     .string()
-    .url()
     .nullable()
-    .or(z.literal("").transform(() => null)),
+    .transform((v) => (v === "" ? null : v)),
   openInNewTab: z.boolean(),
 })
 
