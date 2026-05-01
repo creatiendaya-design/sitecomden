@@ -133,6 +133,7 @@ model Product {
   @@index([active])
   @@index([featured])
   @@index([template])
+  @@index([customizableTemplateId])
 }
 
 model LandingBlock {
