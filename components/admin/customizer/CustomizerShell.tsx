@@ -195,8 +195,23 @@ export function CustomizerShell({
   )
 
   // Iframe refresh after any save (blocks autosave or settings autosave).
+  // Prefer a postMessage soft refresh — listened to by PreviewRefreshListener
+  // in app/(shop)/layout.tsx and serviced via router.refresh() inside the
+  // iframe — because it's ~10x faster than a full document reload (no asset
+  // re-download, keeps scroll/focus, avoids a fresh Neon cold start). Falls
+  // back to a hard reload if the iframe isn't reachable.
   const handleAnySaved = useCallback(() => {
-    iframeRef.current?.contentWindow?.location.reload()
+    const win = iframeRef.current?.contentWindow
+    if (win) {
+      try {
+        win.postMessage(
+          { type: "theme-preview-refresh" },
+          window.location.origin,
+        )
+      } catch {
+        win.location.reload()
+      }
+    }
     router.refresh()
   }, [router])
 
@@ -362,10 +377,13 @@ export function CustomizerShell({
 
 /**
  * Debounced autosave for a HEADER or FOOTER theme-sections group. Fires
- * 800ms after the last edit, but only if any draft is dirty (so initial
- * hydration doesn't trigger a no-op save). Keeps the call inside the
- * Shell file because it closes over saveThemeSectionGroup + the toast
- * surface, and pulling it out adds little value at one caller per group.
+ * 250ms after the last edit, but only if any draft is dirty (so initial
+ * hydration doesn't trigger a no-op save). 250ms is short enough that
+ * structural changes (add / remove / reorder / toggle) feel near-instant
+ * but long enough that rapid keystrokes in a text field still coalesce
+ * into a single write. Keeps the call inside the Shell file because it
+ * closes over saveThemeSectionGroup + the toast surface, and pulling it
+ * out adds little value at one caller per group.
  */
 function useDebouncedSaveGroup(
   themeId: string,
@@ -404,7 +422,7 @@ function useDebouncedSaveGroup(
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Error al guardar")
       }
-    }, 800)
+    }, 250)
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
