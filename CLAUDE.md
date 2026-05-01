@@ -183,19 +183,20 @@ components/
     └── (misc)               BulkEdit, ImageUpload, role/user managers, …
 ```
 
-### Theme & Page-Builder System (Plans 1–13.1)
+### Theme & Page-Builder System (Plans 1–16)
 
 The "themes" feature is the bulk of recent work. It implements a Shopify-style content authoring stack:
 
 | Concept | Model(s) | Notes |
 |---|---|---|
-| Theme | `Theme` | Singleton-active. Owns `tokens`, `colorSchemes`, `homePageId`, `cartPageId`, `headerMenuId`, `footerMenuId`, `defaultProductLandingTemplateId`. |
+| Theme | `Theme` | Singleton-active. Owns `tokens`, `colorSchemes`, `homePageId`, `cartPageId`, `defaultProductLandingTemplateId`, `sectionCatalog`. |
 | Design tokens | `Theme.tokens` (Json) | Colors / fonts / scale / radii. Materialized into a scoped stylesheet served at `/api/themes/tokens.css` (cached via [lib/themes/get-themes-hash.ts](lib/themes/get-themes-hash.ts)). |
 | Color schemes | `Theme.colorSchemes` (Json array) | Plan 13.1 — multiple named palettes (`{id, name, colors}`); blocks pick one via `content.style.colorSchemeId`. Empty array → fallback to `tokens.colors` via [lib/themes/color-schemes.ts](lib/themes/color-schemes.ts). Storefront emits `data-color-scheme` on each block wrapper; CSS rules rebind `--theme-*` custom properties via attribute selectors. |
+| Theme sections | `ThemeSection` + `ThemeSectionBlock` | Plan 16 — Shopify Online Store 2.0–style header / footer. Each theme has an ordered list of typed sections per group (HEADER / FOOTER) with optional sub-blocks (e.g. `LINK_COLUMN` inside `FOOTER_COLUMNS`, `MEGA_MENU_PANEL` inside `MEGA_MENU`). Storefront `Header.tsx` / `Footer.tsx` are thin shells that map sections to renderers in [components/shop/theme-sections/](components/shop/theme-sections/). 10 section types in [lib/theme-sections/registry.ts](lib/theme-sections/registry.ts). Per-theme catalog (`Theme.sectionCatalog` Json) curates which types each theme exposes. |
 | Static pages | `Page` + `PageBlock` | User-editable pages (Nosotros, FAQ, …) at `/<slug>`. SEO metadata (title/description/og-image/noindex). |
 | Cart blocks | `Page` referenced by `Theme.cartPageId` | Blocks rendered above the cart UI. |
 | Home blocks | `Page` referenced by `Theme.homePageId` | Themed home; falls back to legacy hardcoded layout when null. |
-| Menus | `Menu` + `MenuItem` (self-nesting) | Theme references via `headerMenuId` / `footerMenuId`; falls back to slugs `main` / `footer`. |
+| Menus | `Menu` + `MenuItem` (self-nesting) | Used inside theme sections (e.g. `HEADER_MAIN.menuId`, `HEADER_NAV.menuId`). Slug-based fallback (`main` / `footer`) only triggers in `LegacyHeader/Footer` when a theme has zero sections in a group. |
 | Policies | `Policy` | Long-form Tiptap rich text at `/politicas/<slug>` (separate from page builder). |
 | Product landings | `LandingTemplate` + `TemplateBlock` → `Product.landingTemplateId` → `LandingBlock` (with `sourceTemplateBlockId` + `detached` flag) | Templates with sync; per-product overrides become "detached". |
 | Category landings | `CategoryBlock` + `Category.hideProductGrid` | Custom blocks above (or replacing) the auto-generated grid. `PRODUCT_GRID` block type allows reordering grid placement. |
@@ -293,7 +294,7 @@ Uploads → Vercel Blob via `/api/upload`. [next.config.ts](next.config.ts) whit
 
 ### Plans / Specs
 
-Implementation plans live in [docs/superpowers/plans/](docs/superpowers/plans/). Plans 1–13.1 are complete on `master`:
+Implementation plans live in [docs/superpowers/plans/](docs/superpowers/plans/). Plans 1–16 are complete on `master`:
 
 - Plans 1–3 — Page-builder foundation, styling, schema-driven forms, advanced controls, templates with sync.
 - Plan 4 — Theme skeleton (`Theme` model + `defaultProductLandingTemplateId`).
@@ -304,18 +305,16 @@ Implementation plans live in [docs/superpowers/plans/](docs/superpowers/plans/).
 - Plan 11 — Theme tokens + dynamic CSS.
 - Plan 13 — Shopify-style customizer (split-screen, zone-based, auto-save).
 - Plan 13.1 — Color schemes (named palettes; per-block selection; CSS attribute-selector rebinding).
+- Plan 14 — Neon warm-up cron via Vercel.
+- Plan 15 — Categories editable from the customizer (extends `EditableSurface` to `page | category`).
+- Plan 16 — Theme sections (Shopify Online Store 2.0–style header/footer): new `ThemeSection` + `ThemeSectionBlock` models, 10-type registry, sortable customizer editors, per-theme `sectionCatalog` UI, expand-contract migration that drops legacy `Theme.headerMenuId`/`footerMenuId`.
 
 ## Pending / Open Items
 
-Carryover from the previous session (post Plan 13.1):
-
-1. **Categories editable from the customizer** — extend the page picker. The customizer currently only supports Home / Cart / Pages; categories are still edited from `/admin/categorias/[id]/builder` via `CategoryBuilderShell`.
-2. **Header / Footer as multiple sections** — major refactor with schema changes (today they are a single `Menu` reference each on `Theme`).
-3. **Legacy cleanup** — remove components in [components/admin/themes/](components/admin/themes/) that the customizer has replaced: `ThemeProductDefaultPicker`, `ThemeHomePagePicker`, `ThemeCartPagePicker`, `ThemeMenuPicker`, `ActiveThemeEditor`, `ThemeTokensForm`. (`ThemeListGrid`, `EditThemeMetadataForm`, and `ThemeSectionList` stay.)
-4. **Neon warm-up** — Vercel Cron every ~4 min to avoid cold starts (the customizer already has an error boundary for cold-start retries — this is the proactive complement).
-5. **E2E with Playwright** — set up before any real traffic. No automated tests exist today; verification is manual + `npm run build`.
-6. **Plan 10.1** — blocks rendered *below* the cart UI (Plan 10 already covers blocks above).
-7. **`CONTACT_FORM` block** — last hardcoded route; turning it into a landing block would let `/contacto` be page-builder driven.
+1. **E2E with Playwright** — set up before any real traffic. No automated tests exist today; verification is manual + `npm run build`.
+2. **Plan 10.1** — blocks rendered *below* the cart UI (Plan 10 already covers blocks above).
+3. **`CONTACT_FORM` block** — last hardcoded route; turning it into a landing block would let `/contacto` be page-builder driven.
+4. **Live preview UX (Plan 17 candidate)** — current customizer iframe updates after the autosave round-trip (~300-500ms warm Neon). For true Shopify-style instant preview, the iframe needs a client-side renderer that reads from Zustand and overlays the server-rendered content. Substantial refactor (~4-6 hours).
 
 Other long-running items:
 
