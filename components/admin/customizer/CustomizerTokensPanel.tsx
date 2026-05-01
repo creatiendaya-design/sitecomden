@@ -10,6 +10,7 @@ import {
   Plus,
   Trash2,
   ChevronRight,
+  ListChecks,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +37,8 @@ import {
   type ColorScheme,
   type ColorSchemeArray,
 } from "@/lib/themes/color-schemes"
+import { ThemeCatalogPanel } from "./ThemeCatalogPanel"
+import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
 
 interface Props {
   theme: ThemeRow
@@ -49,6 +52,7 @@ type View =
   | { kind: "schemes" }
   | { kind: "scheme"; schemeId: string }
   | { kind: "typography" }
+  | { kind: "catalog" }
 
 /**
  * Plan 13.1 — embedded tokens + color-schemes editor for the customizer.
@@ -85,7 +89,9 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
             ? "Editar esquema"
             : view.kind === "typography"
               ? "Tipografía y escala"
-              : "Tema"}
+              : view.kind === "catalog"
+                ? "Catálogo de secciones"
+                : "Tema"}
         </span>
       </div>
 
@@ -95,6 +101,7 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
             theme={theme}
             onPickScheme={(id) => setView({ kind: "scheme", schemeId: id })}
             onPickTypography={() => setView({ kind: "typography" })}
+            onPickCatalog={() => setView({ kind: "catalog" })}
             onSaved={onSaved}
           />
         )}
@@ -109,6 +116,15 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
         {view.kind === "typography" && (
           <TypographyEditor theme={theme} onSaved={onSaved} />
         )}
+        {view.kind === "catalog" && (
+          <ThemeCatalogPanel
+            themeId={theme.id}
+            initialCatalog={
+              (theme.sectionCatalog ?? {}) as ThemeSectionCatalog
+            }
+            onSaved={onSaved}
+          />
+        )}
       </div>
     </div>
   )
@@ -122,6 +138,7 @@ interface SchemesIndexProps {
   theme: ThemeRow
   onPickScheme: (schemeId: string) => void
   onPickTypography: () => void
+  onPickCatalog: () => void
   onSaved?: () => void
 }
 
@@ -129,6 +146,7 @@ function SchemesIndex({
   theme,
   onPickScheme,
   onPickTypography,
+  onPickCatalog,
   onSaved,
 }: SchemesIndexProps) {
   const router = useRouter()
@@ -201,6 +219,18 @@ function SchemesIndex({
         className="w-full flex items-center justify-between gap-2 rounded-md border bg-card px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
       >
         <span className="font-medium">Tipografía y escala</span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </button>
+
+      <button
+        type="button"
+        onClick={onPickCatalog}
+        className="w-full flex items-center justify-between gap-2 rounded-md border bg-card px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
+      >
+        <span className="inline-flex items-center gap-2 font-medium">
+          <ListChecks className="h-3.5 w-3.5 text-muted-foreground" />
+          Catálogo de secciones
+        </span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </button>
     </div>

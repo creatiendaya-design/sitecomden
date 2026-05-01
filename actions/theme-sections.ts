@@ -501,6 +501,42 @@ export async function saveThemeSectionGroup(
   }
 }
 
+// ---------- Update section catalog (Phase F) ----------
+
+const updateCatalogSchema = z.object({
+  themeId: z.string().min(1),
+  catalog: z.object({
+    header: z.array(z.string()).optional(),
+    footer: z.array(z.string()).optional(),
+  }),
+})
+
+/**
+ * Phase F — per-theme catalog management. Updates `Theme.sectionCatalog`
+ * which the customizer's AddSectionPanel intersects with the global
+ * registry to decide which section types are offered for each group.
+ *
+ * Empty `{}` (or missing arm) is the permissive default — all registry
+ * types in that group are available. A non-empty array is an explicit
+ * allowlist.
+ *
+ * No `updateTag` here: `sectionCatalog` is read only at the customizer
+ * page-level data fetch (admin-only). The storefront does not consume
+ * it. Revalidating the customize path is enough.
+ */
+export async function updateThemeSectionCatalog(
+  themeId: string,
+  catalog: { header?: string[]; footer?: string[] },
+): Promise<void> {
+  await protectRoute("themes:update")
+  const input = updateCatalogSchema.parse({ themeId, catalog })
+  await prisma.theme.update({
+    where: { id: input.themeId },
+    data: { sectionCatalog: input.catalog as object },
+  })
+  revalidatePath(`/admin/personalizar/temas/${input.themeId}/customize`)
+}
+
 // ---------- List (read for customizer) ----------
 
 export async function listThemeSections(
