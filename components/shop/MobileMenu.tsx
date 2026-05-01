@@ -2,7 +2,7 @@
 
 import { UserMenu } from "./UserMenu"
 import Link from "next/link"
-import { Menu, Home } from "lucide-react"
+import { Menu, Home, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet"
 import { useState } from "react"
 import { resolveMenuItemHref } from "@/lib/menus/resolve-link"
+import { cn } from "@/lib/utils"
 import type { ResolvedMenuItem } from "@/lib/menus/get-menu-by-slug"
 
 interface MobileMenuProps {
@@ -37,12 +38,10 @@ export default function MobileMenu({ menuItems, isAdmin: _isAdmin }: MobileMenuP
           <SheetTitle>Menú</SheetTitle>
         </SheetHeader>
 
-        {/* User Menu */}
         <div className="mt-6 pb-4 border-b">
           <UserMenu />
         </div>
 
-        {/* Navigation: drawer always shows Inicio + the dynamic menu items */}
         <nav className="flex flex-col space-y-1 mt-4">
           <Link
             href="/"
@@ -62,17 +61,14 @@ export default function MobileMenu({ menuItems, isAdmin: _isAdmin }: MobileMenuP
               <span>Todos los Productos</span>
             </Link>
           ) : (
-            menuItems.map((root) =>
-              root.children.length > 0 ? (
-                <ParentSection
-                  key={root.id}
-                  parent={root}
-                  onLinkClick={close}
-                />
-              ) : (
-                <RootLink key={root.id} item={root} onLinkClick={close} />
-              ),
-            )
+            menuItems.map((root) => (
+              <MobileNode
+                key={root.id}
+                item={root}
+                depth={0}
+                onLinkClick={close}
+              />
+            ))
           )}
         </nav>
       </SheetContent>
@@ -80,90 +76,106 @@ export default function MobileMenu({ menuItems, isAdmin: _isAdmin }: MobileMenuP
   )
 }
 
-function RootLink({
+function MobileNode({
   item,
+  depth,
   onLinkClick,
 }: {
   item: ResolvedMenuItem
+  depth: number
   onLinkClick: () => void
 }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasChildren = item.children.length > 0
   const href = resolveMenuItemHref(item)
-  if (!href) return null
-  const isExternal = item.linkType === "EXTERNAL_URL"
-  const className =
-    "flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-accent transition-colors"
 
-  if (isExternal) {
+  const indent = depth === 0 ? "" : "pl-4 border-l border-border/50"
+  const rowClass = cn(
+    "flex items-center rounded-md transition-colors",
+    expanded ? "bg-muted/30" : "hover:bg-accent",
+  )
+  const labelClass = cn(
+    "flex-1 px-3 py-2.5 text-sm",
+    depth === 0 ? "font-medium" : "",
+  )
+
+  // Leaf: pure link.
+  if (!hasChildren) {
+    if (!href) return null
+    const isExternal = item.linkType === "EXTERNAL_URL"
+    const linkClass = cn(rowClass, "px-3 py-2.5", indent && `ml-3 ${indent}`)
+    if (isExternal) {
+      return (
+        <a
+          href={href}
+          target={item.openInNewTab ? "_blank" : undefined}
+          rel={item.openInNewTab ? "noopener noreferrer" : undefined}
+          onClick={onLinkClick}
+          className={linkClass}
+        >
+          <span className="text-sm">{item.label}</span>
+        </a>
+      )
+    }
     return (
-      <a
+      <Link
         href={href}
         target={item.openInNewTab ? "_blank" : undefined}
-        rel={item.openInNewTab ? "noopener noreferrer" : undefined}
         onClick={onLinkClick}
-        className={className}
+        className={linkClass}
       >
-        <span>{item.label}</span>
-      </a>
+        <span className="text-sm">{item.label}</span>
+      </Link>
     )
   }
-  return (
-    <Link
-      href={href}
-      target={item.openInNewTab ? "_blank" : undefined}
-      onClick={onLinkClick}
-      className={className}
-    >
-      <span>{item.label}</span>
-    </Link>
-  )
-}
 
-function ParentSection({
-  parent,
-  onLinkClick,
-}: {
-  parent: ResolvedMenuItem
-  onLinkClick: () => void
-}) {
+  // Parent with children: split label (link if href) + caret (expand).
   return (
-    <div className="pt-3 pb-1">
-      <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-        {parent.label}
-      </p>
-      <div className="space-y-1">
-        {parent.children.map((child) => {
-          const href = resolveMenuItemHref(child)
-          if (!href) return null
-          const isExternal = child.linkType === "EXTERNAL_URL"
-          const className =
-            "flex items-center px-3 py-2 rounded-md hover:bg-accent transition-colors text-sm"
+    <div className={cn("flex flex-col", indent && `ml-3 ${indent}`)}>
+      <div className={rowClass}>
+        {href ? (
+          <Link
+            href={href}
+            onClick={onLinkClick}
+            className={labelClass}
+          >
+            {item.label}
+          </Link>
+        ) : (
+          <span className={cn(labelClass, "cursor-default")}>{item.label}</span>
+        )}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="h-11 w-11 flex items-center justify-center text-muted-foreground"
+          aria-expanded={expanded}
+          aria-label={expanded ? "Colapsar" : "Expandir"}
+        >
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 transition-transform",
+              expanded ? "rotate-180" : "rotate-0",
+            )}
+          />
+        </button>
+      </div>
 
-          if (isExternal) {
-            return (
-              <a
-                key={child.id}
-                href={href}
-                target={child.openInNewTab ? "_blank" : undefined}
-                rel={child.openInNewTab ? "noopener noreferrer" : undefined}
-                onClick={onLinkClick}
-                className={className}
-              >
-                {child.label}
-              </a>
-            )
-          }
-          return (
-            <Link
+      <div
+        className={cn(
+          "overflow-hidden transition-[max-height] duration-200 ease-in-out",
+          expanded ? "max-h-[1000px]" : "max-h-0",
+        )}
+      >
+        <div className="space-y-1 py-1">
+          {item.children.map((child) => (
+            <MobileNode
               key={child.id}
-              href={href}
-              target={child.openInNewTab ? "_blank" : undefined}
-              onClick={onLinkClick}
-              className={className}
-            >
-              {child.label}
-            </Link>
-          )
-        })}
+              item={child}
+              depth={depth + 1}
+              onLinkClick={onLinkClick}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
