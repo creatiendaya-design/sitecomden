@@ -1118,7 +1118,9 @@ model MenuItem {
   id            String     @id @default(cuid())
   menuId        String
   menu          Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
-  /// Self-referential parent for one level of nesting (max depth 2 in v1).
+  /// Self-referential parent. Max depth 3 — enforced server-side in
+  /// actions/menus.ts (computeDepth + cycle check). The DB itself does
+  /// not enforce a cap; depth is treated as a domain rule.
   parentId      String?
   parent        MenuItem?  @relation("MenuItemNesting", fields: [parentId], references: [id], onDelete: Cascade)
   children      MenuItem[] @relation("MenuItemNesting")
