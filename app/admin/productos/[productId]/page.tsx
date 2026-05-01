@@ -92,9 +92,27 @@ export default async function EditProductPage({ params, searchParams }: EditProd
     )
   }
 
+  // Resolve blocks (template + detached + locals) so the Presentación card
+  // can show what will actually render on the storefront, not just the
+  // raw landing blocks of this product.
+  const resolved = await resolveProductBlocksFromLoaded({
+    id: product.id,
+    landingTemplateId: product.landingTemplateId,
+    landingBlocks: product.landingBlocks.map((b) => ({
+      id: b.id,
+      type: b.type,
+      position: b.position,
+      content: b.content,
+      sourceTemplateBlockId: b.sourceTemplateBlockId,
+      detached: b.detached,
+    })),
+  })
+  const resolvedBlockTypes = resolved.map((r) => r.type as string)
+
   return <EditProductForm
     product={serializedProduct}
     categories={serializedCategories}
     showLegacyLandingEditor={!flagOn}
+    resolvedBlockTypes={resolvedBlockTypes}
   />
 }

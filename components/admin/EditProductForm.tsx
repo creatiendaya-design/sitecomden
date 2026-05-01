@@ -13,6 +13,7 @@ import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import LandingBlockList from "@/components/admin/landing-builder/LandingBlockList";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
+import { TemplateSelector } from "@/components/admin/products/TemplateSelector";
 import CodFormConfig from "@/components/admin/CodFormConfig";
 import { normalizeCodFormSettings, type CodFormSettings } from "@/lib/types/cod-form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -72,9 +73,29 @@ interface EditProductFormProps {
     name: string;
   }>;
   showLegacyLandingEditor?: boolean;
+  /** Tipos de bloque que el storefront va a renderizar para este producto,
+   *  ya resueltos (template + detached + locales). Se usa solo para el
+   *  resumen visual de la card "Presentación". */
+  resolvedBlockTypes?: string[];
 }
 
-export default function EditProductForm({ product, categories, showLegacyLandingEditor = true }: EditProductFormProps) {
+const BLOCK_TYPE_LABELS: Record<string, string> = {
+  HERO: "Hero",
+  BENEFITS: "Beneficios",
+  GALLERY: "Galería",
+  TESTIMONIALS: "Testimonios",
+  VIDEO: "Video",
+  COLORS: "Colores",
+  TICKER: "Banner",
+  RICH_TEXT: "Texto",
+  FAQ: "FAQ",
+  IMAGE_TEXT: "Imagen + Texto",
+  RELATED_PRODUCTS: "Productos relacionados",
+  TRUST_BADGES: "Sellos de confianza",
+  PRODUCT_GRID: "Grid de productos",
+};
+
+export default function EditProductForm({ product, categories, showLegacyLandingEditor = true, resolvedBlockTypes = [] }: EditProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -687,93 +708,62 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   <CardHeader>
     <CardTitle>Presentación</CardTitle>
     <p className="text-sm text-muted-foreground">
-      Elige cómo se mostrará este producto en la tienda
+      Elige la plantilla que define cómo se mostrará este producto en la tienda
     </p>
   </CardHeader>
   <CardContent className="space-y-4">
-    <div>
-      <Label htmlFor="template">Tipo de Página</Label>
-      <Select
-        value={formData.template}
-        onValueChange={(value) =>
-          setFormData({ ...formData, template: value })
-        }
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Selecciona un template" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="STANDARD">
-            <div className="flex flex-col">
-              <span className="font-medium">Página Normal</span>
-              <span className="text-xs text-muted-foreground">
-                Vista estándar de producto
-              </span>
-            </div>
-          </SelectItem>
-          <SelectItem value="LANDING">
-            <div className="flex flex-col">
-              <span className="font-medium">Landing Page</span>
-              <span className="text-xs text-muted-foreground">
-                Con secciones especiales y CTA destacados
-              </span>
-            </div>
-          </SelectItem>
-          {/* Futuros templates */}
-          <SelectItem value="MINIMAL" disabled>
-            <div className="flex flex-col">
-              <span className="font-medium">Minimalista</span>
-              <span className="text-xs text-muted-foreground">
-                Próximamente
-              </span>
-            </div>
-          </SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-    
-    {/* Preview del template seleccionado */}
-    <div className="rounded-lg border p-3 bg-muted/30">
-      <p className="text-xs font-medium mb-2">Vista Previa:</p>
-      {formData.template === "STANDARD" && (
-        <p className="text-xs text-muted-foreground">
-          ✓ Galería de imágenes izquierda<br/>
-          ✓ Información básica derecha<br/>
-          ✓ Descripción debajo
-        </p>
-      )}
-      {formData.template === "LANDING" && (
-        <p className="text-xs text-muted-foreground">
-          ✓ Hero con imagen destacada<br/>
-          ✓ Secciones de beneficios<br/>
-          ✓ Testimonios<br/>
-          ✓ CTAs prominentes
-        </p>
-      )}
-    </div>
+    <TemplateSelector
+      productId={product.id}
+      productSlug={product.slug}
+      currentTemplateId={product.landingTemplateId ?? null}
+      currentBlockCount={resolvedBlockTypes.length}
+    />
 
-    {formData.template === "LANDING" && (
-      <div className="mt-4 pt-4 border-t">
-        {showLegacyLandingEditor ? (
+    {/* Resumen dinámico de lo que renderizará el storefront */}
+    {resolvedBlockTypes.length > 0 ? (
+      <div className="rounded-lg border p-3 bg-muted/30">
+        <p className="text-xs font-medium mb-2">
+          Vista previa — {resolvedBlockTypes.length} bloque
+          {resolvedBlockTypes.length === 1 ? "" : "s"} se renderizarán:
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {resolvedBlockTypes.map((t, i) => (
+            <span
+              key={`${t}-${i}`}
+              className="inline-flex items-center rounded-md border bg-background px-2 py-0.5 text-xs"
+            >
+              {BLOCK_TYPE_LABELS[t] ?? t}
+            </span>
+          ))}
+        </div>
+      </div>
+    ) : (
+      <div className="rounded-lg border p-3 bg-muted/30">
+        <p className="text-xs text-muted-foreground">
+          Sin plantilla vinculada — se mostrará la vista estándar:
+          galería de imágenes + información básica + descripción.
+        </p>
+      </div>
+    )}
+
+    {/* Editor legacy (v1) — accesible cuando el flag v2 está OFF y el
+        producto no tiene plantilla vinculada. Colapsado por defecto para
+        no competir con el flujo principal del selector de plantillas. */}
+    {showLegacyLandingEditor && !product.landingTemplateId && (
+      <details className="rounded-lg border bg-muted/30 group">
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium select-none hover:bg-muted/50 rounded-lg">
+          Bloques personalizados (avanzado)
+          <span className="ml-2 text-muted-foreground font-normal">
+            — edita bloques locales sin usar plantilla
+          </span>
+        </summary>
+        <div className="border-t p-3">
           <LandingBlockList
             productId={product.id}
             initialBlocks={((product as any).landingBlocks ?? []) as LandingBlock[]}
           />
-        ) : (
-          <div className="p-6 border rounded-md bg-muted/40 text-center">
-            <p className="text-sm font-medium mb-1">Nuevo builder visual disponible</p>
-            <p className="text-xs text-muted-foreground mb-4">
-              Edita la landing de este producto con el editor WYSIWYG de pantalla completa.
-            </p>
-            <a
-              href={`/admin/productos/${product.id}?tab=landing`}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Editar en el nuevo builder →
-            </a>
-          </div>
-        )}
-      </div>
+        </div>
+      </details>
     )}
   </CardContent>
 </Card>
