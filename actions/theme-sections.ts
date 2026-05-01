@@ -355,16 +355,22 @@ const saveGroupSchema = z.object({
  * Batch save consumed by the customizer's autosave. Mirrors the shape of
  * savePageBlocks(). Performs a diff: deletes sections that disappeared,
  * upserts (by id) the ones that remained or are new (id starts with "tmp-").
+ *
+ * Returns the full persisted state of the group AS PART of the same write
+ * transaction so the customizer can replace its local Zustand drafts
+ * without a follow-up `router.refresh()` round-trip. This halves the
+ * post-save latency (no second DB read) and lets the client preserve the
+ * user's selected sidebar target across saves.
  */
 export async function saveThemeSectionGroup(
   themeId: string,
   group: ThemeSectionGroup,
   sections: z.infer<typeof batchSectionSchema>[],
-): Promise<{ success: true }> {
+): Promise<{ success: true; sections: ThemeSectionRow[] }> {
   await protectRoute("themes:update")
   const input = saveGroupSchema.parse({ themeId, group, sections })
 
-  await prisma.$transaction(async (tx) => {
+  const persisted = await prisma.$transaction(async (tx) => {
     const existing = await tx.themeSection.findMany({
       where: { themeId: input.themeId, group: input.group },
       select: { id: true, blocks: { select: { id: true } } },
@@ -450,12 +456,38 @@ export async function saveThemeSectionGroup(
         }
       }
     }
+
+    // Return the freshly-persisted snapshot in the SAME transaction so
+    // the client doesn't need a second round-trip to learn the new ids.
+    return tx.themeSection.findMany({
+      where: { themeId: input.themeId, group: input.group },
+      orderBy: { position: "asc" },
+      include: { blocks: { orderBy: { position: "asc" } } },
+    })
   })
 
   revalidatePath("/")
-  revalidatePath(`/admin/personalizar/temas/${input.themeId}/customize`)
 
-  return { success: true }
+  return {
+    success: true,
+    sections: persisted.map((r) => ({
+      id: r.id,
+      themeId: r.themeId,
+      group: r.group,
+      type: r.type,
+      position: r.position,
+      enabled: r.enabled,
+      content: r.content,
+      blocks: r.blocks.map((b) => ({
+        id: b.id,
+        sectionId: b.sectionId,
+        type: b.type,
+        position: b.position,
+        enabled: b.enabled,
+        content: b.content,
+      })),
+    })),
+  }
 }
 
 // ---------- List (read for customizer) ----------

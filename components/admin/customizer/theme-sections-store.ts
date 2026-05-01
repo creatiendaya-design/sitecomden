@@ -56,6 +56,12 @@ interface Store {
    *  spin in a save loop. */
   markGroupSaved: (group: ThemeSectionGroup) => void
 
+  /** Replace a single group's drafts with the persisted rows returned by
+   *  `saveThemeSectionGroup`. Maps tmp-ids → real ids by position so the
+   *  current `selected` target survives the swap when the persisted row
+   *  occupies the same slot. Drops the group's dirty flag. */
+  replaceGroup: (group: ThemeSectionGroup, rows: ThemeSectionRow[]) => void
+
   select: (target: SidebarTarget) => void
 
   // Section-level mutations
@@ -94,6 +100,50 @@ interface Store {
 
 let counter = 0
 const tmpId = (kind: "s" | "b") => `tmp-${kind}-${++counter}-${Date.now()}`
+
+/**
+ * Maps the current `selected` target (which may reference a tmp-id from
+ * the about-to-be-replaced drafts) to the persisted equivalent by
+ * positional alignment. Returns null when the previous selection is no
+ * longer present in the fresh snapshot — e.g. user deleted the selected
+ * section, or it doesn't belong to the group being replaced.
+ */
+function remapSelectedAcrossReplace(
+  selected: SidebarTarget,
+  previous: SectionDraft[],
+  fresh: SectionDraft[],
+  _group: ThemeSectionGroup,
+): SidebarTarget {
+  if (!selected) return null
+
+  const prevIdx = previous.findIndex((sec) => sec.id === selected.sectionId)
+  if (prevIdx === -1) {
+    // Selection isn't in the replaced group — it lives in the other
+    // group (which is untouched), so leave it alone.
+    return selected
+  }
+
+  const replacement = fresh[prevIdx]
+  if (!replacement) return null
+
+  if (selected.kind === "section") {
+    return { kind: "section", sectionId: replacement.id }
+  }
+
+  const prevBlockIdx = previous[prevIdx].blocks.findIndex(
+    (b) => b.id === selected.blockId,
+  )
+  if (prevBlockIdx === -1) return null
+
+  const newBlock = replacement.blocks[prevBlockIdx]
+  if (!newBlock) return null
+
+  return {
+    kind: "section-block",
+    sectionId: replacement.id,
+    blockId: newBlock.id,
+  }
+}
 
 function rowToDraft(row: ThemeSectionRow): SectionDraft {
   return {
@@ -141,6 +191,28 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
 
   markGroupSaved(group) {
     set(group === "HEADER" ? { headerDirty: false } : { footerDirty: false })
+  },
+
+  replaceGroup(group, rows) {
+    set((s) => {
+      const fresh = rows.map(rowToDraft)
+      const previous = group === "HEADER" ? s.header : s.footer
+
+      // Preserve the user's selected sidebar target across the swap by
+      // mapping its id through positional alignment: when the previously
+      // selected section was at index N, its persisted replacement also
+      // sits at index N (the server saves in the order we send).
+      const nextSelected = remapSelectedAcrossReplace(
+        s.selected,
+        previous,
+        fresh,
+        group,
+      )
+
+      return group === "HEADER"
+        ? { header: fresh, headerDirty: false, selected: nextSelected }
+        : { footer: fresh, footerDirty: false, selected: nextSelected }
+    })
   },
 
   select(target) {

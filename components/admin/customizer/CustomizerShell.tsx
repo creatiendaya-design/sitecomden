@@ -200,20 +200,26 @@ export function CustomizerShell({
   // iframe — because it's ~10x faster than a full document reload (no asset
   // re-download, keeps scroll/focus, avoids a fresh Neon cold start). Falls
   // back to a hard reload if the iframe isn't reachable.
+  //
+  // We intentionally do NOT call `router.refresh()` on the parent here:
+  // the customizer's local Zustand stores (page-builder + theme-sections)
+  // are the source of truth while editing, and theme-sections autosave
+  // already merges the persisted snapshot back into the store via
+  // `replaceGroup`. Refreshing the parent server component on every save
+  // would double the DB read latency AND reset the user's selected
+  // sidebar target on each round-trip.
   const handleAnySaved = useCallback(() => {
     const win = iframeRef.current?.contentWindow
-    if (win) {
-      try {
-        win.postMessage(
-          { type: "theme-preview-refresh" },
-          window.location.origin,
-        )
-      } catch {
-        win.location.reload()
-      }
+    if (!win) return
+    try {
+      win.postMessage(
+        { type: "theme-preview-refresh" },
+        window.location.origin,
+      )
+    } catch {
+      win.location.reload()
     }
-    router.refresh()
-  }, [router])
+  }, [])
 
   // ---------- Plan 16 — theme-sections store hydration + autosave ----------
   const hydrateThemeSections = useThemeSectionsStore((s) => s.hydrate)
@@ -225,7 +231,7 @@ export function CustomizerShell({
   const footerDrafts = useThemeSectionsStore((s) => s.footer)
   const headerDirty = useThemeSectionsStore((s) => s.headerDirty)
   const footerDirty = useThemeSectionsStore((s) => s.footerDirty)
-  const markGroupSaved = useThemeSectionsStore((s) => s.markGroupSaved)
+  const replaceGroup = useThemeSectionsStore((s) => s.replaceGroup)
   const themeSectionsSelected = useThemeSectionsStore((s) => s.selected)
 
   useDebouncedSaveGroup(
@@ -233,7 +239,7 @@ export function CustomizerShell({
     "HEADER",
     headerDrafts,
     headerDirty,
-    markGroupSaved,
+    replaceGroup,
     handleAnySaved,
   )
   useDebouncedSaveGroup(
@@ -241,7 +247,7 @@ export function CustomizerShell({
     "FOOTER",
     footerDrafts,
     footerDirty,
-    markGroupSaved,
+    replaceGroup,
     handleAnySaved,
   )
 
@@ -407,7 +413,10 @@ function useDebouncedSaveGroup(
   group: "HEADER" | "FOOTER",
   drafts: SectionDraft[],
   groupDirty: boolean,
-  markGroupSaved: (group: "HEADER" | "FOOTER") => void,
+  replaceGroup: (
+    group: "HEADER" | "FOOTER",
+    rows: ThemeSectionRow[],
+  ) => void,
   onSaved: () => void,
 ) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -419,7 +428,7 @@ function useDebouncedSaveGroup(
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(async () => {
       try {
-        await saveThemeSectionGroup(
+        const result = await saveThemeSectionGroup(
           themeId,
           group,
           drafts.map((s) => ({
@@ -437,7 +446,10 @@ function useDebouncedSaveGroup(
             })),
           })),
         )
-        markGroupSaved(group)
+        // Merge the persisted snapshot back into the local store. This
+        // replaces tmp- ids with real ids in a single tick (no second DB
+        // read, no router.refresh) and clears the group's dirty flag.
+        replaceGroup(group, result.sections)
         onSaved()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Error al guardar")
@@ -446,7 +458,7 @@ function useDebouncedSaveGroup(
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [drafts, themeId, group, groupDirty, markGroupSaved, onSaved])
+  }, [drafts, themeId, group, groupDirty, replaceGroup, onSaved])
 }
 
 function CustomizerHeaderRow({
