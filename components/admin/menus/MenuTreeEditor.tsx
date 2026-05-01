@@ -141,6 +141,11 @@ export function MenuTreeEditor({
   }
 
   const addChild = (parentId: string) => {
+    // Ensure the parent is expanded so the newly-added child is visible.
+    setExpanded((prev) => {
+      if (prev.has(parentId)) return prev
+      return new Set([...prev, parentId])
+    })
     const siblings = items.filter((i) => i.parentId === parentId)
     setItems((prev) => [
       ...prev,
@@ -158,7 +163,20 @@ export function MenuTreeEditor({
   }
 
   const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id && i.parentId !== id))
+    setItems((prev) => {
+      const toRemove = new Set<string>([id])
+      let added = true
+      while (added) {
+        added = false
+        for (const it of prev) {
+          if (it.parentId && toRemove.has(it.parentId) && !toRemove.has(it.id)) {
+            toRemove.add(it.id)
+            added = true
+          }
+        }
+      }
+      return prev.filter((i) => !toRemove.has(i.id))
+    })
     setConfirmDeleteId(null)
   }
 
