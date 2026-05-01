@@ -214,12 +214,75 @@ const incomingItemSchema = z.object({
 
 const incomingItemsSchema = z.array(incomingItemSchema)
 
+type ValidatedItem = z.infer<typeof incomingItemSchema>
+
+/**
+ * Walks the parent chain of `itemId` and returns its depth (root = 0).
+ * Throws on cycles. Used to enforce MAX_MENU_DEPTH server-side.
+ */
+function computeDepth(
+  itemId: string,
+  byId: Map<string, ValidatedItem>,
+  seen: Set<string> = new Set(),
+): number {
+  if (seen.has(itemId)) {
+    throw new Error("Ciclo detectado en el árbol del menú")
+  }
+  const it = byId.get(itemId)
+  if (!it || it.parentId === null) return 0
+  seen.add(itemId)
+  return 1 + computeDepth(it.parentId, byId, seen)
+}
+
+/**
+ * Throws if any item exceeds MAX_MENU_DEPTH or if the tree contains a cycle.
+ */
+function assertDepthAndAcyclic(items: ValidatedItem[]): void {
+  const byId = new Map(items.map((i) => [i.id, i]))
+  for (const it of items) {
+    const depth = computeDepth(it.id, byId)
+    if (depth >= MAX_MENU_DEPTH) {
+      throw new Error(
+        `El menú no puede tener más de ${MAX_MENU_DEPTH} niveles`,
+      )
+    }
+  }
+}
+
+/**
+ * Asserts that every non-tmp parentId reference points to an item that
+ * already belongs to the same menu. Prevents cross-menu reparenting via
+ * crafted payloads.
+ */
+async function assertParentsBelongToMenu(
+  menuId: string,
+  items: ValidatedItem[],
+): Promise<void> {
+  const incomingIds = new Set(items.map((i) => i.id))
+  const externalParentIds = items
+    .map((i) => i.parentId)
+    .filter((p): p is string => p !== null && !p.startsWith("tmp-") && !incomingIds.has(p))
+  if (externalParentIds.length === 0) return
+  const found = await prisma.menuItem.findMany({
+    where: { id: { in: externalParentIds } },
+    select: { id: true, menuId: true },
+  })
+  for (const id of externalParentIds) {
+    const row = found.find((f) => f.id === id)
+    if (!row || row.menuId !== menuId) {
+      throw new Error("parentId inválido: no pertenece a este menú")
+    }
+  }
+}
+
 export async function saveMenuItems(
   menuId: string,
   incoming: IncomingItem[],
 ): Promise<{ success: true }> {
   await protectRoute("menus:update")
   const items = incomingItemsSchema.parse(incoming)
+  assertDepthAndAcyclic(items)
+  await assertParentsBelongToMenu(menuId, items)
 
   const menu = await prisma.menu.findUnique({
     where: { id: menuId },
