@@ -247,6 +247,20 @@ export function MenuTreeEditor({
     originalRef.current = JSON.stringify(initialItems)
   }
 
+  const ancestorsOf = (id: string): DraftItem[] => {
+    const chain: DraftItem[] = []
+    let current = items.find((i) => i.id === id)
+    while (current && current.parentId) {
+      const parent = items.find((i) => i.id === current!.parentId)
+      if (!parent) break
+      chain.unshift(parent)
+      current = parent
+    }
+    return chain
+  }
+
+  const depthOf = (id: string): number => ancestorsOf(id).length
+
   return (
     <div className="h-screen flex flex-col bg-muted/20">
       {/* Header */}
@@ -357,6 +371,9 @@ export function MenuTreeEditor({
       {editing && (
         <MenuItemSheet
           item={editing}
+          menuTitle={menu.title}
+          ancestors={ancestorsOf(editing.id).map((a) => a.label)}
+          atMaxDepth={depthOf(editing.id) >= MAX_MENU_DEPTH - 1}
           pages={pages}
           categories={categories}
           onSave={updateItem}
