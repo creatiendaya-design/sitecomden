@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
+import { CustomDesignBadge } from "./CustomDesignBadge";
 
 export default function CartView() {
   const { items, updateQuantity, removeItem, getTotalPrice, getTotalItems } =
@@ -66,6 +67,10 @@ export default function CartView() {
 
   // Helper para obtener la URL de imagen correcta
   const getItemImage = (item: any) => {
+    // Prefer custom design PNG (first zone) over base product image
+    if (item.customDesignImages && item.customDesignImages.length > 0 && !item.customDesignBroken) {
+      return item.customDesignImages[0].url;
+    }
     if (typeof item.image === 'string') {
       return item.image;
     }
@@ -162,7 +167,14 @@ export default function CartView() {
                               {item.variantName}
                             </p>
                           )}
-                          
+                          <CustomDesignBadge item={item} />
+                          {item.customDesign && item.customDesign.templateSnapshot.surcharge && item.customDesign.templateSnapshot.surcharge > 0 ? (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              S/ {(item.price - item.customDesign.templateSnapshot.surcharge).toFixed(2)}{" "}
+                              + S/ {item.customDesign.templateSnapshot.surcharge.toFixed(2)} personalización
+                            </p>
+                          ) : null}
+
                           {/* Stock status badges */}
                           <div className="mt-2 flex flex-wrap gap-2">
                             {hasStockIssue && (
