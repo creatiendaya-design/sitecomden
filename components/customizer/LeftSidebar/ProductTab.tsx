@@ -13,50 +13,61 @@ interface Props {
   product: BuilderProduct;
 }
 
+type SelectionMap = Record<string, string>; // optionId -> valueId
+
 export function ProductTab({ product }: Props) {
   const variantId = useBuilderStore((s) => s.variantId);
   const setVariantId = useBuilderStore((s) => s.setVariantId);
   const template = useBuilderStore((s) => s.template);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
-  const colorOption = product.options.find((o) =>
-    o.name.toLowerCase().includes("color")
-  );
-  const sizeOption = product.options.find(
-    (o) =>
-      o.name.toLowerCase().includes("talla") ||
-      o.name.toLowerCase().includes("size")
-  );
-
+  // Derive current selection map (optionId -> valueId) from the current variant
   const currentVariant = product.variants.find((v) => v.id === variantId);
-  const currentColorName = colorOption
-    ? currentVariant?.options[colorOption.name]
-    : undefined;
-  const currentSizeName = sizeOption
-    ? currentVariant?.options[sizeOption.name]
-    : undefined;
-  const currentColorId = currentColorName
-    ? colorOption?.values.find((v) => v.value === currentColorName)?.id
-    : undefined;
-  const currentSizeId = currentSizeName
-    ? sizeOption?.values.find((v) => v.value === currentSizeName)?.id
-    : undefined;
+  const currentSelection: SelectionMap = {};
+  if (currentVariant) {
+    for (const opt of product.options) {
+      const variantValueName = currentVariant.options[opt.name];
+      if (!variantValueName) continue;
+      const matched = opt.values.find((v) => v.value === variantValueName);
+      if (matched) currentSelection[opt.id] = matched.id;
+    }
+  }
 
-  const findVariant = (
-    colorValueId: string | undefined,
-    sizeValueId: string | undefined
-  ) => {
-    const colorName = colorValueId
-      ? colorOption?.values.find((v) => v.id === colorValueId)?.value
-      : undefined;
-    const sizeName = sizeValueId
-      ? sizeOption?.values.find((v) => v.id === sizeValueId)?.value
-      : undefined;
-    return product.variants.find(
-      (v) =>
-        (!colorName || (colorOption && v.options[colorOption.name] === colorName)) &&
-        (!sizeName || (sizeOption && v.options[sizeOption.name] === sizeName))
+  // Helper: when the user clicks a value for one option, find the variant that
+  // matches the new full selection (existing selections + the new one).
+  const pickValue = (optionId: string, valueId: string) => {
+    const next: SelectionMap = { ...currentSelection, [optionId]: valueId };
+
+    // Translate selection map (id-based) into name-based map for variant lookup
+    const nameMap: Record<string, string> = {};
+    for (const opt of product.options) {
+      const vid = next[opt.id];
+      if (!vid) continue;
+      const v = opt.values.find((x) => x.id === vid);
+      if (v) nameMap[opt.name] = v.value;
+    }
+
+    const matchingVariant = product.variants.find((v) =>
+      Object.entries(nameMap).every(([optName, valName]) => v.options[optName] === valName)
     );
+    if (matchingVariant) setVariantId(matchingVariant.id);
+  };
+
+  // Stock for a hypothetical (option=value) selection assuming all OTHER
+  // current selections stay the same. Used to grey out unavailable values.
+  const stockFor = (optionId: string, valueId: string): number => {
+    const trial: SelectionMap = { ...currentSelection, [optionId]: valueId };
+    const nameMap: Record<string, string> = {};
+    for (const opt of product.options) {
+      const vid = trial[opt.id];
+      if (!vid) continue;
+      const v = opt.values.find((x) => x.id === vid);
+      if (v) nameMap[opt.name] = v.value;
+    }
+    const variant = product.variants.find((v) =>
+      Object.entries(nameMap).every(([optName, valName]) => v.options[optName] === valName)
+    );
+    return variant?.stock ?? 0;
   };
 
   return (
@@ -83,65 +94,118 @@ export function ProductTab({ product }: Props) {
         </div>
       </div>
 
-      {colorOption && (
-        <div>
-          <label className="text-xs font-medium block mb-2">Color</label>
-          <div className="flex flex-wrap gap-2">
-            {colorOption.values.map((cv) => {
-              const variant = findVariant(cv.id, currentSizeId);
-              const inStock = (variant?.stock ?? 0) > 0;
-              return (
+      {product.options.map((option) => {
+        const isSizeOption =
+          option.name.toLowerCase().includes("talla") ||
+          option.name.toLowerCase().includes("size");
+        return (
+          <div key={option.id}>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium">{option.name}</label>
+              {isSizeOption && template?.sizeGuide && (
                 <button
-                  key={cv.id}
-                  onClick={() => variant && setVariantId(variant.id)}
-                  disabled={!inStock}
-                  className={`size-8 rounded-full border-2 ${
-                    currentColorId === cv.id
-                      ? "border-blue-600"
-                      : "border-gray-200"
-                  } ${!inStock ? "opacity-30" : ""}`}
-                  style={{ backgroundColor: cv.swatch ?? "#ccc" }}
-                  title={`${cv.value}${!inStock ? " (Agotado)" : ""}`}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Guía de tallas
+                </button>
+              )}
+            </div>
 
-      {sizeOption && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-medium">Talla</label>
-            {template?.sizeGuide && (
-              <button
-                onClick={() => setSizeGuideOpen(true)}
-                className="text-xs text-blue-600 hover:underline"
+            {option.displayStyle === "SWATCHES" && (
+              <div className="flex flex-wrap gap-2">
+                {option.values.map((val) => {
+                  const isSelected = currentSelection[option.id] === val.id;
+                  const inStock = stockFor(option.id, val.id) > 0;
+                  return (
+                    <button
+                      key={val.id}
+                      type="button"
+                      onClick={() => inStock && pickValue(option.id, val.id)}
+                      disabled={!inStock}
+                      title={`${val.value}${!inStock ? " (Agotado)" : ""}`}
+                      className={`relative ${!inStock ? "opacity-30 cursor-not-allowed" : ""}`}
+                    >
+                      {val.swatchType === "COLOR" && val.colorHex ? (
+                        <span
+                          className={`block size-8 rounded-full border-2 ${
+                            isSelected ? "border-blue-600" : "border-gray-200"
+                          }`}
+                          style={{ backgroundColor: val.colorHex }}
+                        />
+                      ) : val.swatchType === "IMAGE" && val.swatchImage ? (
+                        <span
+                          className={`block size-8 rounded-full border-2 overflow-hidden ${
+                            isSelected ? "border-blue-600" : "border-gray-200"
+                          }`}
+                        >
+                          <Image
+                            src={val.swatchImage}
+                            alt={val.value}
+                            width={32}
+                            height={32}
+                            className="object-cover"
+                          />
+                        </span>
+                      ) : (
+                        <span
+                          className={`block px-3 py-1 text-xs rounded border-2 ${
+                            isSelected
+                              ? "border-blue-600 bg-blue-50"
+                              : "border-gray-200"
+                          }`}
+                        >
+                          {val.value}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {option.displayStyle === "BUTTONS" && (
+              <div className="flex flex-wrap gap-2">
+                {option.values.map((val) => {
+                  const isSelected = currentSelection[option.id] === val.id;
+                  const inStock = stockFor(option.id, val.id) > 0;
+                  return (
+                    <Button
+                      key={val.id}
+                      variant={isSelected ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => pickValue(option.id, val.id)}
+                      disabled={!inStock}
+                      className={!inStock ? "opacity-30" : ""}
+                    >
+                      {val.value}
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
+
+            {option.displayStyle === "DROPDOWN" && (
+              <select
+                value={currentSelection[option.id] ?? ""}
+                onChange={(e) => pickValue(option.id, e.target.value)}
+                className="w-full border rounded px-2 py-1.5 text-sm"
               >
-                Guía de tallas
-              </button>
+                <option value="">Selecciona {option.name}</option>
+                {option.values.map((val) => {
+                  const inStock = stockFor(option.id, val.id) > 0;
+                  return (
+                    <option key={val.id} value={val.id} disabled={!inStock}>
+                      {val.value}
+                      {!inStock ? " (Agotado)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {sizeOption.values.map((sv) => {
-              const variant = findVariant(currentColorId, sv.id);
-              const inStock = (variant?.stock ?? 0) > 0;
-              return (
-                <Button
-                  key={sv.id}
-                  variant={currentSizeId === sv.id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => variant && setVariantId(variant.id)}
-                  disabled={!inStock}
-                  className={!inStock ? "opacity-30" : ""}
-                >
-                  {sv.value}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        );
+      })}
 
       {sizeGuideOpen && template?.sizeGuide && (
         <SizeGuideDrawer

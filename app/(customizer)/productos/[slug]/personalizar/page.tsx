@@ -49,10 +49,13 @@ export default async function PersonalizarPage({ params, searchParams }: Props) 
         options: product.options.map((o) => ({
           id: o.id,
           name: o.name,
+          displayStyle: o.displayStyle as "DROPDOWN" | "BUTTONS" | "SWATCHES",
           values: o.values.map((v) => ({
             id: v.id,
             value: v.value,
-            swatch: v.colorHex ?? null,
+            swatchType: v.swatchType as "NONE" | "COLOR" | "IMAGE",
+            colorHex: v.colorHex ?? null,
+            swatchImage: v.swatchImage ?? null,
           })),
         })),
         variants: product.variants.map((v) => ({

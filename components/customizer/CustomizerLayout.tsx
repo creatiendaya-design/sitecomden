@@ -26,7 +26,14 @@ export interface BuilderProduct {
   options: {
     id: string;
     name: string;
-    values: { id: string; value: string; swatch?: string | null }[];
+    displayStyle: "DROPDOWN" | "BUTTONS" | "SWATCHES";
+    values: {
+      id: string;
+      value: string;
+      swatchType: "NONE" | "COLOR" | "IMAGE";
+      colorHex: string | null;
+      swatchImage: string | null;
+    }[];
   }[];
   variants: {
     id: string;
