@@ -9,6 +9,7 @@ import { MockupImage } from "./canvas/MockupImage";
 import { BoundsRect } from "./canvas/BoundsRect";
 import { TextLayerNode } from "./canvas/TextLayerNode";
 import { InlineTextEditor } from "./canvas/InlineTextEditor";
+import { setStageRef } from "./canvas-ref";
 import type { BuilderProduct } from "./CustomizerLayout";
 import type Konva from "konva";
 
@@ -92,6 +93,9 @@ export function CustomizerCanvas({ product }: Props) {
     <div ref={containerRef} className="flex flex-col items-center justify-center w-full h-full p-4">
       <div ref={stageRef} className="border rounded-lg shadow-sm bg-white">
         <Stage
+          ref={(node: Konva.Stage | null) => {
+            setStageRef(node);
+          }}
           width={size.w}
           height={size.h}
           onMouseDown={(e: Konva.KonvaEventObject<MouseEvent>) => {
