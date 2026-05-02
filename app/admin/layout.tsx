@@ -27,7 +27,8 @@ import {
   Users,
   Asterisk,
   LayoutTemplate,
-  ScrollText
+  ScrollText,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -133,6 +134,11 @@ function AdminLayoutInner({
       href: "/admin/landing-plantillas",
       icon: LayoutTemplate,
       label: "Plantillas de Landing",
+    },
+    {
+      href: "/admin/personalizables",
+      icon: Sparkles,
+      label: "Personalizables",
     },
     {
       href: "/admin/paginas",
