@@ -15,10 +15,24 @@ export function MockupImage({ src, width, height }: Props) {
 
   useEffect(() => {
     if (!src) return;
-    const i = new window.Image();
-    i.crossOrigin = "anonymous";
-    i.src = src;
-    i.onload = () => setImg(i);
+    setImg(null);
+
+    const tryLoad = (withCors: boolean) => {
+      const i = new window.Image();
+      if (withCors) i.crossOrigin = "anonymous";
+      i.src = src;
+      i.onload = () => setImg(i);
+      i.onerror = () => {
+        if (withCors) {
+          console.warn("[MockupImage] CORS load failed, retrying without crossOrigin:", src);
+          tryLoad(false);
+        } else {
+          console.error("[MockupImage] failed to load mockup:", src);
+        }
+      };
+    };
+
+    tryLoad(true);
   }, [src]);
 
   if (!img) return null;

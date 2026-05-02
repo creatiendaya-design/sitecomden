@@ -25,13 +25,16 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
 
   useEffect(() => {
     if (!zone.mockupImage) return;
+    setImg(null);
     const i = new window.Image();
-    i.crossOrigin = "anonymous";
     i.src = zone.mockupImage;
     i.onload = () => {
       setImg(i);
       const aspect = i.height / i.width;
       setStageSize({ w: 600, h: 600 * aspect });
+    };
+    i.onerror = () => {
+      console.error("[ZoneEditor] failed to load mockup:", zone.mockupImage);
     };
   }, [zone.mockupImage]);
 

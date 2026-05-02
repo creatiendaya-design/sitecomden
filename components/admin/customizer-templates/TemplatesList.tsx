@@ -29,7 +29,7 @@ export function TemplatesList({ templates }: TemplatesListProps) {
             className="border rounded-lg overflow-hidden hover:shadow-md transition"
           >
             <div className="aspect-square bg-muted relative">
-              {firstZone?.mockupImage ? (
+              {firstZone?.mockupImage && firstZone.mockupImage.length > 0 ? (
                 <Image src={firstZone.mockupImage} alt={tpl.name} fill className="object-contain" />
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground">

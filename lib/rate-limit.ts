@@ -22,6 +22,16 @@ import { Redis } from "@upstash/redis";
 // CONFIGURACIÓN DE REDIS
 // ===================================================================
 
+const hasUpstashConfig = Boolean(
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+);
+
+if (!hasUpstashConfig && process.env.NODE_ENV !== "production") {
+  console.warn(
+    "ℹ️ UPSTASH_REDIS env vars not set — rate limiting disabled (dev mode fallback)."
+  );
+}
+
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
@@ -219,6 +229,11 @@ export async function checkRateLimit(
     details?: Record<string, any>;
   }
 ): Promise<RateLimitResult> {
+  // Skip Redis call entirely if Upstash isn't configured (dev fallback).
+  if (!hasUpstashConfig) {
+    return { success: true, remaining: 0, reset: Date.now(), limit: 0 };
+  }
+
   let result: Awaited<ReturnType<typeof limiter.limit>>;
   try {
     result = await limiter.limit(identifier);

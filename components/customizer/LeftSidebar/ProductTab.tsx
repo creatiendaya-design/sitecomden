@@ -63,7 +63,7 @@ export function ProductTab({ product }: Props) {
     <div className="space-y-4">
       <div className="flex gap-3">
         <div className="relative size-16 flex-shrink-0 bg-muted rounded">
-          {product.images[0] && (
+          {typeof product.images[0] === "string" && product.images[0].length > 0 && (
             <Image
               src={product.images[0]}
               alt={product.name}
