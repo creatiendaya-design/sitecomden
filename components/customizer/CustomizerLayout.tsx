@@ -1,7 +1,7 @@
 // components/customizer/CustomizerLayout.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useBuilderStore } from "./store";
 import { useCartStore } from "@/store/cart";
 import { CustomizerTopBar } from "./CustomizerTopBar";
@@ -10,6 +10,11 @@ import { ZoneTabs } from "./ZoneTabs";
 import { CustomizerCanvas } from "./CustomizerCanvas";
 import { LeftSidebar } from "./LeftSidebar";
 import { RightSidebar } from "./RightSidebar";
+import { MobileBottomSheet } from "./MobileBottomSheet";
+import { MobileFAB } from "./MobileFAB";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ProductTab } from "./LeftSidebar/ProductTab";
+import { LayersTab } from "./LeftSidebar/LayersTab";
 import type { CustomizableTemplateData, MockupOverrides } from "@/lib/customizer/types";
 
 export interface BuilderProduct {
@@ -70,23 +75,53 @@ export function CustomizerLayout({
     load(template, variantToLoad, initial);
   }, [template, initialVariantId, cartItemId, load]);
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<"none" | "producto" | "capas">("none");
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   return (
     <div className="flex flex-col h-screen">
       <CustomizerTopBar productSlug={product.slug} productName={product.name} />
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 border-r flex-shrink-0">
-          <LeftSidebar product={product} />
-        </aside>
-        <main className="flex-1 flex flex-col overflow-hidden">
+      {isMobile ? (
+        <>
           <ZoneTabs />
-          <div className="flex-1 flex items-center justify-center bg-gray-50 overflow-auto">
+          <main className="flex-1 overflow-hidden">
             <CustomizerCanvas product={product} />
-          </div>
-        </main>
-        <aside className="w-80 border-l flex-shrink-0">
-          <RightSidebar />
-        </aside>
-      </div>
+          </main>
+          <MobileBottomSheet />
+          <MobileFAB
+            onShowProduct={() => setMobilePanel("producto")}
+            onShowLayers={() => setMobilePanel("capas")}
+          />
+          <Dialog open={mobilePanel !== "none"} onOpenChange={(o) => !o && setMobilePanel("none")}>
+            <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+              {mobilePanel === "producto" && <ProductTab product={product} />}
+              {mobilePanel === "capas" && <LayersTab />}
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          <aside className="w-80 border-r flex-shrink-0">
+            <LeftSidebar product={product} />
+          </aside>
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <ZoneTabs />
+            <div className="flex-1 flex items-center justify-center bg-gray-50 overflow-auto">
+              <CustomizerCanvas product={product} />
+            </div>
+          </main>
+          <aside className="w-80 border-l flex-shrink-0">
+            <RightSidebar />
+          </aside>
+        </div>
+      )}
       <BottomBar product={product} previewMode={previewMode} cartItemId={cartItemId} />
     </div>
   );
