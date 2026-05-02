@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { Layer } from "react-konva";
 import { useBuilderStore } from "./store";
 import { MockupImage } from "./canvas/MockupImage";
 import { BoundsRect } from "./canvas/BoundsRect";
@@ -11,8 +12,12 @@ import { InlineTextEditor } from "./canvas/InlineTextEditor";
 import type { BuilderProduct } from "./CustomizerLayout";
 import type Konva from "konva";
 
-const Stage = dynamic(() => import("react-konva").then((m) => ({ default: m.Stage })), { ssr: false });
-const Layer = dynamic(() => import("react-konva").then((m) => ({ default: m.Layer })), { ssr: false });
+// Only Stage is a real React component in react-konva v19; Layer is a
+// string token consumed by the Konva reconciler.
+const Stage = dynamic(
+  () => import("react-konva").then((m) => ({ default: m.Stage })),
+  { ssr: false }
+);
 
 interface Props {
   product: BuilderProduct;

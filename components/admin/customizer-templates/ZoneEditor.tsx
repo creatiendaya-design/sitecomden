@@ -3,14 +3,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { Layer, Image, Rect, Transformer } from "react-konva";
 import type Konva from "konva";
 import type { PrintZone, BoundsPct } from "@/lib/customizer/types";
 
-const Stage = dynamic(() => import("react-konva").then((m) => ({ default: m.Stage })), { ssr: false });
-const Layer = dynamic(() => import("react-konva").then((m) => ({ default: m.Layer })), { ssr: false });
-const Image = dynamic(() => import("react-konva").then((m) => ({ default: m.Image })), { ssr: false });
-const Rect = dynamic(() => import("react-konva").then((m) => ({ default: m.Rect })), { ssr: false });
-const Transformer = dynamic(() => import("react-konva").then((m) => ({ default: m.Transformer })), { ssr: false });
+// Stage is the only real React component in react-konva v19; everything
+// else (Layer, Rect, Image, Transformer) is just a string token consumed by
+// the Konva reconciler — they can't be dynamic-imported as components.
+const Stage = dynamic(
+  () => import("react-konva").then((m) => ({ default: m.Stage })),
+  { ssr: false }
+);
 
 interface ZoneEditorProps {
   zone: PrintZone;
