@@ -85,15 +85,22 @@ export function BottomBar({ product, previewMode, cartItemId }: Props) {
         router.push("/carrito");
       } else {
         const idForCart = `${liveVariantId || product.id}::${customDesignId}`;
+        const variantName = liveVariant
+          ? Object.entries(liveVariant.options)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(", ")
+          : undefined;
         useCartStore.getState().addItem({
           id: idForCart,
           productId: product.id,
           variantId: liveVariantId ?? undefined,
           name: `${product.name} (personalizado)`,
+          variantName,
           slug: product.slug,
           price: variantPrice + (template.surcharge ?? 0),
           maxStock: liveVariant?.stock ?? 99,
           image: images[0]?.url ?? product.images[0],
+          options: liveVariant?.options,
           customDesignId,
           customDesign,
           customDesignImages: images,
