@@ -6,11 +6,11 @@ import dynamic from "next/dynamic";
 import type Konva from "konva";
 import type { PrintZone, BoundsPct } from "@/lib/customizer/types";
 
-const Stage = dynamic(() => import("react-konva").then((m) => m.Stage), { ssr: false });
-const Layer = dynamic(() => import("react-konva").then((m) => m.Layer), { ssr: false });
-const Image = dynamic(() => import("react-konva").then((m) => m.Image), { ssr: false });
-const Rect = dynamic(() => import("react-konva").then((m) => m.Rect), { ssr: false });
-const Transformer = dynamic(() => import("react-konva").then((m) => m.Transformer), { ssr: false });
+const Stage = dynamic(() => import("react-konva").then((m) => ({ default: m.Stage })), { ssr: false });
+const Layer = dynamic(() => import("react-konva").then((m) => ({ default: m.Layer })), { ssr: false });
+const Image = dynamic(() => import("react-konva").then((m) => ({ default: m.Image })), { ssr: false });
+const Rect = dynamic(() => import("react-konva").then((m) => ({ default: m.Rect })), { ssr: false });
+const Transformer = dynamic(() => import("react-konva").then((m) => ({ default: m.Transformer })), { ssr: false });
 
 interface ZoneEditorProps {
   zone: PrintZone;

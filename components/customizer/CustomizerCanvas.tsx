@@ -11,8 +11,8 @@ import { InlineTextEditor } from "./canvas/InlineTextEditor";
 import type { BuilderProduct } from "./CustomizerLayout";
 import type Konva from "konva";
 
-const Stage = dynamic(() => import("react-konva").then((m) => m.Stage), { ssr: false });
-const Layer = dynamic(() => import("react-konva").then((m) => m.Layer), { ssr: false });
+const Stage = dynamic(() => import("react-konva").then((m) => ({ default: m.Stage })), { ssr: false });
+const Layer = dynamic(() => import("react-konva").then((m) => ({ default: m.Layer })), { ssr: false });
 
 interface Props {
   product: BuilderProduct;
