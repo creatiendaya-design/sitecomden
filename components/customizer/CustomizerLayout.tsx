@@ -6,6 +6,7 @@ import { useBuilderStore } from "./store";
 import { CustomizerTopBar } from "./CustomizerTopBar";
 import { BottomBar } from "./BottomBar";
 import { ZoneTabs } from "./ZoneTabs";
+import { CustomizerCanvas } from "./CustomizerCanvas";
 import type { CustomizableTemplateData, MockupOverrides } from "@/lib/customizer/types";
 
 export interface BuilderProduct {
@@ -62,8 +63,8 @@ export function CustomizerLayout({
         </aside>
         <main className="flex-1 flex flex-col overflow-hidden">
           <ZoneTabs />
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="text-muted-foreground">[Canvas — Phase 8]</div>
+          <div className="flex-1 flex items-center justify-center bg-gray-50 overflow-auto">
+            <CustomizerCanvas product={product} />
           </div>
         </main>
         <aside className="w-80 border-l flex-shrink-0">
