@@ -3,6 +3,7 @@
 
 import { useEffect } from "react";
 import { useBuilderStore } from "./store";
+import { useCartStore } from "@/store/cart";
 import { CustomizerTopBar } from "./CustomizerTopBar";
 import { BottomBar } from "./BottomBar";
 import { ZoneTabs } from "./ZoneTabs";
@@ -52,9 +53,22 @@ export function CustomizerLayout({
   const load = useBuilderStore((s) => s.load);
 
   useEffect(() => {
-    load(template, initialVariantId);
-    // TODO Phase 13: si cartItemId, cargar diseño desde el cart store
-  }, [template, initialVariantId, load]);
+    let initial: { zones: { zoneId: string; layers: import("@/lib/customizer/types").TextLayer[] }[]; cartItemId?: string } | undefined;
+    let variantToLoad = initialVariantId;
+
+    if (cartItemId) {
+      const cartItem = useCartStore.getState().items.find((i) => i.id === cartItemId);
+      if (cartItem?.customDesign) {
+        initial = {
+          zones: cartItem.customDesign.zones,
+          cartItemId,
+        };
+        if (cartItem.variantId) variantToLoad = cartItem.variantId;
+      }
+    }
+
+    load(template, variantToLoad, initial);
+  }, [template, initialVariantId, cartItemId, load]);
 
   return (
     <div className="flex flex-col h-screen">
