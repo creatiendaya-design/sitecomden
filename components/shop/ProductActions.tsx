@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import ProductOptions from "@/components/shop/ProductOptions";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import CodOrderModal from "@/components/shop/CodOrderModal";
+import { StartCustomizingButton } from "@/components/shop/StartCustomizingButton";
 import { DEFAULT_COD_FORM_SETTINGS, type CheckoutMode, type CodFormSettings } from "@/lib/types/cod-form";
 import { getProductImageUrl } from "@/lib/image-utils";
 
@@ -21,6 +22,7 @@ interface ProductData {
   images: any;
   hasVariants: boolean;
   weight: number | null;
+  customizableTemplate?: { id: string; surcharge: number | null } | null;
 }
 
 interface VariantData {
@@ -206,28 +208,39 @@ export default function ProductActions({
 
       {/* Checkout mode buttons */}
       <div className="space-y-2">
-        {(mode === "COD_ONLY" || mode === "COD_AND_CART") && (
-          <button
-            onClick={() => {
-              if (!inStock) return;
-              setCodOpen(true);
-            }}
-            disabled={!inStock}
-            className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors text-base"
-          >
-            🛒 Comprar ahora
-          </button>
-        )}
+        {product.customizableTemplate ? (
+          <StartCustomizingButton
+            productSlug={product.slug}
+            variantId={selectedVariant?.id ?? null}
+            surcharge={product.customizableTemplate.surcharge}
+            basePrice={selectedVariant ? Number(selectedVariant.price) : Number(product.basePrice)}
+          />
+        ) : (
+          <>
+            {(mode === "COD_ONLY" || mode === "COD_AND_CART") && (
+              <button
+                onClick={() => {
+                  if (!inStock) return;
+                  setCodOpen(true);
+                }}
+                disabled={!inStock}
+                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors text-base"
+              >
+                🛒 Comprar ahora
+              </button>
+            )}
 
-        {(mode === "STANDARD" || mode === "COD_AND_CART") && (
-          <div className={mode === "COD_AND_CART" ? "opacity-90 [&_button]:bg-white [&_button]:border [&_button]:border-gray-300 [&_button]:text-gray-700 [&_button]:hover:bg-gray-50 [&_button]:shadow-none" : ""}>
-            <AddToCartButton
-              product={product}
-              variants={variants}
-              selectedVariant={selectedVariant}
-              disabled={!inStock || (selectedVariant ? selectedVariant.stock <= 0 : false)}
-            />
-          </div>
+            {(mode === "STANDARD" || mode === "COD_AND_CART") && (
+              <div className={mode === "COD_AND_CART" ? "opacity-90 [&_button]:bg-white [&_button]:border [&_button]:border-gray-300 [&_button]:text-gray-700 [&_button]:hover:bg-gray-50 [&_button]:shadow-none" : ""}>
+                <AddToCartButton
+                  product={product}
+                  variants={variants}
+                  selectedVariant={selectedVariant}
+                  disabled={!inStock || (selectedVariant ? selectedVariant.stock <= 0 : false)}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
 

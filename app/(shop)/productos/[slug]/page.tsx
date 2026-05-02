@@ -40,6 +40,9 @@ export default async function ProductDetailPage({
       landingBlocks: {
         orderBy: { position: "asc" },
       },
+      customizableTemplate: {
+        select: { id: true, surcharge: true },
+      },
     },
   });
 
@@ -86,6 +89,14 @@ export default async function ProductDetailPage({
     weight: product.weight ? Number(product.weight) : null,
     checkoutMode: (product as any).checkoutMode ?? "STANDARD",
     codFormSettings: (product as any).codFormSettings ?? null,
+    customizableTemplate: product.customizableTemplate
+      ? {
+          id: product.customizableTemplate.id,
+          surcharge: product.customizableTemplate.surcharge
+            ? Number(product.customizableTemplate.surcharge)
+            : null,
+        }
+      : null,
   };
 
   // Serializar variantes con conversión explícita de options
