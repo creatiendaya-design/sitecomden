@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
@@ -26,6 +27,9 @@ const orderItemSchema = z.object({
   quantity: z.number().int().positive("Cantidad de item inválida").max(9999),
   image: z.string().optional(),
   options: z.record(z.string(), z.string()).optional(),
+  // Customizer (Phase 2.3) — optional, only present for customized items
+  customDesign: z.unknown().optional(),
+  customDesignImages: z.array(z.object({ zoneId: z.string(), url: z.string() })).optional(),
 });
 
 const createOrderSchema = z.object({
@@ -170,6 +174,33 @@ export async function createOrder(rawData: unknown) {
       }
     }
 
+    // Customizer (Phase 2.3): validate any item that carries a customDesign
+    // against the snapshot baked into it AND against the product's current
+    // customizableTemplateId.
+    const { validateCartItemDesign } = await import("./customizer-checkout");
+    for (const item of data.items) {
+      if (item.customDesign) {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          select: { customizableTemplateId: true },
+        });
+        const validationResult = validateCartItemDesign(
+          {
+            productId: item.productId,
+            customDesign: item.customDesign as never,
+            customDesignImages: item.customDesignImages,
+          },
+          product?.customizableTemplateId ?? null
+        );
+        if (!validationResult.success) {
+          return {
+            success: false,
+            error: `Producto "${item.name}": ${validationResult.error}`,
+          };
+        }
+      }
+    }
+
     // Generar token único para ver la orden sin login
     const viewToken = crypto.randomBytes(32).toString("hex");
 
@@ -240,7 +271,13 @@ export async function createOrder(rawData: unknown) {
             price: serverPrices.get(item.variantId ?? item.productId) ?? 0,
             quantity: item.quantity,
             image: item.image || undefined,
-            variantOptions: (item.options ?? null) as any,
+            variantOptions: (item.options ?? null) as Prisma.InputJsonValue,
+            customDesign: item.customDesign === undefined || item.customDesign === null
+              ? Prisma.JsonNull
+              : (item.customDesign as Prisma.InputJsonValue),
+            customDesignImages: item.customDesignImages === undefined || item.customDesignImages === null
+              ? Prisma.JsonNull
+              : (item.customDesignImages as unknown as Prisma.InputJsonValue),
           })),
         },
       },
