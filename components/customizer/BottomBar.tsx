@@ -99,6 +99,7 @@ export function BottomBar({ product, previewMode, cartItemId }: Props) {
           customDesignImages: images,
         });
         toast.success("¡Añadido al carrito!");
+        router.push("/carrito");
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al subir el diseño");
