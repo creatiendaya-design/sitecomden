@@ -1,8 +1,9 @@
-// app/(shop)/productos/[slug]/personalizar/page.tsx
+// app/(customizer)/productos/[slug]/personalizar/page.tsx
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCustomizableTemplate } from "@/actions/customizer";
 import { CustomizerLayout } from "@/components/customizer/CustomizerLayout";
+import { getAllProductImages } from "@/lib/image-utils";
 import type { MockupOverrides } from "@/lib/customizer/types";
 
 interface Props {
@@ -45,7 +46,7 @@ export default async function PersonalizarPage({ params, searchParams }: Props) 
         slug: product.slug,
         name: product.name,
         basePrice: Number(product.basePrice),
-        images: (product.images as string[]) ?? [],
+        images: getAllProductImages(product.images).map((img) => img.url),
         options: product.options.map((o) => ({
           id: o.id,
           name: o.name,
