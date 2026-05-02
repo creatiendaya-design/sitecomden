@@ -360,6 +360,7 @@ export async function createOrder(rawData: unknown) {
           variantName: item.variantName || undefined,
           quantity: item.quantity,
           price: Number(item.price) * item.quantity,
+          customDesignImages: (item.customDesignImages as unknown as Array<{ zoneId: string; url: string }> | null) ?? undefined,
         })),
         shippingAddress: order.shippingAddress as any,
         paymentMethod: order.paymentMethod,
