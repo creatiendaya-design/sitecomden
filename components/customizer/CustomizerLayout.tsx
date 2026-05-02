@@ -8,6 +8,7 @@ import { BottomBar } from "./BottomBar";
 import { ZoneTabs } from "./ZoneTabs";
 import { CustomizerCanvas } from "./CustomizerCanvas";
 import { LeftSidebar } from "./LeftSidebar";
+import { RightSidebar } from "./RightSidebar";
 import type { CustomizableTemplateData, MockupOverrides } from "@/lib/customizer/types";
 
 export interface BuilderProduct {
@@ -69,7 +70,7 @@ export function CustomizerLayout({
           </div>
         </main>
         <aside className="w-80 border-l flex-shrink-0">
-          <div className="p-4 text-sm text-muted-foreground">[Sidebar der — Phase 10]</div>
+          <RightSidebar />
         </aside>
       </div>
       <BottomBar product={product} previewMode={previewMode} cartItemId={cartItemId} />
