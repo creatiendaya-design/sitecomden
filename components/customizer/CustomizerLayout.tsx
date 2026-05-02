@@ -7,6 +7,7 @@ import { CustomizerTopBar } from "./CustomizerTopBar";
 import { BottomBar } from "./BottomBar";
 import { ZoneTabs } from "./ZoneTabs";
 import { CustomizerCanvas } from "./CustomizerCanvas";
+import { LeftSidebar } from "./LeftSidebar";
 import type { CustomizableTemplateData, MockupOverrides } from "@/lib/customizer/types";
 
 export interface BuilderProduct {
@@ -58,8 +59,8 @@ export function CustomizerLayout({
     <div className="flex flex-col h-screen">
       <CustomizerTopBar productSlug={product.slug} productName={product.name} />
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 border-r flex-shrink-0">
-          <div className="p-4 text-sm text-muted-foreground">[Sidebar izq — Phase 9]</div>
+        <aside className="w-80 border-r flex-shrink-0">
+          <LeftSidebar product={product} />
         </aside>
         <main className="flex-1 flex flex-col overflow-hidden">
           <ZoneTabs />
