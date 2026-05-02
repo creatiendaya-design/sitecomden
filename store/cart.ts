@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { CustomDesign, CustomDesignImage } from '@/lib/customizer/types'
 
 export interface CartItem {
   id: string // productId o variantId
@@ -13,6 +14,10 @@ export interface CartItem {
   image?: string
   maxStock: number
   options?: Record<string, string>
+  customDesignId?: string
+  customDesign?: CustomDesign
+  customDesignImages?: CustomDesignImage[]
+  customDesignBroken?: boolean
 }
 
 interface CartStore {
@@ -27,6 +32,8 @@ interface CartStore {
   getItemCount: (id: string) => number
   isInCart: (id: string) => boolean
   canAddMore: (id: string) => boolean
+  replaceCustomItem: (cartItemId: string, design: CustomDesign, images: CustomDesignImage[]) => void
+  markCustomDesignBroken: (cartItemId: string, broken: boolean) => void
 }
 
 export const useCartStore = create<CartStore>()(
@@ -131,6 +138,24 @@ export const useCartStore = create<CartStore>()(
         const item = get().items.find((item) => item.id === id)
         if (!item) return true // Si no está en carrito, se puede agregar
         return item.quantity < item.maxStock
+      },
+
+      replaceCustomItem: (cartItemId, design, images) => {
+        set({
+          items: get().items.map((item) =>
+            item.id === cartItemId
+              ? { ...item, customDesign: design, customDesignImages: images, customDesignBroken: false }
+              : item
+          ),
+        })
+      },
+
+      markCustomDesignBroken: (cartItemId, broken) => {
+        set({
+          items: get().items.map((item) =>
+            item.id === cartItemId ? { ...item, customDesignBroken: broken } : item
+          ),
+        })
       },
     }),
     {
