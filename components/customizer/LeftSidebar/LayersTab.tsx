@@ -4,9 +4,9 @@
 import { Plus, Type as TypeIcon, Trash2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "../store";
-import type { TextLayer } from "@/lib/customizer/types";
+import type { TextLayer, BoundsPct } from "@/lib/customizer/types";
 
-const newTextLayer = (): TextLayer => ({
+const newTextLayer = (bounds: BoundsPct): TextLayer => ({
   id: crypto.randomUUID(),
   type: "TEXT",
   text: "Tu texto aquí",
@@ -15,8 +15,10 @@ const newTextLayer = (): TextLayer => ({
   color: "#000000",
   letterSpacing: 0,
   rotation: 0,
-  x: 50,
-  y: 50,
+  // Position inside the print area (top-left + small offset). The text node's
+  // dragBoundFunc enforces that the user can only drag it within bounds.
+  x: bounds.xPct + bounds.widthPct * 0.1,
+  y: bounds.yPct + bounds.heightPct * 0.4,
   width: 30,
   height: 5,
   align: "center",
@@ -30,15 +32,17 @@ export function LayersTab() {
   const deleteLayer = useBuilderStore((s) => s.deleteLayer);
   const duplicateLayer = useBuilderStore((s) => s.duplicateLayer);
   const template = useBuilderStore((s) => s.template);
+  const activeZoneId = useBuilderStore((s) => s.activeZoneId);
 
-  const canAdd = !template || layers.length < template.maxLayersPerZone;
+  const activeZone = template?.zones.find((z) => z.id === activeZoneId);
+  const canAdd = (!template || layers.length < template.maxLayersPerZone) && Boolean(activeZone);
 
   return (
     <div className="space-y-3">
       <Button
         size="sm"
         className="w-full"
-        onClick={() => addLayer(newTextLayer())}
+        onClick={() => activeZone && addLayer(newTextLayer(activeZone.bounds))}
         disabled={!canAdd}
       >
         <Plus className="size-4 mr-1" /> Texto

@@ -113,6 +113,7 @@ export function CustomizerCanvas({ product }: Props) {
                 selected={selectedId === layer.id && editing !== layer.id}
                 stageWidth={size.w}
                 stageHeight={size.h}
+                bounds={zone.bounds}
                 onSelect={() => setSelected(layer.id)}
                 onChange={(patch) => updateLayer(layer.id, patch)}
                 onDoubleClick={() => setEditing(layer.id)}

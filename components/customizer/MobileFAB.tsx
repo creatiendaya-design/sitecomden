@@ -4,9 +4,9 @@
 import { useState } from "react";
 import { Plus, Package, Layers, X } from "lucide-react";
 import { useBuilderStore } from "./store";
-import type { TextLayer } from "@/lib/customizer/types";
+import type { TextLayer, BoundsPct } from "@/lib/customizer/types";
 
-const newTextLayer = (): TextLayer => ({
+const newTextLayer = (bounds: BoundsPct): TextLayer => ({
   id: crypto.randomUUID(),
   type: "TEXT",
   text: "Tu texto aquí",
@@ -15,8 +15,8 @@ const newTextLayer = (): TextLayer => ({
   color: "#000000",
   letterSpacing: 0,
   rotation: 0,
-  x: 50,
-  y: 50,
+  x: bounds.xPct + bounds.widthPct * 0.1,
+  y: bounds.yPct + bounds.heightPct * 0.4,
   width: 30,
   height: 5,
   align: "center",
@@ -30,6 +30,9 @@ interface Props {
 export function MobileFAB({ onShowProduct, onShowLayers }: Props) {
   const [open, setOpen] = useState(false);
   const addLayer = useBuilderStore((s) => s.addLayer);
+  const template = useBuilderStore((s) => s.template);
+  const activeZoneId = useBuilderStore((s) => s.activeZoneId);
+  const activeZone = template?.zones.find((z) => z.id === activeZoneId);
 
   return (
     <div className="fixed bottom-20 left-4 z-30">
@@ -57,10 +60,12 @@ export function MobileFAB({ onShowProduct, onShowLayers }: Props) {
           </button>
           <button
             onClick={() => {
-              addLayer(newTextLayer());
+              if (!activeZone) return;
+              addLayer(newTextLayer(activeZone.bounds));
               setOpen(false);
             }}
-            className="size-12 rounded-full bg-blue-600 text-white shadow-md flex items-center justify-center font-bold"
+            disabled={!activeZone}
+            className="size-12 rounded-full bg-blue-600 text-white shadow-md flex items-center justify-center font-bold disabled:opacity-50"
             title="Añadir texto"
           >
             T
