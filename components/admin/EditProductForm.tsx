@@ -14,6 +14,8 @@ import ImageUpload from "@/components/admin/ImageUpload";
 import LandingBlockList from "@/components/admin/landing-builder/LandingBlockList";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
 import { TemplateSelector } from "@/components/admin/products/TemplateSelector";
+import { CustomizationCard } from "@/components/admin/products/CustomizationCard";
+import type { MockupOverrides } from "@/lib/customizer/types";
 import CodFormConfig from "@/components/admin/CodFormConfig";
 import { normalizeCodFormSettings, type CodFormSettings } from "@/lib/types/cod-form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -102,6 +104,13 @@ export default function EditProductForm({ product, categories, showLegacyLanding
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
     product.categories?.[0]?.category?.id || ""
+  );
+
+  const [customizableTemplateId, setCustomizableTemplateId] = useState<string | null>(
+    product.customizableTemplateId ?? null
+  );
+  const [customizableMockupOverrides, setCustomizableMockupOverrides] = useState<MockupOverrides | null>(
+    (product.customizableMockupOverrides as MockupOverrides | null) ?? null
   );
 
   const [formData, setFormData] = useState({
@@ -341,6 +350,8 @@ export default function EditProductForm({ product, categories, showLegacyLanding
               stock: parseInt(v.stock) || 0,
             }))
           : [],
+        customizableTemplateId,
+        customizableMockupOverrides,
       };
 
       const response = await fetch(`/api/admin/products/${product.id}/update`, {
@@ -767,6 +778,23 @@ export default function EditProductForm({ product, categories, showLegacyLanding
     )}
   </CardContent>
 </Card>
+
+<CustomizationCard
+  productSlug={product.slug}
+  templateId={customizableTemplateId}
+  overrides={customizableMockupOverrides}
+  options={(product.options as ProductOption[]).map((o) => ({
+    id: o.id,
+    name: o.name,
+    values: o.values.map((v) => ({
+      id: v.id,
+      value: v.value,
+      swatch: v.colorHex ?? null,
+    })),
+  }))}
+  onTemplateChange={setCustomizableTemplateId}
+  onOverridesChange={setCustomizableMockupOverrides}
+/>
 
 <Card>
   <CardHeader>

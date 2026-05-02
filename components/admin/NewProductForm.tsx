@@ -32,6 +32,8 @@ const RichTextEditor = dynamic(() => import("./RichTextEditor"), {
   ),
 });
 import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
+import { CustomizationCard } from "@/components/admin/products/CustomizationCard";
+import type { MockupOverrides } from "@/lib/customizer/types";
 
 // 🆕 Tipos actualizados con swatches
 interface ProductOptionValue {
@@ -94,6 +96,9 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
   // 🆕 Estado para opciones con swatches
   const [options, setOptions] = useState<ProductOption[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
+
+  const [customizableTemplateId, setCustomizableTemplateId] = useState<string | null>(null);
+  const [customizableMockupOverrides, setCustomizableMockupOverrides] = useState<MockupOverrides | null>(null);
 
   // Selección y edición masiva
   const [selectedVariants, setSelectedVariants] = useState<number[]>([]);
@@ -237,6 +242,8 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
               stock: parseInt(v.stock) || 0,
             }))
           : [],
+        customizableTemplateId,
+        customizableMockupOverrides,
       };
 
       const response = await fetch("/api/admin/products/create", {
@@ -628,6 +635,14 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     </div>
   </CardContent>
 </Card>
+
+<CustomizationCard
+  templateId={customizableTemplateId}
+  overrides={customizableMockupOverrides}
+  options={[]}
+  onTemplateChange={setCustomizableTemplateId}
+  onOverridesChange={setCustomizableMockupOverrides}
+/>
 
 <Card>
   <CardHeader>

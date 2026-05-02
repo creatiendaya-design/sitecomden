@@ -189,6 +189,10 @@ export const createProductSchema = z
       .max(9999, "Peso máximo: 9,999 kg")
       .optional()
       .nullable(),
+
+    // Customizer (Phase 4.3)
+    customizableTemplateId: z.string().cuid().optional().nullable(),
+    customizableMockupOverrides: z.any().optional().nullable(),
   })
   .refine(
     (data) => {
@@ -252,6 +256,8 @@ export const updateProductSchema = z
     metaTitle: z.string().max(60).optional().nullable(),
     metaDescription: z.string().max(160).optional().nullable(),
     weight: z.number().positive().max(9999).optional().nullable(),
+    customizableTemplateId: z.string().cuid().optional().nullable(),
+    customizableMockupOverrides: z.any().optional().nullable(),
   })
   .refine(
     (data) => {

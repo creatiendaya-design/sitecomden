@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth";
 import { createProductSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
@@ -102,6 +103,11 @@ export async function POST(request: Request) {
           metaTitle: validatedData.metaTitle || null,
           metaDescription: validatedData.metaDescription || null,
           weight: validatedData.weight || null,
+          customizableTemplateId: validatedData.customizableTemplateId ?? null,
+          customizableMockupOverrides:
+            validatedData.customizableMockupOverrides == null
+              ? Prisma.JsonNull
+              : (validatedData.customizableMockupOverrides as Prisma.InputJsonValue),
         },
       });
 

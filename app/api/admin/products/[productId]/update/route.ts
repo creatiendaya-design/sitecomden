@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth";
 import { updateProductSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
@@ -83,6 +84,11 @@ export async function PUT(
         metaTitle: validatedData.metaTitle || null,
         metaDescription: validatedData.metaDescription || null,
         weight: validatedData.weight || null,
+        customizableTemplateId: validatedData.customizableTemplateId ?? null,
+        customizableMockupOverrides:
+          validatedData.customizableMockupOverrides == null
+            ? Prisma.JsonNull
+            : (validatedData.customizableMockupOverrides as Prisma.InputJsonValue),
       };
 
       if (!validatedData.hasVariants) {
