@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
 import { CustomDesignBadge } from "./CustomDesignBadge";
+import { checkImageReachable } from "@/lib/customizer/validate-cart-images";
 
 export default function CartView() {
   const { items, updateQuantity, removeItem, getTotalPrice, getTotalItems } =
@@ -34,6 +35,22 @@ export default function CartView() {
   useEffect(() => {
     if (items.length > 0) {
       verifyStock();
+    }
+  }, []);
+
+  // Validate custom design PNGs are still reachable in Vercel Blob
+  useEffect(() => {
+    const cartItems = useCartStore.getState().items;
+    const mark = useCartStore.getState().markCustomDesignBroken;
+    for (const cartItem of cartItems) {
+      if (cartItem.customDesignImages && cartItem.customDesignImages.length > 0 && !cartItem.customDesignBroken) {
+        Promise.all(
+          cartItem.customDesignImages.map((img) => checkImageReachable(img.url))
+        ).then((results) => {
+          const broken = results.some((r) => !r);
+          if (broken) mark(cartItem.id, true);
+        });
+      }
     }
   }, []);
 
