@@ -6,7 +6,7 @@ export const sizeUnitSchema = z.enum(["cm", "in"]);
 export const sizeGuideMarkerSchema = z.object({
   key: z.string().min(1).max(8),
   label: z.string().min(1).max(60),
-  description: z.string().max(2000),
+  description: z.string().min(1).max(2000),
 });
 
 export const sizeGuideTabSchema = z.object({
@@ -24,13 +24,13 @@ export const sizeGuideColumnSchema = z.object({
 
 export const sizeGuideRowSchema = z.object({
   size: z.string().min(1).max(20),
-  values: z.record(z.string(), z.number()),
+  values: z.record(z.string(), z.number().finite().nonnegative()),
   overrides: z.record(z.string(), z.string()).optional(),
 });
 
 export const sizeGuideTableSchema = z.object({
-  columns: z.array(sizeGuideColumnSchema).max(20),
-  rows: z.array(sizeGuideRowSchema).max(50),
+  columns: z.array(sizeGuideColumnSchema).min(1).max(20),
+  rows: z.array(sizeGuideRowSchema).min(1).max(50),
 });
 
 export const sizeGuideDataSchema = z.object({
