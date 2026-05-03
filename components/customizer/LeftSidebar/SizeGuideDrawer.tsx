@@ -2,7 +2,16 @@
 "use client";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import type { SizeGuide } from "@/lib/customizer/types";
+
+// Legacy type — kept inline because the shared SizeGuide type was moved to
+// lib/size-guides/types.ts. This component is no longer used (replaced by
+// SizeGuideModal) and will be deleted in Phase 8.
+interface SizeGuide {
+  unit: "cm" | "in";
+  columns: { key: string; label: string }[];
+  rows: { size: string; values: Record<string, number> }[];
+  notes?: string;
+}
 
 interface Props {
   guide: SizeGuide;

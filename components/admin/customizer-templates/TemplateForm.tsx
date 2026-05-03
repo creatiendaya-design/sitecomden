@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,6 @@ import { Trash2, Plus } from "lucide-react";
 import { ZoneEditor } from "./ZoneEditor";
 import { FontsCatalogPicker } from "./FontsCatalogPicker";
 import { ColorsPaletteEditor } from "./ColorsPaletteEditor";
-import { SizeGuideEditor } from "./SizeGuideEditor";
 import {
   saveCustomizableTemplate,
   updateCustomizableTemplate,
@@ -50,7 +50,6 @@ export function TemplateForm({ initial }: TemplateFormProps) {
     allowedFonts: initial?.allowedFonts ?? DEFAULT_FONTS.map((f) => f.key),
     allowedColors: initial?.allowedColors ?? DEFAULT_COLORS.map((c) => c.hex),
     allowCustomColors: initial?.allowCustomColors ?? true,
-    sizeGuide: initial?.sizeGuide ?? null,
     maxLayersPerZone: initial?.maxLayersPerZone ?? 8,
     maxCharsPerLayer: initial?.maxCharsPerLayer ?? 40,
   });
@@ -173,12 +172,14 @@ export function TemplateForm({ initial }: TemplateFormProps) {
           />
         </Card>
 
-        <Card className="p-4">
-          <h3 className="font-semibold mb-3">Tabla de medidas</h3>
-          <SizeGuideEditor
-            value={data.sizeGuide}
-            onChange={(v) => setData({ ...data, sizeGuide: v })}
-          />
+        <Card className="p-4 text-sm text-muted-foreground">
+          La guía de tallas ahora se asigna desde el producto.{" "}
+          <Link
+            href="/admin/guia-tallas"
+            className="text-blue-600 hover:underline"
+          >
+            Ir a guías de tallas →
+          </Link>
         </Card>
 
         <Button onClick={onSubmit} disabled={pending} className="w-full">

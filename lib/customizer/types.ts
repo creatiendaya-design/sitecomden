@@ -17,18 +17,6 @@ export interface PrintZone {
   printResolutionDPI: number;
 }
 
-export interface SizeGuideRow {
-  size: string;
-  values: Record<string, number>;
-}
-
-export interface SizeGuide {
-  unit: "cm" | "in";
-  columns: { key: string; label: string }[];
-  rows: SizeGuideRow[];
-  notes?: string;
-}
-
 export interface CustomizableTemplateData {
   id: string;
   name: string;
@@ -39,7 +27,6 @@ export interface CustomizableTemplateData {
   allowedFonts: string[];
   allowedColors: string[];
   allowCustomColors: boolean;
-  sizeGuide: SizeGuide | null;
   maxLayersPerZone: number;
   maxCharsPerLayer: number;
 }

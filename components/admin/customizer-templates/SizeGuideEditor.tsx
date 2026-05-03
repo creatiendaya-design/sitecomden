@@ -5,7 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Trash2 } from "lucide-react";
-import type { SizeGuide } from "@/lib/customizer/types";
+
+// Legacy type — kept inline because the shared SizeGuide type was moved to
+// lib/size-guides/types.ts. This component is no longer used (replaced by the
+// per-product size guide picker) and will be deleted in Phase 8.
+interface SizeGuide {
+  unit: "cm" | "in";
+  columns: { key: string; label: string }[];
+  rows: { size: string; values: Record<string, number> }[];
+  notes?: string;
+}
 
 interface SizeGuideEditorProps {
   value: SizeGuide | null;

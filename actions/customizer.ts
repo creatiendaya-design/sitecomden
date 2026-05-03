@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import type { CustomizableTemplateData, PrintZone, SizeGuide } from "@/lib/customizer/types";
+import type { CustomizableTemplateData, PrintZone } from "@/lib/customizer/types";
 
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 const VERCEL_BLOB_RE = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/.+/i;
@@ -25,13 +25,6 @@ const zoneSchema = z.object({
   printResolutionDPI: z.number().int().min(72).max(600),
 });
 
-const sizeGuideSchema = z.object({
-  unit: z.enum(["cm", "in"]),
-  columns: z.array(z.object({ key: z.string(), label: z.string() })),
-  rows: z.array(z.object({ size: z.string(), values: z.record(z.string(), z.number()) })),
-  notes: z.string().optional(),
-}).nullable();
-
 const templateInputSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).nullable(),
@@ -41,7 +34,6 @@ const templateInputSchema = z.object({
   allowedFonts: z.array(z.string()),
   allowedColors: z.array(z.string().regex(HEX_RE)),
   allowCustomColors: z.boolean(),
-  sizeGuide: sizeGuideSchema,
   maxLayersPerZone: z.number().int().min(1).max(50),
   maxCharsPerLayer: z.number().int().min(1).max(500),
 });
@@ -69,7 +61,6 @@ export async function saveCustomizableTemplate(input: unknown): Promise<ActionRe
         allowedFonts: data.allowedFonts,
         allowedColors: data.allowedColors,
         allowCustomColors: data.allowCustomColors,
-        sizeGuide: data.sizeGuide === null ? Prisma.JsonNull : (data.sizeGuide as unknown as Prisma.InputJsonValue),
         maxLayersPerZone: data.maxLayersPerZone,
         maxCharsPerLayer: data.maxCharsPerLayer,
       },
@@ -99,7 +90,6 @@ export async function updateCustomizableTemplate(id: string, input: unknown): Pr
         allowedFonts: data.allowedFonts,
         allowedColors: data.allowedColors,
         allowCustomColors: data.allowCustomColors,
-        sizeGuide: data.sizeGuide === null ? Prisma.JsonNull : (data.sizeGuide as unknown as Prisma.InputJsonValue),
         maxLayersPerZone: data.maxLayersPerZone,
         maxCharsPerLayer: data.maxCharsPerLayer,
       },
@@ -143,7 +133,7 @@ export async function getCustomizableTemplate(id: string): Promise<CustomizableT
 function rowToData(row: {
   id: string; name: string; description: string | null; active: boolean;
   surcharge: unknown; zones: unknown; allowedFonts: unknown; allowedColors: unknown;
-  allowCustomColors: boolean; sizeGuide: unknown; maxLayersPerZone: number; maxCharsPerLayer: number;
+  allowCustomColors: boolean; maxLayersPerZone: number; maxCharsPerLayer: number;
 }): CustomizableTemplateData {
   return {
     id: row.id,
@@ -155,7 +145,6 @@ function rowToData(row: {
     allowedFonts: (row.allowedFonts as string[]) ?? [],
     allowedColors: (row.allowedColors as string[]) ?? [],
     allowCustomColors: row.allowCustomColors,
-    sizeGuide: (row.sizeGuide as SizeGuide | null) ?? null,
     maxLayersPerZone: row.maxLayersPerZone,
     maxCharsPerLayer: row.maxCharsPerLayer,
   };
