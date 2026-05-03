@@ -108,6 +108,7 @@ export async function POST(request: Request) {
             validatedData.customizableMockupOverrides == null
               ? Prisma.JsonNull
               : (validatedData.customizableMockupOverrides as Prisma.InputJsonValue),
+          sizeGuideId: validatedData.sizeGuideId ?? null,
         },
       });
 
