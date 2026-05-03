@@ -170,13 +170,8 @@ export default async function ProductDetailPage({
       {/* Tracking */}
       <ProductTracking product={trackingData} />
 
-      {/* 🎯 RENDERIZAR SEGÚN TEMPLATE */}
-      {product.template === "LANDING" ? (
+      {renderableLandingBlocks.length > 0 ? (
         <ProductLandingView {...templateProps} />
-      ) : product.template === "MINIMAL" ? (
-        <ProductStandardView {...templateProps} />
-      ) : product.template === "GALLERY" ? (
-        <ProductStandardView {...templateProps} />
       ) : (
         <ProductStandardView {...templateProps} />
       )}
