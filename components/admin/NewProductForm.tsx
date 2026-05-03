@@ -33,6 +33,7 @@ const RichTextEditor = dynamic(() => import("./RichTextEditor"), {
 });
 import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
 import { CustomizationCard } from "@/components/admin/products/CustomizationCard";
+import { SizeGuideCard } from "@/components/admin/products/SizeGuideCard";
 import type { MockupOverrides } from "@/lib/customizer/types";
 
 // 🆕 Tipos actualizados con swatches
@@ -99,6 +100,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
 
   const [customizableTemplateId, setCustomizableTemplateId] = useState<string | null>(null);
   const [customizableMockupOverrides, setCustomizableMockupOverrides] = useState<MockupOverrides | null>(null);
+  const [sizeGuideId, setSizeGuideId] = useState<string | null>(null);
 
   // Selección y edición masiva
   const [selectedVariants, setSelectedVariants] = useState<number[]>([]);
@@ -244,6 +246,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
           : [],
         customizableTemplateId,
         customizableMockupOverrides,
+        sizeGuideId,
       };
 
       const response = await fetch("/api/admin/products/create", {
@@ -643,6 +646,8 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
   onTemplateChange={setCustomizableTemplateId}
   onOverridesChange={setCustomizableMockupOverrides}
 />
+
+<SizeGuideCard value={sizeGuideId} onChange={setSizeGuideId} />
 
 <Card>
   <CardHeader>
