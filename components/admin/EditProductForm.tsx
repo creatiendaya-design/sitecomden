@@ -15,6 +15,7 @@ import LandingBlockList from "@/components/admin/landing-builder/LandingBlockLis
 import type { LandingBlock } from "@/lib/types/landing-blocks";
 import { TemplateSelector } from "@/components/admin/products/TemplateSelector";
 import { CustomizationCard } from "@/components/admin/products/CustomizationCard";
+import { SizeGuideCard } from "@/components/admin/products/SizeGuideCard";
 import type { MockupOverrides } from "@/lib/customizer/types";
 import CodFormConfig from "@/components/admin/CodFormConfig";
 import { normalizeCodFormSettings, type CodFormSettings } from "@/lib/types/cod-form";
@@ -111,6 +112,9 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   );
   const [customizableMockupOverrides, setCustomizableMockupOverrides] = useState<MockupOverrides | null>(
     (product.customizableMockupOverrides as MockupOverrides | null) ?? null
+  );
+  const [sizeGuideId, setSizeGuideId] = useState<string | null>(
+    product.sizeGuideId ?? null
   );
 
   const [formData, setFormData] = useState({
@@ -352,6 +356,7 @@ export default function EditProductForm({ product, categories, showLegacyLanding
           : [],
         customizableTemplateId,
         customizableMockupOverrides,
+        sizeGuideId,
       };
 
       const response = await fetch(`/api/admin/products/${product.id}/update`, {
@@ -795,6 +800,8 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   onTemplateChange={setCustomizableTemplateId}
   onOverridesChange={setCustomizableMockupOverrides}
 />
+
+<SizeGuideCard value={sizeGuideId} onChange={setSizeGuideId} />
 
 <Card>
   <CardHeader>
