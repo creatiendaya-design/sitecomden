@@ -6,6 +6,7 @@ import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
+  Ruler,
   ShoppingCart,
   Package,
   Clock,
@@ -139,6 +140,11 @@ function AdminLayoutInner({
       href: "/admin/personalizables",
       icon: Sparkles,
       label: "Personalizables",
+    },
+    {
+      href: "/admin/guia-tallas",
+      icon: Ruler,
+      label: "Guía de Tallas",
     },
     {
       href: "/admin/paginas",
