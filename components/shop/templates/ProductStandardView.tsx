@@ -6,6 +6,7 @@ import ProductImageGallery from "@/components/shop/ProductImageGallery";
 import ProductActions from "@/components/shop/ProductActions";
 import RichTextContent from "@/components/RichTextContent";
 import ProductPrice from "@/components/shop/ProductPrice";
+import type { SizeGuideData } from "@/lib/size-guides/types";
 
 interface ProductStandardViewProps {
   product: any;
@@ -16,6 +17,7 @@ interface ProductStandardViewProps {
   initialComparePrice: number | null;
   inStock: boolean;
   totalStock: number;
+  sizeGuide?: SizeGuideData | null;
 }
 
 export default function ProductStandardView({
@@ -27,6 +29,7 @@ export default function ProductStandardView({
   initialComparePrice,
   inStock,
   totalStock,
+  sizeGuide,
 }: ProductStandardViewProps) {
   return (
     <div className="product-detail-container">
@@ -94,6 +97,7 @@ export default function ProductStandardView({
               options={options}
               checkoutMode={serializedProduct.checkoutMode}
               codFormSettings={serializedProduct.codFormSettings}
+              sizeGuide={sizeGuide}
             />
 
             <Separator />

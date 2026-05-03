@@ -14,6 +14,7 @@ import LandingCartDrawer from "@/components/shop/LandingCartDrawer";
 import { DEFAULT_COD_FORM_SETTINGS } from "@/lib/types/cod-form";
 import { getProductImageUrl } from "@/lib/image-utils";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
+import type { SizeGuideData } from "@/lib/size-guides/types";
 
 interface ProductLandingViewProps {
   product: any;
@@ -25,6 +26,7 @@ interface ProductLandingViewProps {
   inStock: boolean;
   totalStock: number;
   landingBlocks?: LandingBlock[];
+  sizeGuide?: SizeGuideData | null;
 }
 
 export default function ProductLandingView({
@@ -37,6 +39,7 @@ export default function ProductLandingView({
   inStock,
   totalStock,
   landingBlocks = [],
+  sizeGuide,
 }: ProductLandingViewProps) {
   const mainImage = getProductImageUrl(product.images);
 
@@ -150,6 +153,7 @@ export default function ProductLandingView({
                 options={options}
                 checkoutMode={serializedProduct.checkoutMode}
                 codFormSettings={serializedProduct.codFormSettings}
+                sizeGuide={sizeGuide}
               />
 
               {/* Trust Badges */}

@@ -5,6 +5,11 @@ import ProductStandardView from "@/components/shop/templates/ProductStandardView
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
 import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
+import type {
+  SizeGuideData,
+  SizeGuideTab,
+  SizeGuideTable,
+} from "@/lib/size-guides/types";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -164,6 +169,23 @@ export default async function ProductDetailPage({
     })),
   };
 
+  // Reshape size guide row into the shape consumed by the modal.
+  const sizeGuideForView: SizeGuideData | null = product.sizeGuide
+    ? {
+        id: product.sizeGuide.id,
+        name: product.sizeGuide.name,
+        unit: product.sizeGuide.unit === "IN" ? "in" : "cm",
+        tabs:
+          (product.sizeGuide.tabs as unknown as SizeGuideTab[]) ?? [],
+        table:
+          (product.sizeGuide.table as unknown as SizeGuideTable) ?? {
+            columns: [],
+            rows: [],
+          },
+        active: product.sizeGuide.active,
+      }
+    : null;
+
   // Props compartidos para todos los templates
   const templateProps = {
     product: serializedProductFull,
@@ -175,6 +197,7 @@ export default async function ProductDetailPage({
     inStock,
     totalStock,
     landingBlocks: renderableLandingBlocks,
+    sizeGuide: sizeGuideForView,
   };
 
   return (

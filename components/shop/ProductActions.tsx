@@ -7,6 +7,7 @@ import CodOrderModal from "@/components/shop/CodOrderModal";
 import { StartCustomizingButton } from "@/components/shop/StartCustomizingButton";
 import { DEFAULT_COD_FORM_SETTINGS, type CheckoutMode, type CodFormSettings } from "@/lib/types/cod-form";
 import { getProductImageUrl } from "@/lib/image-utils";
+import type { SizeGuideData } from "@/lib/size-guides/types";
 
 // 🔧 TIPOS EXPLÍCITOS
 interface ProductData {
@@ -63,6 +64,7 @@ interface ProductActionsProps {
   options: OptionData[];
   checkoutMode?: CheckoutMode;
   codFormSettings?: CodFormSettings | null;
+  sizeGuide?: SizeGuideData | null;
 }
 
 export default function ProductActions({
@@ -71,6 +73,7 @@ export default function ProductActions({
   options,
   checkoutMode,
   codFormSettings,
+  sizeGuide,
 }: ProductActionsProps) {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [selectedVariant, setSelectedVariant] = useState<VariantData | null>(null);
@@ -167,6 +170,7 @@ export default function ProductActions({
           options={options}
           selectedOptions={selectedOptions}
           onOptionChange={handleOptionChange}
+          sizeGuide={sizeGuide}
         />
       )}
 
