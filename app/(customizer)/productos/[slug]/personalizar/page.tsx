@@ -5,6 +5,7 @@ import { getCustomizableTemplate } from "@/actions/customizer";
 import { CustomizerLayout } from "@/components/customizer/CustomizerLayout";
 import { getAllProductImages } from "@/lib/image-utils";
 import type { MockupOverrides } from "@/lib/customizer/types";
+import type { SizeGuideTab, SizeGuideTable } from "@/lib/size-guides/types";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -28,6 +29,7 @@ export default async function PersonalizarPage({ params, searchParams }: Props) 
         orderBy: { position: "asc" },
       },
       reviews: { select: { rating: true } },
+      sizeGuide: { where: { active: true } },
     },
   });
 
@@ -72,6 +74,16 @@ export default async function PersonalizarPage({ params, searchParams }: Props) 
             ? product.reviews.reduce((a, r) => a + r.rating, 0) / product.reviews.length
             : 0,
         mockupOverrides: (product.customizableMockupOverrides as MockupOverrides | null) ?? null,
+        sizeGuide: product.sizeGuide
+          ? {
+              id: product.sizeGuide.id,
+              name: product.sizeGuide.name,
+              unit: product.sizeGuide.unit === "IN" ? "in" : "cm",
+              tabs: (product.sizeGuide.tabs as unknown as SizeGuideTab[]) ?? [],
+              table: (product.sizeGuide.table as unknown as SizeGuideTable) ?? { columns: [], rows: [] },
+              active: product.sizeGuide.active,
+            }
+          : null,
       }}
       template={template}
       initialVariantId={variantId ?? null}
