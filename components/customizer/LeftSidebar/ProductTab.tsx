@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "../store";
-import { SizeGuideDrawer } from "./SizeGuideDrawer";
+import { SizeGuideModal } from "@/components/shop/size-guide/SizeGuideModal";
 import type { BuilderProduct } from "../CustomizerLayout";
 
 interface Props {
@@ -102,7 +102,7 @@ export function ProductTab({ product }: Props) {
           <div key={option.id}>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium">{option.name}</label>
-              {isSizeOption && template?.sizeGuide && (
+              {isSizeOption && product.sizeGuide && (
                 <button
                   onClick={() => setSizeGuideOpen(true)}
                   className="text-xs text-blue-600 hover:underline"
@@ -207,10 +207,11 @@ export function ProductTab({ product }: Props) {
         );
       })}
 
-      {sizeGuideOpen && template?.sizeGuide && (
-        <SizeGuideDrawer
-          guide={template.sizeGuide}
-          onClose={() => setSizeGuideOpen(false)}
+      {product.sizeGuide && (
+        <SizeGuideModal
+          guide={product.sizeGuide}
+          open={sizeGuideOpen}
+          onOpenChange={setSizeGuideOpen}
         />
       )}
     </div>
