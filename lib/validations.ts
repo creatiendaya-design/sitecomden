@@ -193,6 +193,7 @@ export const createProductSchema = z
     // Customizer (Phase 4.3)
     customizableTemplateId: z.string().cuid().optional().nullable(),
     customizableMockupOverrides: z.any().optional().nullable(),
+    sizeGuideId: z.string().cuid().optional().nullable(),
   })
   .refine(
     (data) => {
@@ -258,6 +259,7 @@ export const updateProductSchema = z
     weight: z.number().positive().max(9999).optional().nullable(),
     customizableTemplateId: z.string().cuid().optional().nullable(),
     customizableMockupOverrides: z.any().optional().nullable(),
+    sizeGuideId: z.string().cuid().optional().nullable(),
   })
   .refine(
     (data) => {
