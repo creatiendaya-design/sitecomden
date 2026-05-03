@@ -16,6 +16,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ProductTab } from "./LeftSidebar/ProductTab";
 import { LayersTab } from "./LeftSidebar/LayersTab";
 import type { CustomizableTemplateData, MockupOverrides } from "@/lib/customizer/types";
+import type { SizeGuideData } from "@/lib/size-guides/types";
 
 export interface BuilderProduct {
   id: string;
@@ -45,6 +46,7 @@ export interface BuilderProduct {
   reviewsCount: number;
   reviewsAvg: number;
   mockupOverrides: MockupOverrides | null;
+  sizeGuide: SizeGuideData | null;
 }
 
 interface Props {
