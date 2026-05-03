@@ -43,6 +43,7 @@ export default async function ProductDetailPage({
       customizableTemplate: {
         select: { id: true, surcharge: true },
       },
+      sizeGuide: { where: { active: true } },
     },
   });
 
