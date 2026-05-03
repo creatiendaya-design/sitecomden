@@ -28,7 +28,6 @@ const tpl: CustomizableTemplateData = {
   allowedFonts: ["Inter"],
   allowedColors: ["#000000"],
   allowCustomColors: true,
-  sizeGuide: null,
   maxLayersPerZone: 5,
   maxCharsPerLayer: 40,
 };

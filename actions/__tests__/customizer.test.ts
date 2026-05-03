@@ -46,7 +46,6 @@ const validInput = {
   allowedFonts: ["Inter"],
   allowedColors: ["#000000"],
   allowCustomColors: true,
-  sizeGuide: null,
   maxLayersPerZone: 8,
   maxCharsPerLayer: 40,
 };
@@ -102,7 +101,7 @@ describe("listCustomizableTemplates", () => {
       {
         id: "t1", name: "Polo", description: null, active: true,
         surcharge: 5, zones: [], allowedFonts: ["Inter"], allowedColors: ["#000"],
-        allowCustomColors: true, sizeGuide: null, maxLayersPerZone: 8, maxCharsPerLayer: 40,
+        allowCustomColors: true, maxLayersPerZone: 8, maxCharsPerLayer: 40,
       },
     ]);
     const result = await listCustomizableTemplates();
