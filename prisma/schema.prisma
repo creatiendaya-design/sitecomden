@@ -1124,13 +1124,15 @@ model CodFormBlock {
   id         String           @id @default(cuid())
   templateId String
   template   CodFormTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  order      Int
+  position   Int
   type       CodFormBlockType
   content    Json             @default("{}")
   visible    Boolean          @default(true)
   required   Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
-  @@index([templateId, order])
+  @@index([templateId, position])
 }
 
 /// A user-editable static page (Nosotros, Términos, FAQ, etc.) authored
