@@ -162,13 +162,15 @@ model CodFormBlock {
   id         String           @id @default(cuid())
   templateId String
   template   CodFormTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  order      Int
+  position   Int
   type       CodFormBlockType
   content    Json             @default("{}")
   visible    Boolean          @default(true)
   required   Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
-  @@index([templateId, order])
+  @@index([templateId, position])
 }
 ```
 
@@ -306,7 +308,7 @@ export type BlockContent =
 
 export type CodFormBlock = {
   id: string
-  order: number
+  position: number
   type: CodFormBlockType
   content: Record<string, unknown>
   visible: boolean
@@ -656,7 +658,7 @@ const blockContentByType = z.discriminatedUnion("type", [
 
 export const blockSchema = z.object({
   id: z.string().optional(),
-  order: z.number().int().min(0),
+  position: z.number().int().min(0),
   type: blockTypeSchema,
   content: z.record(z.string(), z.unknown()),
   visible: z.boolean(),
@@ -948,7 +950,7 @@ async function main() {
         "Nos comunicaremos contigo en breve para coordinar la entrega.",
       blocks: {
         create: DEFAULT_TEMPLATE_BLOCKS.map((b, idx) => ({
-          order: idx,
+          position: idx,
           type: b.type,
           visible: b.visible,
           required: b.required,
@@ -1042,10 +1044,10 @@ function serializeTemplate(t: any): CodFormTemplateData {
     thankYouPageSlug: t.thankYouPage?.slug ?? null,
     blocks: (t.blocks ?? [])
       .slice()
-      .sort((a: any, b: any) => a.order - b.order)
+      .sort((a: any, b: any) => a.position - b.position)
       .map((b: any) => ({
         id: b.id,
-        order: b.order,
+        position: b.position,
         type: b.type,
         content: (b.content ?? {}) as Record<string, unknown>,
         visible: b.visible,
@@ -1116,7 +1118,7 @@ export async function createTemplate(name: string): Promise<{ id: string }> {
         "Nos comunicaremos contigo en breve para coordinar la entrega.",
       blocks: {
         create: DEFAULT_TEMPLATE_BLOCKS.map((b, idx) => ({
-          order: idx,
+          position: idx,
           type: b.type,
           visible: b.visible,
           required: b.required,
@@ -1164,7 +1166,7 @@ export async function duplicateTemplate(id: string): Promise<{ id: string }> {
       thankYouPageId: source.thankYouPageId,
       blocks: {
         create: source.blocks.map((b) => ({
-          order: b.order,
+          position: b.position,
           type: b.type,
           visible: b.visible,
           required: b.required,
@@ -1235,7 +1237,7 @@ export async function updateTemplate(
     await tx.codFormBlock.createMany({
       data: parsed.blocks.map((b, idx) => ({
         templateId: id,
-        order: idx,
+        position: idx,
         type: b.type,
         visible: b.visible,
         required: b.required,
@@ -1778,7 +1780,7 @@ export const useCodFormEditor = create<EditorState>((set) => ({
   setWhatsappMessage: (whatsappMessage) => set({ whatsappMessage }),
   setThankYouPageId: (thankYouPageId) => set({ thankYouPageId }),
   setBlocks: (blocks) =>
-    set({ blocks: blocks.map((b, idx) => ({ ...b, order: idx })) }),
+    set({ blocks: blocks.map((b, idx) => ({ ...b, position: idx })) }),
   patchBlock: (id, patch) =>
     set((s) => ({
       blocks: s.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)),
@@ -1789,7 +1791,7 @@ export const useCodFormEditor = create<EditorState>((set) => ({
       const submitButtonIdx = s.blocks.findIndex((b) => b.type === "SUBMIT_BUTTON")
       const newBlock: CodFormBlock = {
         id,
-        order: 0,
+        position: 0,
         type,
         content: {},
         visible: true,
@@ -1804,13 +1806,13 @@ export const useCodFormEditor = create<EditorState>((set) => ({
               ...s.blocks.slice(submitButtonIdx),
             ]
           : [...s.blocks, newBlock]
-      return { blocks: next.map((b, idx) => ({ ...b, order: idx })) }
+      return { blocks: next.map((b, idx) => ({ ...b, position: idx })) }
     }),
   removeBlock: (id) =>
     set((s) => ({
       blocks: s.blocks
         .filter((b) => b.id !== id)
-        .map((b, idx) => ({ ...b, order: idx })),
+        .map((b, idx) => ({ ...b, position: idx })),
     })),
   setSaveStatus: (saveStatus) => set({ saveStatus }),
 }))
@@ -2054,7 +2056,7 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
         thankYouPageId: state.thankYouPageId,
         blocks: state.blocks.map((b, idx) => ({
           ...b,
-          order: idx,
+          position: idx,
         })),
       })
       if (!parsed.success) {
@@ -3719,7 +3721,7 @@ git commit -m "feat(cod-forms): post-submit view component"
 ```typescript
 codFormTemplate: {
   include: {
-    blocks: { orderBy: { order: "asc" } },
+    blocks: { orderBy: { position: "asc" } },
     thankYouPage: { select: { slug: true } },
   },
 },
