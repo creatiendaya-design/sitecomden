@@ -128,6 +128,9 @@ model Product {
   customizableMockupOverrides Json?
   sizeGuideId String?
   sizeGuide   SizeGuide? @relation(fields: [sizeGuideId], references: [id], onDelete: SetNull)
+  codFormTemplateId   String?
+  codFormTemplate     CodFormTemplate? @relation(fields: [codFormTemplateId], references: [id], onDelete: SetNull)
+  shippingRestriction Json?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -137,6 +140,7 @@ model Product {
   @@index([template])
   @@index([customizableTemplateId])
   @@index([sizeGuideId])
+  @@index([codFormTemplateId])
 }
 
 model LandingBlock {
@@ -429,6 +433,30 @@ enum CheckoutMode {
   STANDARD
   COD_ONLY
   COD_AND_CART
+}
+
+enum CodFormBlockType {
+  HEADER
+  CART_ITEMS
+  SHIPPING_OPTIONS
+  ORDER_SUMMARY
+  SUBMIT_BUTTON
+  FIELD_NAME
+  FIELD_PHONE
+  FIELD_EMAIL
+  FIELD_DNI
+  FIELD_ADDRESS
+  FIELD_ADDRESS_2
+  FIELD_PROVINCE
+  FIELD_CITY
+  FIELD_REFERENCE
+  FIELD_NOTES
+}
+
+enum PostSubmitAction {
+  INLINE_THANK_YOU
+  WHATSAPP_REDIRECT
+  THANK_YOU_PAGE
 }
 
 enum IgvType {
@@ -1066,6 +1094,45 @@ model LandingTemplate {
   @@index([active, category])
 }
 
+model CodFormTemplate {
+  id               String           @id @default(cuid())
+  name             String           @unique
+  isDefault        Boolean          @default(false)
+
+  buttonText       String           @default("Realizar Pedido y Pagar al Recibir")
+  buttonStyle      Json             @default("{}")
+
+  postSubmitAction PostSubmitAction @default(INLINE_THANK_YOU)
+  thankYouTitle    String?
+  thankYouMessage  String?          @db.Text
+  whatsappNumber   String?
+  whatsappMessage  String?          @db.Text
+  thankYouPageId   String?
+  thankYouPage     Page?            @relation("CodFormThankYouPage", fields: [thankYouPageId], references: [id], onDelete: SetNull)
+
+  blocks           CodFormBlock[]
+  products         Product[]
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([isDefault])
+  @@index([thankYouPageId])
+}
+
+model CodFormBlock {
+  id         String           @id @default(cuid())
+  templateId String
+  template   CodFormTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order      Int
+  type       CodFormBlockType
+  content    Json             @default("{}")
+  visible    Boolean          @default(true)
+  required   Boolean          @default(false)
+
+  @@index([templateId, order])
+}
+
 /// A user-editable static page (Nosotros, Términos, FAQ, etc.) authored
 /// via the page builder. The storefront resolves /<slug> to the active
 /// Page when one exists, falling back to hardcoded route files otherwise.
@@ -1100,6 +1167,8 @@ model Page {
   themesUsingAsHome Theme[] @relation("ThemeHomePage")
   /** Themes that point to this page as their cart-blocks wrapper. */
   themesUsingAsCart Theme[] @relation("ThemeCartPage")
+  /** CodFormTemplates that point to this page as their thank-you destination. */
+  codFormTemplates CodFormTemplate[] @relation("CodFormThankYouPage")
 
   @@index([slug, active])
 }
