@@ -16,6 +16,37 @@ export async function checkExistingSlugs(slugs: string[]): Promise<string[]> {
   return existing.map((p) => p.slug);
 }
 
+/**
+ * Deriva opciones únicas (con sus valores) a partir de las variantes.
+ * Conserva el orden de aparición tanto de opciones como de valores.
+ */
+function deriveOptionsFromVariants(
+  variants: Array<{ options?: Record<string, string> }>
+): Array<{ name: string; values: string[] }> {
+  const optionOrder: string[] = [];
+  const valuesByOption = new Map<string, string[]>();
+  const seenValues = new Map<string, Set<string>>();
+
+  for (const v of variants) {
+    if (!v.options) continue;
+    for (const [name, value] of Object.entries(v.options)) {
+      if (!value) continue;
+      if (!valuesByOption.has(name)) {
+        optionOrder.push(name);
+        valuesByOption.set(name, []);
+        seenValues.set(name, new Set());
+      }
+      const set = seenValues.get(name)!;
+      if (!set.has(value)) {
+        set.add(value);
+        valuesByOption.get(name)!.push(value);
+      }
+    }
+  }
+
+  return optionOrder.map((name) => ({ name, values: valuesByOption.get(name)! }));
+}
+
 export interface ImportRow {
   slug: string;
   name: string;
@@ -100,12 +131,15 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
         hasVariants: row.variants.length > 0,
       };
 
+      const derivedOptions = row.variants.length > 0 ? deriveOptionsFromVariants(row.variants) : [];
+
       if (existingSet.has(row.slug)) {
         // UPDATE
         // Nota: la categoría no se actualiza en re-imports — se mantiene la categoría original del producto
-        await prisma.product.update({
+        const updated = await prisma.product.update({
           where: { slug: row.slug },
           data: productData,
+          select: { id: true },
         });
 
         // Upsert variantes con seguridad de producto
@@ -133,6 +167,51 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
           }
         }
 
+        // Upsert opciones — preserva displayStyle/swatches existentes; añade opciones y valores nuevos
+        if (derivedOptions.length > 0) {
+          const existingOptions = await prisma.productOption.findMany({
+            where: { productId: updated.id },
+            include: { values: true },
+          });
+          const existingByName = new Map(existingOptions.map((o) => [o.name, o]));
+
+          for (let i = 0; i < derivedOptions.length; i++) {
+            const opt = derivedOptions[i];
+            const existing = existingByName.get(opt.name);
+            if (existing) {
+              const existingValues = new Set(existing.values.map((v) => v.value));
+              const newValues = opt.values.filter((v) => !existingValues.has(v));
+              if (newValues.length > 0) {
+                const startPos = existing.values.length;
+                await prisma.productOptionValue.createMany({
+                  data: newValues.map((value, j) => ({
+                    optionId: existing.id,
+                    value,
+                    position: startPos + j,
+                    swatchType: "NONE" as const,
+                  })),
+                });
+              }
+            } else {
+              await prisma.productOption.create({
+                data: {
+                  productId: updated.id,
+                  name: opt.name,
+                  position: i,
+                  displayStyle: "BUTTONS",
+                  values: {
+                    create: opt.values.map((value, j) => ({
+                      value,
+                      position: j,
+                      swatchType: "NONE" as const,
+                    })),
+                  },
+                },
+              });
+            }
+          }
+        }
+
         result.updated++;
       } else {
         // CREATE
@@ -141,6 +220,20 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
             ...productData,
             slug: row.slug,
             categories: categoryId ? { create: { categoryId } } : undefined,
+            options: derivedOptions.length > 0 ? {
+              create: derivedOptions.map((opt, i) => ({
+                name: opt.name,
+                position: i,
+                displayStyle: "BUTTONS",
+                values: {
+                  create: opt.values.map((value, j) => ({
+                    value,
+                    position: j,
+                    swatchType: "NONE" as const,
+                  })),
+                },
+              })),
+            } : undefined,
             variants: row.variants.length > 0 ? {
               create: row.variants.map((v) => ({
                 sku: v.sku,
