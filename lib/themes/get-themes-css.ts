@@ -94,8 +94,10 @@ export async function getThemesCssBundle(): Promise<ThemesCssBundle> {
     )
   }
 
+  // unstable_cache serializes results to JSON, which turns Date into a string.
+  // Normalize through `new Date(...)` so cache hits don't crash on `.getTime()`.
   const maxTs = themes.reduce(
-    (acc, t) => Math.max(acc, t.updatedAt.getTime()),
+    (acc, t) => Math.max(acc, new Date(t.updatedAt).getTime()),
     0,
   )
   const hash = `${maxTs.toString(36)}-${active?.id ?? "none"}`
