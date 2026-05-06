@@ -27,6 +27,7 @@ import {
   Shield,
   Users,
   Asterisk,
+  ClipboardList,
   LayoutTemplate,
   ScrollText,
   Sparkles,
@@ -125,6 +126,11 @@ function AdminLayoutInner({
       href: "/admin/productos",
       icon: Package,
       label: "Productos",
+    },
+    {
+      href: "/admin/formularios-cod",
+      icon: ClipboardList,
+      label: "Formularios COD",
     },
     {
       href: "/admin/personalizar",
