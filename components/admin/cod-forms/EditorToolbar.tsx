@@ -52,12 +52,19 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
   })
 
   useEffect(() => {
+    // Skip until the store has been hydrated. The toolbar mounts with the
+    // store's empty initial state (id=""); without this guard, the effect
+    // would set lastSavedRef to that empty snapshot, then fire a spurious
+    // "save" the moment hydrate replaces the state with real data — which
+    // in StrictMode dev mode gets cancelled by the unmount cleanup,
+    // leaving saveStatus stuck on "saving" forever.
+    if (!id) return
+
     if (!lastSavedRef.current) {
       lastSavedRef.current = snapshotJson
       return
     }
     if (snapshotJson === lastSavedRef.current) return
-    if (!id) return
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setSaveStatus("saving")
