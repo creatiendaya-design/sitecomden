@@ -15,48 +15,64 @@ const SAVE_DEBOUNCE_MS = 600
 type PageOpt = { id: string; slug: string; title: string }
 
 export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
-  const state = useCodFormEditor()
+  // Subscribe to individual fields so toolbar re-renders only when they
+  // change. Subscribing to the whole state via useCodFormEditor() (no
+  // selector) triggered an infinite loop: the auto-save effect calls
+  // setSaveStatus("saving") -> state ref changes -> effect re-runs ->
+  // setSaveStatus("saving") -> ... To break the cycle, the snapshot below
+  // does NOT include saveStatus, and we only depend on snapshotJson + id.
+  const id = useCodFormEditor((s) => s.id)
+  const name = useCodFormEditor((s) => s.name)
+  const buttonText = useCodFormEditor((s) => s.buttonText)
+  const buttonStyle = useCodFormEditor((s) => s.buttonStyle)
+  const postSubmitAction = useCodFormEditor((s) => s.postSubmitAction)
+  const thankYouTitle = useCodFormEditor((s) => s.thankYouTitle)
+  const thankYouMessage = useCodFormEditor((s) => s.thankYouMessage)
+  const whatsappNumber = useCodFormEditor((s) => s.whatsappNumber)
+  const whatsappMessage = useCodFormEditor((s) => s.whatsappMessage)
+  const thankYouPageId = useCodFormEditor((s) => s.thankYouPageId)
+  const blocks = useCodFormEditor((s) => s.blocks)
+  const saveStatus = useCodFormEditor((s) => s.saveStatus)
   const setSaveStatus = useCodFormEditor((s) => s.setSaveStatus)
+
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedRef = useRef<string>("")
 
-  // Snapshot of fields that should trigger auto-save.
   const snapshotJson = JSON.stringify({
-    name: state.name,
-    buttonText: state.buttonText,
-    buttonStyle: state.buttonStyle,
-    postSubmitAction: state.postSubmitAction,
-    thankYouTitle: state.thankYouTitle,
-    thankYouMessage: state.thankYouMessage,
-    whatsappNumber: state.whatsappNumber,
-    whatsappMessage: state.whatsappMessage,
-    thankYouPageId: state.thankYouPageId,
-    blocks: state.blocks,
+    name,
+    buttonText,
+    buttonStyle,
+    postSubmitAction,
+    thankYouTitle,
+    thankYouMessage,
+    whatsappNumber,
+    whatsappMessage,
+    thankYouPageId,
+    blocks,
   })
 
   useEffect(() => {
-    // Skip the initial hydration "save".
     if (!lastSavedRef.current) {
       lastSavedRef.current = snapshotJson
       return
     }
     if (snapshotJson === lastSavedRef.current) return
-    if (!state.id) return
+    if (!id) return
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setSaveStatus("saving")
     timeoutRef.current = setTimeout(async () => {
       const parsed = templateUpdateSchema.safeParse({
-        name: state.name,
-        buttonText: state.buttonText,
-        buttonStyle: state.buttonStyle,
-        postSubmitAction: state.postSubmitAction,
-        thankYouTitle: state.thankYouTitle,
-        thankYouMessage: state.thankYouMessage,
-        whatsappNumber: state.whatsappNumber,
-        whatsappMessage: state.whatsappMessage,
-        thankYouPageId: state.thankYouPageId,
-        blocks: state.blocks.map((b, idx) => ({
+        name,
+        buttonText,
+        buttonStyle,
+        postSubmitAction,
+        thankYouTitle,
+        thankYouMessage,
+        whatsappNumber,
+        whatsappMessage,
+        thankYouPageId,
+        blocks: blocks.map((b, idx) => ({
           ...b,
           position: idx,
         })),
@@ -66,7 +82,7 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
         return
       }
       try {
-        await updateTemplate(state.id, parsed.data)
+        await updateTemplate(id, parsed.data)
         lastSavedRef.current = snapshotJson
         setSaveStatus("saved")
       } catch {
@@ -77,7 +93,8 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [snapshotJson, state, setSaveStatus])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshotJson, id])
 
   return (
     <header className="flex items-center gap-3 border-b px-4 py-2">
@@ -88,7 +105,7 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
         </Button>
       </Link>
       <Input
-        value={state.name}
+        value={name}
         onChange={(e) => useCodFormEditor.getState().setName(e.target.value)}
         className="max-w-xs font-medium"
       />
@@ -99,19 +116,19 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
         </Button>
       </PostSubmitActionPopover>
       <div className="ml-auto flex items-center text-xs text-muted-foreground gap-1">
-        {state.saveStatus === "saving" && (
+        {saveStatus === "saving" && (
           <>
             <Loader2 className="h-3 w-3 animate-spin" />
             Guardando...
           </>
         )}
-        {state.saveStatus === "saved" && (
+        {saveStatus === "saved" && (
           <>
             <Check className="h-3 w-3 text-green-600" />
             Guardado
           </>
         )}
-        {state.saveStatus === "error" && (
+        {saveStatus === "error" && (
           <span className="text-red-600">Error al guardar</span>
         )}
       </div>

@@ -22,15 +22,21 @@ export default function PostSubmitActionPopover({
   pages: PageOpt[]
   children: ReactNode
 }) {
+  // Subscribe to individual fields to avoid re-rendering on every store
+  // change (e.g. saveStatus toggles in the toolbar would otherwise force
+  // this component to re-render even when the popover is closed).
   const action = useCodFormEditor((s) => s.postSubmitAction)
-  const set = useCodFormEditor.getState()
-  const {
-    thankYouTitle,
-    thankYouMessage,
-    whatsappNumber,
-    whatsappMessage,
-    thankYouPageId,
-  } = useCodFormEditor()
+  const thankYouTitle = useCodFormEditor((s) => s.thankYouTitle)
+  const thankYouMessage = useCodFormEditor((s) => s.thankYouMessage)
+  const whatsappNumber = useCodFormEditor((s) => s.whatsappNumber)
+  const whatsappMessage = useCodFormEditor((s) => s.whatsappMessage)
+  const thankYouPageId = useCodFormEditor((s) => s.thankYouPageId)
+  const setPostSubmit = useCodFormEditor((s) => s.setPostSubmit)
+  const setThankYouTitle = useCodFormEditor((s) => s.setThankYouTitle)
+  const setThankYouMessage = useCodFormEditor((s) => s.setThankYouMessage)
+  const setWhatsappNumber = useCodFormEditor((s) => s.setWhatsappNumber)
+  const setWhatsappMessage = useCodFormEditor((s) => s.setWhatsappMessage)
+  const setThankYouPageId = useCodFormEditor((s) => s.setThankYouPageId)
 
   return (
     <Popover>
@@ -39,7 +45,7 @@ export default function PostSubmitActionPopover({
         <div className="font-medium text-sm">Acción al confirmar el pedido</div>
         <RadioGroup
           value={action}
-          onValueChange={(v) => set.setPostSubmit(v as PostSubmitAction)}
+          onValueChange={(v) => setPostSubmit(v as PostSubmitAction)}
           className="space-y-3"
         >
           {/* WhatsApp */}
@@ -55,7 +61,7 @@ export default function PostSubmitActionPopover({
                   <Input
                     value={whatsappNumber ?? ""}
                     onChange={(e) =>
-                      set.setWhatsappNumber(e.target.value || null)
+                      setWhatsappNumber(e.target.value || null)
                     }
                     placeholder="+51999999999"
                   />
@@ -65,7 +71,7 @@ export default function PostSubmitActionPopover({
                   <Textarea
                     value={whatsappMessage ?? ""}
                     onChange={(e) =>
-                      set.setWhatsappMessage(e.target.value || null)
+                      setWhatsappMessage(e.target.value || null)
                     }
                     rows={4}
                     className="text-xs font-mono"
@@ -79,7 +85,7 @@ export default function PostSubmitActionPopover({
                     placeholder="Título"
                     value={thankYouTitle ?? ""}
                     onChange={(e) =>
-                      set.setThankYouTitle(e.target.value || null)
+                      setThankYouTitle(e.target.value || null)
                     }
                   />
                   <Textarea
@@ -87,7 +93,7 @@ export default function PostSubmitActionPopover({
                     rows={2}
                     value={thankYouMessage ?? ""}
                     onChange={(e) =>
-                      set.setThankYouMessage(e.target.value || null)
+                      setThankYouMessage(e.target.value || null)
                     }
                   />
                 </div>
@@ -109,7 +115,7 @@ export default function PostSubmitActionPopover({
                 <select
                   value={thankYouPageId ?? ""}
                   onChange={(e) =>
-                    set.setThankYouPageId(e.target.value || null)
+                    setThankYouPageId(e.target.value || null)
                   }
                   className="w-full border rounded h-9 px-2 text-sm"
                 >
@@ -138,7 +144,7 @@ export default function PostSubmitActionPopover({
                   placeholder="Título"
                   value={thankYouTitle ?? ""}
                   onChange={(e) =>
-                    set.setThankYouTitle(e.target.value || null)
+                    setThankYouTitle(e.target.value || null)
                   }
                 />
                 <Textarea
@@ -146,7 +152,7 @@ export default function PostSubmitActionPopover({
                   rows={2}
                   value={thankYouMessage ?? ""}
                   onChange={(e) =>
-                    set.setThankYouMessage(e.target.value || null)
+                    setThankYouMessage(e.target.value || null)
                   }
                 />
               </div>
