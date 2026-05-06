@@ -52,11 +52,6 @@ export default function BulkAssignCodTemplateModal({
       return
     }
     if (selectedIds.length === 0) return
-    const summary =
-      checkoutMode === "no-change"
-        ? `Asignar plantilla a ${selectedIds.length} producto(s)?`
-        : `Asignar plantilla y cambiar modo de checkout a ${selectedIds.length} producto(s)?`
-    if (!confirm(summary)) return
 
     startTransition(async () => {
       try {

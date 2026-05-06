@@ -59,7 +59,6 @@ export default function AssignProductsModal({
 
   const onApply = () => {
     if (picked.size === 0) return
-    if (!confirm(`Asignar plantilla a ${picked.size} producto(s)?`)) return
     startTransition(async () => {
       try {
         await assignTemplateToProducts(templateId, Array.from(picked))
