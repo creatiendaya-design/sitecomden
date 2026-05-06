@@ -12,6 +12,8 @@ import { checkRateLimit, apiRateLimiter } from "@/lib/rate-limit";
 import { rucSchema } from "@/lib/validations";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
+import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
+import type { ShippingRestriction } from "@/lib/cod-forms/types";
 
 // ============================================================
 // SCHEMAS ZOD
@@ -171,6 +173,31 @@ export async function createOrder(rawData: unknown) {
             error: `Stock insuficiente para ${item.name}. Disponible: ${product.stock}`,
           };
         }
+      }
+    }
+
+    // Server-side shipping-restriction validation per product. The standard
+    // checkout schema only carries the district code (department/province are
+    // free-text names), so we validate at the district level only — restrictions
+    // defined exclusively at province/department level for a product won't fire
+    // here. The COD checkout (which carries explicit IDs) is unaffected.
+    const productsForRestriction = await prisma.product.findMany({
+      where: { id: { in: data.items.map((i) => i.productId) } },
+      select: { id: true, name: true, shippingRestriction: true },
+    });
+    for (const item of data.items) {
+      const p = productsForRestriction.find((x) => x.id === item.productId);
+      if (!p) continue;
+      const err = validateShippingRestriction(
+        ((p as any).shippingRestriction as ShippingRestriction | null) ?? null,
+        {
+          departmentId: null,
+          provinceId: null,
+          districtCode: data.districtCode ?? null,
+        },
+      );
+      if (err) {
+        return { success: false, error: `${p.name}: ${err}` };
       }
     }
 
