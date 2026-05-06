@@ -15,6 +15,7 @@
  */
 
 import { z } from "zod";
+import { shippingRestrictionSchema } from "@/lib/cod-forms/schema";
 
 // ===================================================================
 // HELPERS Y TIPOS COMUNES
@@ -252,7 +253,8 @@ export const updateProductSchema = z
     checkoutMode: z
       .enum(["STANDARD", "COD_ONLY", "COD_AND_CART"])
       .optional(),
-    codFormSettings: z.any().optional().nullable(),
+    codFormTemplateId: z.string().cuid().optional().nullable(),
+    shippingRestriction: shippingRestrictionSchema.optional().nullable(),
     categoryId: z.string().cuid().optional().nullable(),
     metaTitle: z.string().max(60).optional().nullable(),
     metaDescription: z.string().max(160).optional().nullable(),
