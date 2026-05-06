@@ -5,6 +5,7 @@ import EditorToolbar from "./EditorToolbar"
 import ButtonStyleEditor from "./ButtonStyleEditor"
 import BlocksList from "./BlocksList"
 import PreviewPanel from "./PreviewPanel"
+import AssignedProductsTab from "./AssignedProductsTab"
 import { useCodFormEditor } from "./store"
 import type { CodFormTemplateData } from "@/lib/cod-forms/types"
 
@@ -40,6 +41,7 @@ export default function CodFormEditor({
         <aside className="w-1/2 overflow-y-auto border-r p-4 space-y-4">
           <ButtonStyleEditor />
           <BlocksList />
+          <AssignedProductsTab templateId={template.id} />
         </aside>
         <main className="w-1/2 overflow-y-auto p-4 bg-muted/20">
           <PreviewPanel />
