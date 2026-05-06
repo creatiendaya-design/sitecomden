@@ -258,6 +258,7 @@ export async function deleteTemplate(id: string): Promise<{ ok: true }> {
   ])
 
   revalidatePath("/admin/formularios-cod")
+  revalidatePath("/admin/productos")
   return { ok: true }
 }
 
@@ -286,6 +287,7 @@ export async function assignTemplateToProducts(
   })
 
   revalidatePath("/admin/productos")
+  revalidatePath("/admin/formularios-cod")
   revalidatePath(`/admin/formularios-cod/${templateId}`)
   return { updated: result.count }
 }
@@ -309,6 +311,7 @@ export async function unassignProductsFromTemplate(
   })
 
   revalidatePath("/admin/productos")
+  revalidatePath("/admin/formularios-cod")
   revalidatePath(`/admin/formularios-cod/${templateId}`)
   return { updated: result.count }
 }
