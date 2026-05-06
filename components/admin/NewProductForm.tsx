@@ -18,9 +18,9 @@ import {
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import BulkEditModal from "@/components/admin/BulkEditModal";
-import CodFormConfig from "@/components/admin/CodFormConfig";
-import { DEFAULT_COD_FORM_SETTINGS, type CodFormSettings } from "@/lib/types/cod-form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import CodFormTemplateCard from "@/components/admin/products/CodFormTemplateCard";
+import ShippingRestrictionCard from "@/components/admin/products/ShippingRestrictionCard";
+import type { ShippingRestriction } from "@/lib/cod-forms/types";
 import VariantsTable from "@/components/admin/VariantsTable";
 import ImageUpload from "@/components/admin/ImageUpload";
 import dynamic from "next/dynamic";
@@ -88,7 +88,8 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     hasVariants: false,
     template: "STANDARD",
     checkoutMode: "STANDARD",
-    codFormSettings: DEFAULT_COD_FORM_SETTINGS as CodFormSettings,
+    codFormTemplateId: null as string | null,
+    shippingRestriction: null as ShippingRestriction | null,
     metaTitle: "",
     metaDescription: "",
     weight: "",
@@ -649,47 +650,15 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
 
 <SizeGuideCard value={sizeGuideId} onChange={setSizeGuideId} />
 
-<Card>
-  <CardHeader>
-    <CardTitle>Modo de Compra</CardTitle>
-    <p className="text-sm text-muted-foreground">¿Cómo puede comprar el cliente este producto?</p>
-  </CardHeader>
-  <CardContent className="space-y-3">
-    <RadioGroup
-      value={formData.checkoutMode}
-      onValueChange={(v) => setFormData({ ...formData, checkoutMode: v })}
-    >
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="STANDARD" id="nm-standard" />
-        <label htmlFor="nm-standard" className="cursor-pointer">
-          <div className="font-medium text-sm">Checkout normal</div>
-          <div className="text-xs text-muted-foreground">Agrega al carrito → pago con tarjeta/Yape/Plin</div>
-        </label>
-      </div>
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="COD_AND_CART" id="nm-cod-cart" />
-        <label htmlFor="nm-cod-cart" className="cursor-pointer">
-          <div className="font-medium text-sm">Comprar ahora (COD) + Carrito</div>
-          <div className="text-xs text-muted-foreground">Botón principal "Comprar ahora" COD. Botón secundario agrega al carrito.</div>
-        </label>
-      </div>
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="COD_ONLY" id="nm-cod-only" />
-        <label htmlFor="nm-cod-only" className="cursor-pointer">
-          <div className="font-medium text-sm">Solo contra entrega (sin carrito)</div>
-          <div className="text-xs text-muted-foreground">Solo botón "Comprar ahora" COD. No se puede agregar al carrito.</div>
-        </label>
-      </div>
-    </RadioGroup>
-
-    {(formData.checkoutMode === "COD_ONLY" || formData.checkoutMode === "COD_AND_CART") && (
-      <CodFormConfig
-        settings={formData.codFormSettings as CodFormSettings}
-        onChange={(s) => setFormData({ ...formData, codFormSettings: s })}
-      />
-    )}
-  </CardContent>
-</Card>
+<CodFormTemplateCard
+  checkoutMode={formData.checkoutMode as any}
+  templateId={formData.codFormTemplateId}
+  onChange={(patch) => setFormData({ ...formData, ...patch } as any)}
+/>
+<ShippingRestrictionCard
+  value={formData.shippingRestriction}
+  onChange={(v) => setFormData({ ...formData, shippingRestriction: v })}
+/>
 
             <Card>
               <CardContent className="space-y-2 p-6">
