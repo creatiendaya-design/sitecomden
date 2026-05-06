@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import EditorToolbar from "./EditorToolbar"
 import ButtonStyleEditor from "./ButtonStyleEditor"
 import BlocksList from "./BlocksList"
@@ -18,8 +18,18 @@ export default function CodFormEditor({
   pages: PageOpt[]
 }) {
   const hydrate = useCodFormEditor((s) => s.hydrate)
+  const hydratedFor = useRef<string | null>(null)
 
   useEffect(() => {
+    // Hydrate only the FIRST time we receive a given template id. Server
+    // actions that call revalidatePath cause Next.js to re-run this server
+    // component and pass a fresh `template` prop reference (with the same
+    // data); without this guard, hydrate would replace the local store
+    // state on every save, the auto-save effect would treat the rehydrated
+    // snapshot as a "change" (Postgres jsonb does not preserve key order),
+    // and we get an infinite save loop.
+    if (hydratedFor.current === template.id) return
+    hydratedFor.current = template.id
     hydrate(template)
   }, [template, hydrate])
 
