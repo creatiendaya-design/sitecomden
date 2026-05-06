@@ -49,6 +49,12 @@ export default async function ProductDetailPage({
         select: { id: true, surcharge: true },
       },
       sizeGuide: { where: { active: true } },
+      codFormTemplate: {
+        include: {
+          blocks: { orderBy: { position: "asc" } },
+          thankYouPage: { select: { slug: true } },
+        },
+      },
     },
   });
 
@@ -94,7 +100,32 @@ export default async function ProductDetailPage({
     hasVariants: product.hasVariants,
     weight: product.weight ? Number(product.weight) : null,
     checkoutMode: (product as any).checkoutMode ?? "STANDARD",
-    codFormSettings: (product as any).codFormSettings ?? null,
+    codFormTemplate: (product as any).codFormTemplate
+      ? {
+          id: (product as any).codFormTemplate.id,
+          name: (product as any).codFormTemplate.name,
+          isDefault: (product as any).codFormTemplate.isDefault,
+          buttonText: (product as any).codFormTemplate.buttonText,
+          buttonStyle: (product as any).codFormTemplate.buttonStyle,
+          postSubmitAction: (product as any).codFormTemplate.postSubmitAction,
+          thankYouTitle: (product as any).codFormTemplate.thankYouTitle,
+          thankYouMessage: (product as any).codFormTemplate.thankYouMessage,
+          whatsappNumber: (product as any).codFormTemplate.whatsappNumber,
+          whatsappMessage: (product as any).codFormTemplate.whatsappMessage,
+          thankYouPageId: (product as any).codFormTemplate.thankYouPageId,
+          thankYouPageSlug:
+            (product as any).codFormTemplate.thankYouPage?.slug ?? null,
+          blocks: ((product as any).codFormTemplate.blocks ?? []).map((b: any) => ({
+            id: b.id,
+            position: b.position,
+            type: b.type,
+            content: b.content ?? {},
+            visible: b.visible,
+            required: b.required,
+          })),
+        }
+      : null,
+    shippingRestriction: (product as any).shippingRestriction ?? null,
     customizableTemplate: product.customizableTemplate
       ? {
           id: product.customizableTemplate.id,

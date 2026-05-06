@@ -96,7 +96,8 @@ export default function ProductStandardView({
               variants={serializedVariants}
               options={options}
               checkoutMode={serializedProduct.checkoutMode}
-              codFormSettings={serializedProduct.codFormSettings}
+              codFormTemplate={serializedProduct.codFormTemplate}
+              shippingRestriction={serializedProduct.shippingRestriction}
               sizeGuide={sizeGuide}
             />
 

@@ -6,6 +6,8 @@ import AddToCartButton from "@/components/shop/AddToCartButton";
 import CodOrderModal from "@/components/shop/CodOrderModal";
 import { StartCustomizingButton } from "@/components/shop/StartCustomizingButton";
 import { DEFAULT_COD_FORM_SETTINGS, type CheckoutMode, type CodFormSettings } from "@/lib/types/cod-form";
+import type { CodFormTemplateData, ShippingRestriction } from "@/lib/cod-forms/types";
+import { buildModalSettings } from "@/lib/cod-forms/template-to-settings";
 import { getProductImageUrl } from "@/lib/image-utils";
 import type { SizeGuideData } from "@/lib/size-guides/types";
 
@@ -63,7 +65,8 @@ interface ProductActionsProps {
   variants: VariantData[];
   options: OptionData[];
   checkoutMode?: CheckoutMode;
-  codFormSettings?: CodFormSettings | null;
+  codFormTemplate?: CodFormTemplateData | null;
+  shippingRestriction?: ShippingRestriction | null;
   sizeGuide?: SizeGuideData | null;
 }
 
@@ -72,7 +75,8 @@ export default function ProductActions({
   variants,
   options,
   checkoutMode,
-  codFormSettings,
+  codFormTemplate,
+  shippingRestriction,
   sizeGuide,
 }: ProductActionsProps) {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -80,7 +84,9 @@ export default function ProductActions({
   const [codOpen, setCodOpen] = useState(false);
 
   const mode: CheckoutMode = checkoutMode ?? "STANDARD";
-  const codSettings: CodFormSettings = (codFormSettings as CodFormSettings) ?? DEFAULT_COD_FORM_SETTINGS;
+  const modalSettings: CodFormSettings = codFormTemplate
+    ? buildModalSettings(codFormTemplate, (shippingRestriction as CodFormSettings["shippingRestriction"]) ?? null)
+    : DEFAULT_COD_FORM_SETTINGS;
 
   // 🆕 Manejar cambio de opción
   const handleOptionChange = (optionId: string, valueId: string) => {
@@ -271,7 +277,7 @@ export default function ProductActions({
           price: selectedVariant ? Number(selectedVariant.price) : Number(product.basePrice),
           image: getProductImageUrl(product.images) ?? undefined,
         }]}
-        settings={codSettings}
+        settings={modalSettings}
       />
     </div>
   );

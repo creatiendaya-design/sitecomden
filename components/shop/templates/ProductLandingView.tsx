@@ -11,7 +11,8 @@ import { Shield, Truck, Heart, Star } from "lucide-react";
 import LandingBlockRenderer from "@/components/shop/templates/blocks/LandingBlockRenderer";
 import CodOrderModal from "@/components/shop/CodOrderModal";
 import LandingCartDrawer from "@/components/shop/LandingCartDrawer";
-import { DEFAULT_COD_FORM_SETTINGS } from "@/lib/types/cod-form";
+import { DEFAULT_COD_FORM_SETTINGS, type CodFormSettings } from "@/lib/types/cod-form";
+import { buildModalSettings } from "@/lib/cod-forms/template-to-settings";
 import { getProductImageUrl } from "@/lib/image-utils";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
 import type { SizeGuideData } from "@/lib/size-guides/types";
@@ -51,7 +52,12 @@ export default function ProductLandingView({
   }, []);
 
   const mode = serializedProduct.checkoutMode ?? "STANDARD";
-  const codSettings = serializedProduct.codFormSettings ?? DEFAULT_COD_FORM_SETTINGS;
+  const codSettings: CodFormSettings = serializedProduct.codFormTemplate
+    ? buildModalSettings(
+        serializedProduct.codFormTemplate,
+        serializedProduct.shippingRestriction ?? null,
+      )
+    : DEFAULT_COD_FORM_SETTINGS;
   const isCod = mode === "COD_ONLY" || mode === "COD_AND_CART";
 
   const handleCtaClick = () => {
@@ -152,7 +158,8 @@ export default function ProductLandingView({
                 variants={serializedVariants}
                 options={options}
                 checkoutMode={serializedProduct.checkoutMode}
-                codFormSettings={serializedProduct.codFormSettings}
+                codFormTemplate={serializedProduct.codFormTemplate}
+                shippingRestriction={serializedProduct.shippingRestriction}
                 sizeGuide={sizeGuide}
               />
 

@@ -7,6 +7,9 @@ import { trackConversion } from "@/lib/conversion-api";
 import { headers } from "next/headers";
 import { getSiteSettings } from "@/lib/site-settings";
 import { formatOrderNumber } from "@/lib/utils";
+import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
+import { templateToLegacySettings } from "@/lib/cod-forms/template-to-settings";
+import type { ShippingRestriction } from "@/lib/cod-forms/types";
 
 export async function createCodOrder(rawData: unknown) {
   const parsed = createCodOrderSchema.safeParse(rawData);
@@ -65,35 +68,24 @@ export async function createCodOrder(rawData: unknown) {
     }
   }
 
-  // Server-side shipping restriction validation
+  // Server-side shipping restriction validation — read from
+  // Product.shippingRestriction (new column), not the legacy codFormSettings.
   const primaryProductId = itemList[0].productId;
   const primaryProduct = await prisma.product.findUnique({
     where: { id: primaryProductId },
-    select: { codFormSettings: true },
+    select: { shippingRestriction: true },
   });
-  const restriction = (primaryProduct?.codFormSettings as any)?.shippingRestriction;
-  if (restriction?.enabled) {
-    if (
-      restriction.allowedDepartmentIds?.length > 0 &&
-      data.departmentId &&
-      !restriction.allowedDepartmentIds.includes(data.departmentId)
-    ) {
-      return { success: false, error: "Tu departamento no tiene cobertura para este producto" };
-    }
-    if (
-      restriction.allowedProvinceIds?.length > 0 &&
-      data.provinceId &&
-      !restriction.allowedProvinceIds.includes(data.provinceId)
-    ) {
-      return { success: false, error: "Tu provincia no tiene cobertura para este producto" };
-    }
-    if (
-      restriction.allowedDistrictCodes?.length > 0 &&
-      data.districtCode &&
-      !restriction.allowedDistrictCodes.includes(data.districtCode)
-    ) {
-      return { success: false, error: "Tu distrito no tiene cobertura para este producto" };
-    }
+  const restrictionRaw = (primaryProduct as any)?.shippingRestriction;
+  const restrictionErr = validateShippingRestriction(
+    (restrictionRaw as ShippingRestriction | null) ?? null,
+    {
+      departmentId: data.departmentId ?? null,
+      provinceId: data.provinceId ?? null,
+      districtCode: data.districtCode ?? null,
+    },
+  );
+  if (restrictionErr) {
+    return { success: false, error: restrictionErr };
   }
 
   const locationJson = {
@@ -180,15 +172,53 @@ export async function getCartCodData(productIds: string[]): Promise<{
 
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
-    select: { id: true, checkoutMode: true, codFormSettings: true, name: true },
+    select: {
+      id: true,
+      checkoutMode: true,
+      name: true,
+      codFormTemplate: {
+        include: {
+          blocks: { orderBy: { position: "asc" } },
+          thankYouPage: { select: { slug: true } },
+        },
+      },
+    },
   });
 
   const codProduct = products.find(
     (p) => p.checkoutMode === "COD_ONLY" || p.checkoutMode === "COD_AND_CART"
   );
 
+  if (!codProduct?.codFormTemplate) {
+    return { hasCod: !!codProduct, settings: null };
+  }
+
+  const template = codProduct.codFormTemplate;
+  const templateData = {
+    id: template.id,
+    name: template.name,
+    isDefault: template.isDefault,
+    buttonText: template.buttonText,
+    buttonStyle: template.buttonStyle as any,
+    postSubmitAction: template.postSubmitAction,
+    thankYouTitle: template.thankYouTitle,
+    thankYouMessage: template.thankYouMessage,
+    whatsappNumber: template.whatsappNumber,
+    whatsappMessage: template.whatsappMessage,
+    thankYouPageId: template.thankYouPageId,
+    thankYouPageSlug: (template as any).thankYouPage?.slug ?? null,
+    blocks: (template.blocks ?? []).map((b: any) => ({
+      id: b.id,
+      position: b.position,
+      type: b.type,
+      content: (b.content ?? {}) as Record<string, unknown>,
+      visible: b.visible,
+      required: b.required,
+    })),
+  };
+
   return {
-    hasCod: !!codProduct,
-    settings: (codProduct?.codFormSettings as import("@/lib/types/cod-form").CodFormSettings | null) ?? null,
+    hasCod: true,
+    settings: templateToLegacySettings(templateData),
   };
 }
