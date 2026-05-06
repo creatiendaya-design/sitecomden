@@ -278,6 +278,7 @@ export default function ProductActions({
           image: getProductImageUrl(product.images) ?? undefined,
         }]}
         settings={modalSettings}
+        buttonStyle={codFormTemplate?.buttonStyle ?? null}
       />
     </div>
   );

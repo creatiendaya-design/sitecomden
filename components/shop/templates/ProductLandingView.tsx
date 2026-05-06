@@ -88,6 +88,7 @@ export default function ProductLandingView({
             image: getProductImageUrl(serializedProduct.images) ?? undefined,
           }]}
           settings={codSettings}
+          buttonStyle={serializedProduct.codFormTemplate?.buttonStyle ?? null}
         />
         {mode === "COD_AND_CART" && <LandingCartDrawer codSettings={codSettings} />}
       </div>

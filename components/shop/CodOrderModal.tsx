@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import LocationSelector from "@/components/shop/LocationSelector";
 import { createCodOrder } from "@/actions/cod-orders";
 import type { CodFormSettings } from "@/lib/types/cod-form";
+import type { ButtonStyle } from "@/lib/cod-forms/types";
+import { resolveTemplateVariables } from "@/lib/cod-forms/template-variables";
+import SubmitButtonBlock from "@/components/shop/cod-form/blocks/SubmitButtonBlock";
 import { useTracking } from "@/hooks/useTracking";
 
 export interface CodOrderItem {
@@ -30,6 +33,7 @@ interface CodOrderModalProps {
   onClose: () => void;
   items: CodOrderItem[];
   settings: CodFormSettings;
+  buttonStyle?: ButtonStyle | null;
 }
 
 interface LocationState {
@@ -49,16 +53,16 @@ function buildWhatsAppUrl(
   productNames: string,
   orderId: string
 ): string {
-  const msg = (settings.whatsappMessage ?? "")
-    .replace("{nombre}", formData.name ?? "")
-    .replace("{telefono}", formData.phone ?? "")
-    .replace("{email}", formData.email ?? "")
-    .replace("{direccion}", formData.address ?? "")
-    .replace("{referencia}", formData.reference ?? "")
-    .replace("{distrito}", location.districtName)
-    .replace("{total}", total.toFixed(2))
-    .replace("{producto}", productNames)
-    .replace("{pedido}", orderId);
+  const msg = resolveTemplateVariables(settings.whatsappMessage ?? "", {
+    nombre: formData.name ?? "",
+    telefono: formData.phone ?? "",
+    direccion: formData.address ?? "",
+    referencia: formData.reference ?? "",
+    distrito: location.districtName,
+    total: total.toFixed(2),
+    producto: productNames,
+    pedido: orderId,
+  });
   return `https://wa.me/${(settings.whatsappNumber ?? "").replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`;
 }
 
@@ -67,6 +71,7 @@ export default function CodOrderModal({
   onClose,
   items,
   settings,
+  buttonStyle,
 }: CodOrderModalProps) {
   const [step, setStep] = useState<"form" | "thanks">("form");
   const [isPending, startTransition] = useTransition();
@@ -306,13 +311,30 @@ export default function CodOrderModal({
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={isPending}
-                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition-colors text-sm"
-              >
-                {isPending ? "Procesando..." : settings.buttonText}
-              </button>
+              {(() => {
+                const productNames = items.map((i) => i.name).join(", ");
+                const resolvedText = isPending
+                  ? "Procesando..."
+                  : resolveTemplateVariables(settings.buttonText, {
+                      total: total.toFixed(2),
+                      producto: productNames,
+                    });
+                return buttonStyle ? (
+                  <SubmitButtonBlock
+                    text={resolvedText}
+                    style={buttonStyle}
+                    disabled={isPending}
+                  />
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+                  >
+                    {resolvedText}
+                  </button>
+                );
+              })()}
               <p className="text-center text-xs text-muted-foreground">
                 🔒 Datos seguros • Sin tarjeta requerida
               </p>
