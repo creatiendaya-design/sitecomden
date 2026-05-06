@@ -30,7 +30,7 @@ async function main() {
       name: DEFAULT_TEMPLATE_NAME,
       isDefault: true,
       buttonText: "Realizar Pedido y Pagar al Recibir - {total}",
-      buttonStyle: DEFAULT_BUTTON_STYLE,
+      buttonStyle: DEFAULT_BUTTON_STYLE as any,
       postSubmitAction: "INLINE_THANK_YOU",
       thankYouTitle: "¡Gracias por tu pedido!",
       thankYouMessage:
@@ -41,7 +41,7 @@ async function main() {
           type: b.type,
           visible: b.visible,
           required: b.required,
-          content: getDefaultContentForType(b.type),
+          content: getDefaultContentForType(b.type) as any,
         })),
       },
     },
