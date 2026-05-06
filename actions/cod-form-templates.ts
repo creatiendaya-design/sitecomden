@@ -225,8 +225,12 @@ export async function updateTemplate(
     })
   })
 
+  // Only revalidate the list. Revalidating the detail path triggers a
+  // refetch of the server component, which re-runs hydrate(template) in
+  // the editor; because Postgres jsonb does not preserve key order, the
+  // re-hydrated content differs from the local snapshot and the auto-save
+  // effect fires another update — an infinite save loop.
   revalidatePath("/admin/formularios-cod")
-  revalidatePath(`/admin/formularios-cod/${id}`)
   return { ok: true }
 }
 
