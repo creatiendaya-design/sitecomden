@@ -1057,7 +1057,7 @@ function serializeTemplate(t: any): CodFormTemplateData {
 }
 
 export async function listTemplates() {
-  const { response } = await requirePermission("cod-forms.view")
+  const { response } = await requirePermission("cod-forms:view")
   if (response) throw new Error("Forbidden")
 
   const templates = await prisma.codFormTemplate.findMany({
@@ -1079,7 +1079,7 @@ export async function listTemplates() {
 }
 
 export async function getTemplate(id: string): Promise<CodFormTemplateData> {
-  const { response } = await requirePermission("cod-forms.view")
+  const { response } = await requirePermission("cod-forms:view")
   if (response) throw new Error("Forbidden")
 
   const t = await prisma.codFormTemplate.findUnique({
@@ -1095,7 +1095,7 @@ export async function getTemplate(id: string): Promise<CodFormTemplateData> {
 
 ```typescript
 export async function createTemplate(name: string): Promise<{ id: string }> {
-  const { response } = await requirePermission("cod-forms.create")
+  const { response } = await requirePermission("cod-forms:create")
   if (response) throw new Error("Forbidden")
 
   const trimmed = name.trim()
@@ -1133,7 +1133,7 @@ export async function createTemplate(name: string): Promise<{ id: string }> {
 }
 
 export async function duplicateTemplate(id: string): Promise<{ id: string }> {
-  const { response } = await requirePermission("cod-forms.create")
+  const { response } = await requirePermission("cod-forms:create")
   if (response) throw new Error("Forbidden")
 
   const source = await prisma.codFormTemplate.findUnique({
@@ -1188,7 +1188,7 @@ export async function updateTemplate(
   id: string,
   input: TemplateUpdateInput,
 ): Promise<{ ok: true }> {
-  const { response } = await requirePermission("cod-forms.update")
+  const { response } = await requirePermission("cod-forms:update")
   if (response) throw new Error("Forbidden")
 
   const parsed = templateUpdateSchema.parse(input)
@@ -1256,7 +1256,7 @@ export async function updateTemplate(
 
 ```typescript
 export async function deleteTemplate(id: string): Promise<{ ok: true }> {
-  const { response } = await requirePermission("cod-forms.delete")
+  const { response } = await requirePermission("cod-forms:delete")
   if (response) throw new Error("Forbidden")
 
   const t = await prisma.codFormTemplate.findUnique({
@@ -1298,7 +1298,7 @@ export async function assignTemplateToProducts(
   productIds: string[],
   checkoutMode?: CheckoutMode,
 ): Promise<{ updated: number }> {
-  const { response } = await requirePermission("cod-forms.update")
+  const { response } = await requirePermission("cod-forms:update")
   if (response) throw new Error("Forbidden")
 
   const tpl = await prisma.codFormTemplate.findUnique({
@@ -1326,7 +1326,7 @@ export async function unassignProductsFromTemplate(
   templateId: string,
   productIds: string[],
 ): Promise<{ updated: number }> {
-  const { response } = await requirePermission("cod-forms.update")
+  const { response } = await requirePermission("cod-forms:update")
   if (response) throw new Error("Forbidden")
 
   const fallback = await prisma.codFormTemplate.findFirst({
@@ -1363,44 +1363,13 @@ git commit -m "feat(cod-forms): server actions for crud + bulk assign"
 
 ---
 
-### Task 9: Add `cod-forms:*` permission slugs to `lib/permissions.ts`
+### Task 9: ~~Add `cod-forms:*` permission slugs to `lib/permissions.ts`~~ — **NOT APPLICABLE**
 
-**Files:**
-- Modify: `lib/permissions.ts`
+**This task is a no-op.** Verification during Phase 2 confirmed that `lib/permissions.ts` does NOT maintain a hardcoded slug list — `requirePermission()` accepts any string and does an exact `permission.key === permissionKey` match against the DB-backed `Permission` rows. The seed in Task 6 (`scripts/setup-cod-forms-permissions.ts`) is the only "registration" needed.
 
-- [ ] **Step 1: Read the file to find the existing permission slug list**
+**Format note:** The plan originally used dot format (e.g. `cod-forms.view`) based on a stale CLAUDE.md note about automatic conversion. There is **no automatic conversion** in the codebase. Use **colon format** consistently, matching `actions/customizer.ts` and the DB-seeded permission keys: `cod-forms:view`, `cod-forms:create`, `cod-forms:update`, `cod-forms:delete`.
 
-```
-Read lib/permissions.ts
-```
-
-Identify the array/union that lists all valid permission slugs (similar to how `themes:view`, `pages:view`, etc. are declared).
-
-- [ ] **Step 2: Add the four new slugs**
-
-Append to the same list/union:
-
-```typescript
-"cod-forms:view",
-"cod-forms:create",
-"cod-forms:update",
-"cod-forms:delete",
-```
-
-- [ ] **Step 3: Verify build**
-
-```
-npm run build
-```
-
-Expected: PASS.
-
-- [ ] **Step 4: Commit**
-
-```
-git add lib/permissions.ts
-git commit -m "feat(cod-forms): register cod-forms:* permission slugs"
-```
+Skip this task entirely.
 
 ---
 
@@ -4476,7 +4445,7 @@ export async function listTemplateOptions(): Promise<
   { id: string; name: string; isDefault: boolean }[]
 > {
   // Read-only: any authenticated admin can fetch this for the dropdown.
-  const { response } = await requirePermission("cod-forms.view")
+  const { response } = await requirePermission("cod-forms:view")
   if (response) return []
   return prisma.codFormTemplate.findMany({
     select: { id: true, name: true, isDefault: true },
@@ -4840,7 +4809,7 @@ In `actions/cod-form-templates.ts`, append:
 
 ```typescript
 export async function listProductsForTemplate(templateId: string) {
-  const { response } = await requirePermission("cod-forms.view")
+  const { response } = await requirePermission("cod-forms:view")
   if (response) throw new Error("Forbidden")
 
   return prisma.product.findMany({
@@ -4851,7 +4820,7 @@ export async function listProductsForTemplate(templateId: string) {
 }
 
 export async function searchProductsToAssign(query: string) {
-  const { response } = await requirePermission("cod-forms.update")
+  const { response } = await requirePermission("cod-forms:update")
   if (response) throw new Error("Forbidden")
 
   const q = query.trim()
