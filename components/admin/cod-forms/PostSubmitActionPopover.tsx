@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode } from "react"
+import { useRef, type ReactNode } from "react"
 import {
   Popover,
   PopoverContent,
@@ -14,6 +14,77 @@ import { useCodFormEditor } from "./store"
 import type { PostSubmitAction } from "@/lib/cod-forms/types"
 
 type PageOpt = { id: string; slug: string; title: string }
+
+const TEMPLATE_VARIABLES = [
+  "{nombre}",
+  "{telefono}",
+  "{direccion}",
+  "{distrito}",
+  "{total}",
+  "{producto}",
+  "{pedido}",
+  "{referencia}",
+] as const
+
+function VariableTextarea({
+  value,
+  onChange,
+  rows = 3,
+  placeholder,
+  className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  rows?: number
+  placeholder?: string
+  className?: string
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null)
+
+  const insert = (variable: string) => {
+    const ta = ref.current
+    if (!ta) {
+      onChange(value + variable)
+      return
+    }
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const next = value.slice(0, start) + variable + value.slice(end)
+    onChange(next)
+    setTimeout(() => {
+      ta.focus()
+      ta.selectionStart = ta.selectionEnd = start + variable.length
+    }, 0)
+  }
+
+  return (
+    <div>
+      <Textarea
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        placeholder={placeholder}
+        className={className}
+      />
+      <div className="flex flex-wrap gap-1 mt-1">
+        <span className="text-[10px] text-muted-foreground self-center mr-1">
+          Insertar variable:
+        </span>
+        {TEMPLATE_VARIABLES.map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => insert(v)}
+            className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-foreground hover:text-background border text-muted-foreground transition-colors"
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function PostSubmitActionPopover({
   pages,
@@ -68,11 +139,9 @@ export default function PostSubmitActionPopover({
                 </div>
                 <div>
                   <Label className="text-xs">Mensaje WhatsApp</Label>
-                  <Textarea
+                  <VariableTextarea
                     value={whatsappMessage ?? ""}
-                    onChange={(e) =>
-                      setWhatsappMessage(e.target.value || null)
-                    }
+                    onChange={(v) => setWhatsappMessage(v || null)}
                     rows={4}
                     className="text-xs font-mono"
                   />
@@ -88,13 +157,11 @@ export default function PostSubmitActionPopover({
                       setThankYouTitle(e.target.value || null)
                     }
                   />
-                  <Textarea
+                  <VariableTextarea
                     placeholder="Mensaje"
                     rows={2}
                     value={thankYouMessage ?? ""}
-                    onChange={(e) =>
-                      setThankYouMessage(e.target.value || null)
-                    }
+                    onChange={(v) => setThankYouMessage(v || null)}
                   />
                 </div>
               </div>
@@ -147,13 +214,11 @@ export default function PostSubmitActionPopover({
                     setThankYouTitle(e.target.value || null)
                   }
                 />
-                <Textarea
+                <VariableTextarea
                   placeholder="Mensaje"
                   rows={2}
                   value={thankYouMessage ?? ""}
-                  onChange={(e) =>
-                    setThankYouMessage(e.target.value || null)
-                  }
+                  onChange={(v) => setThankYouMessage(v || null)}
                 />
               </div>
             )}
