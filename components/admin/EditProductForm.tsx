@@ -17,9 +17,9 @@ import { TemplateSelector } from "@/components/admin/products/TemplateSelector";
 import { CustomizationCard } from "@/components/admin/products/CustomizationCard";
 import { SizeGuideCard } from "@/components/admin/products/SizeGuideCard";
 import type { MockupOverrides } from "@/lib/customizer/types";
-import CodFormConfig from "@/components/admin/CodFormConfig";
-import { normalizeCodFormSettings, type CodFormSettings } from "@/lib/types/cod-form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import CodFormTemplateCard from "@/components/admin/products/CodFormTemplateCard";
+import ShippingRestrictionCard from "@/components/admin/products/ShippingRestrictionCard";
+import type { ShippingRestriction } from "@/lib/cod-forms/types";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import dynamic from "next/dynamic";
@@ -132,7 +132,9 @@ export default function EditProductForm({ product, categories, showLegacyLanding
     hasVariants: product.hasVariants,
     template: product.template || "STANDARD",
     checkoutMode: (product as any).checkoutMode || "STANDARD",
-    codFormSettings: normalizeCodFormSettings((product as any).codFormSettings as CodFormSettings),
+    codFormTemplateId: ((product as any).codFormTemplateId as string | null) ?? null,
+    shippingRestriction:
+      ((product as any).shippingRestriction as ShippingRestriction | null) ?? null,
     metaTitle: product.metaTitle || "",
     metaDescription: product.metaDescription || "",
     weight: product.weight?.toString() || "",
@@ -803,47 +805,15 @@ export default function EditProductForm({ product, categories, showLegacyLanding
 
 <SizeGuideCard value={sizeGuideId} onChange={setSizeGuideId} />
 
-<Card>
-  <CardHeader>
-    <CardTitle>Modo de Compra</CardTitle>
-    <p className="text-sm text-muted-foreground">¿Cómo puede comprar el cliente este producto?</p>
-  </CardHeader>
-  <CardContent className="space-y-3">
-    <RadioGroup
-      value={formData.checkoutMode}
-      onValueChange={(v) => setFormData({ ...formData, checkoutMode: v })}
-    >
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="STANDARD" id="cm-standard" />
-        <label htmlFor="cm-standard" className="cursor-pointer">
-          <div className="font-medium text-sm">Checkout normal</div>
-          <div className="text-xs text-muted-foreground">Agrega al carrito → pago con tarjeta/Yape/Plin</div>
-        </label>
-      </div>
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="COD_AND_CART" id="cm-cod-cart" />
-        <label htmlFor="cm-cod-cart" className="cursor-pointer">
-          <div className="font-medium text-sm">Comprar ahora (COD) + Carrito</div>
-          <div className="text-xs text-muted-foreground">Botón principal "Comprar ahora" COD. Botón secundario agrega al carrito.</div>
-        </label>
-      </div>
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="COD_ONLY" id="cm-cod-only" />
-        <label htmlFor="cm-cod-only" className="cursor-pointer">
-          <div className="font-medium text-sm">Solo contra entrega (sin carrito)</div>
-          <div className="text-xs text-muted-foreground">Solo botón "Comprar ahora" COD. No se puede agregar al carrito.</div>
-        </label>
-      </div>
-    </RadioGroup>
-
-    {(formData.checkoutMode === "COD_ONLY" || formData.checkoutMode === "COD_AND_CART") && (
-      <CodFormConfig
-        settings={formData.codFormSettings as CodFormSettings}
-        onChange={(s) => setFormData({ ...formData, codFormSettings: s })}
-      />
-    )}
-  </CardContent>
-</Card>
+<CodFormTemplateCard
+  checkoutMode={formData.checkoutMode as any}
+  templateId={formData.codFormTemplateId}
+  onChange={(patch) => setFormData({ ...formData, ...patch } as any)}
+/>
+<ShippingRestrictionCard
+  value={formData.shippingRestriction}
+  onChange={(v) => setFormData({ ...formData, shippingRestriction: v })}
+/>
 
             <Card>
               <CardContent className="space-y-2 p-6">
