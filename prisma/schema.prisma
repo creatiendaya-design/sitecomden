@@ -104,7 +104,6 @@ model Product {
   hasVariants      Boolean         @default(false)
   template         ProductTemplate @default(STANDARD)
   checkoutMode     CheckoutMode    @default(STANDARD)
-  codFormSettings  Json?
   metaTitle        String?
   metaDescription  String?
   featured         Boolean         @default(false)
