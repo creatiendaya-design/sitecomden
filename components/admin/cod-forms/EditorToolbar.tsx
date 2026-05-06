@@ -61,7 +61,9 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setSaveStatus("saving")
+    const localSnapshot = snapshotJson
     timeoutRef.current = setTimeout(async () => {
+      timeoutRef.current = null
       const parsed = templateUpdateSchema.safeParse({
         name,
         buttonText,
@@ -78,14 +80,16 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
         })),
       })
       if (!parsed.success) {
+        console.error("[cod-forms] auto-save validation failed:", parsed.error.issues)
         setSaveStatus("error")
         return
       }
       try {
         await updateTemplate(id, parsed.data)
-        lastSavedRef.current = snapshotJson
+        lastSavedRef.current = localSnapshot
         setSaveStatus("saved")
-      } catch {
+      } catch (e) {
+        console.error("[cod-forms] auto-save error:", e)
         setSaveStatus("error")
       }
     }, SAVE_DEBOUNCE_MS)
@@ -95,6 +99,14 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshotJson, id])
+
+  // Auto-fade "Guardado" back to "idle" after 2 seconds so consecutive saves
+  // don't look like an endless saving loop.
+  useEffect(() => {
+    if (saveStatus !== "saved") return
+    const t = setTimeout(() => setSaveStatus("idle"), 2000)
+    return () => clearTimeout(t)
+  }, [saveStatus, setSaveStatus])
 
   return (
     <header className="flex items-center gap-3 border-b px-4 py-2">
