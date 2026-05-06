@@ -733,26 +733,6 @@ export const updateSiteSettingsSchema = z.object({
 // COD FORM SCHEMAS
 // ===================================================================
 
-export const codFormFieldSchema = z.object({
-  id: z.enum(["name", "phone", "email", "dni", "location", "address", "reference", "notes"]),
-  label: z.string().min(1),
-  required: z.boolean(),
-  visible: z.boolean(),
-});
-
-export const codFormSettingsSchema = z.object({
-  formTitle: z.string().min(1),
-  formSubtitle: z.string().optional(),
-  buttonText: z.string().min(1),
-  paymentBadge: z.string().optional(),
-  thankYouTitle: z.string().min(1),
-  thankYouMessage: z.string().min(1),
-  whatsappEnabled: z.boolean(),
-  whatsappNumber: z.string().optional(),
-  whatsappMessage: z.string().optional(),
-  fields: z.array(codFormFieldSchema),
-});
-
 export const createCodOrderSchema = z.object({
   productId: z.string().optional(),
   variantId: z.string().optional(),

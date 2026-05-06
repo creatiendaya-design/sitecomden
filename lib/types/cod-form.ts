@@ -51,15 +51,3 @@ export const DEFAULT_COD_FORM_SETTINGS: CodFormSettings = {
     { id: "notes",     label: "Notas adicionales",                  required: false, visible: false },
   ],
 };
-
-// Merges saved settings with defaults, adding any missing fields from future updates
-export function normalizeCodFormSettings(saved: CodFormSettings | null | undefined): CodFormSettings {
-  if (!saved) return DEFAULT_COD_FORM_SETTINGS;
-  const existingIds = new Set(saved.fields.map((f) => f.id));
-  const missingFields = DEFAULT_COD_FORM_SETTINGS.fields.filter((f) => !existingIds.has(f.id));
-  return {
-    ...DEFAULT_COD_FORM_SETTINGS,
-    ...saved,
-    fields: [...saved.fields, ...missingFields],
-  };
-}

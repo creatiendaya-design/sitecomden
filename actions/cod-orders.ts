@@ -8,7 +8,6 @@ import { headers } from "next/headers";
 import { getSiteSettings } from "@/lib/site-settings";
 import { formatOrderNumber } from "@/lib/utils";
 import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
-import { templateToLegacySettings } from "@/lib/cod-forms/template-to-settings";
 import type { ShippingRestriction } from "@/lib/cod-forms/types";
 
 export async function createCodOrder(rawData: unknown) {
@@ -162,63 +161,4 @@ export async function createCodOrder(rawData: unknown) {
     : `#${order.id.slice(-8).toUpperCase()}`;
 
   return { success: true, orderId: order.id, formattedNumber };
-}
-
-export async function getCartCodData(productIds: string[]): Promise<{
-  hasCod: boolean;
-  settings: import("@/lib/types/cod-form").CodFormSettings | null;
-}> {
-  if (!productIds.length) return { hasCod: false, settings: null };
-
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: {
-      id: true,
-      checkoutMode: true,
-      name: true,
-      codFormTemplate: {
-        include: {
-          blocks: { orderBy: { position: "asc" } },
-          thankYouPage: { select: { slug: true } },
-        },
-      },
-    },
-  });
-
-  const codProduct = products.find(
-    (p) => p.checkoutMode === "COD_ONLY" || p.checkoutMode === "COD_AND_CART"
-  );
-
-  if (!codProduct?.codFormTemplate) {
-    return { hasCod: !!codProduct, settings: null };
-  }
-
-  const template = codProduct.codFormTemplate;
-  const templateData = {
-    id: template.id,
-    name: template.name,
-    isDefault: template.isDefault,
-    buttonText: template.buttonText,
-    buttonStyle: template.buttonStyle as any,
-    postSubmitAction: template.postSubmitAction,
-    thankYouTitle: template.thankYouTitle,
-    thankYouMessage: template.thankYouMessage,
-    whatsappNumber: template.whatsappNumber,
-    whatsappMessage: template.whatsappMessage,
-    thankYouPageId: template.thankYouPageId,
-    thankYouPageSlug: (template as any).thankYouPage?.slug ?? null,
-    blocks: (template.blocks ?? []).map((b: any) => ({
-      id: b.id,
-      position: b.position,
-      type: b.type,
-      content: (b.content ?? {}) as Record<string, unknown>,
-      visible: b.visible,
-      required: b.required,
-    })),
-  };
-
-  return {
-    hasCod: true,
-    settings: templateToLegacySettings(templateData),
-  };
 }
