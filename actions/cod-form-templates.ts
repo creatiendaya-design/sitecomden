@@ -319,3 +319,15 @@ export async function unassignProductsFromTemplate(
   revalidatePath(`/admin/formularios-cod/${templateId}`)
   return { updated: result.count }
 }
+
+export async function listTemplateOptions(): Promise<
+  { id: string; name: string; isDefault: boolean }[]
+> {
+  // Read-only: any authenticated admin can fetch this for the dropdown.
+  const { response } = await requirePermission("cod-forms:view")
+  if (response) return []
+  return prisma.codFormTemplate.findMany({
+    select: { id: true, name: true, isDefault: true },
+    orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+  })
+}
