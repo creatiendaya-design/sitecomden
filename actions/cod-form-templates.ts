@@ -331,3 +331,39 @@ export async function listTemplateOptions(): Promise<
     orderBy: [{ isDefault: "desc" }, { name: "asc" }],
   })
 }
+
+export async function listProductsForTemplate(templateId: string) {
+  const { response } = await requirePermission("cod-forms:view")
+  if (response) throw new Error("Forbidden")
+
+  return prisma.product.findMany({
+    where: { codFormTemplateId: templateId },
+    select: { id: true, name: true, slug: true, basePrice: true },
+    orderBy: { name: "asc" },
+  })
+}
+
+export async function searchProductsToAssign(query: string) {
+  const { response } = await requirePermission("cod-forms:update")
+  if (response) throw new Error("Forbidden")
+
+  const q = query.trim()
+  return prisma.product.findMany({
+    where: q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { slug: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {},
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      codFormTemplateId: true,
+    },
+    take: 50,
+    orderBy: { name: "asc" },
+  })
+}
