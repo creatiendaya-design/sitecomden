@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Edit, Eye, Trash2, Loader2 } from "lucide-react";
 import DeleteProductButton from "@/components/admin/DeleteProductButton";
+import BulkAssignCodTemplateModal from "@/components/admin/products/BulkAssignCodTemplateModal";
 import { formatPrice } from "@/lib/utils";
 import { getProductImageUrl, getProductImageAlt } from "@/lib/image-utils";
 
@@ -56,6 +57,7 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [codAssignOpen, setCodAssignOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,6 +125,11 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
             <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
               Deseleccionar
             </Button>
+            {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => setCodAssignOpen(true)}>
+                Asignar plantilla COD
+              </Button>
+            )}
             {canDelete && (
               <Button variant="destructive" size="sm" onClick={() => setBulkDialogOpen(true)}>
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -288,6 +295,17 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
           );
         })}
       </div>
+
+      {/* Bulk assign COD template modal */}
+      <BulkAssignCodTemplateModal
+        open={codAssignOpen}
+        onClose={() => setCodAssignOpen(false)}
+        selectedIds={[...selected]}
+        onApplied={() => {
+          setSelected(new Set());
+          router.refresh();
+        }}
+      />
 
       {/* Bulk delete confirmation dialog */}
       <AlertDialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
