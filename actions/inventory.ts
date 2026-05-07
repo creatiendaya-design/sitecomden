@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { InventoryMovementType } from "@prisma/client"; // ✅ Importar el enum
+import { protectRoute } from "@/lib/protect-route";
 
 // Tipos
 export interface InventoryItem {
@@ -42,6 +43,7 @@ export interface InventoryMovementWithDetails {
 
 // Obtener resumen de inventario
 export async function getInventorySummary() {
+  await protectRoute("products:view");
   try {
     // Productos simples
     const simpleProducts = await prisma.product.findMany({
@@ -111,6 +113,7 @@ export async function getInventorySummary() {
 
 // Obtener todos los productos con su inventario
 export async function getInventoryList() {
+  await protectRoute("products:view");
   try {
     const products = await prisma.product.findMany({
       where: {
@@ -185,6 +188,7 @@ export async function getInventoryMovements(filters?: {
   type?: InventoryMovementType; // ✅ CAMBIO: usar el enum en lugar de string
   limit?: number;
 }) {
+  await protectRoute("products:view");
   try {
     const movements = await prisma.inventoryMovement.findMany({
       where: {
@@ -236,6 +240,7 @@ export async function createInventoryMovement(data: {
   reason?: string;
   reference?: string;
 }) {
+  await protectRoute("products:manage_inventory");
   try {
     // Validar que se proporcione productId o variantId
     if (!data.productId && !data.variantId) {
@@ -308,6 +313,7 @@ export async function adjustStock(data: {
   newStock: number;
   reason: string;
 }) {
+  await protectRoute("products:manage_inventory");
   try {
     if (!data.productId && !data.variantId) {
       return {
@@ -390,6 +396,7 @@ export async function adjustStock(data: {
 
 // Obtener productos con stock bajo
 export async function getLowStockProducts() {
+  await protectRoute("products:view");
   try {
     // ✅ Simplificar la query - Prisma no soporta prisma.productVariant.fields en queries
     const products = await prisma.product.findMany({
@@ -437,6 +444,7 @@ export async function getLowStockProducts() {
 
 // Eliminar masivamente todos los productos con stock 0
 export async function deleteZeroStockProducts(): Promise<{ success: boolean; deleted?: number; error?: string }> {
+  await protectRoute("products:delete");
   try {
     // Simple products with stock = 0
     const simpleDeleted = await prisma.product.deleteMany({

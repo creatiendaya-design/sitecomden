@@ -663,6 +663,7 @@ model User {
   roleId            String?
   role              Role?            @relation(fields: [roleId], references: [id])
   customPermissions UserPermission[]
+  sessions          AdminSession[]
   active            Boolean          @default(true)
   lastLogin         DateTime?
   createdAt         DateTime         @default(now())
@@ -671,6 +672,28 @@ model User {
   @@index([email])
   @@index([active])
   @@index([roleId])
+}
+
+// Server-side admin sessions. The cookie carries an opaque random token
+// (32 random bytes hex-encoded) that maps to a row here. Storing the user.id
+// directly in the cookie would let anyone who learned a user's id authenticate
+// as them and there would be no way to invalidate a leaked cookie.
+//
+// On password change or admin revocation, delete the user's rows here to log
+// them out everywhere immediately.
+model AdminSession {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Setting {
@@ -738,40 +761,21 @@ model ShippingZone {
   description String? @db.Text
 
   districts ShippingZoneDistrict[]
-
-  rateGroups ShippingRateGroup[]
+  rates     ShippingRate[]
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model ShippingRateGroup {
+model ShippingRate {
   id     String       @id @default(cuid())
   zoneId String
   zone   ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
   name        String
   description String? @db.Text
-
-  rates ShippingRate[]
-
-  order  Int     @default(0)
-  active Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([zoneId])
-}
-
-model ShippingRate {
-  id      String            @id @default(cuid())
-  groupId String
-  group   ShippingRateGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  name        String
-  description String? @db.Text
+  category    String?
 
   baseCost Decimal @db.Decimal(10, 2)
 
@@ -790,7 +794,7 @@ model ShippingRate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([groupId])
+  @@index([zoneId])
 }
 
 model ShippingZoneDistrict {

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { applyThemeSectionStyle } from "@/lib/theme-sections/apply-style"
+import { sanitizeRichText } from "@/lib/blocks/sanitize-rich-text"
 import type { ResolvedThemeSection } from "@/lib/theme-sections/types"
 
 interface Props {
@@ -54,7 +55,7 @@ export function FooterNewsletter({ section }: Props) {
       {data.description && (
         <div
           className="text-sm text-muted-foreground mb-4"
-          dangerouslySetInnerHTML={{ __html: data.description }}
+          dangerouslySetInnerHTML={{ __html: sanitizeRichText(data.description) }}
         />
       )}
       {status === "success" ? (

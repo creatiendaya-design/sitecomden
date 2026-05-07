@@ -14,6 +14,10 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
 import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
 import type { ShippingRestriction } from "@/lib/cod-forms/types";
+import {
+  decrementStockAtomic,
+  StockUnavailableError,
+} from "@/lib/inventory/decrement-stock";
 
 // ============================================================
 // SCHEMAS ZOD
@@ -133,7 +137,9 @@ export async function createOrder(rawData: unknown) {
 
     const total = subtotal + shipping - discount;
 
-    // Verificar stock disponible
+    // Pre-flight availability check (cheap reads). The authoritative TOCTOU-safe
+    // decrement happens inside the transaction below via decrementStockAtomic.
+    // We don't expose exact remaining stock to the client (info disclosure).
     for (const item of data.items) {
       if (item.variantId) {
         const variant = await prisma.productVariant.findUnique({
@@ -151,7 +157,7 @@ export async function createOrder(rawData: unknown) {
         if (variant.stock < item.quantity) {
           return {
             success: false,
-            error: `Stock insuficiente para ${item.name}. Disponible: ${variant.stock}`,
+            error: `Stock insuficiente para ${item.name}.`,
           };
         }
       } else {
@@ -170,7 +176,7 @@ export async function createOrder(rawData: unknown) {
         if (product.stock < item.quantity) {
           return {
             success: false,
-            error: `Stock insuficiente para ${item.name}. Disponible: ${product.stock}`,
+            error: `Stock insuficiente para ${item.name}.`,
           };
         }
       }
@@ -231,145 +237,128 @@ export async function createOrder(rawData: unknown) {
     // Generar token único para ver la orden sin login
     const viewToken = crypto.randomBytes(32).toString("hex");
 
-    // Crear la orden
-    const order = await prisma.order.create({
-      data: {
-        // Token para ver orden sin login
-        viewToken,
-
-        // Totales
-        subtotal,
-        shipping,
-        discount,
-        total,
-
-        // Cupón
-        couponCode: data.couponCode,
-        couponDiscount: discount > 0 ? discount : undefined,
-
-        // Estados
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        fulfillmentStatus: "UNFULFILLED",
-
-        // Información del cliente
-        customerName: data.customerName,
-        customerEmail: data.customerEmail.toLowerCase().trim(),
-        customerPhone: data.customerPhone,
-        customerDni: data.customerDni,
-        customerType: "person",
-
-        // Direcciones
-        billingAddress: {
-          address: data.address,
-          district: data.district,
-          city: data.city,
-          department: data.department,
-        },
-        shippingAddress: {
-          address: data.address,
-          district: data.district,
-          city: data.city,
-          department: data.department,
-          reference: data.reference || "",
-        },
-
-        // Método de pago
-        paymentMethod: data.paymentMethod,
-        shippingMethod: data.shippingMethod || "standard",
-        shippingCourier: data.shippingCarrier || data.shippingMethod || "Standard",
-
-        // Notas
-        customerNotes: data.customerNotes,
-
-        // Comprobante SUNAT
-        documentType: data.documentType ?? null,
-        buyerRuc: data.buyerRuc ?? null,
-        buyerRazonSocial: data.buyerRazonSocial ?? null,
-        buyerFiscalAddress: data.buyerFiscalAddress ?? null,
-
-        // Items
-        items: {
-          create: data.items.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId || undefined,
-            name: item.name,
-            variantName: item.variantName || undefined,
-            price: serverPrices.get(item.variantId ?? item.productId) ?? 0,
-            quantity: item.quantity,
-            image: item.image || undefined,
-            variantOptions: (item.options ?? null) as Prisma.InputJsonValue,
-            customDesign: item.customDesign === undefined || item.customDesign === null
-              ? Prisma.JsonNull
-              : (item.customDesign as Prisma.InputJsonValue),
-            customDesignImages: item.customDesignImages === undefined || item.customDesignImages === null
-              ? Prisma.JsonNull
-              : (item.customDesignImages as unknown as Prisma.InputJsonValue),
-          })),
-        },
-      },
-      include: {
-        items: true,
-      },
-    });
-
-    // Si el pago es Yape o Plin, crear registro de pago pendiente
-    if (data.paymentMethod === "YAPE" || data.paymentMethod === "PLIN") {
-      await prisma.pendingPayment.create({
-        data: {
-          orderId: order.id,
-          method: data.paymentMethod,
-          amount: total,
-          status: "pending",
-        },
-      });
-    }
-
     // Para Yape/Plin el stock se descuenta al aprobar el pago (verificación manual).
-    // Para tarjeta/PayPal se descuenta inmediatamente porque el pago ya fue confirmado.
+    // Para tarjeta/PayPal se reserva inmediatamente porque la pasarela cobrará el monto.
     const requiresManualVerification =
       data.paymentMethod === "YAPE" || data.paymentMethod === "PLIN";
 
-    if (!requiresManualVerification) {
-      for (const item of data.items) {
-        if (item.variantId) {
-          await prisma.productVariant.update({
-            where: { id: item.variantId },
-            data: { stock: { decrement: item.quantity } },
-          });
-          await prisma.inventoryMovement.create({
-            data: {
-              variantId: item.variantId,
-              type: "SALE",
-              quantity: -item.quantity,
-              reason: `Venta - Orden #${order.orderNumber}`,
-              reference: order.id,
+    // Atomic checkout: create order + decrement stock + bump coupon usage
+    // inside a single transaction. If any line item ran out of stock between
+    // the pre-flight check and now (concurrent buyer won the race), the
+    // StockUnavailableError rolls back the order and we surface a clear error.
+    let order;
+    try {
+      order = await prisma.$transaction(async (tx) => {
+        const created = await tx.order.create({
+          data: {
+            viewToken,
+            subtotal,
+            shipping,
+            discount,
+            total,
+            couponCode: data.couponCode,
+            couponDiscount: discount > 0 ? discount : undefined,
+            status: "PENDING",
+            paymentStatus: "PENDING",
+            fulfillmentStatus: "UNFULFILLED",
+            customerName: data.customerName,
+            customerEmail: data.customerEmail.toLowerCase().trim(),
+            customerPhone: data.customerPhone,
+            customerDni: data.customerDni,
+            customerType: "person",
+            billingAddress: {
+              address: data.address,
+              district: data.district,
+              city: data.city,
+              department: data.department,
             },
-          });
-        } else {
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          });
-          await prisma.inventoryMovement.create({
+            shippingAddress: {
+              address: data.address,
+              district: data.district,
+              city: data.city,
+              department: data.department,
+              reference: data.reference || "",
+            },
+            paymentMethod: data.paymentMethod,
+            shippingMethod: data.shippingMethod || "standard",
+            shippingCourier: data.shippingCarrier || data.shippingMethod || "Standard",
+            customerNotes: data.customerNotes,
+            documentType: data.documentType ?? null,
+            buyerRuc: data.buyerRuc ?? null,
+            buyerRazonSocial: data.buyerRazonSocial ?? null,
+            buyerFiscalAddress: data.buyerFiscalAddress ?? null,
+            items: {
+              create: data.items.map((item) => ({
+                productId: item.productId,
+                variantId: item.variantId || undefined,
+                name: item.name,
+                variantName: item.variantName || undefined,
+                price: serverPrices.get(item.variantId ?? item.productId) ?? 0,
+                quantity: item.quantity,
+                image: item.image || undefined,
+                variantOptions: (item.options ?? null) as Prisma.InputJsonValue,
+                customDesign: item.customDesign === undefined || item.customDesign === null
+                  ? Prisma.JsonNull
+                  : (item.customDesign as Prisma.InputJsonValue),
+                customDesignImages: item.customDesignImages === undefined || item.customDesignImages === null
+                  ? Prisma.JsonNull
+                  : (item.customDesignImages as unknown as Prisma.InputJsonValue),
+              })),
+            },
+          },
+          include: { items: true },
+        });
+
+        if (data.paymentMethod === "YAPE" || data.paymentMethod === "PLIN") {
+          await tx.pendingPayment.create({
             data: {
-              productId: item.productId,
-              type: "SALE",
-              quantity: -item.quantity,
-              reason: `Venta - Orden #${order.orderNumber}`,
-              reference: order.id,
+              orderId: created.id,
+              method: data.paymentMethod,
+              amount: total,
+              status: "pending",
             },
           });
         }
-      }
-    }
 
-    // Incrementar contador de uso del cupón
-    if (data.couponCode) {
-      await prisma.coupon.updateMany({
-        where: { code: data.couponCode },
-        data: { usageCount: { increment: 1 } },
+        if (!requiresManualVerification) {
+          for (const item of data.items) {
+            const result = await decrementStockAtomic(tx, {
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              name: item.name,
+            });
+            if (!result.ok) {
+              throw new StockUnavailableError(result.error ?? "Stock insuficiente");
+            }
+
+            await tx.inventoryMovement.create({
+              data: {
+                productId: item.variantId ? undefined : item.productId,
+                variantId: item.variantId || undefined,
+                type: "SALE",
+                quantity: -item.quantity,
+                reason: `Venta - Orden #${created.orderNumber}`,
+                reference: created.id,
+              },
+            });
+          }
+        }
+
+        if (data.couponCode) {
+          await tx.coupon.updateMany({
+            where: { code: data.couponCode },
+            data: { usageCount: { increment: 1 } },
+          });
+        }
+
+        return created;
       });
+    } catch (txError) {
+      if (txError instanceof StockUnavailableError) {
+        return { success: false, error: txError.message };
+      }
+      throw txError;
     }
 
     // Enviar email de confirmación con link para ver orden

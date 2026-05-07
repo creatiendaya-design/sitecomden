@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
 import { requirePermission, isSuperAdmin, hasPermission } from "@/lib/permissions"; // ← CAMBIO 1: Agregar hasPermission
+import { revokeAllAdminSessionsForUser } from "@/lib/admin-session";
 import bcrypt from "bcryptjs";
 
 // ============================================================
@@ -127,7 +128,7 @@ export async function createUser(data: UserFormData & { password: string }) {
     }
 
     // Hash de contraseña
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const hashedPassword = await bcrypt.hash(data.password, 12);
 
     // Crear usuario
     const user = await prisma.user.create({
@@ -257,12 +258,16 @@ export async function changeUserPassword(userId: string, newPassword: string) {
       return { success: false, error: "La contraseña debe tener al menos 6 caracteres" };
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     await prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
     });
+
+    // Revocar todas las sesiones activas del usuario: si la contraseña cambió,
+    // cualquier cookie previa (potencialmente robada) deja de ser válida.
+    await revokeAllAdminSessionsForUser(userId);
 
     return { success: true };
   } catch (error) {

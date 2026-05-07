@@ -25,6 +25,7 @@ import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { prisma } from "./db";
 import { SUPER_ADMIN_LEVEL } from "./constants";
+import { getAdminSession } from "./admin-session";
 import type { User, Role } from "@prisma/client";
 
 // ===================================================================
@@ -54,23 +55,14 @@ export async function getCurrentUser(): Promise<UserWithRole> {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get("admin_session");
 
-    if (!sessionCookie) {
+    if (!sessionCookie?.value) {
       redirect("/admin-auth/login");
     }
 
-    const user = await prisma.user.findUnique({
-      where: { 
-        id: sessionCookie.value,
-        active: true 
-      },
-      include: { 
-        role: true 
-      },
-    });
+    const user = await getAdminSession(sessionCookie.value);
 
-    if (!user || !user.role || !user.role.active) {
-      // Sesión inválida, limpiar cookie y redirigir
-      const cookieStore = await cookies();
+    if (!user || !user.role) {
+      // Token inválido / expirado / usuario o rol desactivado
       cookieStore.delete("admin_session");
       redirect("/admin-auth/login");
     }
@@ -81,7 +73,7 @@ export async function getCurrentUser(): Promise<UserWithRole> {
     if (error && typeof error === 'object' && 'digest' in error) {
       throw error;
     }
-    
+
     console.error("Error getting current user:", error);
     redirect("/admin-auth/login");
   }
@@ -105,24 +97,12 @@ async function _getCurrentUserOrNull(): Promise<UserWithRole | null> {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get("admin_session");
 
-    if (!sessionCookie) {
+    if (!sessionCookie?.value) {
       return null;
     }
 
-    const user = await prisma.user.findUnique({
-      where: {
-        id: sessionCookie.value,
-        active: true
-      },
-      include: {
-        role: true
-      },
-    });
-
-    if (!user || !user.role || !user.role.active) {
-      return null;
-    }
-
+    const user = await getAdminSession(sessionCookie.value);
+    if (!user || !user.role) return null;
     return user as UserWithRole;
   } catch (error) {
     console.error("Error getting current user:", error);
@@ -263,7 +243,6 @@ export async function requirePermission(permissionSlug: string): Promise<AuthRes
 
   // ✅ SUPER ADMIN BYPASS: Nivel 100+ tiene TODO permitido
   if (user.role && user.role.level >= SUPER_ADMIN_LEVEL) {
-    console.log(`✅ Super Admin bypass: ${user.email} - ${permissionSlug}`);
     return { user, response: null };
   }
 
@@ -343,7 +322,6 @@ export async function requireAnyPermission(permissionSlugs: string[]): Promise<A
 
   // ✅ SUPER ADMIN BYPASS
   if (user.role && user.role.level >= SUPER_ADMIN_LEVEL) {
-    console.log(`✅ Super Admin bypass: ${user.email} - any of ${permissionSlugs.join(", ")}`);
     return { user, response: null };
   }
 
@@ -424,7 +402,6 @@ export async function requireAllPermissions(permissionSlugs: string[]): Promise<
 
   // ✅ SUPER ADMIN BYPASS
   if (user.role && user.role.level >= SUPER_ADMIN_LEVEL) {
-    console.log(`✅ Super Admin bypass: ${user.email} - all of ${permissionSlugs.join(", ")}`);
     return { user, response: null };
   }
 
@@ -582,16 +559,18 @@ export async function userHasRoleLevel(
 
 /**
  * @deprecated Usa getCurrentUser() para obtener información completa
- * 
- * Obtiene el ID del usuario admin actual
- * Se puede usar en Server Components y Server Actions
+ *
+ * Obtiene el ID del usuario admin actual. La cookie ya no contiene el userId
+ * directamente: ahora se resuelve el session token a través de la tabla
+ * AdminSession.
  */
 export async function getCurrentUserId(): Promise<string> {
   const cookieStore = await cookies();
-  const adminSession = cookieStore.get("admin_session");
+  const sessionCookie = cookieStore.get("admin_session");
 
-  if (adminSession?.value) {
-    return adminSession.value;
+  if (sessionCookie?.value) {
+    const user = await getAdminSession(sessionCookie.value);
+    if (user) return user.id;
   }
 
   redirect("/admin-auth/login");
@@ -599,19 +578,21 @@ export async function getCurrentUserId(): Promise<string> {
 
 /**
  * @deprecated Usa getCurrentUser() con null check
- * 
- * Obtiene el ID del usuario sin redirigir
- * Retorna null si no hay sesión
+ *
+ * Obtiene el ID del usuario sin redirigir. Retorna null si no hay sesión
+ * válida (token desconocido, expirado, o usuario desactivado).
  */
 export async function getCurrentUserIdOrNull(): Promise<string | null> {
   const cookieStore = await cookies();
-  const adminSession = cookieStore.get("admin_session");
-  return adminSession?.value ?? null;
+  const sessionCookie = cookieStore.get("admin_session");
+  if (!sessionCookie?.value) return null;
+  const user = await getAdminSession(sessionCookie.value);
+  return user?.id ?? null;
 }
 
 /**
  * @deprecated Usa getCurrentUser() con null check
- * 
+ *
  * Verifica si hay una sesión activa
  */
 export async function isAuthenticated(): Promise<boolean> {
