@@ -19,7 +19,9 @@ import { SizeGuideCard } from "@/components/admin/products/SizeGuideCard";
 import type { MockupOverrides } from "@/lib/customizer/types";
 import CodFormTemplateCard from "@/components/admin/products/CodFormTemplateCard";
 import ShippingRestrictionCard from "@/components/admin/products/ShippingRestrictionCard";
+import ProductPromotionsCard from "@/components/admin/products/ProductPromotionsCard";
 import type { ShippingRestriction } from "@/lib/cod-forms/types";
+import type { ProductScopedPromotion } from "@/lib/promotions/types";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import dynamic from "next/dynamic";
@@ -80,6 +82,7 @@ interface EditProductFormProps {
    *  ya resueltos (template + detached + locales). Se usa solo para el
    *  resumen visual de la card "Presentación". */
   resolvedBlockTypes?: string[];
+  initialPromotions?: ProductScopedPromotion[];
 }
 
 const BLOCK_TYPE_LABELS: Record<string, string> = {
@@ -98,7 +101,7 @@ const BLOCK_TYPE_LABELS: Record<string, string> = {
   PRODUCT_GRID: "Grid de productos",
 };
 
-export default function EditProductForm({ product, categories, showLegacyLandingEditor = true, resolvedBlockTypes = [] }: EditProductFormProps) {
+export default function EditProductForm({ product, categories, showLegacyLandingEditor = true, resolvedBlockTypes = [], initialPromotions = [] }: EditProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -403,22 +406,22 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0 pb-24 sm:pb-0">
+      <div className="flex items-center gap-3">
+        <Button variant="outline" size="icon" asChild className="shrink-0">
           <Link href="/admin/productos">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Editar Producto</h1>
-          <p className="text-muted-foreground">{product.name}</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-3xl font-bold leading-tight">Editar Producto</h1>
+          <p className="text-xs sm:text-base text-muted-foreground truncate">{product.name}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Basic Info */}
             <Card>
               <CardHeader>
@@ -696,7 +699,7 @@ export default function EditProductForm({ product, categories, showLegacyLanding
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Estado</CardTitle>
@@ -815,7 +818,13 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   onChange={(v) => setFormData({ ...formData, shippingRestriction: v })}
 />
 
-            <Card>
+<ProductPromotionsCard
+  productId={product.id}
+  productName={product.name}
+  initialPromotions={initialPromotions}
+/>
+
+            <Card className="hidden sm:block">
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>
                   <Save className="mr-2 h-4 w-4" />
@@ -832,6 +841,22 @@ export default function EditProductForm({ product, categories, showLegacyLanding
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Sticky bottom save bar — mobile only */}
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur px-3 py-2.5 flex gap-2 shadow-lg">
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+            className="flex-1 h-10"
+          >
+            <Link href="/admin/productos">Cancelar</Link>
+          </Button>
+          <Button type="submit" className="flex-1 h-10" disabled={loading}>
+            <Save className="mr-2 h-4 w-4" />
+            {loading ? "Guardando…" : "Guardar"}
+          </Button>
         </div>
       </form>
 

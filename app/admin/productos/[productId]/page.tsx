@@ -7,6 +7,7 @@ import { ProductLandingBuilder } from "@/components/admin/ProductLandingBuilder"
 import { isPageBuilderV2Enabled } from "@/lib/blocks/feature-flag"
 import type { BlockInstance } from "@/lib/blocks/types"
 import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks"
+import { listPromotionsForProduct } from "@/actions/promotions"
 
 interface EditProductPageProps {
   params: Promise<{
@@ -42,6 +43,8 @@ export default async function EditProductPage({ params, searchParams }: EditProd
   })
 
   const serializedCategories = categories.map((c) => ({ id: c.id, name: c.name }))
+
+  const serializedPromotions = await listPromotionsForProduct(productId)
 
   const serializedProduct = {
     ...product,
@@ -114,5 +117,6 @@ export default async function EditProductPage({ params, searchParams }: EditProd
     categories={serializedCategories}
     showLegacyLandingEditor={!flagOn}
     resolvedBlockTypes={resolvedBlockTypes}
+    initialPromotions={serializedPromotions}
   />
 }

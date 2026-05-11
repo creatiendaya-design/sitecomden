@@ -17,6 +17,12 @@ export interface StockCheckResult {
     currentStock: number;
     requestedQuantity: number;
     message?: string;
+    /**
+     * True si el producto está asignado a un COD form (checkoutMode != STANDARD).
+     * Estos items no pueden pasar por el checkout de tarjeta y deben removerse
+     * del carrito normal.
+     */
+    codOnly?: boolean;
   }[];
   errors: string[];
 }
@@ -47,6 +53,7 @@ export async function checkCartStock(
               select: {
                 active: true,
                 name: true,
+                checkoutMode: true,
               },
             },
           },
@@ -78,6 +85,22 @@ export async function checkCartStock(
           continue;
         }
 
+        if (variant.product.checkoutMode !== "STANDARD") {
+          result.success = false;
+          result.items.push({
+            id: item.id,
+            available: false,
+            currentStock: variant.stock,
+            requestedQuantity: item.quantity,
+            message: "Solo disponible para pedido contra entrega",
+            codOnly: true,
+          });
+          result.errors.push(
+            `${variant.product.name} solo está disponible para pedido contra entrega.`,
+          );
+          continue;
+        }
+
         const available = variant.stock >= item.quantity;
         
         result.items.push({
@@ -105,6 +128,7 @@ export async function checkCartStock(
             active: true,
             name: true,
             hasVariants: true,
+            checkoutMode: true,
           },
         });
 
@@ -131,6 +155,22 @@ export async function checkCartStock(
             message: "Producto no disponible",
           });
           result.errors.push(`${product.name} ya no está disponible`);
+          continue;
+        }
+
+        if (product.checkoutMode !== "STANDARD") {
+          result.success = false;
+          result.items.push({
+            id: item.id,
+            available: false,
+            currentStock: product.stock,
+            requestedQuantity: item.quantity,
+            message: "Solo disponible para pedido contra entrega",
+            codOnly: true,
+          });
+          result.errors.push(
+            `${product.name} solo está disponible para pedido contra entrega.`,
+          );
           continue;
         }
 

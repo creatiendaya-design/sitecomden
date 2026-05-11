@@ -9,16 +9,26 @@ import ShippingOptionsBlock, {
 import OrderSummaryBlock, { type OrderTotals } from "./blocks/OrderSummaryBlock"
 import SubmitButtonBlock from "./blocks/SubmitButtonBlock"
 import FieldBlock from "./blocks/FieldBlock"
+import CodLocationSelector from "./CodLocationSelector"
 import type {
   CodFormBlock,
   CodFormBlockType,
   HeaderContent,
   CartItemsContent,
-  ShippingOptionsContent,
   OrderSummaryContent,
   FieldContent,
   ButtonStyle,
+  ShippingRestriction,
 } from "@/lib/cod-forms/types"
+
+export type LocationValue = {
+  departmentId: string
+  provinceId: string
+  districtCode: string
+  departmentName: string
+  provinceName: string
+  districtName: string
+}
 
 export type RendererContext = {
   buttonText: string
@@ -31,6 +41,10 @@ export type RendererContext = {
   fieldValues: Record<string, string>
   fieldErrors: Record<string, string | null>
   onFieldChange: (type: CodFormBlockType, value: string) => void
+  onFieldBlur?: (type: CodFormBlockType) => void
+  location: LocationValue
+  onLocationChange: (next: LocationValue) => void
+  shippingRestriction?: ShippingRestriction | null
   submitDisabled?: boolean
   onSubmit?: () => void
   onQuantityChange?: (idx: number, q: number) => void
@@ -43,10 +57,13 @@ const FIELD_TYPES: ReadonlySet<CodFormBlockType> = new Set([
   "FIELD_DNI",
   "FIELD_ADDRESS",
   "FIELD_ADDRESS_2",
-  "FIELD_PROVINCE",
-  "FIELD_CITY",
   "FIELD_REFERENCE",
   "FIELD_NOTES",
+])
+
+const LOCATION_TYPES: ReadonlySet<CodFormBlockType> = new Set([
+  "FIELD_PROVINCE",
+  "FIELD_CITY",
 ])
 
 export default function CodFormBlockRenderer({
@@ -56,6 +73,11 @@ export default function CodFormBlockRenderer({
   blocks: CodFormBlock[]
   ctx: RendererContext
 }) {
+  // FIELD_PROVINCE and FIELD_CITY both collapse to a single LocationSelector
+  // combo (departamento → provincia → distrito). Render it once at the
+  // first occurrence and skip subsequent ones.
+  let locationRendered = false
+
   return (
     <div className="space-y-3">
       {blocks
@@ -78,7 +100,6 @@ export default function CodFormBlockRenderer({
             return (
               <ShippingOptionsBlock
                 key={b.id}
-                content={b.content as unknown as ShippingOptionsContent}
                 options={ctx.shippingOptions}
                 selectedId={ctx.selectedShippingId}
                 onSelect={ctx.onShippingSelect}
@@ -105,6 +126,26 @@ export default function CodFormBlockRenderer({
               />
             )
           }
+          if (LOCATION_TYPES.has(b.type)) {
+            if (locationRendered) return null
+            locationRendered = true
+            const restriction = ctx.shippingRestriction
+            return (
+              <CodLocationSelector
+                key={b.id}
+                value={{
+                  departmentId: ctx.location.departmentId,
+                  provinceId: ctx.location.provinceId,
+                  districtCode: ctx.location.districtCode,
+                }}
+                onChange={ctx.onLocationChange}
+                allowedDepartmentIds={restriction?.enabled ? restriction.allowedDepartmentIds : undefined}
+                allowedProvinceIds={restriction?.enabled ? restriction.allowedProvinceIds : undefined}
+                allowedDistrictCodes={restriction?.enabled ? restriction.allowedDistrictCodes : undefined}
+                restrictionMessage={restriction?.enabled ? restriction.restrictionMessage ?? undefined : undefined}
+              />
+            )
+          }
           if (FIELD_TYPES.has(b.type)) {
             return (
               <FieldBlock
@@ -115,6 +156,7 @@ export default function CodFormBlockRenderer({
                 value={ctx.fieldValues[b.type] ?? ""}
                 errorMessage={ctx.fieldErrors[b.type] ?? null}
                 onChange={(v) => ctx.onFieldChange(b.type, v)}
+                onBlur={() => ctx.onFieldBlur?.(b.type)}
               />
             )
           }

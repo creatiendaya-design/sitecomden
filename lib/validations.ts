@@ -750,10 +750,24 @@ export const createCodOrderSchema = z.object({
   address: z.string().min(5).max(300),
   reference: z.string().max(200).optional(),
   notes: z.string().max(500).optional(),
+  // Optional — when provided, the server re-computes the shipping cost from
+  // /admin/envios (never trusts a price from the client).
+  shippingRateId: z.string().optional(),
   items: z.array(z.object({
     productId: z.string(),
     variantId: z.string().optional(),
     quantity: z.number().int().min(1),
+    /** VOLUME promotion id (per-line discount). */
+    promotionId: z.string().optional(),
+    /** BUNDLE promotion id — server validates that all required partners
+     *  are present in the same payload before applying any discount. */
+    bundlePromotionId: z.string().optional(),
+    subscriptionOptIn: z
+      .object({
+        promotionId: z.string(),
+        email: z.string().email(),
+      })
+      .optional(),
   })).optional(),
 });
 

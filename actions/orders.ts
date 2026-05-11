@@ -18,6 +18,15 @@ import {
   decrementStockAtomic,
   StockUnavailableError,
 } from "@/lib/inventory/decrement-stock";
+import {
+  resolveAppliedVolumeDiscount,
+  resolveAppliedSubscriptionDiscount,
+  resolveAppliedBundleDiscount,
+  resolveAppliedFreeGifts,
+  subscribeNewsletterFromOrder,
+  incrementPromotionUsage,
+  type ResolvedFreeGiftItem,
+} from "@/lib/promotions/server";
 
 // ============================================================
 // SCHEMAS ZOD
@@ -33,6 +42,20 @@ const orderItemSchema = z.object({
   quantity: z.number().int().positive("Cantidad de item inválida").max(9999),
   image: z.string().optional(),
   options: z.record(z.string(), z.string()).optional(),
+  // Volume promotion to re-resolve server-side. Never trust the discount
+  // amount from the client — only the promotionId is used as a lookup.
+  promotionId: z.string().optional(),
+  // Bundle promotion to re-resolve server-side. The discount applies only if
+  // all required partner products are present in the same payload.
+  bundlePromotionId: z.string().optional(),
+  // Subscription opt-in for a SUBSCRIPTION promotion. Server validates the
+  // email + applies the discount + subscribes to NewsletterSubscriber.
+  subscriptionOptIn: z
+    .object({
+      promotionId: z.string(),
+      email: z.string().email(),
+    })
+    .optional(),
   // Customizer (Phase 2.3) — optional, only present for customized items
   customDesign: z.unknown().optional(),
   customDesignImages: z.array(z.object({ zoneId: z.string(), url: z.string() })).optional(),
@@ -119,23 +142,120 @@ export async function createOrder(rawData: unknown) {
     }, 0);
     const shipping = data.shipping || 0;
 
+    // Resolver descuentos por volumen + suscripción server-side. Nunca
+    // confiamos en valores del cliente; solo en los promotionId/email que
+    // pasan por validación contra la BD.
+    let promotionDiscount = 0;
+    const subscriptionEmails = new Set<string>();
+    const promotionSavedBy = new Map<string, number>();
+    const trackPromotionSaved = (promotionId: string, amount: number) => {
+      if (amount <= 0) return;
+      promotionSavedBy.set(
+        promotionId,
+        (promotionSavedBy.get(promotionId) ?? 0) + amount
+      );
+    };
+    for (const item of data.items) {
+      const key = item.variantId ?? item.productId;
+      const baseUnitPrice = serverPrices.get(key) ?? 0;
+
+      let volumeDiscountPerUnit = 0;
+      if (item.promotionId) {
+        const applied = await resolveAppliedVolumeDiscount({
+          promotionId: item.promotionId,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: baseUnitPrice,
+        });
+        if (applied) {
+          volumeDiscountPerUnit = applied.discountPerUnit;
+          const saved = applied.discountPerUnit * item.quantity;
+          promotionDiscount += saved;
+          trackPromotionSaved(applied.promotionId, saved);
+        }
+      }
+
+      if (item.subscriptionOptIn) {
+        const netUnit = baseUnitPrice - volumeDiscountPerUnit;
+        const applied = await resolveAppliedSubscriptionDiscount({
+          promotionId: item.subscriptionOptIn.promotionId,
+          productId: item.productId,
+          unitPrice: netUnit,
+          email: item.subscriptionOptIn.email,
+        });
+        if (applied) {
+          const saved = applied.discountPerUnit * item.quantity;
+          promotionDiscount += saved;
+          trackPromotionSaved(applied.promotionId, saved);
+          subscriptionEmails.add(item.subscriptionOptIn.email.trim().toLowerCase());
+        }
+      }
+    }
+    // BUNDLE pass: each unique bundlePromotionId is resolved once against
+    // the full cart so we can validate partner presence. The discount is
+    // distributed per-product by the resolver and we apply it × quantity.
+    const uniqueBundleIds = [
+      ...new Set(
+        data.items
+          .map((i) => i.bundlePromotionId)
+          .filter((id): id is string => !!id)
+      ),
+    ];
+    for (const bundleId of uniqueBundleIds) {
+      const applied = await resolveAppliedBundleDiscount({
+        promotionId: bundleId,
+        cartItems: data.items.map((i) => {
+          const key = i.variantId ?? i.productId;
+          return {
+            productId: i.productId,
+            unitPrice: serverPrices.get(key) ?? 0,
+            quantity: i.quantity,
+          };
+        }),
+      });
+      if (!applied) continue;
+      let bundleSaved = 0;
+      for (const item of data.items) {
+        const perUnit = applied.perProductDiscount.get(item.productId);
+        if (!perUnit) continue;
+        const saved = perUnit * item.quantity;
+        promotionDiscount += saved;
+        bundleSaved += saved;
+      }
+      trackPromotionSaved(applied.promotionId, bundleSaved);
+    }
+
+    promotionDiscount = Math.round(promotionDiscount * 100) / 100;
+
     // Revalidar cupón en el servidor si se aplicó uno
-    let discount = 0;
+    let couponDiscount = 0;
     if (data.couponCode) {
       const coupon = await prisma.coupon.findUnique({
         where: { code: data.couponCode.toUpperCase(), active: true },
       });
       if (coupon && (!coupon.expiresAt || coupon.expiresAt > new Date())) {
         if (coupon.type === "PERCENTAGE") {
-          discount = (subtotal * Number(coupon.value)) / 100;
-          if (coupon.maxDiscount) discount = Math.min(discount, Number(coupon.maxDiscount));
+          couponDiscount = (subtotal * Number(coupon.value)) / 100;
+          if (coupon.maxDiscount) couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
         } else if (coupon.type === "FIXED_AMOUNT") {
-          discount = Math.min(Number(coupon.value), subtotal);
+          couponDiscount = Math.min(Number(coupon.value), subtotal);
         }
       }
     }
 
+    const discount = couponDiscount + promotionDiscount;
     const total = subtotal + shipping - discount;
+
+    // Resolve any FREE_GIFT promotions that match items in the cart and the
+    // total subtotal threshold. The gifts are added as OrderItems at price 0
+    // and their stock is decremented inside the transaction below.
+    const freeGifts: ResolvedFreeGiftItem[] = await resolveAppliedFreeGifts({
+      cartProductIds: data.items.map((i) => i.productId),
+      cartSubtotal: subtotal,
+    });
+    for (const gift of freeGifts) {
+      trackPromotionSaved(gift.promotionId, gift.basePrice);
+    }
 
     // Pre-flight availability check (cheap reads). The authoritative TOCTOU-safe
     // decrement happens inside the transaction below via decrementStockAtomic.
@@ -189,8 +309,27 @@ export async function createOrder(rawData: unknown) {
     // here. The COD checkout (which carries explicit IDs) is unaffected.
     const productsForRestriction = await prisma.product.findMany({
       where: { id: { in: data.items.map((i) => i.productId) } },
-      select: { id: true, name: true, shippingRestriction: true },
+      select: {
+        id: true,
+        name: true,
+        shippingRestriction: true,
+        checkoutMode: true,
+      },
     });
+
+    // Productos asignados a un COD form (checkoutMode != STANDARD) no pueden
+    // pasar por este flujo de checkout (tarjeta / Yape / Plin / PayPal); solo
+    // se venden vía CodOrderModal → createCodOrder.
+    for (const item of data.items) {
+      const p = productsForRestriction.find((x) => x.id === item.productId);
+      if (p && p.checkoutMode !== "STANDARD") {
+        return {
+          success: false,
+          error: `${p.name} solo está disponible para pedido contra entrega (COD).`,
+        };
+      }
+    }
+
     for (const item of data.items) {
       const p = productsForRestriction.find((x) => x.id === item.productId);
       if (!p) continue;
@@ -257,7 +396,7 @@ export async function createOrder(rawData: unknown) {
             discount,
             total,
             couponCode: data.couponCode,
-            couponDiscount: discount > 0 ? discount : undefined,
+            couponDiscount: couponDiscount > 0 ? couponDiscount : undefined,
             status: "PENDING",
             paymentStatus: "PENDING",
             fulfillmentStatus: "UNFULFILLED",
@@ -288,22 +427,32 @@ export async function createOrder(rawData: unknown) {
             buyerRazonSocial: data.buyerRazonSocial ?? null,
             buyerFiscalAddress: data.buyerFiscalAddress ?? null,
             items: {
-              create: data.items.map((item) => ({
-                productId: item.productId,
-                variantId: item.variantId || undefined,
-                name: item.name,
-                variantName: item.variantName || undefined,
-                price: serverPrices.get(item.variantId ?? item.productId) ?? 0,
-                quantity: item.quantity,
-                image: item.image || undefined,
-                variantOptions: (item.options ?? null) as Prisma.InputJsonValue,
-                customDesign: item.customDesign === undefined || item.customDesign === null
-                  ? Prisma.JsonNull
-                  : (item.customDesign as Prisma.InputJsonValue),
-                customDesignImages: item.customDesignImages === undefined || item.customDesignImages === null
-                  ? Prisma.JsonNull
-                  : (item.customDesignImages as unknown as Prisma.InputJsonValue),
-              })),
+              create: [
+                ...data.items.map((item) => ({
+                  productId: item.productId,
+                  variantId: item.variantId || undefined,
+                  name: item.name,
+                  variantName: item.variantName || undefined,
+                  price: serverPrices.get(item.variantId ?? item.productId) ?? 0,
+                  quantity: item.quantity,
+                  image: item.image || undefined,
+                  variantOptions: (item.options ?? null) as Prisma.InputJsonValue,
+                  customDesign: item.customDesign === undefined || item.customDesign === null
+                    ? Prisma.JsonNull
+                    : (item.customDesign as Prisma.InputJsonValue),
+                  customDesignImages: item.customDesignImages === undefined || item.customDesignImages === null
+                    ? Prisma.JsonNull
+                    : (item.customDesignImages as unknown as Prisma.InputJsonValue),
+                })),
+                ...freeGifts.map((gift) => ({
+                  productId: gift.productId,
+                  variantId: gift.variantId || undefined,
+                  name: `🎁 Regalo: ${gift.name}`,
+                  price: 0,
+                  quantity: 1,
+                  image: gift.image ?? undefined,
+                })),
+              ],
             },
           },
           include: { items: true },
@@ -343,6 +492,31 @@ export async function createOrder(rawData: unknown) {
               },
             });
           }
+
+          for (const gift of freeGifts) {
+            const result = await decrementStockAtomic(tx, {
+              productId: gift.productId,
+              variantId: gift.variantId,
+              quantity: 1,
+              name: gift.name,
+            });
+            if (!result.ok) {
+              throw new StockUnavailableError(
+                `Regalo ${gift.name} sin stock disponible`
+              );
+            }
+
+            await tx.inventoryMovement.create({
+              data: {
+                productId: gift.variantId ? undefined : gift.productId,
+                variantId: gift.variantId || undefined,
+                type: "SALE",
+                quantity: -1,
+                reason: `Regalo - Orden #${created.orderNumber}`,
+                reference: created.id,
+              },
+            });
+          }
         }
 
         if (data.couponCode) {
@@ -359,6 +533,17 @@ export async function createOrder(rawData: unknown) {
         return { success: false, error: txError.message };
       }
       throw txError;
+    }
+
+    // Subscribe collected emails (one per unique address) to the newsletter.
+    for (const email of subscriptionEmails) {
+      await subscribeNewsletterFromOrder({ email, name: data.customerName });
+    }
+
+    // Bump analytics counters on each applied promotion. Best-effort, never
+    // blocks the order from being considered complete.
+    for (const [promotionId, savedAmount] of promotionSavedBy) {
+      await incrementPromotionUsage(promotionId, savedAmount);
     }
 
     // Enviar email de confirmación con link para ver orden

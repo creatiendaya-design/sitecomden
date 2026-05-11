@@ -10,12 +10,10 @@ import RichTextContent from "@/components/RichTextContent";
 import { Shield, Truck, Heart, Star } from "lucide-react";
 import LandingBlockRenderer from "@/components/shop/templates/blocks/LandingBlockRenderer";
 import CodOrderModal from "@/components/shop/CodOrderModal";
-import LandingCartDrawer from "@/components/shop/LandingCartDrawer";
-import { DEFAULT_COD_FORM_SETTINGS, type CodFormSettings } from "@/lib/types/cod-form";
-import { buildModalSettings } from "@/lib/cod-forms/template-to-settings";
 import { getProductImageUrl } from "@/lib/image-utils";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
 import type { SizeGuideData } from "@/lib/size-guides/types";
+import type { ProductScopedPromotion } from "@/lib/promotions/types";
 
 interface ProductLandingViewProps {
   product: any;
@@ -28,6 +26,7 @@ interface ProductLandingViewProps {
   totalStock: number;
   landingBlocks?: LandingBlock[];
   sizeGuide?: SizeGuideData | null;
+  promotions?: ProductScopedPromotion[];
 }
 
 export default function ProductLandingView({
@@ -41,6 +40,7 @@ export default function ProductLandingView({
   totalStock,
   landingBlocks = [],
   sizeGuide,
+  promotions,
 }: ProductLandingViewProps) {
   const mainImage = getProductImageUrl(product.images);
 
@@ -52,12 +52,8 @@ export default function ProductLandingView({
   }, []);
 
   const mode = serializedProduct.checkoutMode ?? "STANDARD";
-  const codSettings: CodFormSettings = serializedProduct.codFormTemplate
-    ? buildModalSettings(
-        serializedProduct.codFormTemplate,
-        serializedProduct.shippingRestriction ?? null,
-      )
-    : DEFAULT_COD_FORM_SETTINGS;
+  const codTemplate = serializedProduct.codFormTemplate ?? null;
+  const codShippingRestriction = serializedProduct.shippingRestriction ?? null;
   const isCod = mode === "COD_ONLY" || mode === "COD_AND_CART";
 
   const handleCtaClick = () => {
@@ -87,10 +83,9 @@ export default function ProductLandingView({
             price: Number(serializedProduct.basePrice),
             image: getProductImageUrl(serializedProduct.images) ?? undefined,
           }]}
-          settings={codSettings}
-          buttonStyle={serializedProduct.codFormTemplate?.buttonStyle ?? null}
+          template={codTemplate}
+          shippingRestriction={codShippingRestriction}
         />
-        {mode === "COD_AND_CART" && <LandingCartDrawer codSettings={codSettings} />}
       </div>
     );
   }
@@ -162,6 +157,7 @@ export default function ProductLandingView({
                 codFormTemplate={serializedProduct.codFormTemplate}
                 shippingRestriction={serializedProduct.shippingRestriction}
                 sizeGuide={sizeGuide}
+                promotions={promotions}
               />
 
               {/* Trust Badges */}

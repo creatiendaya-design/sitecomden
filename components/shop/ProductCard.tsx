@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { getProductImageAlt } from "@/lib/image-utils";
 import { ShoppingCart, Heart } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking"; // ✅ Importar tracking
@@ -40,9 +41,13 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const [isWishlisted, setIsWishlisted] = useState(false);
-  
+  const router = useRouter();
+
   const addToCart = useCartStore((state) => state.addItem);
   const { trackEvent } = useTracking(); // ✅ Hook de tracking
+
+  const checkoutMode = (product as { checkoutMode?: string }).checkoutMode ?? "STANDARD";
+  const isCodOnly = checkoutMode !== "STANDARD";
 
   const selectedVariant = product.hasVariants && product.variants && product.variants.length > 0
     ? product.variants[0]
@@ -103,6 +108,13 @@ export default function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Productos asignados a un COD form no pueden ir al carrito normal:
+    // mandamos al detalle donde se abre el modal "Comprar ahora" (COD).
+    if (isCodOnly) {
+      router.push(`/productos/${product.slug}`);
+      return;
+    }
 
     if (displayStock <= 0) {
       toast.error("Producto sin stock");
@@ -259,7 +271,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               disabled={outOfStock}
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
-              {outOfStock ? "Sin stock" : "Agregar al carrito"}
+              {outOfStock ? "Sin stock" : isCodOnly ? "Comprar ahora" : "Agregar al carrito"}
             </Button>
           </div>
         </div>
@@ -312,7 +324,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             disabled={outOfStock}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
-            {outOfStock ? "Sin stock" : "Agregar"}
+            {outOfStock ? "Sin stock" : isCodOnly ? "Comprar ahora" : "Agregar"}
           </Button>
         </div>
       </Link>

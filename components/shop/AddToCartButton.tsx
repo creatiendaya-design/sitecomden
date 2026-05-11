@@ -2,17 +2,24 @@
 
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
-import { useCartStore } from "@/store/cart";
+import {
+  useCartStore,
+  type AppliedPromotion,
+  type SubscriptionOptIn,
+} from "@/store/cart";
 import { toast } from "sonner";
 import { getProductImageUrl } from "@/lib/image-utils";
 import { useRouter } from "next/navigation";
-import { useTracking } from "@/hooks/useTracking"; // ✅ Importar tracking
+import { useTracking } from "@/hooks/useTracking";
 
 interface AddToCartButtonProps {
   product: any;
   variants: any[];
   selectedVariant?: any;
   disabled?: boolean;
+  quantity?: number;
+  appliedPromotion?: AppliedPromotion;
+  subscriptionOptIn?: SubscriptionOptIn;
 }
 
 export default function AddToCartButton({
@@ -20,10 +27,13 @@ export default function AddToCartButton({
   variants,
   selectedVariant,
   disabled,
+  quantity = 1,
+  appliedPromotion,
+  subscriptionOptIn,
 }: AddToCartButtonProps) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
-  const { trackEvent } = useTracking(); // ✅ Hook de tracking
+  const { trackEvent } = useTracking();
 
   const handleAddToCart = () => {
     // Validar si el producto tiene variantes pero no hay ninguna seleccionada
@@ -32,11 +42,16 @@ export default function AddToCartButton({
       return;
     }
 
-    // Si el producto tiene variantes
+    const safeQty = Math.max(1, Math.floor(quantity));
+
     if (product.hasVariants && selectedVariant) {
-      // Validar stock
       if (selectedVariant.stock <= 0) {
         toast.error("Este producto está agotado");
+        return;
+      }
+
+      if (safeQty > selectedVariant.stock) {
+        toast.error(`Solo hay ${selectedVariant.stock} unidades en stock`);
         return;
       }
 
@@ -45,94 +60,127 @@ export default function AddToCartButton({
         .map(([key, value]) => `${key}: ${value}`)
         .join(", ");
 
-      // Obtener la URL correcta de la imagen
       const imageUrl = selectedVariant.image || getProductImageUrl(product.images);
 
-      addItem({
-        id: selectedVariant.id,
-        productId: product.id,
-        variantId: selectedVariant.id,
-        slug: product.slug,
-        name: product.name,
-        variantName,
-        price: Number(selectedVariant.price),
-        image: imageUrl ?? undefined,
-        maxStock: selectedVariant.stock,
-        options: variantOptions,
-      });
+      const baseUnitPrice = Number(selectedVariant.price);
+      const volumeDiscount = appliedPromotion?.discountPerUnit ?? 0;
+      const subscriptionDiscount = subscriptionOptIn?.discountPerUnit ?? 0;
+      const finalUnitPrice = Math.max(
+        0,
+        baseUnitPrice - volumeDiscount - subscriptionDiscount
+      );
 
-      // ✅ Track AddToCart para variante
+      addItem(
+        {
+          id: selectedVariant.id,
+          productId: product.id,
+          variantId: selectedVariant.id,
+          slug: product.slug,
+          name: product.name,
+          variantName,
+          price: finalUnitPrice,
+          originalUnitPrice: baseUnitPrice,
+          image: imageUrl ?? undefined,
+          maxStock: selectedVariant.stock,
+          options: variantOptions,
+          appliedPromotion,
+          subscriptionOptIn,
+        },
+        safeQty
+      );
+
       trackEvent("AddToCart", {
         content_ids: [product.id],
         content_name: product.name,
         content_type: "product",
-        value: Number(selectedVariant.price),
+        value: finalUnitPrice * safeQty,
         currency: "PEN",
         contents: [
           {
             id: selectedVariant.sku || selectedVariant.id,
-            quantity: 1,
-            item_price: Number(selectedVariant.price),
+            quantity: safeQty,
+            item_price: finalUnitPrice,
           },
         ],
       });
 
-      console.log("📊 AddToCart tracked (variant):", product.name, variantName);
+      toast.success(
+        appliedPromotion
+          ? `${safeQty} unidades agregadas con descuento aplicado`
+          : "Producto agregado al carrito"
+      );
 
-      toast.success("Producto agregado al carrito");
-      
-      // Redirigir al carrito inmediatamente
-      router.push('/carrito');
+      router.push("/carrito");
     } else {
-      // Producto simple sin variantes
       if (product.stock <= 0) {
         toast.error("Este producto está agotado");
         return;
       }
 
-      // Obtener la URL correcta de la imagen
+      if (safeQty > product.stock) {
+        toast.error(`Solo hay ${product.stock} unidades en stock`);
+        return;
+      }
+
       const imageUrl = getProductImageUrl(product.images);
 
-      addItem({
-        id: product.id,
-        productId: product.id,
-        slug: product.slug,
-        name: product.name,
-        price: Number(product.basePrice),
-        image: imageUrl ?? undefined,
-        maxStock: product.stock,
-      });
+      const baseUnitPrice = Number(product.basePrice);
+      const volumeDiscount = appliedPromotion?.discountPerUnit ?? 0;
+      const subscriptionDiscount = subscriptionOptIn?.discountPerUnit ?? 0;
+      const finalUnitPrice = Math.max(
+        0,
+        baseUnitPrice - volumeDiscount - subscriptionDiscount
+      );
 
-      // ✅ Track AddToCart para producto simple
+      addItem(
+        {
+          id: product.id,
+          productId: product.id,
+          slug: product.slug,
+          name: product.name,
+          price: finalUnitPrice,
+          originalUnitPrice: baseUnitPrice,
+          image: imageUrl ?? undefined,
+          maxStock: product.stock,
+          appliedPromotion,
+          subscriptionOptIn,
+        },
+        safeQty
+      );
+
       trackEvent("AddToCart", {
         content_ids: [product.id],
         content_name: product.name,
         content_type: "product",
-        value: Number(product.basePrice),
+        value: finalUnitPrice * safeQty,
         currency: "PEN",
         contents: [
           {
             id: product.sku || product.id,
-            quantity: 1,
-            item_price: Number(product.basePrice),
+            quantity: safeQty,
+            item_price: finalUnitPrice,
           },
         ],
       });
 
-      console.log("📊 AddToCart tracked (simple):", product.name);
+      toast.success(
+        appliedPromotion
+          ? `${safeQty} unidades agregadas con descuento aplicado`
+          : "Producto agregado al carrito"
+      );
 
-      toast.success("Producto agregado al carrito");
-      
-      // Redirigir al carrito inmediatamente
-      router.push('/carrito');
+      router.push("/carrito");
     }
   };
 
-  // Determinar si el botón debe estar deshabilitado
-  const isDisabled = disabled || 
+  const isDisabled =
+    disabled ||
     (product.hasVariants && !selectedVariant) ||
     (selectedVariant && selectedVariant.stock <= 0) ||
     (!product.hasVariants && product.stock <= 0);
+
+  const ctaLabel =
+    quantity > 1 ? `Agregar ${quantity} al carrito` : "Agregar al Carrito";
 
   return (
     <Button
@@ -143,7 +191,7 @@ export default function AddToCartButton({
       disabled={isDisabled}
     >
       <ShoppingCart className="mr-2 h-5 w-5" />
-      Agregar al Carrito
+      {ctaLabel}
     </Button>
   );
 }

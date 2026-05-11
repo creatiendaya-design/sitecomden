@@ -7,6 +7,7 @@ import ProductActions from "@/components/shop/ProductActions";
 import RichTextContent from "@/components/RichTextContent";
 import ProductPrice from "@/components/shop/ProductPrice";
 import type { SizeGuideData } from "@/lib/size-guides/types";
+import type { ProductScopedPromotion } from "@/lib/promotions/types";
 
 interface ProductStandardViewProps {
   product: any;
@@ -18,6 +19,7 @@ interface ProductStandardViewProps {
   inStock: boolean;
   totalStock: number;
   sizeGuide?: SizeGuideData | null;
+  promotions?: ProductScopedPromotion[];
 }
 
 export default function ProductStandardView({
@@ -30,6 +32,7 @@ export default function ProductStandardView({
   inStock,
   totalStock,
   sizeGuide,
+  promotions,
 }: ProductStandardViewProps) {
   return (
     <div className="product-detail-container">
@@ -99,6 +102,7 @@ export default function ProductStandardView({
               codFormTemplate={serializedProduct.codFormTemplate}
               shippingRestriction={serializedProduct.shippingRestriction}
               sizeGuide={sizeGuide}
+              promotions={promotions}
             />
 
             <Separator />

@@ -292,22 +292,22 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0 pb-24 sm:pb-0">
+      <div className="flex items-center gap-3">
+        <Button variant="outline" size="icon" asChild className="shrink-0">
           <Link href="/admin/productos">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Nuevo Producto</h1>
-          <p className="text-muted-foreground">Agrega un nuevo producto</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-3xl font-bold leading-tight">Nuevo Producto</h1>
+          <p className="text-xs sm:text-base text-muted-foreground">Agrega un nuevo producto</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Basic Info */}
             <Card>
               <CardHeader>
@@ -592,7 +592,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Estado</CardTitle>
@@ -660,7 +660,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
   onChange={(v) => setFormData({ ...formData, shippingRestriction: v })}
 />
 
-            <Card>
+            <Card className="hidden sm:block">
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>
                   <Save className="mr-2 h-4 w-4" />
@@ -677,6 +677,22 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Sticky bottom save bar — mobile only */}
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur px-3 py-2.5 flex gap-2 shadow-lg">
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+            className="flex-1 h-10"
+          >
+            <Link href="/admin/productos">Cancelar</Link>
+          </Button>
+          <Button type="submit" className="flex-1 h-10" disabled={loading}>
+            <Save className="mr-2 h-4 w-4" />
+            {loading ? "Guardando…" : "Crear"}
+          </Button>
         </div>
       </form>
 

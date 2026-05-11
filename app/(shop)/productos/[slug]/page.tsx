@@ -10,6 +10,7 @@ import type {
   SizeGuideTab,
   SizeGuideTable,
 } from "@/lib/size-guides/types";
+import { getPublicPromotionsForProduct } from "@/lib/promotions/server";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -185,7 +186,10 @@ export default async function ProductDetailPage({
     updatedAt: new Date(),
   }));
 
-  // Serializar product (Prisma Decimal/Date → JS plain objects)
+  // Serializar product (Prisma Decimal/Date → JS plain objects). The
+  // top-level spread carries nested relations (variants, customizableTemplate)
+  // that still hold Decimal instances, so we override them with already-
+  // serialized versions before passing to Client Components.
   const serializedProductFull = {
     ...product,
     basePrice: Number(product.basePrice),
@@ -193,6 +197,15 @@ export default async function ProductDetailPage({
     weight: product.weight ? Number(product.weight) : null,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
+    variants: serializedVariants,
+    customizableTemplate: product.customizableTemplate
+      ? {
+          id: product.customizableTemplate.id,
+          surcharge: product.customizableTemplate.surcharge
+            ? Number(product.customizableTemplate.surcharge)
+            : null,
+        }
+      : null,
     landingBlocks: renderableLandingBlocks.map((b) => ({
       ...b,
       createdAt: b.createdAt.toISOString(),
@@ -217,6 +230,8 @@ export default async function ProductDetailPage({
       }
     : null;
 
+  const promotions = await getPublicPromotionsForProduct(product.id);
+
   // Props compartidos para todos los templates
   const templateProps = {
     product: serializedProductFull,
@@ -229,6 +244,7 @@ export default async function ProductDetailPage({
     totalStock,
     landingBlocks: renderableLandingBlocks,
     sizeGuide: sizeGuideForView,
+    promotions,
   };
 
   return (
