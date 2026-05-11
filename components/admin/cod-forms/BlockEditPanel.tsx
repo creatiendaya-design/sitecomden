@@ -50,12 +50,12 @@ export default function BlockEditPanel({
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-96 overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Editar: {blockTypeLabel(block.type)}</SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-4 mt-4 text-sm">
+        <div className="space-y-4 px-4 pb-6 text-sm">
           {isField && (
             <>
               <div className="flex items-center justify-between">
@@ -184,11 +184,18 @@ export default function BlockEditPanel({
           )}
 
           {block.type === "SHIPPING_OPTIONS" && (
-            <ToggleRow
-              label="Mostrar 'Envío gratis'"
-              value={bool(c.showFreeShipping)}
-              onChange={(v) => setContent({ showFreeShipping: v })}
-            />
+            <p className="text-xs text-muted-foreground">
+              Los métodos de envío (incluyendo envío gratis) se configuran en{" "}
+              <a
+                href="/admin/envios"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Envíos
+              </a>
+              . Este bloque los muestra automáticamente según la zona del cliente.
+            </p>
           )}
 
           {block.type === "ORDER_SUMMARY" && (

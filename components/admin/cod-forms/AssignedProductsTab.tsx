@@ -35,10 +35,15 @@ export default function AssignedProductsTab({ templateId }: { templateId: string
   }, [templateId])
 
   const onUnassign = async (id: string) => {
-    if (!confirm("¿Quitar este producto de la plantilla? Se reasignará a Default.")) return
+    if (
+      !confirm(
+        "¿Quitar este producto de la plantilla? Se reasignará a Default y el modo de checkout volverá a Carrito normal (sin COD).",
+      )
+    )
+      return
     try {
       await unassignProductsFromTemplate(templateId, [id])
-      toast.success("Producto reasignado a Default")
+      toast.success("Producto reasignado a Default · Carrito normal")
       reload()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error")
@@ -47,11 +52,21 @@ export default function AssignedProductsTab({ templateId }: { templateId: string
 
   return (
     <section className="border rounded-lg bg-white">
-      <div className="p-3 border-b flex items-center justify-between">
-        <span className="font-medium text-sm">Productos asignados ({rows.length})</span>
-        <Button size="sm" variant="outline" onClick={() => setModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Asignar productos
+      <div className="p-3 border-b flex items-center justify-between gap-2">
+        <span className="font-medium text-sm truncate min-w-0">
+          <span className="hidden sm:inline">Productos asignados</span>
+          <span className="sm:hidden">Productos</span>
+          {" "}({rows.length})
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setModalOpen(true)}
+          className="shrink-0 px-2 sm:px-3"
+        >
+          <Plus className="h-4 w-4 sm:mr-1" />
+          <span className="hidden sm:inline">Asignar productos</span>
+          <span className="sm:hidden">Asignar</span>
         </Button>
       </div>
       <div className="p-3 space-y-1">
@@ -61,9 +76,17 @@ export default function AssignedProductsTab({ templateId }: { templateId: string
         )}
         {rows.map((r) => (
           <div key={r.id} className="flex items-center gap-2 p-2 border rounded text-sm">
-            <span className="flex-1 truncate">{r.name}</span>
-            <span className="text-xs text-muted-foreground">/{r.slug}</span>
-            <Button variant="ghost" size="icon" onClick={() => onUnassign(r.id)} aria-label="Quitar">
+            <div className="flex-1 min-w-0">
+              <div className="truncate font-medium">{r.name}</div>
+              <div className="text-[11px] text-muted-foreground truncate">/{r.slug}</div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onUnassign(r.id)}
+              aria-label="Quitar"
+              className="h-8 w-8 shrink-0"
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>

@@ -40,9 +40,9 @@ export type CartItemsContent = {
   showQuantitySelector: boolean
 }
 
-export type ShippingOptionsContent = {
-  showFreeShipping: boolean
-}
+// SHIPPING_OPTIONS no longer has block-level config. Las opciones (incluyendo
+// "envío gratis" via `freeShippingMin`) se gestionan en /admin/envios.
+export type ShippingOptionsContent = Record<string, never>
 
 export type OrderSummaryContent = {
   showSubtotal: boolean
@@ -84,6 +84,11 @@ export type CodFormTemplateData = {
   thankYouPageId: string | null
   thankYouPageSlug: string | null
   blocks: CodFormBlock[]
+  /// Per-template shipping profile (Shopify-style). When non-empty, only
+  /// these rates appear in the COD modal for products bound to this
+  /// template. When empty, the modal falls back to the regular (non-
+  /// excluded) rates for the customer's district.
+  shippingRateIds: string[]
 }
 
 export type ShippingRestriction = {

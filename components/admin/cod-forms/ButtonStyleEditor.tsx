@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useCodFormEditor } from "./store"
+import IconPickerField from "./IconPickerField"
 import type { ButtonStyle } from "@/lib/cod-forms/types"
 
 export default function ButtonStyleEditor() {
@@ -28,7 +29,7 @@ export default function ButtonStyleEditor() {
       </button>
       {open && (
         <div className="p-3 border-t space-y-3 text-sm">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <div className="col-span-2">
               <Label className="text-xs">Texto del botón</Label>
               <Input value={buttonText} onChange={(e) => setText(e.target.value)} />
@@ -123,12 +124,11 @@ export default function ButtonStyleEditor() {
                 <option value="bounce">Rebotar</option>
               </select>
             </div>
-            <div>
-              <Label className="text-xs">Ícono (lucide)</Label>
-              <Input
-                value={style.icon ?? ""}
-                onChange={(e) => patch({ icon: e.target.value || null })}
-                placeholder="ShoppingBag, ShoppingCart, ..."
+            <div className="col-span-2">
+              <Label className="text-xs">Ícono</Label>
+              <IconPickerField
+                value={style.icon ?? null}
+                onChange={(icon) => patch({ icon })}
               />
             </div>
           </div>

@@ -24,6 +24,8 @@ type EditorState = CodFormTemplateData & {
   patchBlock: (id: string, patch: Partial<CodFormBlock>) => void
   addBlock: (type: CodFormBlockType) => void
   removeBlock: (id: string) => void
+  setShippingRateIds: (ids: string[]) => void
+  toggleShippingRateId: (id: string) => void
   setSaveStatus: (s: EditorState["saveStatus"]) => void
   hydrate: (data: CodFormTemplateData) => void
 }
@@ -43,9 +45,15 @@ export const useCodFormEditor = create<EditorState>((set) => ({
   thankYouPageId: null,
   thankYouPageSlug: null,
   blocks: [],
+  shippingRateIds: [],
   saveStatus: "idle",
 
-  hydrate: (data) => set({ ...data, saveStatus: "idle" }),
+  hydrate: (data) =>
+    set({
+      ...data,
+      shippingRateIds: [...(data.shippingRateIds ?? [])].sort(),
+      saveStatus: "idle",
+    }),
   setName: (name) => set({ name }),
   setButtonText: (buttonText) => set({ buttonText }),
   setButtonStyle: (patch) =>
@@ -91,5 +99,15 @@ export const useCodFormEditor = create<EditorState>((set) => ({
         .filter((b) => b.id !== id)
         .map((b, idx) => ({ ...b, position: idx })),
     })),
+  setShippingRateIds: (ids) =>
+    set({ shippingRateIds: [...ids].sort() }),
+  toggleShippingRateId: (rateId) =>
+    set((s) => {
+      const has = s.shippingRateIds.includes(rateId)
+      const next = has
+        ? s.shippingRateIds.filter((x) => x !== rateId)
+        : [...s.shippingRateIds, rateId]
+      return { shippingRateIds: next.slice().sort() }
+    }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),
 }))

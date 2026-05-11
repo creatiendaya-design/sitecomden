@@ -41,6 +41,9 @@ function serializeTemplate(t: any): CodFormTemplateData {
         visible: b.visible,
         required: b.required,
       })),
+    shippingRateIds: ((t.shippingRates ?? []) as Array<{ id: string }>)
+      .map((r) => r.id)
+      .sort(),
   }
 }
 
@@ -75,6 +78,7 @@ export async function getTemplate(id: string): Promise<CodFormTemplateData> {
     include: {
       blocks: { orderBy: { position: "asc" } },
       thankYouPage: { select: { slug: true } },
+      shippingRates: { select: { id: true } },
     },
   })
   if (!t) throw new Error("Plantilla no encontrada")
@@ -209,6 +213,9 @@ export async function updateTemplate(
         whatsappNumber: parsed.whatsappNumber,
         whatsappMessage: parsed.whatsappMessage,
         thankYouPageId: parsed.thankYouPageId,
+        shippingRates: {
+          set: parsed.shippingRateIds.map((rid) => ({ id: rid })),
+        },
       },
     })
 
@@ -311,7 +318,10 @@ export async function unassignProductsFromTemplate(
 
   const result = await prisma.product.updateMany({
     where: { id: { in: productIds }, codFormTemplateId: templateId },
-    data: { codFormTemplateId: fallback.id },
+    data: {
+      codFormTemplateId: fallback.id,
+      checkoutMode: "STANDARD",
+    },
   })
 
   revalidatePath("/admin/productos")

@@ -61,8 +61,12 @@ export default function AssignProductsModal({
     if (picked.size === 0) return
     startTransition(async () => {
       try {
-        await assignTemplateToProducts(templateId, Array.from(picked))
-        toast.success("Plantilla asignada")
+        await assignTemplateToProducts(
+          templateId,
+          Array.from(picked),
+          "COD_ONLY",
+        )
+        toast.success("Plantilla asignada · Modo de checkout: Solo COD")
         onAssigned()
         onClose()
       } catch (e) {

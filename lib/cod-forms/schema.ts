@@ -38,9 +38,7 @@ const cartItemsContentSchema = z.object({
   showQuantitySelector: z.boolean(),
 })
 
-const shippingOptionsContentSchema = z.object({
-  showFreeShipping: z.boolean(),
-})
+const shippingOptionsContentSchema = z.object({})
 
 const orderSummaryContentSchema = z.object({
   showSubtotal: z.boolean(),
@@ -116,6 +114,7 @@ export const templateUpdateSchema = z.object({
   whatsappMessage: z.string().nullable(),
   thankYouPageId: z.string().nullable(),
   blocks: z.array(blockSchema),
+  shippingRateIds: z.array(z.string()).default([]),
 }).superRefine((tpl, ctx) => {
   if (tpl.postSubmitAction === "WHATSAPP_REDIRECT" && !tpl.whatsappNumber) {
     ctx.addIssue({

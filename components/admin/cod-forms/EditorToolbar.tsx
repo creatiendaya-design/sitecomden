@@ -32,6 +32,7 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
   const whatsappMessage = useCodFormEditor((s) => s.whatsappMessage)
   const thankYouPageId = useCodFormEditor((s) => s.thankYouPageId)
   const blocks = useCodFormEditor((s) => s.blocks)
+  const shippingRateIds = useCodFormEditor((s) => s.shippingRateIds)
   const saveStatus = useCodFormEditor((s) => s.saveStatus)
   const setSaveStatus = useCodFormEditor((s) => s.setSaveStatus)
 
@@ -49,6 +50,7 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
     whatsappMessage,
     thankYouPageId,
     blocks,
+    shippingRateIds,
   })
 
   useEffect(() => {
@@ -85,6 +87,7 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
           ...b,
           position: idx,
         })),
+        shippingRateIds,
       })
       if (!parsed.success) {
         console.error("[cod-forms] auto-save validation failed:", parsed.error.issues)
@@ -116,39 +119,45 @@ export default function EditorToolbar({ pages }: { pages: PageOpt[] }) {
   }, [saveStatus, setSaveStatus])
 
   return (
-    <header className="flex items-center gap-3 border-b px-4 py-2">
-      <Link href="/admin/formularios-cod">
-        <Button variant="ghost" size="sm">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Volver
+    <header className="flex items-center gap-1.5 sm:gap-3 border-b px-2 sm:px-4 py-2">
+      <Link href="/admin/formularios-cod" className="shrink-0">
+        <Button variant="ghost" size="sm" className="px-2 sm:px-3" aria-label="Volver">
+          <ArrowLeft className="h-4 w-4 sm:mr-1" />
+          <span className="hidden sm:inline">Volver</span>
         </Button>
       </Link>
       <Input
         value={name}
         onChange={(e) => useCodFormEditor.getState().setName(e.target.value)}
-        className="max-w-xs font-medium"
+        className="min-w-0 flex-1 sm:flex-none sm:max-w-xs font-medium h-9"
+        aria-label="Nombre de la plantilla"
       />
       <PostSubmitActionPopover pages={pages}>
-        <Button variant="ghost" size="sm">
-          <Settings className="h-4 w-4 mr-1" />
-          Acción al confirmar
+        <Button
+          variant="ghost"
+          size="sm"
+          className="px-2 sm:px-3 shrink-0"
+          aria-label="Acción al confirmar"
+        >
+          <Settings className="h-4 w-4 sm:mr-1" />
+          <span className="hidden sm:inline">Acción al confirmar</span>
         </Button>
       </PostSubmitActionPopover>
-      <div className="ml-auto flex items-center text-xs text-muted-foreground gap-1">
+      <div className="ml-auto flex items-center text-xs text-muted-foreground gap-1 shrink-0">
         {saveStatus === "saving" && (
           <>
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Guardando...
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className="hidden sm:inline">Guardando...</span>
           </>
         )}
         {saveStatus === "saved" && (
           <>
-            <Check className="h-3 w-3 text-green-600" />
-            Guardado
+            <Check className="h-3.5 w-3.5 text-green-600" />
+            <span className="hidden sm:inline">Guardado</span>
           </>
         )}
         {saveStatus === "error" && (
-          <span className="text-red-600">Error al guardar</span>
+          <span className="text-red-600 text-[11px] sm:text-xs">Error</span>
         )}
       </div>
     </header>

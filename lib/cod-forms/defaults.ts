@@ -40,9 +40,7 @@ export const DEFAULT_CART_ITEMS_CONTENT: CartItemsContent = {
   showQuantitySelector: true,
 }
 
-export const DEFAULT_SHIPPING_OPTIONS_CONTENT: ShippingOptionsContent = {
-  showFreeShipping: true,
-}
+export const DEFAULT_SHIPPING_OPTIONS_CONTENT: ShippingOptionsContent = {}
 
 export const DEFAULT_ORDER_SUMMARY_CONTENT: OrderSummaryContent = {
   showSubtotal: true,

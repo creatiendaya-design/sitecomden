@@ -90,25 +90,37 @@ export default function SortableBlockItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 p-2 bg-white border rounded text-sm"
+      className="flex items-center gap-1.5 sm:gap-2 p-2 bg-white border rounded text-sm"
     >
       <button
         type="button"
         {...attributes}
         {...listeners}
-        className="cursor-grab text-muted-foreground hover:text-foreground"
+        className="cursor-grab text-muted-foreground hover:text-foreground shrink-0 touch-none"
         aria-label="Arrastrar"
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      <Icon className="h-4 w-4 text-muted-foreground" />
+      <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
       <span className="flex-1 truncate">{LABELS[block.type]}</span>
       {!isSubmit && (
-        <Button variant="ghost" size="icon" onClick={onEdit}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEdit}
+          className="h-8 w-8 shrink-0"
+          aria-label="Editar"
+        >
           <Pencil className="h-4 w-4" />
         </Button>
       )}
-      <Button variant="ghost" size="icon" onClick={onToggleVisible}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onToggleVisible}
+        className="h-8 w-8 shrink-0"
+        aria-label={block.visible ? "Ocultar" : "Mostrar"}
+      >
         {block.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
       </Button>
       <Button
@@ -116,6 +128,7 @@ export default function SortableBlockItem({
         size="icon"
         onClick={onDelete}
         disabled={isSubmit}
+        className="h-8 w-8 shrink-0"
         aria-label="Eliminar"
       >
         <Trash2 className="h-4 w-4" />
