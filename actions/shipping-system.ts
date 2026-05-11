@@ -4,29 +4,15 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 // ============================================================
-// SHIPPING ZONES (Zonas Geográficas)
+// SHIPPING ZONES
 // ============================================================
 
-/**
- * Obtener todas las zonas
- * ✅ ACTUALIZADO: Ahora incluye rateCount
- */
 export async function getShippingZones() {
   try {
     const zones = await prisma.shippingZone.findMany({
       include: {
-        districts: {
-          select: { id: true },
-        },
-        rateGroups: {
-          // ✅ CAMBIO AQUÍ: Incluir rates para contar
-          select: { 
-            id: true,
-            rates: {
-              select: { id: true }
-            }
-          },
-        },
+        districts: { select: { id: true } },
+        rates: { select: { id: true } },
       },
       orderBy: { name: "asc" },
     });
@@ -36,12 +22,7 @@ export async function getShippingZones() {
       data: zones.map((zone) => ({
         ...zone,
         districtCount: zone.districts.length,
-        groupCount: zone.rateGroups.length,
-        // ✅ CAMBIO AQUÍ: Agregar rateCount
-        rateCount: zone.rateGroups.reduce(
-          (total, group) => total + group.rates.length,
-          0
-        ),
+        rateCount: zone.rates.length,
       })),
     };
   } catch (error) {
@@ -50,18 +31,9 @@ export async function getShippingZones() {
   }
 }
 
-/**
- * Obtener zona por ID
- * ⭐ FIX: Validar id antes del query
- */
 export async function getShippingZoneById(id: string | undefined) {
-  // ✅ VALIDAR PRIMERO
   if (!id?.trim()) {
-    return { 
-      success: false, 
-      error: "Zone ID required", 
-      data: null 
-    };
+    return { success: false, error: "Zone ID required", data: null };
   }
 
   try {
@@ -69,11 +41,7 @@ export async function getShippingZoneById(id: string | undefined) {
       where: { id },
       include: {
         districts: true,
-        rateGroups: {
-          include: {
-            rates: true,
-          },
-        },
+        rates: { orderBy: [{ category: "asc" }, { order: "asc" }] },
       },
     });
 
@@ -88,9 +56,6 @@ export async function getShippingZoneById(id: string | undefined) {
   }
 }
 
-/**
- * Crear zona
- */
 export async function createShippingZone(data: {
   name: string;
   description?: string;
@@ -106,6 +71,7 @@ export async function createShippingZone(data: {
     });
 
     revalidatePath("/admin/envios/zonas");
+    revalidatePath("/admin/envios");
 
     return {
       success: true,
@@ -118,84 +84,57 @@ export async function createShippingZone(data: {
   }
 }
 
-/**
- * Actualizar zona
- * ⭐ FIX: Validar id antes del query
- */
 export async function updateShippingZone(
   id: string | undefined,
-  data: {
-    name?: string;
-    description?: string;
-    active?: boolean;
-  }
+  data: { name?: string; description?: string; active?: boolean },
 ) {
-  // ✅ VALIDAR PRIMERO
   if (!id?.trim()) {
-    return { 
-      success: false, 
-      error: "Zone ID required", 
-      data: null 
-    };
+    return { success: false, error: "Zone ID required", data: null };
   }
 
   try {
     const zone = await prisma.shippingZone.update({
       where: { id },
-      data: {
-        ...data,
-        updatedAt: new Date(),
-      },
+      data: { ...data, updatedAt: new Date() },
     });
 
     revalidatePath("/admin/envios/zonas");
     revalidatePath(`/admin/envios/zonas/${id}`);
+    revalidatePath("/admin/envios");
 
-    return {
-      success: true,
-      data: zone,
-      message: "Zona actualizada exitosamente",
-    };
+    return { success: true, data: zone, message: "Zona actualizada exitosamente" };
   } catch (error) {
     console.error("Error updating zone:", error);
     return { success: false, error: "Error al actualizar zona", data: null };
   }
 }
 
-/**
- * Eliminar zona
- * ⭐ FIX: Validar id antes del query
- */
 export async function deleteShippingZone(id: string | undefined) {
-  // ✅ VALIDAR PRIMERO
   if (!id?.trim()) {
-    return { 
-      success: false, 
-      error: "Zone ID required" 
-    };
+    return { success: false, error: "Zone ID required" };
   }
 
   try {
-    // Verificar si tiene grupos
     const zone = await prisma.shippingZone.findUnique({
       where: { id },
-      include: { rateGroups: true, districts: true },
+      include: { rates: true, districts: true },
     });
 
     if (!zone) {
       return { success: false, error: "Zona no encontrada" };
     }
 
-    if (zone.rateGroups.length > 0) {
+    if (zone.rates.length > 0) {
       return {
         success: false,
-        error: `No se puede eliminar. La zona tiene ${zone.rateGroups.length} grupos de tarifas.`,
+        error: `No se puede eliminar. La zona tiene ${zone.rates.length} tarifas configuradas.`,
       };
     }
 
     await prisma.shippingZone.delete({ where: { id } });
 
     revalidatePath("/admin/envios/zonas");
+    revalidatePath("/admin/envios");
 
     return { success: true, message: "Zona eliminada exitosamente" };
   } catch (error) {
@@ -204,28 +143,16 @@ export async function deleteShippingZone(id: string | undefined) {
   }
 }
 
-/**
- * Toggle estado de zona
- * ⭐ FIX: Validar id antes del query
- */
 export async function toggleShippingZoneStatus(
-  id: string | undefined, 
-  active: boolean
+  id: string | undefined,
+  active: boolean,
 ) {
-  // ✅ VALIDAR PRIMERO
   if (!id?.trim()) {
-    return { 
-      success: false, 
-      error: "Zone ID required" 
-    };
+    return { success: false, error: "Zone ID required" };
   }
 
   try {
-    await prisma.shippingZone.update({
-      where: { id },
-      data: { active },
-    });
-
+    await prisma.shippingZone.update({ where: { id }, data: { active } });
     revalidatePath("/admin/envios/zonas");
 
     return {
@@ -239,389 +166,247 @@ export async function toggleShippingZoneStatus(
 }
 
 // ============================================================
-// ZONE DISTRICTS (Asignación de Distritos)
+// ZONE DISTRICTS
 // ============================================================
 
-/**
- * Asignar distrito a zona
- * ⭐ FIX: Validar zoneId y districtCode
- */
-export async function assignDistrictToZone(
+export async function bulkAssignDistrictsToZone(
   zoneId: string | undefined,
-  districtCode: string | undefined
+  districtCodes: string[],
 ) {
-  // ✅ VALIDAR PRIMERO
-  if (!zoneId?.trim() || !districtCode?.trim()) {
-    return {
-      success: false,
-      error: "Zone ID and district code required",
-    };
-  }
-
-  try {
-    // Verificar si ya está asignado
-    const existing = await prisma.shippingZoneDistrict.findFirst({
-      where: { districtCode },
-      include: { shippingZone: true },
-    });
-
-    if (existing) {
-      return {
-        success: false,
-        error: `Este distrito ya está en "${existing.shippingZone.name}"`,
-      };
-    }
-
-    await prisma.shippingZoneDistrict.create({
-      data: { shippingZoneId: zoneId, districtCode },
-    });
-
-    revalidatePath(`/admin/envios/zonas/${zoneId}/distritos`);
-
-    return { success: true, message: "Distrito asignado" };
-  } catch (error) {
-    console.error("Error assigning district:", error);
-    return { success: false, error: "Error al asignar distrito" };
-  }
-}
-
-/**
- * Quitar distrito de zona
- * ⭐ FIX: Validar zoneId y districtCode
- */
-export async function removeDistrictFromZone(
-  zoneId: string | undefined,
-  districtCode: string | undefined
-) {
-  // ✅ VALIDAR PRIMERO
-  if (!zoneId?.trim() || !districtCode?.trim()) {
-    return {
-      success: false,
-      error: "Zone ID and district code required",
-    };
-  }
-
-  try {
-    await prisma.shippingZoneDistrict.deleteMany({
-      where: { shippingZoneId: zoneId, districtCode },
-    });
-
-    revalidatePath(`/admin/envios/zonas/${zoneId}/distritos`);
-
-    return { success: true, message: "Distrito removido" };
-  } catch (error) {
-    console.error("Error removing district:", error);
-    return { success: false, error: "Error al remover distrito" };
-  }
-}
-
-/**
- * Obtener distritos de una zona
- * ⭐ FIX: Validar zoneId
- */
-export async function getZoneDistricts(zoneId: string | undefined) {
-  // ✅ VALIDAR PRIMERO
   if (!zoneId?.trim()) {
     return {
       success: false,
       error: "Zone ID required",
-      data: [],
+      data: { added: 0, skipped: 0, conflicts: [] as { code: string; zone: string }[] },
+    };
+  }
+
+  const codes = (districtCodes || []).map((c) => c?.trim()).filter(Boolean) as string[];
+  if (codes.length === 0) {
+    return {
+      success: false,
+      error: "No districts provided",
+      data: { added: 0, skipped: 0, conflicts: [] as { code: string; zone: string }[] },
     };
   }
 
   try {
-    const assignments = await prisma.shippingZoneDistrict.findMany({
-      where: { shippingZoneId: zoneId },
+    const existing = await prisma.shippingZoneDistrict.findMany({
+      where: { districtCode: { in: codes } },
+      include: { shippingZone: { select: { name: true, id: true } } },
     });
 
-    const districtCodes = assignments.map((a) => a.districtCode);
-    const districts = await prisma.district.findMany({
-      where: { code: { in: districtCodes } },
-      include: {
-        province: {
-          include: { department: true },
-        },
-      },
-    });
+    const conflicts: { code: string; zone: string }[] = [];
+    const alreadyHere = new Set<string>();
+    for (const a of existing) {
+      if (a.shippingZoneId === zoneId) {
+        alreadyHere.add(a.districtCode);
+      } else {
+        conflicts.push({ code: a.districtCode, zone: a.shippingZone.name });
+      }
+    }
+
+    const blocked = new Set([...alreadyHere, ...conflicts.map((c) => c.code)]);
+    const toCreate = codes.filter((c) => !blocked.has(c));
+
+    if (toCreate.length > 0) {
+      await prisma.shippingZoneDistrict.createMany({
+        data: toCreate.map((code) => ({ shippingZoneId: zoneId, districtCode: code })),
+        skipDuplicates: true,
+      });
+    }
+
+    revalidatePath(`/admin/envios/zonas/${zoneId}`);
+    revalidatePath(`/admin/envios/zonas/${zoneId}/distritos`);
 
     return {
       success: true,
-      data: districts.map((d) => ({
-        code: d.code,
-        name: d.name,
-        province: d.province.name,
-        department: d.province.department.name,
-      })),
+      data: { added: toCreate.length, skipped: alreadyHere.size, conflicts },
     };
   } catch (error) {
-    console.error("Error fetching zone districts:", error);
+    console.error("Error bulk-assigning districts:", error);
+    return {
+      success: false,
+      error: "Error al asignar distritos en lote",
+      data: { added: 0, skipped: 0, conflicts: [] as { code: string; zone: string }[] },
+    };
+  }
+}
+
+export async function searchDistrictsForZone(
+  zoneId: string | undefined,
+  query: string,
+  limit = 30,
+) {
+  if (!zoneId?.trim()) {
+    return { success: false, error: "Zone ID required", data: [] };
+  }
+
+  const q = (query || "").trim();
+  if (q.length < 2) return { success: true, data: [] };
+
+  try {
+    const districts = await prisma.district.findMany({
+      where: {
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { code: { contains: q } },
+        ],
+      },
+      include: { province: { include: { department: true } } },
+      take: limit,
+      orderBy: { name: "asc" },
+    });
+
+    const codes = districts.map((d) => d.code);
+    const assignments = await prisma.shippingZoneDistrict.findMany({
+      where: { districtCode: { in: codes } },
+      include: { shippingZone: { select: { id: true, name: true } } },
+    });
+    const assignmentMap = new Map(assignments.map((a) => [a.districtCode, a]));
+
+    return {
+      success: true,
+      data: districts.map((d) => {
+        const assignment = assignmentMap.get(d.code);
+        return {
+          code: d.code,
+          name: d.name,
+          province: d.province.name,
+          department: d.province.department.name,
+          assignedZoneId: assignment?.shippingZoneId || null,
+          assignedZoneName: assignment?.shippingZone.name || null,
+          assignedHere: assignment?.shippingZoneId === zoneId,
+        };
+      }),
+    };
+  } catch (error) {
+    console.error("Error searching districts:", error);
+    return { success: false, error: "Error al buscar distritos", data: [] };
+  }
+}
+
+export async function getProvinceDistrictsForZone(
+  zoneId: string | undefined,
+  provinceId: string | undefined,
+) {
+  if (!zoneId?.trim() || !provinceId?.trim()) {
+    return { success: false, error: "Zone ID and province ID required", data: [] };
+  }
+
+  try {
+    const districts = await prisma.district.findMany({
+      where: { provinceId },
+      orderBy: { name: "asc" },
+    });
+
+    const codes = districts.map((d) => d.code);
+    const assignments = await prisma.shippingZoneDistrict.findMany({
+      where: { districtCode: { in: codes } },
+      include: { shippingZone: { select: { id: true, name: true } } },
+    });
+    const assignmentMap = new Map(assignments.map((a) => [a.districtCode, a]));
+
+    return {
+      success: true,
+      data: districts.map((d) => {
+        const a = assignmentMap.get(d.code);
+        return {
+          code: d.code,
+          name: d.name,
+          assignedZoneId: a?.shippingZoneId || null,
+          assignedZoneName: a?.shippingZone.name || null,
+          assignedHere: a?.shippingZoneId === zoneId,
+        };
+      }),
+    };
+  } catch (error) {
+    console.error("Error fetching province districts:", error);
     return { success: false, error: "Error al cargar distritos", data: [] };
   }
 }
 
-/**
- * Buscar distritos disponibles
- */
-export async function searchAvailableDistricts(
-  query: string,
-  limit: number = 20
-) {
-  try {
-    const assignedCodes = await prisma.shippingZoneDistrict.findMany({
-      select: { districtCode: true },
-    });
-    const assignedSet = new Set(assignedCodes.map((a) => a.districtCode));
-
-    const districts = await prisma.district.findMany({
-      where: {
-        OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { code: { contains: query } },
-        ],
-      },
-      include: {
-        province: { include: { department: true } },
-      },
-      take: limit,
-    });
-
-    const available = districts
-      .filter((d) => !assignedSet.has(d.code))
-      .map((d) => ({
-        code: d.code,
-        name: d.name,
-        province: d.province.name,
-        department: d.province.department.name,
-        fullName: `${d.name} (${d.province.name} - ${d.province.department.name})`,
-      }));
-
-    return { success: true, data: available };
-  } catch (error) {
-    console.error("Error searching districts:", error);
-    return { success: false, error: "Error al buscar", data: [] };
-  }
-}
-
 // ============================================================
-// RATE GROUPS (Grupos de Tarifas)
+// SHIPPING RATES
 // ============================================================
 
-/**
- * Obtener grupos de una zona
- * ⭐ FIX: Validar zoneId
- */
-export async function getRateGroupsByZone(zoneId: string | undefined) {
-  // ✅ VALIDAR PRIMERO
-  if (!zoneId?.trim()) {
-    return {
-      success: false,
-      error: "Zone ID required",
-      data: [],
-    };
-  }
-
-  try {
-    const groups = await prisma.shippingRateGroup.findMany({
-      where: { zoneId },
-      include: {
-        rates: {
-          select: { id: true },
-        },
-      },
-      orderBy: { order: "asc" },
-    });
-
-    return {
-      success: true,
-      data: groups.map((g) => ({
-        ...g,
-        rateCount: g.rates.length,
-      })),
-    };
-  } catch (error) {
-    console.error("Error fetching rate groups:", error);
-    return { success: false, error: "Error al cargar grupos", data: [] };
-  }
-}
-
-/**
- * Obtener grupo por ID
- * ⭐ FIX: Validar id
- */
-export async function getRateGroupById(id: string | undefined) {
-  // ✅ VALIDAR PRIMERO
-  if (!id?.trim()) {
-    return {
-      success: false,
-      error: "Group ID required",
-      data: null,
-    };
-  }
-
-  try {
-    const group = await prisma.shippingRateGroup.findUnique({
-      where: { id },
-      include: {
-        zone: true,
-        rates: { orderBy: { order: "asc" } },
-      },
-    });
-
-    if (!group) {
-      return { success: false, error: "Grupo no encontrado", data: null };
-    }
-
-    return { success: true, data: group };
-  } catch (error) {
-    console.error("Error fetching group:", error);
-    return { success: false, error: "Error al cargar grupo", data: null };
-  }
-}
-
-/**
- * Crear grupo de tarifas
- */
-export async function createRateGroup(data: {
-  zoneId: string;
+interface RateInput {
   name: string;
-  description?: string;
-  order: number;
+  description?: string | null;
+  category?: string | null;
+  baseCost: number;
+  minOrderAmount?: number | null;
+  maxOrderAmount?: number | null;
+  freeShippingMin?: number | null;
+  estimatedDays?: string | null;
+  carrier?: string | null;
+  shippingType?: string | null;
+  timeWindow?: string | null;
   active: boolean;
-}) {
+  excludeFromRegularCheckout?: boolean;
+}
+
+export async function createShippingRate(input: { zoneId: string; rate: RateInput }) {
+  const { zoneId, rate } = input;
+
+  if (!zoneId?.trim()) {
+    return { success: false, error: "Zone ID required", data: null };
+  }
+  if (!rate.name?.trim()) {
+    return { success: false, error: "El nombre es obligatorio", data: null };
+  }
+  if (!Number.isFinite(rate.baseCost) || rate.baseCost < 0) {
+    return { success: false, error: "El costo debe ser un número válido", data: null };
+  }
+
   try {
-    const group = await prisma.shippingRateGroup.create({
+    const lastOrder = await prisma.shippingRate.findFirst({
+      where: { zoneId },
+      orderBy: { order: "desc" },
+      select: { order: true },
+    });
+
+    const created = await prisma.shippingRate.create({
       data: {
-        zoneId: data.zoneId,
-        name: data.name,
-        description: data.description,
-        order: data.order,
-        active: data.active,
+        zoneId,
+        name: rate.name.trim(),
+        description: rate.description?.trim() || null,
+        category: rate.category?.trim() || null,
+        baseCost: rate.baseCost,
+        minOrderAmount: rate.minOrderAmount ?? null,
+        maxOrderAmount: rate.maxOrderAmount ?? null,
+        freeShippingMin: rate.freeShippingMin ?? null,
+        estimatedDays: rate.estimatedDays?.trim() || null,
+        carrier: rate.carrier?.trim() || null,
+        shippingType: rate.shippingType?.trim() || null,
+        timeWindow: rate.timeWindow?.trim() || null,
+        order: (lastOrder?.order ?? -1) + 1,
+        active: rate.active,
+        excludeFromRegularCheckout: rate.excludeFromRegularCheckout ?? false,
       },
     });
 
-    revalidatePath(`/admin/envios/zonas/${data.zoneId}/grupos`);
+    revalidatePath(`/admin/envios/zonas/${zoneId}`);
+    revalidatePath("/admin/envios/tarifas");
+    revalidatePath("/admin/envios");
 
-    return {
-      success: true,
-      data: group,
-      message: "Grupo creado exitosamente",
-    };
+    return { success: true, data: created, message: "Tarifa creada" };
   } catch (error) {
-    console.error("Error creating group:", error);
-    return { success: false, error: "Error al crear grupo", data: null };
+    console.error("Error creating rate:", error);
+    return { success: false, error: "Error al crear tarifa", data: null };
   }
 }
 
-/**
- * Actualizar grupo
- * ⭐ FIX: Validar id
- */
-export async function updateRateGroup(
-  id: string | undefined,
-  data: {
-    name?: string;
-    description?: string;
-    order?: number;
-    active?: boolean;
-  }
-) {
-  // ✅ VALIDAR PRIMERO
-  if (!id?.trim()) {
-    return {
-      success: false,
-      error: "Group ID required",
-      data: null,
-    };
-  }
-
-  try {
-    const group = await prisma.shippingRateGroup.update({
-      where: { id },
-      data: {
-        ...data,
-        updatedAt: new Date(),
-      },
-    });
-
-    revalidatePath(`/admin/envios/zonas/${group.zoneId}/grupos`);
-    revalidatePath(`/admin/envios/grupos/${id}`);
-
-    return {
-      success: true,
-      data: group,
-      message: "Grupo actualizado",
-    };
-  } catch (error) {
-    console.error("Error updating group:", error);
-    return { success: false, error: "Error al actualizar", data: null };
-  }
-}
-
-/**
- * Eliminar grupo
- * ⭐ FIX: Validar id
- */
-export async function deleteRateGroup(id: string | undefined) {
-  // ✅ VALIDAR PRIMERO
-  if (!id?.trim()) {
-    return {
-      success: false,
-      error: "Group ID required",
-    };
-  }
-
-  try {
-    const group = await prisma.shippingRateGroup.findUnique({
-      where: { id },
-      include: { rates: true },
-    });
-
-    if (!group) {
-      return { success: false, error: "Grupo no encontrado" };
-    }
-
-    if (group.rates.length > 0) {
-      return {
-        success: false,
-        error: `No se puede eliminar. Tiene ${group.rates.length} tarifas.`,
-      };
-    }
-
-    await prisma.shippingRateGroup.delete({ where: { id } });
-
-    revalidatePath(`/admin/envios/zonas/${group.zoneId}/grupos`);
-
-    return { success: true, message: "Grupo eliminado" };
-  } catch (error) {
-    console.error("Error deleting group:", error);
-    return { success: false, error: "Error al eliminar" };
-  }
-}
-
-// ============================================================
-// SHIPPING RATES (Tarifas Individuales)
-// ============================================================
-
-/**
- * Obtener tarifas de un grupo
- * ⭐ FIX: Validar groupId
- */
-export async function getRatesByGroup(groupId: string | undefined) {
-  // ✅ VALIDAR PRIMERO
-  if (!groupId?.trim()) {
-    return {
-      success: false,
-      error: "Group ID required",
-      data: [],
-    };
+export async function getRatesByZone(zoneId: string | undefined) {
+  if (!zoneId?.trim()) {
+    return { success: false, error: "Zone ID required", data: [] };
   }
 
   try {
     const rates = await prisma.shippingRate.findMany({
-      where: { groupId },
-      orderBy: { order: "asc" },
+      where: { zoneId },
+      orderBy: [{ category: "asc" }, { order: "asc" }],
     });
-
     return { success: true, data: rates };
   } catch (error) {
     console.error("Error fetching rates:", error);
@@ -629,28 +414,15 @@ export async function getRatesByGroup(groupId: string | undefined) {
   }
 }
 
-/**
- * Obtener tarifa por ID
- * ⭐ FIX: Validar id
- */
 export async function getShippingRateById(id: string | undefined) {
-  // ✅ VALIDAR PRIMERO
   if (!id?.trim()) {
-    return {
-      success: false,
-      error: "Rate ID required",
-      data: null,
-    };
+    return { success: false, error: "Rate ID required", data: null };
   }
 
   try {
     const rate = await prisma.shippingRate.findUnique({
       where: { id },
-      include: {
-        group: {
-          include: { zone: true },
-        },
-      },
+      include: { zone: true },
     });
 
     if (!rate) {
@@ -664,84 +436,12 @@ export async function getShippingRateById(id: string | undefined) {
   }
 }
 
-/**
- * Crear tarifa
- */
-export async function createShippingRate(data: {
-  groupId: string;
-  name: string;
-  description?: string;
-  baseCost: number;
-  minOrderAmount?: number;
-  maxOrderAmount?: number;
-  freeShippingMin?: number;
-  estimatedDays?: string;
-  carrier?: string;
-  shippingType?: string;
-  timeWindow?: string;
-  order: number;
-  active: boolean;
-}) {
-  try {
-    const rate = await prisma.shippingRate.create({
-      data: {
-        groupId: data.groupId,
-        name: data.name,
-        description: data.description,
-        baseCost: data.baseCost,
-        minOrderAmount: data.minOrderAmount,
-        maxOrderAmount: data.maxOrderAmount,
-        freeShippingMin: data.freeShippingMin,
-        estimatedDays: data.estimatedDays,
-        carrier: data.carrier,
-        shippingType: data.shippingType,
-        timeWindow: data.timeWindow,
-        order: data.order,
-        active: data.active,
-      },
-    });
-
-    revalidatePath(`/admin/envios/grupos/${data.groupId}/tarifas`);
-
-    return {
-      success: true,
-      data: rate,
-      message: "Tarifa creada exitosamente",
-    };
-  } catch (error) {
-    console.error("Error creating rate:", error);
-    return { success: false, error: "Error al crear tarifa", data: null };
-  }
-}
-
-/**
- * Actualizar tarifa
- * ⭐ FIX: Validar id
- */
 export async function updateShippingRate(
   id: string | undefined,
-  data: {
-    name?: string;
-    description?: string;
-    baseCost?: number;
-    minOrderAmount?: number;
-    maxOrderAmount?: number;
-    freeShippingMin?: number;
-    estimatedDays?: string;
-    carrier?: string;
-    shippingType?: string;
-    timeWindow?: string;
-    order?: number;
-    active?: boolean;
-  }
+  data: Partial<RateInput>,
 ) {
-  // ✅ VALIDAR PRIMERO
   if (!id?.trim()) {
-    return {
-      success: false,
-      error: "Rate ID required",
-      data: null,
-    };
+    return { success: false, error: "Rate ID required", data: null };
   }
 
   try {
@@ -753,45 +453,33 @@ export async function updateShippingRate(
       },
     });
 
-    revalidatePath(`/admin/envios/grupos/${rate.groupId}/tarifas`);
-    revalidatePath(`/admin/envios/tarifas/${id}`);
+    revalidatePath(`/admin/envios/zonas/${rate.zoneId}`);
+    revalidatePath("/admin/envios/tarifas");
+    revalidatePath("/admin/envios");
 
-    return {
-      success: true,
-      data: rate,
-      message: "Tarifa actualizada",
-    };
+    return { success: true, data: rate, message: "Tarifa actualizada" };
   } catch (error) {
     console.error("Error updating rate:", error);
     return { success: false, error: "Error al actualizar", data: null };
   }
 }
 
-/**
- * Eliminar tarifa
- * ⭐ FIX: Validar id
- */
 export async function deleteShippingRate(id: string | undefined) {
-  // ✅ VALIDAR PRIMERO
   if (!id?.trim()) {
-    return {
-      success: false,
-      error: "Rate ID required",
-    };
+    return { success: false, error: "Rate ID required" };
   }
 
   try {
-    const rate = await prisma.shippingRate.findUnique({
-      where: { id },
-    });
-
+    const rate = await prisma.shippingRate.findUnique({ where: { id } });
     if (!rate) {
       return { success: false, error: "Tarifa no encontrada" };
     }
 
     await prisma.shippingRate.delete({ where: { id } });
 
-    revalidatePath(`/admin/envios/grupos/${rate.groupId}/tarifas`);
+    revalidatePath(`/admin/envios/zonas/${rate.zoneId}`);
+    revalidatePath("/admin/envios/tarifas");
+    revalidatePath("/admin/envios");
 
     return { success: true, message: "Tarifa eliminada" };
   } catch (error) {
@@ -800,21 +488,56 @@ export async function deleteShippingRate(id: string | undefined) {
   }
 }
 
+/**
+ * Vista global de todas las tarifas con su zona.
+ */
+export async function getAllShippingRates() {
+  try {
+    const rates = await prisma.shippingRate.findMany({
+      include: { zone: true },
+      orderBy: [{ zone: { name: "asc" } }, { category: "asc" }, { order: "asc" }],
+    });
+
+    return {
+      success: true,
+      data: rates.map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        category: r.category,
+        baseCost: Number(r.baseCost),
+        minOrderAmount: r.minOrderAmount ? Number(r.minOrderAmount) : null,
+        maxOrderAmount: r.maxOrderAmount ? Number(r.maxOrderAmount) : null,
+        freeShippingMin: r.freeShippingMin ? Number(r.freeShippingMin) : null,
+        estimatedDays: r.estimatedDays,
+        carrier: r.carrier,
+        shippingType: r.shippingType,
+        timeWindow: r.timeWindow,
+        active: r.active,
+        excludeFromRegularCheckout: r.excludeFromRegularCheckout,
+        zoneId: r.zone.id,
+        zoneName: r.zone.name,
+        zoneActive: r.zone.active,
+      })),
+    };
+  } catch (error) {
+    console.error("Error fetching all rates:", error);
+    return { success: false, error: "Error al cargar tarifas", data: [] };
+  }
+}
+
 // ============================================================
-// UTILIDADES
+// STATS
 // ============================================================
 
-/**
- * Obtener estadísticas generales
- */
 export async function getShippingStats() {
   try {
-    const [totalZones, activeZones, totalGroups, totalRates, totalDistricts] =
+    const [totalZones, activeZones, totalRates, activeRates, totalDistricts] =
       await Promise.all([
         prisma.shippingZone.count(),
         prisma.shippingZone.count({ where: { active: true } }),
-        prisma.shippingRateGroup.count(),
         prisma.shippingRate.count(),
+        prisma.shippingRate.count({ where: { active: true } }),
         prisma.shippingZoneDistrict.count(),
       ]);
 
@@ -823,17 +546,13 @@ export async function getShippingStats() {
       data: {
         totalZones,
         activeZones,
-        totalGroups,
         totalRates,
+        activeRates,
         totalDistricts,
       },
     };
   } catch (error) {
     console.error("Error fetching stats:", error);
-    return {
-      success: false,
-      error: "Error al cargar estadísticas",
-      data: null,
-    };
+    return { success: false, error: "Error al cargar estadísticas", data: null };
   }
 }

@@ -131,26 +131,19 @@ export async function getLocationByDistrictCode(districtCode: string) {
 }
 
 /**
- * Calcular costo de envío según distrito
+ * Calcular costo de envío según distrito.
+ * Devuelve la primera tarifa activa que aplica al subtotal.
  */
 export async function calculateShippingCost(districtCode: string, subtotal: number) {
   try {
-    // Buscar zona de envío del distrito
     const zoneDistrict = await prisma.shippingZoneDistrict.findFirst({
-      where: {
-        districtCode,
-      },
+      where: { districtCode },
       include: {
         shippingZone: {
           include: {
-            rateGroups: {
+            rates: {
               where: { active: true },
-              include: {
-                rates: {
-                  where: { active: true },
-                  orderBy: { order: "asc" },
-                },
-              },
+              orderBy: { order: "asc" },
             },
           },
         },
@@ -158,11 +151,10 @@ export async function calculateShippingCost(districtCode: string, subtotal: numb
     });
 
     if (!zoneDistrict || !zoneDistrict.shippingZone) {
-      // Si no está en ninguna zona, retornar costo por defecto
       return {
         success: true,
         data: {
-          cost: 20, // Costo por defecto para zonas no configuradas
+          cost: 20,
           zoneName: "Envío nacional",
           estimatedDays: "5-7 días",
           isFreeShipping: false,
@@ -172,30 +164,17 @@ export async function calculateShippingCost(districtCode: string, subtotal: numb
 
     const zone = zoneDistrict.shippingZone;
 
-    // Buscar el rate apropiado según el subtotal
-    let selectedRate = null;
+    let selectedRate = zone.rates.find((rate) => {
+      const minOrder = rate.minOrderAmount ? Number(rate.minOrderAmount) : 0;
+      const maxOrder = rate.maxOrderAmount ? Number(rate.maxOrderAmount) : Infinity;
+      return subtotal >= minOrder && subtotal <= maxOrder;
+    });
 
-    for (const group of zone.rateGroups) {
-      for (const rate of group.rates) {
-        // Verificar si el subtotal está dentro del rango del rate
-        const minOrder = rate.minOrderAmount ? Number(rate.minOrderAmount) : 0;
-        const maxOrder = rate.maxOrderAmount ? Number(rate.maxOrderAmount) : Infinity;
-
-        if (subtotal >= minOrder && subtotal <= maxOrder) {
-          selectedRate = rate;
-          break;
-        }
-      }
-      if (selectedRate) break;
-    }
-
-    // Si no se encontró un rate específico, usar el primer rate disponible
-    if (!selectedRate && zone.rateGroups.length > 0 && zone.rateGroups[0].rates.length > 0) {
-      selectedRate = zone.rateGroups[0].rates[0];
+    if (!selectedRate && zone.rates.length > 0) {
+      selectedRate = zone.rates[0];
     }
 
     if (!selectedRate) {
-      // No hay rates configurados
       return {
         success: true,
         data: {
@@ -207,7 +186,6 @@ export async function calculateShippingCost(districtCode: string, subtotal: numb
       };
     }
 
-    // Verificar si aplica envío gratis
     const freeShippingMin = selectedRate.freeShippingMin ? Number(selectedRate.freeShippingMin) : null;
     const isFreeShipping = freeShippingMin !== null && subtotal >= freeShippingMin;
 
