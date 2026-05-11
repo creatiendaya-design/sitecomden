@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Edit, Eye, Trash2, Loader2 } from "lucide-react";
+import { Edit, Eye, Trash2, Pencil, Loader2 } from "lucide-react";
 import DeleteProductButton from "@/components/admin/DeleteProductButton";
 import BulkAssignCodTemplateModal from "@/components/admin/products/BulkAssignCodTemplateModal";
 import { formatPrice } from "@/lib/utils";
@@ -117,23 +117,59 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
     <>
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="sticky top-0 z-20 flex items-center justify-between rounded-lg border bg-background px-4 py-3 shadow-md mb-3">
-          <span className="text-sm font-medium">
-            {selected.size} producto{selected.size !== 1 ? "s" : ""} seleccionado{selected.size !== 1 ? "s" : ""}
-          </span>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+        <div className="sticky top-0 z-20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border bg-background px-3 py-2.5 sm:px-4 sm:py-3 shadow-md mb-3">
+          <div className="flex items-center justify-between sm:justify-start gap-2">
+            <span className="text-sm font-medium">
+              {selected.size} seleccionado{selected.size !== 1 ? "s" : ""}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="sm:hidden h-7 px-2"
+              onClick={() => setSelected(new Set())}
+            >
+              Limpiar
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex"
+              onClick={() => setSelected(new Set())}
+            >
               Deseleccionar
             </Button>
             {canEdit && (
-              <Button variant="outline" size="sm" onClick={() => setCodAssignOpen(true)}>
-                Asignar plantilla COD
+              <Button variant="outline" size="sm" asChild className="flex-1 sm:flex-initial">
+                <Link href={`/admin/productos/bulk-edit?ids=${[...selected].join(",")}`}>
+                  <Pencil className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Editar seleccionados</span>
+                  <span className="sm:hidden ml-1.5">Editar</span>
+                </Link>
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCodAssignOpen(true)}
+                className="flex-1 sm:flex-initial"
+              >
+                <span className="hidden sm:inline">Asignar plantilla COD</span>
+                <span className="sm:hidden">Plantilla COD</span>
               </Button>
             )}
             {canDelete && (
-              <Button variant="destructive" size="sm" onClick={() => setBulkDialogOpen(true)}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar seleccionados
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setBulkDialogOpen(true)}
+                className="flex-1 sm:flex-initial"
+              >
+                <Trash2 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Eliminar seleccionados</span>
+                <span className="sm:hidden ml-1.5">Eliminar</span>
               </Button>
             )}
           </div>
@@ -153,7 +189,7 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
         <span className="text-xs text-muted-foreground">Seleccionar todos</span>
       </div>
 
-      <div className="space-y-3 sm:space-y-4 mt-3">
+      <div className="divide-y sm:divide-y-0 sm:space-y-3 -mx-2 sm:mx-0 mt-2 sm:mt-3">
         {products.map((product) => {
           const totalStock = product.hasVariants
             ? product.variants.reduce((sum, v) => sum + v.stock, 0)
@@ -170,126 +206,202 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
           }
 
           const isSelected = selected.has(product.id);
+          const imgUrl = getProductImageUrl(product.images as any);
+          const categoryLine =
+            product.categories.length > 0
+              ? product.categories.map((pc) => pc.category.name).join(", ")
+              : "Sin categoría";
+          const lowStock = totalStock <= 5;
 
           return (
-            <div
-              key={product.id}
-              className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-lg border p-3 sm:p-4 transition-colors ${
-                isSelected ? "bg-primary/5 border-primary/30" : "hover:bg-slate-50"
-              }`}
-            >
-              {/* Checkbox — desktop only (standalone left column) */}
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => toggleOne(product.id)}
-                className="hidden sm:block h-4 w-4 flex-shrink-0 cursor-pointer self-center"
-                aria-label={`Seleccionar ${product.name}`}
-              />
+            <div key={product.id}>
+              {/* ============ MOBILE: compact row ============ */}
+              <div
+                className={`sm:hidden flex items-start gap-2.5 px-2 py-2.5 transition-colors ${
+                  isSelected ? "bg-primary/5" : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleOne(product.id)}
+                  className="mt-1 h-4 w-4 flex-shrink-0 cursor-pointer"
+                  aria-label={`Seleccionar ${product.name}`}
+                />
 
-              {/* Mobile Layout */}
-              <div className="flex gap-3 sm:hidden flex-1">
-                {/* Checkbox inline with image on mobile */}
-                <div className="flex items-start gap-2 flex-shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleOne(product.id)}
-                    className="mt-1 h-4 w-4 cursor-pointer"
-                    aria-label={`Seleccionar ${product.name}`}
-                  />
-                  <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
-                    {getProductImageUrl(product.images as any) ? (
+                <Link
+                  href={`/admin/productos/${product.id}`}
+                  className="flex items-start gap-2.5 flex-1 min-w-0 active:opacity-70"
+                >
+                  <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
+                    {imgUrl ? (
                       <Image
-                        src={getProductImageUrl(product.images as any)!}
+                        src={imgUrl}
                         alt={getProductImageAlt(product.images as any, product.name)}
                         fill
                         className="object-cover"
+                        sizes="56px"
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Sin imagen</div>
+                      <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground text-center px-1">
+                        Sin foto
+                      </div>
                     )}
                   </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-semibold text-sm leading-snug line-clamp-1 min-w-0">
+                        {product.name}
+                      </span>
+                      <span className="text-sm font-semibold tabular-nums whitespace-nowrap shrink-0">
+                        {pricePrefix}
+                        {formatPrice(displayPrice)}
+                      </span>
+                    </div>
+
+                    <div className="mt-0.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="truncate min-w-0">
+                        {categoryLine}
+                        {product.sku && ` · ${product.sku}`}
+                        {product.hasVariants && ` · ${product.variants.length} var`}
+                      </span>
+                      <span
+                        className={`whitespace-nowrap tabular-nums shrink-0 ${
+                          lowStock ? "text-amber-600 font-medium" : ""
+                        }`}
+                      >
+                        Stock: {totalStock}
+                      </span>
+                    </div>
+
+                    {(!product.active || product.featured) && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {!product.active && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] h-4 px-1.5 leading-none"
+                          >
+                            Inactivo
+                          </Badge>
+                        )}
+                        {product.featured && (
+                          <Badge
+                            variant="default"
+                            className="text-[10px] h-4 px-1.5 leading-none"
+                          >
+                            Destacado
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+
+                <div className="flex flex-col gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    asChild
+                  >
+                    <Link
+                      href={`/productos/${product.slug}`}
+                      target="_blank"
+                      aria-label="Ver en tienda"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  {canDelete && (
+                    <DeleteProductButton
+                      productId={product.id}
+                      productName={product.name}
+                      variant="ghost"
+                      className="h-7 w-7"
+                      iconClassName="h-3.5 w-3.5"
+                    />
+                  )}
                 </div>
+              </div>
+
+              {/* ============ DESKTOP: original card ============ */}
+              <div
+                className={`hidden sm:flex sm:items-center gap-4 rounded-lg border p-4 transition-colors ${
+                  isSelected ? "bg-primary/5 border-primary/30" : "hover:bg-slate-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleOne(product.id)}
+                  className="h-4 w-4 flex-shrink-0 cursor-pointer self-center"
+                  aria-label={`Seleccionar ${product.name}`}
+                />
+
+                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
+                  {imgUrl ? (
+                    <Image
+                      src={imgUrl}
+                      alt={getProductImageAlt(product.images as any, product.name)}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                      Sin imagen
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex-1 space-y-1 min-w-0">
-                  <Link href={`/admin/productos/${product.id}`} className="font-semibold text-sm hover:underline line-clamp-2">
-                    {product.name}
-                  </Link>
-                  <div className="flex flex-wrap gap-1">
-                    {!product.active && <Badge variant="secondary" className="text-xs">Inactivo</Badge>}
-                    {product.featured && <Badge variant="default" className="text-xs">Destacado</Badge>}
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/admin/productos/${product.id}`}
+                      className="font-semibold hover:underline truncate"
+                    >
+                      {product.name}
+                    </Link>
+                    {!product.active && <Badge variant="secondary">Inactivo</Badge>}
+                    {product.featured && <Badge variant="default">Destacado</Badge>}
                   </div>
-                  <div className="text-xs text-muted-foreground line-clamp-1">
-                    {product.categories.length > 0 ? product.categories.map((pc) => pc.category.name).join(", ") : "Sin categoría"}
+                  <div className="text-sm text-muted-foreground truncate">
+                    {categoryLine}
+                    {product.sku && ` • SKU: ${product.sku}`}
+                    {product.hasVariants && ` • ${product.variants.length} variantes`}
                   </div>
-                  {product.hasVariants && <div className="text-xs text-muted-foreground">{product.variants.length} variantes</div>}
                 </div>
-              </div>
 
-              {/* Desktop Image */}
-              <div className="hidden sm:block relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
-                {getProductImageUrl(product.images as any) ? (
-                  <Image
-                    src={getProductImageUrl(product.images as any)!}
-                    alt={getProductImageAlt(product.images as any, product.name)}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Sin imagen</div>
-                )}
-              </div>
-
-              {/* Desktop Info */}
-              <div className="hidden sm:block flex-1 space-y-1">
-                <div className="flex items-center gap-2">
-                  <Link href={`/admin/productos/${product.id}`} className="font-semibold hover:underline">
-                    {product.name}
-                  </Link>
-                  {!product.active && <Badge variant="secondary">Inactivo</Badge>}
-                  {product.featured && <Badge variant="default">Destacado</Badge>}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {product.categories.length > 0 ? product.categories.map((pc) => pc.category.name).join(", ") : "Sin categoría"}
-                  {product.sku && ` • SKU: ${product.sku}`}
-                  {product.hasVariants && ` • ${product.variants.length} variantes`}
-                </div>
-              </div>
-
-              {/* Price & Stock + Actions */}
-              <div className="flex items-center justify-between sm:block sm:text-right">
-                <div>
-                  <p className="font-semibold text-sm sm:text-base">
-                    {pricePrefix}{formatPrice(displayPrice)}
+                <div className="text-right">
+                  <p className="font-semibold text-base">
+                    {pricePrefix}
+                    {formatPrice(displayPrice)}
                   </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Stock: {totalStock}</p>
+                  <p className={`text-sm ${lowStock ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                    Stock: {totalStock}
+                  </p>
                 </div>
 
-                {/* Mobile Actions */}
-                <div className="flex gap-2 sm:hidden">
+                <div className="flex gap-2">
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/productos/${product.slug}`} target="_blank"><Eye className="h-4 w-4" /></Link>
+                    <Link href={`/productos/${product.slug}`} target="_blank">
+                      <Eye className="h-4 w-4" />
+                    </Link>
                   </Button>
                   {canEdit && (
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/admin/productos/${product.id}`}><Edit className="h-4 w-4" /></Link>
+                      <Link href={`/admin/productos/${product.id}`}>
+                        <Edit className="h-4 w-4" />
+                      </Link>
                     </Button>
                   )}
-                  {canDelete && <DeleteProductButton productId={product.id} productName={product.name} />}
+                  {canDelete && (
+                    <DeleteProductButton
+                      productId={product.id}
+                      productName={product.name}
+                    />
+                  )}
                 </div>
-              </div>
-
-              {/* Desktop Actions */}
-              <div className="hidden sm:flex gap-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/productos/${product.slug}`} target="_blank"><Eye className="h-4 w-4" /></Link>
-                </Button>
-                {canEdit && (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/admin/productos/${product.id}`}><Edit className="h-4 w-4" /></Link>
-                  </Button>
-                )}
-                {canDelete && <DeleteProductButton productId={product.id} productName={product.name} />}
               </div>
             </div>
           );

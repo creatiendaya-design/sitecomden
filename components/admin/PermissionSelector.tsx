@@ -2,11 +2,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 // Nombres amigables de módulos
 const MODULE_NAMES: Record<string, { name: string; icon: string }> = {
@@ -55,14 +55,17 @@ const ACTION_NAMES: Record<string, string> = {
 };
 
 interface PermissionSelectorProps {
-  permissionsGrouped: Record<string, Array<{
-    id: string;
-    key: string;
-    name: string;
-    description: string | null;
-    module: string;
-    action: string;
-  }>>;
+  permissionsGrouped: Record<
+    string,
+    Array<{
+      id: string;
+      key: string;
+      name: string;
+      description: string | null;
+      module: string;
+      action: string;
+    }>
+  >;
   selectedPermissionIds: string[];
   onChange: (permissionIds: string[]) => void;
 }
@@ -72,7 +75,12 @@ export default function PermissionSelector({
   selectedPermissionIds,
   onChange,
 }: PermissionSelectorProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(selectedPermissionIds));
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(selectedPermissionIds)
+  );
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(
+    new Set()
+  );
 
   // Sincronizar cuando cambian las props
   useEffect(() => {
@@ -97,10 +105,8 @@ export default function PermissionSelector({
 
     const newSelected = new Set(selected);
     if (allSelected) {
-      // Deseleccionar todos del módulo
       modulePermissionIds.forEach((id) => newSelected.delete(id));
     } else {
-      // Seleccionar todos del módulo
       modulePermissionIds.forEach((id) => newSelected.add(id));
     }
 
@@ -121,82 +127,192 @@ export default function PermissionSelector({
     onChange([]);
   };
 
+  const toggleModuleExpand = (module: string) => {
+    setExpandedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(module)) next.delete(module);
+      else next.add(module);
+      return next;
+    });
+  };
+
+  const moduleEntries = Object.entries(permissionsGrouped);
+  const allModulesExpanded =
+    moduleEntries.length > 0 && expandedModules.size === moduleEntries.length;
+
+  const toggleAllExpanded = () => {
+    if (allModulesExpanded) {
+      setExpandedModules(new Set());
+    } else {
+      setExpandedModules(new Set(moduleEntries.map(([m]) => m)));
+    }
+  };
+
+  const totalPermissions = moduleEntries.reduce(
+    (sum, [, perms]) => sum + perms.length,
+    0
+  );
+
   return (
-    <div className="space-y-4">
-      {/* Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-sm">
-            {selected.size} permisos seleccionados
-          </Badge>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleSelectAll}>
-            Seleccionar Todos
+    <div className="space-y-3 sm:space-y-4">
+      {/* Top actions — stack on mobile */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <Badge variant="secondary" className="self-start text-xs sm:text-sm w-fit">
+          {selected.size} / {totalPermissions} seleccionados
+        </Badge>
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={toggleAllExpanded}
+            className="flex-1 sm:flex-initial"
+          >
+            {allModulesExpanded ? (
+              <>
+                <ChevronUp className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden xs:inline ml-1 sm:ml-0">Colapsar</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden xs:inline ml-1 sm:ml-0">Expandir</span>
+              </>
+            )}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleDeselectAll}>
-            Deseleccionar Todos
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSelectAll}
+            className="flex-1 sm:flex-initial"
+          >
+            <span className="hidden sm:inline">Seleccionar Todos</span>
+            <span className="sm:hidden">Todos</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleDeselectAll}
+            className="flex-1 sm:flex-initial"
+          >
+            <span className="hidden sm:inline">Deseleccionar</span>
+            <span className="sm:hidden">Ninguno</span>
           </Button>
         </div>
       </div>
 
-      {/* Módulos */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {Object.entries(permissionsGrouped).map(([module, permissions]) => {
-          const moduleInfo = MODULE_NAMES[module] || { name: module, icon: "📌" };
+      {/* Módulos accordion */}
+      <div className="space-y-2 sm:grid sm:gap-3 sm:grid-cols-2 sm:space-y-0">
+        {moduleEntries.map(([module, permissions]) => {
+          const moduleInfo = MODULE_NAMES[module] || {
+            name: module,
+            icon: "📌",
+          };
           const modulePermissionIds = permissions.map((p) => p.id);
-          const selectedCount = modulePermissionIds.filter((id) => selected.has(id)).length;
+          const selectedCount = modulePermissionIds.filter((id) =>
+            selected.has(id)
+          ).length;
           const allSelected = selectedCount === modulePermissionIds.length;
           const someSelected = selectedCount > 0 && !allSelected;
+          const isExpanded = expandedModules.has(module);
 
           return (
-            <Card key={module}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{moduleInfo.icon}</span>
-                    <div>
-                      <CardTitle className="text-base">{moduleInfo.name}</CardTitle>
-                      <CardDescription className="text-xs">
-                        {permissions.length} permisos
-                      </CardDescription>
-                    </div>
+            <div
+              key={module}
+              className="rounded-lg border bg-card overflow-hidden self-start"
+            >
+              {/* Module header — always visible, compact */}
+              <div
+                className={`flex items-center gap-2 p-2.5 sm:p-3 ${
+                  isExpanded ? "bg-muted/40 border-b" : "bg-muted/20"
+                }`}
+              >
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={() => handleToggleModule(module)}
+                  className="h-5 w-5 shrink-0"
+                  aria-label={`Seleccionar todos los permisos de ${moduleInfo.name}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleModuleExpand(module)}
+                  className="flex-1 min-w-0 text-left flex items-center gap-2"
+                  aria-expanded={isExpanded}
+                >
+                  <span className="text-lg sm:text-xl shrink-0">
+                    {moduleInfo.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">
+                      {moduleInfo.name}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground tabular-nums">
+                      {selectedCount} / {permissions.length} permisos
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={allSelected ? "default" : someSelected ? "secondary" : "outline"} className="text-xs">
-                      {selectedCount}/{permissions.length}
-                    </Badge>
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={() => handleToggleModule(module)}
-                      className="h-5 w-5"
-                    />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {permissions.map((permission) => (
-                  <div key={permission.id} className="flex items-center gap-2">
-                    <Checkbox
-                      id={permission.id}
-                      checked={selected.has(permission.id)}
-                      onCheckedChange={() => handleToggle(permission.id)}
-                    />
-                    <Label
-                      htmlFor={permission.id}
-                      className="flex-1 cursor-pointer text-sm font-normal"
+                </button>
+                <Badge
+                  variant={
+                    allSelected
+                      ? "default"
+                      : someSelected
+                      ? "secondary"
+                      : "outline"
+                  }
+                  className="text-[10px] sm:text-xs h-5 px-1.5 tabular-nums shrink-0"
+                >
+                  {selectedCount}/{permissions.length}
+                </Badge>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => toggleModuleExpand(module)}
+                  className="h-7 w-7 shrink-0"
+                  aria-label={isExpanded ? "Colapsar" : "Expandir"}
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+
+              {/* Permission list — only when expanded */}
+              {isExpanded && (
+                <div className="p-2.5 sm:p-3 space-y-1.5">
+                  {permissions.map((permission) => (
+                    <div
+                      key={permission.id}
+                      className="flex items-start gap-2 rounded-md px-1.5 py-1 hover:bg-muted/40"
                     >
-                      {ACTION_NAMES[permission.action] || permission.action}
-                      {permission.description && (
-                        <span className="block text-xs text-muted-foreground">
-                          {permission.description}
+                      <Checkbox
+                        id={permission.id}
+                        checked={selected.has(permission.id)}
+                        onCheckedChange={() => handleToggle(permission.id)}
+                        className="mt-0.5 shrink-0"
+                      />
+                      <Label
+                        htmlFor={permission.id}
+                        className="flex-1 cursor-pointer text-sm font-normal leading-tight min-w-0"
+                      >
+                        <span className="block">
+                          {ACTION_NAMES[permission.action] || permission.action}
                         </span>
-                      )}
-                    </Label>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+                        {permission.description && (
+                          <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">
+                            {permission.description}
+                          </span>
+                        )}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

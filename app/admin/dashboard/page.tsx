@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatOrderNumber } from "@/lib/utils";
+import { getSiteSettings } from "@/lib/site-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -34,6 +35,9 @@ const OrdersStatusChart = nextDynamic(
 );
 
 export default async function AdminDashboardPage() {
+  const settings = await getSiteSettings();
+  const orderPrefix = settings.order_prefix || "PED";
+
   // Fecha actual y mes anterior
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -228,59 +232,64 @@ export default async function AdminDashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
+    <div className="space-y-4 sm:space-y-8 p-4 sm:p-0">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Resumen de tu tienda en tiempo real
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="hidden sm:inline-flex">
           <Link href="/admin/ordenes">Ver Todas las Órdenes</Link>
         </Button>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      {/* Stats Grid - 2 cols mobile to keep all 4 visible */}
+      <div className="grid gap-2 sm:gap-6 grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
             <Card key={stat.title}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">
+              <CardContent className="p-3 sm:p-6">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] sm:text-sm text-muted-foreground line-clamp-1">
                       {stat.title}
                     </p>
-                    <p className="mt-2 text-3xl font-bold">{stat.value}</p>
+                    <p className="mt-1 sm:mt-2 text-lg sm:text-3xl font-bold tabular-nums">
+                      {stat.value}
+                    </p>
                     {stat.change && (
-                      <div className="mt-1 flex items-center gap-1 text-sm">
+                      <div className="mt-0.5 sm:mt-1 flex items-center gap-0.5 sm:gap-1 text-[11px] sm:text-sm">
                         {stat.trend === "up" ? (
-                          <ArrowUp className="h-4 w-4 text-green-600" />
+                          <ArrowUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 shrink-0" />
                         ) : (
-                          <ArrowDown className="h-4 w-4 text-red-600" />
+                          <ArrowDown className="h-3 w-3 sm:h-4 sm:w-4 text-red-600 shrink-0" />
                         )}
                         <span
                           className={
                             stat.trend === "up"
-                              ? "text-green-600"
-                              : "text-red-600"
+                              ? "text-green-600 tabular-nums"
+                              : "text-red-600 tabular-nums"
                           }
                         >
                           {stat.change}%
                         </span>
-                        <span className="text-muted-foreground">vs mes anterior</span>
+                        <span className="text-muted-foreground truncate hidden sm:inline">
+                          vs mes anterior
+                        </span>
                       </div>
                     )}
                     {stat.subtitle && (
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-sm text-muted-foreground truncate">
                         {stat.subtitle}
                       </p>
                     )}
                   </div>
-                  <div className={`rounded-full p-3 ${stat.bgColor}`}>
-                    <Icon className={`h-6 w-6 ${stat.color}`} />
+                  <div className={`rounded-full p-1.5 sm:p-3 ${stat.bgColor} shrink-0`}>
+                    <Icon className={`h-3.5 w-3.5 sm:h-6 sm:w-6 ${stat.color}`} />
                   </div>
                 </div>
               </CardContent>
@@ -290,202 +299,208 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid gap-6 lg:grid-cols-7">
-        {/* Sales Chart */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-7">
         <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Ventas de los Últimos 7 Días</CardTitle>
+          <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+            <CardTitle className="text-base sm:text-lg">
+              Ventas — Últimos 7 días
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6 pb-4 sm:pb-6">
             <SalesChart data={salesByDay} />
           </CardContent>
         </Card>
 
-        {/* Orders by Status */}
         <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Órdenes por Estado</CardTitle>
+          <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+            <CardTitle className="text-base sm:text-lg">Órdenes por Estado</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6 pb-4 sm:pb-6">
             <OrdersStatusChart data={ordersByStatus} />
           </CardContent>
         </Card>
       </div>
 
-      {/* Products and Orders Row */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Products and Stock Row */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Top Products */}
         <Card>
-          <CardHeader>
-            <CardTitle>Productos Más Vendidos</CardTitle>
+          <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+            <CardTitle className="text-base sm:text-lg">Productos Más Vendidos</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topProductsWithDetails.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                  No hay ventas todavía
-                </p>
-              ) : (
-                topProductsWithDetails.map((item, index) => (
+          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+            {topProductsWithDetails.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                No hay ventas todavía
+              </p>
+            ) : (
+              <div className="divide-y sm:divide-y-0 sm:space-y-3">
+                {topProductsWithDetails.map((item, index) => (
                   <div
                     key={item.productId || `deleted-${index}`}
-                    className="flex items-center justify-between"
+                    className="flex items-center gap-2.5 sm:gap-3 py-2 sm:py-0"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {item.product?.name || "Producto eliminado"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {item._sum.quantity} vendidos
-                        </p>
-                      </div>
+                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs sm:text-sm font-bold">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">
+                        {item.product?.name || "Producto eliminado"}
+                      </p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {item._sum.quantity} vendidos
+                      </p>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Low Stock Alert */}
+        {/* Low Stock */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              Stock Bajo (≤10 unidades)
+          <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 shrink-0" />
+              <span>Stock Bajo</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                (≤10 uds)
+              </span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {lowStockProducts.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                  ✅ Todos los productos tienen stock suficiente
-                </p>
-              ) : (
-                lowStockProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex items-center justify-between border-b pb-3 last:border-0"
-                  >
-                    <div>
-                      <Link
-                        href={`/admin/productos/${product.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {product.name}
-                      </Link>
-                      {product.hasVariants && product.variants.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {product.variants.length} variante(s) con stock bajo
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={`rounded-full px-3 py-1 text-sm font-medium ${
-                        product.stock <= 5 || (product.hasVariants && product.variants.some(v => v.stock <= 5))
-                          ? "bg-red-100 text-red-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
+          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+            {lowStockProducts.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                Todos los productos tienen stock suficiente
+              </p>
+            ) : (
+              <div className="divide-y">
+                {lowStockProducts.map((product) => {
+                  const minStock = product.hasVariants
+                    ? Math.min(...product.variants.map((v) => v.stock))
+                    : product.stock;
+                  const critical = minStock <= 5;
+                  return (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between gap-2 py-2.5"
                     >
-                      {product.hasVariants
-                        ? `Min: ${Math.min(...product.variants.map((v) => v.stock))}`
-                        : product.stock}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          href={`/admin/productos/${product.id}`}
+                          className="font-medium text-sm hover:underline truncate block"
+                        >
+                          {product.name}
+                        </Link>
+                        {product.hasVariants && product.variants.length > 0 && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {product.variants.length} variante(s)
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${
+                          critical
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {product.hasVariants ? `Min ${minStock}` : minStock}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Recent Orders */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Órdenes Recientes</CardTitle>
+        <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base sm:text-lg">Órdenes Recientes</CardTitle>
             <Button variant="outline" size="sm" asChild>
               <Link href="/admin/ordenes">Ver Todas</Link>
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentOrders.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No hay órdenes todavía
-              </p>
-            ) : (
-              recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex items-center justify-between border-b pb-4 last:border-0"
-                >
-                  <div>
-                    <Link
-                      href={`/admin/ordenes/${order.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      #{order.orderNumber}
-                    </Link>
-                    <p className="text-sm text-muted-foreground">
-                      {order.customerName} • {order.items.length}{" "}
-                      {order.items.length === 1 ? "item" : "items"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">
+        <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+          {recentOrders.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">
+              No hay órdenes todavía
+            </p>
+          ) : (
+            <div className="divide-y">
+              {recentOrders.map((order) => {
+                const orderLabel = order.orderSeq
+                  ? formatOrderNumber(order.orderSeq, orderPrefix)
+                  : `#${order.orderNumber.slice(-8).toUpperCase()}`;
+                const payStyle =
+                  order.paymentStatus === "PAID"
+                    ? "bg-green-100 text-green-700"
+                    : order.paymentStatus === "PENDING"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-red-100 text-red-700";
+                const payLabel =
+                  order.paymentStatus === "PAID"
+                    ? "Pagado"
+                    : order.paymentStatus === "PENDING"
+                    ? "Pendiente"
+                    : "Fallido";
+                return (
+                  <Link
+                    key={order.id}
+                    href={`/admin/ordenes/${order.id}`}
+                    className="flex items-center justify-between gap-3 py-2.5 sm:py-3 hover:bg-muted/30 -mx-3 sm:-mx-6 px-3 sm:px-6"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">{orderLabel}</span>
+                        <span
+                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${payStyle}`}
+                        >
+                          {payLabel}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                        {order.customerName} · {order.items.length}{" "}
+                        {order.items.length === 1 ? "item" : "items"}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold tabular-nums whitespace-nowrap shrink-0">
                       {formatPrice(Number(order.total))}
                     </p>
-                    <div className="mt-1 flex gap-2">
-                      <span
-                        className={`inline-block rounded-full px-2 py-1 text-xs ${
-                          order.paymentStatus === "PAID"
-                            ? "bg-green-100 text-green-700"
-                            : order.paymentStatus === "PENDING"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {order.paymentStatus === "PAID"
-                          ? "Pagado"
-                          : order.paymentStatus === "PENDING"
-                          ? "Pendiente"
-                          : "Fallido"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
+      {/* Pending Payments Alert */}
       {pendingPayments > 0 && (
         <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="rounded-full bg-amber-100 p-3">
-                  <Clock className="h-6 w-6 text-amber-600" />
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <div className="rounded-full bg-amber-100 p-2 sm:p-3 shrink-0">
+                  <Clock className="h-4 w-4 sm:h-6 sm:w-6 text-amber-600" />
                 </div>
-                <div>
-                  <p className="font-semibold">
-                    Tienes {pendingPayments} pago{pendingPayments !== 1 ? "s" : ""}{" "}
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm sm:text-base">
+                    {pendingPayments} pago{pendingPayments !== 1 ? "s" : ""}{" "}
                     pendiente{pendingPayments !== 1 ? "s" : ""}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Pagos Yape/Plin esperando verificación
                   </p>
                 </div>
               </div>
-              <Button asChild>
+              <Button asChild className="w-full sm:w-auto shrink-0">
                 <Link href="/admin/pagos-pendientes">Verificar Pagos</Link>
               </Button>
             </div>

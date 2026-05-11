@@ -180,60 +180,76 @@ export default function ClientesLealtadPage() {
   const currentCustomers = filteredCustomers.slice(startIndex, endIndex);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Gestión de Clientes</h1>
-          <p className="text-muted-foreground">
-            {filteredCustomers.length} clientes en el programa de lealtad
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Gestión de Clientes</h1>
+          <p className="text-xs sm:text-base text-muted-foreground tabular-nums">
+            {filteredCustomers.length} clientes en el programa
           </p>
         </div>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" size="icon" className="h-9 w-9 sm:hidden shrink-0">
+          <Link href="/admin/lealtad" aria-label="Volver">
+            <ChevronLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="hidden sm:inline-flex">
           <Link href="/admin/lealtad">
             <ChevronLeft className="mr-2 h-4 w-4" />
-            Volver al Dashboard
+            Volver
           </Link>
         </Button>
       </div>
 
-      {/* Stats Rápidas */}
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
+      {/* Stats Rápidas - 4 cols mobile compactas */}
+      <div className="grid gap-2 sm:gap-4 grid-cols-4">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
+          <CardHeader className="pb-1 p-2.5 sm:pb-3 sm:p-6">
+            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">
+              Total
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{customers.length}</div>
+          <CardContent className="p-2.5 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold tabular-nums">
+              {customers.length}
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Bronce</CardTitle>
+          <CardHeader className="pb-1 p-2.5 sm:pb-3 sm:p-6">
+            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">
+              Bronce
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+          <CardContent className="p-2.5 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-orange-600 tabular-nums">
               {customers.filter((c) => c.loyaltyTier === "BRONZE").length}
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Plata</CardTitle>
+          <CardHeader className="pb-1 p-2.5 sm:pb-3 sm:p-6">
+            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">
+              Plata
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-400">
+          <CardContent className="p-2.5 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-gray-400 tabular-nums">
               {customers.filter((c) => c.loyaltyTier === "SILVER").length}
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Oro/Platino</CardTitle>
+          <CardHeader className="pb-1 p-2.5 sm:pb-3 sm:p-6">
+            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">
+              <span className="hidden sm:inline">Oro/Platino</span>
+              <span className="sm:hidden">Oro+</span>
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-500">
-              {customers.filter((c) => 
+          <CardContent className="p-2.5 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-yellow-500 tabular-nums">
+              {customers.filter((c) =>
                 c.loyaltyTier === "GOLD" || c.loyaltyTier === "PLATINUM"
               ).length}
             </div>
@@ -242,54 +258,50 @@ export default function ClientesLealtadPage() {
       </div>
 
       {/* Filtros */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-4">
+      <Card>
+        <CardContent className="p-3 sm:p-6 sm:pt-6">
+          <div className="grid gap-2 sm:gap-4 grid-cols-1 sm:grid-cols-4">
             {/* Búsqueda */}
-            <div className="md:col-span-2">
+            <div className="sm:col-span-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nombre, email, DNI o código..."
+                  placeholder="Buscar nombre, email, DNI…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
+                  className="pl-9 h-9"
                 />
               </div>
             </div>
 
-            {/* Filtro por Tier */}
-            <div>
+            {/* Filtro por Tier + Ordenar */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:contents">
               <Select
                 value={tierFilter}
                 onValueChange={(value: any) => setTierFilter(value)}
               >
-                <SelectTrigger>
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Filtrar por nivel" />
+                <SelectTrigger className="h-9">
+                  <Filter className="mr-1 h-3.5 w-3.5" />
+                  <SelectValue placeholder="Nivel" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">Todos los niveles</SelectItem>
+                  <SelectItem value="ALL">Todos</SelectItem>
                   <SelectItem value="BRONZE">🥉 Bronce</SelectItem>
                   <SelectItem value="SILVER">🥈 Plata</SelectItem>
                   <SelectItem value="GOLD">🥇 Oro</SelectItem>
                   <SelectItem value="PLATINUM">💎 Platino</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Ordenar */}
-            <div>
               <Select
                 value={sortBy}
                 onValueChange={(value: any) => setSortBy(value)}
               >
-                <SelectTrigger>
-                  <ArrowUpDown className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Ordenar por" />
+                <SelectTrigger className="h-9">
+                  <ArrowUpDown className="mr-1 h-3.5 w-3.5" />
+                  <SelectValue placeholder="Ordenar" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="registeredAt">Fecha de registro</SelectItem>
+                  <SelectItem value="registeredAt">Fecha registro</SelectItem>
                   <SelectItem value="points">Puntos</SelectItem>
                   <SelectItem value="totalSpent">Total gastado</SelectItem>
                 </SelectContent>
@@ -299,16 +311,65 @@ export default function ClientesLealtadPage() {
         </CardContent>
       </Card>
 
-      {/* Tabla de Clientes */}
+      {/* Lista de Clientes */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="p-0 sm:pt-6 sm:px-6 sm:pb-6">
           {loading ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Cargando clientes...</p>
+              <p className="text-sm text-muted-foreground">Cargando clientes...</p>
             </div>
           ) : currentCustomers.length > 0 ? (
             <>
-              <div className="overflow-x-auto">
+              {/* ============ MOBILE: card list ============ */}
+              <div className="divide-y sm:hidden">
+                {currentCustomers.map((customer) => (
+                  <div key={customer.id} className="px-3 py-3 flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => viewCustomerDetails(customer)}
+                      className="flex-1 min-w-0 text-left active:opacity-70"
+                    >
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-sm truncate max-w-[180px]">
+                          {customer.name}
+                        </span>
+                        <TierBadge tier={customer.loyaltyTier} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {customer.email}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5 tabular-nums">
+                        {customer.points} pts · {customer._count?.orders || 0} ord ·{" "}
+                        S/. {Number(customer.totalSpent).toFixed(0)} ·{" "}
+                        {customer.referralCount} ref
+                      </p>
+                    </button>
+                    <div className="flex flex-col gap-1 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => viewCustomerDetails(customer)}
+                        aria-label="Ver detalles"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => openAdjustModal(customer)}
+                        aria-label="Ajustar puntos"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ============ DESKTOP: original table ============ */}
+              <div className="hidden sm:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -379,12 +440,12 @@ export default function ClientesLealtadPage() {
 
               {/* Paginación */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
-                  <p className="text-sm text-muted-foreground">
-                    Mostrando {startIndex + 1} - {Math.min(endIndex, filteredCustomers.length)} de{" "}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-3 sm:px-0 sm:mt-6 sm:py-0 border-t sm:border-0">
+                  <p className="text-[11px] sm:text-sm text-muted-foreground tabular-nums">
+                    {startIndex + 1}–{Math.min(endIndex, filteredCustomers.length)} de{" "}
                     {filteredCustomers.length}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -393,8 +454,8 @@ export default function ClientesLealtadPage() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <span className="px-4 py-2 text-sm">
-                      Página {currentPage} de {totalPages}
+                    <span className="px-2 py-1 text-xs sm:text-sm tabular-nums">
+                      Pág. {currentPage}/{totalPages}
                     </span>
                     <Button
                       variant="outline"
@@ -411,7 +472,7 @@ export default function ClientesLealtadPage() {
           ) : (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No se encontraron clientes</p>
+              <p className="text-sm text-muted-foreground">No se encontraron clientes</p>
             </div>
           )}
         </CardContent>

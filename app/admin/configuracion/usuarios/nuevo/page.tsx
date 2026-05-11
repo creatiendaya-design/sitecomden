@@ -64,22 +64,22 @@ export default function NewUserPage() {
   };
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0 pb-24 sm:pb-0">
       {/* Header */}
       <div>
-        <Button variant="ghost" size="sm" asChild className="mb-2">
+        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
           <Link href="/admin/configuracion/usuarios">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold">Crear Nuevo Usuario</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-xl sm:text-3xl font-bold">Crear Nuevo Usuario</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
           Crea un nuevo usuario administrador con acceso al panel
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         {/* Información Básica */}
         <Card>
           <CardHeader>
@@ -257,14 +257,30 @@ export default function NewUserPage() {
           </CardContent>
         </Card>
 
-        {/* Acciones */}
-        <div className="flex justify-end gap-4">
+        {/* Acciones desktop */}
+        <div className="hidden sm:flex justify-end gap-4">
           <Button type="button" variant="outline" asChild>
             <Link href="/admin/configuracion/usuarios">Cancelar</Link>
           </Button>
           <Button type="submit" disabled={loading}>
             <Save className="mr-2 h-4 w-4" />
             {loading ? "Creando..." : "Crear Usuario"}
+          </Button>
+        </div>
+
+        {/* Sticky bottom save bar — mobile only */}
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur px-3 py-2.5 flex gap-2 shadow-lg">
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+            className="flex-1 h-10"
+          >
+            <Link href="/admin/configuracion/usuarios">Cancelar</Link>
+          </Button>
+          <Button type="submit" className="flex-1 h-10" disabled={loading}>
+            <Save className="mr-2 h-4 w-4" />
+            {loading ? "Creando…" : "Crear"}
           </Button>
         </div>
       </form>

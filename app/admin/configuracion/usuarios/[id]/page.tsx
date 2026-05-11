@@ -180,36 +180,41 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0 pb-24 sm:pb-0">
       {/* Header */}
       <div>
-        <Button variant="ghost" size="sm" asChild className="mb-2">
+        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
           <Link href="/admin/configuracion/usuarios">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver
           </Link>
         </Button>
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Avatar className="h-12 w-12 sm:h-16 sm:w-16 shrink-0">
             <AvatarFallback
               style={{
                 backgroundColor: userData.role?.color || "#6366f1",
                 color: "white",
               }}
-              className="text-xl"
+              className="text-base sm:text-xl"
             >
               {getInitials(userData.name)}
             </AvatarFallback>
           </Avatar>
-          <div>
-            <h1 className="text-3xl font-bold">{userData.name}</h1>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <p className="text-muted-foreground">{userData.email}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-3xl font-bold truncate">{userData.name}</h1>
+            <div className="flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
+              <p className="text-xs sm:text-base text-muted-foreground truncate">
+                {userData.email}
+              </p>
               {!userData.active && (
-                <Badge variant="outline">Inactivo</Badge>
+                <Badge variant="outline" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1.5">
+                  Inactivo
+                </Badge>
               )}
               {userData.role && (
                 <Badge
+                  className="text-[10px] sm:text-xs h-4 sm:h-5 px-1.5"
                   style={{
                     backgroundColor: userData.role.color || "#6366f1",
                     color: "white",
@@ -219,22 +224,24 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
                 </Badge>
               )}
               {!userData.role && (
-                <Badge variant="destructive">Sin Rol</Badge>
+                <Badge variant="destructive" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1.5">
+                  Sin Rol
+                </Badge>
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Info Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* Info Cards - compact 3 cols mobile */}
+      <div className="grid gap-2 sm:gap-4 grid-cols-3">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Calendar className="h-4 w-4" />
-              Último acceso
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-sm text-muted-foreground mb-1">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+              <span className="truncate">Acceso</span>
             </div>
-            <p className="font-semibold">
+            <p className="font-semibold text-xs sm:text-base truncate">
               {userData.lastLogin
                 ? formatDistanceToNow(new Date(userData.lastLogin), {
                     addSuffix: true,
@@ -246,24 +253,24 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Shield className="h-4 w-4" />
-              Rol asignado
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-sm text-muted-foreground mb-1">
+              <Shield className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+              <span className="truncate">Rol</span>
             </div>
-            <p className="font-semibold">
+            <p className="font-semibold text-xs sm:text-base truncate">
               {userData.role?.name || "Sin rol"}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Key className="h-4 w-4" />
-              Permisos personalizados
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-sm text-muted-foreground mb-1">
+              <Key className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+              <span className="truncate">Permisos</span>
             </div>
-            <p className="font-semibold">
+            <p className="font-semibold text-xs sm:text-base tabular-nums">
               {userData.customPermissions.length}
             </p>
           </CardContent>
@@ -271,16 +278,24 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="general" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="general">Información General</TabsTrigger>
-          <TabsTrigger value="permissions">Permisos</TabsTrigger>
-          <TabsTrigger value="security">Seguridad</TabsTrigger>
+      <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
+        <TabsList className="w-full sm:w-auto h-auto sm:h-10 p-1 grid grid-cols-3 sm:flex">
+          <TabsTrigger value="general" className="text-xs sm:text-sm py-1.5">
+            <span className="hidden sm:inline">Información General</span>
+            <span className="sm:hidden">General</span>
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="text-xs sm:text-sm py-1.5">
+            Permisos
+          </TabsTrigger>
+          <TabsTrigger value="security" className="text-xs sm:text-sm py-1.5">
+            <span className="hidden sm:inline">Seguridad</span>
+            <span className="sm:hidden">Clave</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab: Información General */}
-        <TabsContent value="general" className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <TabsContent value="general" className="space-y-4 sm:space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Datos del Usuario</CardTitle>
@@ -414,7 +429,7 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-4">
+            <div className="hidden sm:flex justify-end gap-4">
               <Button type="button" variant="outline" asChild>
                 <Link href="/admin/configuracion/usuarios">Cancelar</Link>
               </Button>
@@ -423,11 +438,27 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
                 {saving ? "Guardando..." : "Guardar Cambios"}
               </Button>
             </div>
+
+            {/* Sticky bottom save bar — mobile only */}
+            <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur px-3 py-2.5 flex gap-2 shadow-lg">
+              <Button
+                type="button"
+                variant="outline"
+                asChild
+                className="flex-1 h-10"
+              >
+                <Link href="/admin/configuracion/usuarios">Cancelar</Link>
+              </Button>
+              <Button type="submit" className="flex-1 h-10" disabled={saving}>
+                <Save className="mr-2 h-4 w-4" />
+                {saving ? "Guardando…" : "Guardar"}
+              </Button>
+            </div>
           </form>
         </TabsContent>
 
         {/* Tab: Permisos */}
-        <TabsContent value="permissions" className="space-y-6">
+        <TabsContent value="permissions" className="space-y-4 sm:space-y-6">
           {params && (
             <CustomPermissionsManager
               userId={params.id}
@@ -439,8 +470,8 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
         </TabsContent>
 
         {/* Tab: Seguridad */}
-        <TabsContent value="security" className="space-y-6">
-          <form onSubmit={handleChangePassword} className="space-y-6">
+        <TabsContent value="security" className="space-y-4 sm:space-y-6">
+          <form onSubmit={handleChangePassword} className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Cambiar Contraseña</CardTitle>
@@ -504,7 +535,7 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
             </Card>
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="w-full sm:w-auto">
                 <Key className="mr-2 h-4 w-4" />
                 {saving ? "Cambiando..." : "Cambiar Contraseña"}
               </Button>
