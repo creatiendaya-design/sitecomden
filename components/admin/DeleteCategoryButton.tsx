@@ -21,12 +21,18 @@ interface DeleteCategoryButtonProps {
   categoryId: string;
   categoryName: string;
   productCount: number;
+  className?: string;
+  iconClassName?: string;
+  variant?: "destructive" | "ghost";
 }
 
 export default function DeleteCategoryButton({
   categoryId,
   categoryName,
   productCount,
+  className,
+  iconClassName,
+  variant = "destructive",
 }: DeleteCategoryButtonProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -69,8 +75,17 @@ export default function DeleteCategoryButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="sm">
-          <Trash2 className="h-4 w-4" />
+        <Button
+          variant={variant}
+          size={variant === "ghost" ? "icon" : "sm"}
+          className={
+            variant === "ghost"
+              ? `text-destructive hover:text-destructive hover:bg-destructive/10 ${className ?? ""}`
+              : className
+          }
+          aria-label="Eliminar categoría"
+        >
+          <Trash2 className={iconClassName ?? "h-4 w-4"} />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
@@ -100,7 +115,7 @@ export default function DeleteCategoryButton({
             disabled={isDeleting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? "Eliminando..." : "Eliminar categoríaa"}
+            {isDeleting ? "Eliminando..." : "Eliminar categoría"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

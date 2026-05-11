@@ -23,12 +23,12 @@ interface DeleteZoneButtonProps {
     id: string;
     name: string;
     districtCount: number;
-    groupCount: number;
     rateCount: number;
   };
+  trigger?: React.ReactNode;
 }
 
-export function DeleteZoneButton({ zone }: DeleteZoneButtonProps) {
+export function DeleteZoneButton({ zone, trigger }: DeleteZoneButtonProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [open, setOpen] = useState(false);
@@ -41,7 +41,7 @@ export function DeleteZoneButton({ zone }: DeleteZoneButtonProps) {
     if (result.success) {
       toast.success("Zona eliminada correctamente");
       setOpen(false);
-      router.refresh(); // Recargar la página para actualizar la lista
+      router.refresh();
     } else {
       toast.error(result.error || "Error al eliminar zona");
       setDeleting(false);
@@ -51,19 +51,20 @@ export function DeleteZoneButton({ zone }: DeleteZoneButtonProps) {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
+        {trigger ?? (
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Eliminar ${zone.name}`}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>¿Eliminar zona de envío?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción eliminará permanentemente la zona{" "}
-            <strong>"{zone.name}"</strong> y todos sus datos asociados:
+            <strong>&ldquo;{zone.name}&rdquo;</strong> y todos sus datos asociados:
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li>{zone.districtCount} distritos asignados</li>
-              <li>{zone.groupCount} grupos de tarifas</li>
               <li>{zone.rateCount} tarifas de envío</li>
             </ul>
             <p className="mt-3 font-semibold text-destructive">

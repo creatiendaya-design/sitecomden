@@ -18,9 +18,9 @@ import {
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import BulkEditModal from "@/components/admin/BulkEditModal";
-import CodFormConfig from "@/components/admin/CodFormConfig";
-import { DEFAULT_COD_FORM_SETTINGS, type CodFormSettings } from "@/lib/types/cod-form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import CodFormTemplateCard from "@/components/admin/products/CodFormTemplateCard";
+import ShippingRestrictionCard from "@/components/admin/products/ShippingRestrictionCard";
+import type { ShippingRestriction } from "@/lib/cod-forms/types";
 import VariantsTable from "@/components/admin/VariantsTable";
 import ImageUpload from "@/components/admin/ImageUpload";
 import dynamic from "next/dynamic";
@@ -32,6 +32,9 @@ const RichTextEditor = dynamic(() => import("./RichTextEditor"), {
   ),
 });
 import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
+import { CustomizationCard } from "@/components/admin/products/CustomizationCard";
+import { SizeGuideCard } from "@/components/admin/products/SizeGuideCard";
+import type { MockupOverrides } from "@/lib/customizer/types";
 
 // 🆕 Tipos actualizados con swatches
 interface ProductOptionValue {
@@ -85,7 +88,8 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     hasVariants: false,
     template: "STANDARD",
     checkoutMode: "STANDARD",
-    codFormSettings: DEFAULT_COD_FORM_SETTINGS as CodFormSettings,
+    codFormTemplateId: null as string | null,
+    shippingRestriction: null as ShippingRestriction | null,
     metaTitle: "",
     metaDescription: "",
     weight: "",
@@ -94,6 +98,10 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
   // 🆕 Estado para opciones con swatches
   const [options, setOptions] = useState<ProductOption[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
+
+  const [customizableTemplateId, setCustomizableTemplateId] = useState<string | null>(null);
+  const [customizableMockupOverrides, setCustomizableMockupOverrides] = useState<MockupOverrides | null>(null);
+  const [sizeGuideId, setSizeGuideId] = useState<string | null>(null);
 
   // Selección y edición masiva
   const [selectedVariants, setSelectedVariants] = useState<number[]>([]);
@@ -237,6 +245,9 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
               stock: parseInt(v.stock) || 0,
             }))
           : [],
+        customizableTemplateId,
+        customizableMockupOverrides,
+        sizeGuideId,
       };
 
       const response = await fetch("/api/admin/products/create", {
@@ -281,22 +292,22 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0 pb-24 sm:pb-0">
+      <div className="flex items-center gap-3">
+        <Button variant="outline" size="icon" asChild className="shrink-0">
           <Link href="/admin/productos">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Nuevo Producto</h1>
-          <p className="text-muted-foreground">Agrega un nuevo producto</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-3xl font-bold leading-tight">Nuevo Producto</h1>
+          <p className="text-xs sm:text-base text-muted-foreground">Agrega un nuevo producto</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Basic Info */}
             <Card>
               <CardHeader>
@@ -581,7 +592,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Estado</CardTitle>
@@ -611,122 +622,45 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
   <CardHeader>
     <CardTitle>Presentación</CardTitle>
     <p className="text-sm text-muted-foreground">
-      Elige cómo se mostrará este producto en la tienda
+      Elige la plantilla que define cómo se mostrará este producto en la tienda
     </p>
   </CardHeader>
-  <CardContent className="space-y-4">
-    <div>
-      <Label htmlFor="template">Tipo de Página</Label>
-      <Select
-        value={formData.template}
-        onValueChange={(value) =>
-          setFormData({ ...formData, template: value })
-        }
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Selecciona un template" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="STANDARD">
-            <div className="flex flex-col">
-              <span className="font-medium">Página Normal</span>
-              <span className="text-xs text-muted-foreground">
-                Vista estándar de producto
-              </span>
-            </div>
-          </SelectItem>
-          <SelectItem value="LANDING">
-            <div className="flex flex-col">
-              <span className="font-medium">Landing Page</span>
-              <span className="text-xs text-muted-foreground">
-                Con secciones especiales y CTA destacados
-              </span>
-            </div>
-          </SelectItem>
-          {/* Futuros templates */}
-          <SelectItem value="MINIMAL" disabled>
-            <div className="flex flex-col">
-              <span className="font-medium">Minimalista</span>
-              <span className="text-xs text-muted-foreground">
-                Próximamente
-              </span>
-            </div>
-          </SelectItem>
-        </SelectContent>
-      </Select>
+  <CardContent>
+    <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+      <p className="font-medium text-foreground mb-1">
+        Vista estándar por defecto
+      </p>
+      <p className="text-xs leading-relaxed">
+        Al crear el producto se mostrará con la vista estándar (galería de
+        imágenes + información básica + descripción). Después de guardarlo
+        podrás vincularlo a una plantilla del tema o crear una nueva
+        directamente desde la página de edición.
+      </p>
     </div>
-    
-    {/* Preview del template seleccionado */}
-    <div className="rounded-lg border p-3 bg-muted/30">
-      <p className="text-xs font-medium mb-2">Vista Previa:</p>
-      {formData.template === "STANDARD" && (
-        <p className="text-xs text-muted-foreground">
-          ✓ Galería de imágenes izquierda<br/>
-          ✓ Información básica derecha<br/>
-          ✓ Descripción debajo
-        </p>
-      )}
-      {formData.template === "LANDING" && (
-        <p className="text-xs text-muted-foreground">
-          ✓ Hero con imagen destacada<br/>
-          ✓ Secciones de beneficios<br/>
-          ✓ Testimonios<br/>
-          ✓ CTAs prominentes
-        </p>
-      )}
-    </div>
-
-    {formData.template === "LANDING" && (
-      <div className="mt-4 pt-4 border-t rounded-lg bg-muted/30 p-3 text-center text-sm text-muted-foreground">
-        💡 Guarda el producto primero para poder agregar secciones de landing.
-      </div>
-    )}
   </CardContent>
 </Card>
 
-<Card>
-  <CardHeader>
-    <CardTitle>Modo de Compra</CardTitle>
-    <p className="text-sm text-muted-foreground">¿Cómo puede comprar el cliente este producto?</p>
-  </CardHeader>
-  <CardContent className="space-y-3">
-    <RadioGroup
-      value={formData.checkoutMode}
-      onValueChange={(v) => setFormData({ ...formData, checkoutMode: v })}
-    >
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="STANDARD" id="nm-standard" />
-        <label htmlFor="nm-standard" className="cursor-pointer">
-          <div className="font-medium text-sm">Checkout normal</div>
-          <div className="text-xs text-muted-foreground">Agrega al carrito → pago con tarjeta/Yape/Plin</div>
-        </label>
-      </div>
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="COD_AND_CART" id="nm-cod-cart" />
-        <label htmlFor="nm-cod-cart" className="cursor-pointer">
-          <div className="font-medium text-sm">Comprar ahora (COD) + Carrito</div>
-          <div className="text-xs text-muted-foreground">Botón principal "Comprar ahora" COD. Botón secundario agrega al carrito.</div>
-        </label>
-      </div>
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="COD_ONLY" id="nm-cod-only" />
-        <label htmlFor="nm-cod-only" className="cursor-pointer">
-          <div className="font-medium text-sm">Solo contra entrega (sin carrito)</div>
-          <div className="text-xs text-muted-foreground">Solo botón "Comprar ahora" COD. No se puede agregar al carrito.</div>
-        </label>
-      </div>
-    </RadioGroup>
+<CustomizationCard
+  templateId={customizableTemplateId}
+  overrides={customizableMockupOverrides}
+  options={[]}
+  onTemplateChange={setCustomizableTemplateId}
+  onOverridesChange={setCustomizableMockupOverrides}
+/>
 
-    {(formData.checkoutMode === "COD_ONLY" || formData.checkoutMode === "COD_AND_CART") && (
-      <CodFormConfig
-        settings={formData.codFormSettings as CodFormSettings}
-        onChange={(s) => setFormData({ ...formData, codFormSettings: s })}
-      />
-    )}
-  </CardContent>
-</Card>
+<SizeGuideCard value={sizeGuideId} onChange={setSizeGuideId} />
 
-            <Card>
+<CodFormTemplateCard
+  checkoutMode={formData.checkoutMode as any}
+  templateId={formData.codFormTemplateId}
+  onChange={(patch) => setFormData({ ...formData, ...patch } as any)}
+/>
+<ShippingRestrictionCard
+  value={formData.shippingRestriction}
+  onChange={(v) => setFormData({ ...formData, shippingRestriction: v })}
+/>
+
+            <Card className="hidden sm:block">
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>
                   <Save className="mr-2 h-4 w-4" />
@@ -743,6 +677,22 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Sticky bottom save bar — mobile only */}
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur px-3 py-2.5 flex gap-2 shadow-lg">
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+            className="flex-1 h-10"
+          >
+            <Link href="/admin/productos">Cancelar</Link>
+          </Button>
+          <Button type="submit" className="flex-1 h-10" disabled={loading}>
+            <Save className="mr-2 h-4 w-4" />
+            {loading ? "Guardando…" : "Crear"}
+          </Button>
         </div>
       </form>
 

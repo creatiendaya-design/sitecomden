@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { approvePaymentSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
+import {
+  decrementStockAtomic,
+  StockUnavailableError,
+} from "@/lib/inventory/decrement-stock";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
@@ -50,53 +54,45 @@ export async function POST(request: Request) {
       );
     }
 
-    // Actualizar en transacción
-    await prisma.$transaction(async (tx) => {
-      // Actualizar pago pendiente
-      await tx.pendingPayment.update({
-        where: { id: paymentId },
-        data: {
-          status: "verified",
-          verifiedAt: new Date(),
-          verifiedBy: user.id,
-        },
-      });
+    // Atomic approval: update pending payment + mark order paid + decrement
+    // stock with TOCTOU-safe guard. If stock ran out between order creation
+    // and approval (concurrent approvals or earlier oversell), the whole
+    // transaction rolls back and the admin gets a 409 to reconcile manually.
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.pendingPayment.update({
+          where: { id: paymentId },
+          data: {
+            status: "verified",
+            verifiedAt: new Date(),
+            verifiedBy: user.id,
+          },
+        });
 
-      // Actualizar orden
-      await tx.order.update({
-        where: { id: orderId },
-        data: {
-          paymentStatus: "PAID",
-          status: "PAID",
-          paidAt: new Date(),
-        },
-      });
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            paymentStatus: "PAID",
+            status: "PAID",
+            paidAt: new Date(),
+          },
+        });
 
-      // Descontar stock ahora que el pago está confirmado (diferido desde createOrder)
-      for (const item of order.items) {
-        if (item.variantId) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stock: { decrement: item.quantity } },
+        for (const item of order.items) {
+          const result = await decrementStockAtomic(tx, {
+            productId: item.productId ?? "",
+            variantId: item.variantId ?? undefined,
+            quantity: item.quantity,
+            name: item.name,
           });
+          if (!result.ok) {
+            throw new StockUnavailableError(result.error ?? "Stock insuficiente");
+          }
+
           await tx.inventoryMovement.create({
             data: {
-              variantId: item.variantId,
-              type: "SALE",
-              quantity: -item.quantity,
-              reason: `Venta - Orden #${order.orderNumber} (pago aprobado)`,
-              reference: order.id,
-              userId: user.id,
-            },
-          });
-        } else if (item.productId) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          });
-          await tx.inventoryMovement.create({
-            data: {
-              productId: item.productId,
+              productId: item.variantId ? undefined : item.productId,
+              variantId: item.variantId || undefined,
               type: "SALE",
               quantity: -item.quantity,
               reason: `Venta - Orden #${order.orderNumber} (pago aprobado)`,
@@ -105,8 +101,16 @@ export async function POST(request: Request) {
             },
           });
         }
+      });
+    } catch (txError) {
+      if (txError instanceof StockUnavailableError) {
+        return NextResponse.json(
+          { error: txError.message, code: "STOCK_UNAVAILABLE" },
+          { status: 409 },
+        );
       }
-    });
+      throw txError;
+    }
 
     console.log(`✅ Pago aprobado exitosamente por usuario ${user.id}:`, {
       paymentId,

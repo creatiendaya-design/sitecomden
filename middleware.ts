@@ -234,16 +234,16 @@ function handleAdminRoutes(req: NextRequest, requestHeaders: Headers) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  // ✅ Verificar cookie admin_session para rutas protegidas
+  // ✅ Verificar cookie admin_session para rutas protegidas. La validación
+  // real del token (no expirado, usuario activo, etc.) ocurre server-side
+  // en lib/auth.ts via getAdminSession; aquí solo gateamos la presencia
+  // de la cookie para evitar viajes innecesarios a la BD.
   const adminSession = req.cookies.get('admin_session');
   if (!adminSession) {
     return NextResponse.redirect(new URL('/admin-auth/login', req.url));
   }
 
-  // ⭐ Agregar userId al header para verificación de permisos
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set('x-user-id', adminSession.value);
-  return response;
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 // ========================================
@@ -311,9 +311,18 @@ export default clerkMiddleware((auth, req) => {
   // Customizer iframe relies on this to render the right theme. Presence
   // of the query also unlocks SAMEORIGIN frame embedding so the iframe
   // can render at all.
+  //
+  // Security: only honor the param when (1) an admin session cookie is
+  // present and (2) the value looks like a CUID/UUID. Otherwise any visitor
+  // could append ?theme-preview=anything to bypass frame-ancestors and
+  // clickjack the storefront.
   const themePreviewParam = req.nextUrl.searchParams.get("theme-preview");
-  const allowSameOriginEmbed = Boolean(themePreviewParam);
-  if (themePreviewParam) {
+  const hasAdminSession = req.cookies.has("admin_session");
+  const isValidThemeId = themePreviewParam
+    ? /^[a-z0-9-]{20,40}$/i.test(themePreviewParam)
+    : false;
+  const allowSameOriginEmbed = hasAdminSession && isValidThemeId;
+  if (allowSameOriginEmbed && themePreviewParam) {
     requestHeaders.set("x-theme-preview-id", themePreviewParam);
   }
 

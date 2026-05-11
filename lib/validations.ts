@@ -15,6 +15,7 @@
  */
 
 import { z } from "zod";
+import { shippingRestrictionSchema } from "@/lib/cod-forms/schema";
 
 // ===================================================================
 // HELPERS Y TIPOS COMUNES
@@ -189,6 +190,11 @@ export const createProductSchema = z
       .max(9999, "Peso máximo: 9,999 kg")
       .optional()
       .nullable(),
+
+    // Customizer (Phase 4.3)
+    customizableTemplateId: z.string().cuid().optional().nullable(),
+    customizableMockupOverrides: z.any().optional().nullable(),
+    sizeGuideId: z.string().cuid().optional().nullable(),
   })
   .refine(
     (data) => {
@@ -247,11 +253,15 @@ export const updateProductSchema = z
     checkoutMode: z
       .enum(["STANDARD", "COD_ONLY", "COD_AND_CART"])
       .optional(),
-    codFormSettings: z.any().optional().nullable(),
+    codFormTemplateId: z.string().cuid().optional().nullable(),
+    shippingRestriction: shippingRestrictionSchema.optional().nullable(),
     categoryId: z.string().cuid().optional().nullable(),
     metaTitle: z.string().max(60).optional().nullable(),
     metaDescription: z.string().max(160).optional().nullable(),
     weight: z.number().positive().max(9999).optional().nullable(),
+    customizableTemplateId: z.string().cuid().optional().nullable(),
+    customizableMockupOverrides: z.any().optional().nullable(),
+    sizeGuideId: z.string().cuid().optional().nullable(),
   })
   .refine(
     (data) => {
@@ -723,26 +733,6 @@ export const updateSiteSettingsSchema = z.object({
 // COD FORM SCHEMAS
 // ===================================================================
 
-export const codFormFieldSchema = z.object({
-  id: z.enum(["name", "phone", "email", "dni", "location", "address", "reference", "notes"]),
-  label: z.string().min(1),
-  required: z.boolean(),
-  visible: z.boolean(),
-});
-
-export const codFormSettingsSchema = z.object({
-  formTitle: z.string().min(1),
-  formSubtitle: z.string().optional(),
-  buttonText: z.string().min(1),
-  paymentBadge: z.string().optional(),
-  thankYouTitle: z.string().min(1),
-  thankYouMessage: z.string().min(1),
-  whatsappEnabled: z.boolean(),
-  whatsappNumber: z.string().optional(),
-  whatsappMessage: z.string().optional(),
-  fields: z.array(codFormFieldSchema),
-});
-
 export const createCodOrderSchema = z.object({
   productId: z.string().optional(),
   variantId: z.string().optional(),
@@ -760,10 +750,24 @@ export const createCodOrderSchema = z.object({
   address: z.string().min(5).max(300),
   reference: z.string().max(200).optional(),
   notes: z.string().max(500).optional(),
+  // Optional — when provided, the server re-computes the shipping cost from
+  // /admin/envios (never trusts a price from the client).
+  shippingRateId: z.string().optional(),
   items: z.array(z.object({
     productId: z.string(),
     variantId: z.string().optional(),
     quantity: z.number().int().min(1),
+    /** VOLUME promotion id (per-line discount). */
+    promotionId: z.string().optional(),
+    /** BUNDLE promotion id — server validates that all required partners
+     *  are present in the same payload before applying any discount. */
+    bundlePromotionId: z.string().optional(),
+    subscriptionOptIn: z
+      .object({
+        promotionId: z.string(),
+        email: z.string().email(),
+      })
+      .optional(),
   })).optional(),
 });
 

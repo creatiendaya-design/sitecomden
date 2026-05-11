@@ -7,11 +7,31 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import OrderFiltersPanel from "@/components/admin/OrderFiltersPanel";
+
+const PER_PAGE = 50;
+
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  CARD: "Tarjeta",
+  YAPE: "Yape",
+  PLIN: "Plin",
+  PAYPAL: "PayPal",
+  COD: "COD",
+  BANK_TRANSFER: "Transferencia",
+};
 
 interface OrdersPageProps {
   searchParams: Promise<{
+    page?: string;
     desde?: string;
     hasta?: string;
     status?: string | string[];
@@ -100,33 +120,48 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     where.total = total;
   }
 
-  // Obtener órdenes
-  const orders = await prisma.order.findMany({
-    where,
-    include: {
-      items: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 200,
-  });
+  const pageNum = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+  const skip = (pageNum - 1) * PER_PAGE;
 
-  // Obtener totales para los filtros
-  const [totalOrders, pendingPayment, paidOrders] = await Promise.all([
-    prisma.order.count(),
-    prisma.order.count({ where: { paymentStatus: "PENDING" } }),
-    prisma.order.count({ where: { paymentStatus: "PAID" } }),
-  ]);
+  const [orders, filteredCount, totalOrders, pendingPayment, paidOrders, categories] =
+    await Promise.all([
+      prisma.order.findMany({
+        where,
+        include: { items: { select: { id: true } } },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: PER_PAGE,
+      }),
+      prisma.order.count({ where }),
+      prisma.order.count(),
+      prisma.order.count({ where: { paymentStatus: "PENDING" } }),
+      prisma.order.count({ where: { paymentStatus: "PAID" } }),
+      prisma.category.findMany({
+        where: { active: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
 
-  const categories = await prisma.category.findMany({
-    where: { active: true },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  const totalPages = Math.max(1, Math.ceil(filteredCount / PER_PAGE));
+
+  const buildHref = (target: number): string => {
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (k === "page" || v == null) continue;
+      if (Array.isArray(v)) v.forEach((val) => sp.append(k, val));
+      else sp.set(k, v);
+    }
+    if (target > 1) sp.set("page", String(target));
+    const qs = sp.toString();
+    return `/admin/ordenes${qs ? `?${qs}` : ""}`;
+  };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+    const variants: Record<
+      string,
+      { variant: "default" | "secondary" | "destructive" | "outline"; label: string }
+    > = {
       PENDING: { variant: "secondary", label: "Pendiente" },
       PAID: { variant: "default", label: "Pagado" },
       PROCESSING: { variant: "default", label: "Procesando" },
@@ -163,6 +198,9 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     ? params.payment[0]
     : params.payment;
 
+  const from = filteredCount === 0 ? 0 : skip + 1;
+  const to = Math.min(skip + PER_PAGE, filteredCount);
+
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
@@ -178,7 +216,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
       {/* Advanced Filters + Export */}
       <OrderFiltersPanel categories={categories} />
 
-      {/* Filter Tabs - Horizontal scroll en móvil */}
+      {/* Filter Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         <Link href="/admin/ordenes">
           <Button
@@ -209,100 +247,222 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
         </Link>
       </div>
 
-      {/* Orders List */}
-      <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-lg sm:text-xl">Lista de Órdenes</CardTitle>
+      {/* Orders */}
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base sm:text-lg">Lista de Órdenes</CardTitle>
+            {filteredCount > 0 && (
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {from}–{to} de {filteredCount}
+              </p>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="p-2 sm:p-6">
+        <CardContent className="p-0">
           {orders.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
+            <div className="py-12 text-center text-sm text-muted-foreground">
               No hay órdenes que coincidan con los filtros
             </div>
           ) : (
-            <div className="space-y-3 sm:space-y-4">
-              {orders.map((order) => {
-                const paymentBadge = getPaymentBadge(order.paymentStatus);
-                const statusBadge = getStatusBadge(order.status);
-
-                return (
-                  <div
-                    key={order.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 rounded-lg border p-3 sm:p-4 hover:bg-slate-50"
-                  >
-                    {/* Info principal */}
-                    <div className="space-y-2 sm:space-y-1 flex-1 min-w-0">
-                      {/* Número de orden y badges */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                        <Link
-                          href={`/admin/ordenes/${order.id}`}
-                          className="font-semibold hover:underline text-sm sm:text-base"
-                        >
-                          {order.orderSeq
-                            ? formatOrderNumber(order.orderSeq, orderPrefix)
-                            : `#${order.orderNumber.slice(-8).toUpperCase()}`}
-                        </Link>
-                        <div className="flex flex-wrap gap-2">
-                          <span
-                            className={`rounded-full px-2 py-1 text-xs ${paymentBadge.color}`}
-                          >
-                            {paymentBadge.label}
+            <>
+              {/* MOBILE: compact list */}
+              <ul className="divide-y md:hidden">
+                {orders.map((order) => {
+                  const paymentBadge = getPaymentBadge(order.paymentStatus);
+                  const statusBadge = getStatusBadge(order.status);
+                  const orderLabel = order.orderSeq
+                    ? formatOrderNumber(order.orderSeq, orderPrefix)
+                    : `#${order.orderNumber.slice(-8).toUpperCase()}`;
+                  return (
+                    <li key={order.id}>
+                      <Link
+                        href={`/admin/ordenes/${order.id}`}
+                        className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40 active:bg-muted/60"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm truncate">
+                              {orderLabel}
+                            </span>
+                            <span
+                              className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${paymentBadge.color}`}
+                            >
+                              {paymentBadge.label}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-xs text-muted-foreground truncate">
+                            <span className="font-medium text-foreground/80">
+                              {order.customerName}
+                            </span>
+                            <span> · </span>
+                            <span>
+                              {new Date(order.createdAt).toLocaleDateString("es-PE", {
+                                day: "2-digit",
+                                month: "short",
+                              })}
+                            </span>
+                            <span> · </span>
+                            <span>{order.items.length} item{order.items.length === 1 ? "" : "s"}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end shrink-0">
+                          <span className="text-sm font-bold tabular-nums">
+                            {formatPrice(Number(order.total))}
                           </span>
                           <Badge
                             variant={statusBadge.variant}
-                            className="text-xs"
+                            className="text-[10px] mt-1 h-5 px-1.5"
                           >
                             {statusBadge.label}
                           </Badge>
                         </div>
-                      </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
 
-                      {/* Info del cliente */}
-                      <div className="text-xs sm:text-sm text-muted-foreground">
-                        <span className="font-medium">{order.customerName}</span>
-                        <span className="hidden sm:inline"> • </span>
-                        <br className="sm:hidden" />
-                        <span className="break-all">{order.customerEmail}</span>
-                        <span className="hidden sm:inline"> • </span>
-                        <br className="sm:hidden" />
-                        {order.items.length}{" "}
-                        {order.items.length === 1 ? "producto" : "productos"}
-                      </div>
+              {/* DESKTOP: dense table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="px-4 text-xs uppercase tracking-wide text-muted-foreground">
+                        Orden
+                      </TableHead>
+                      <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Cliente
+                      </TableHead>
+                      <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Fecha
+                      </TableHead>
+                      <TableHead className="text-xs uppercase tracking-wide text-muted-foreground text-center">
+                        Items
+                      </TableHead>
+                      <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Pago
+                      </TableHead>
+                      <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Estado
+                      </TableHead>
+                      <TableHead className="text-xs uppercase tracking-wide text-muted-foreground text-right px-4">
+                        Total
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => {
+                      const paymentBadge = getPaymentBadge(order.paymentStatus);
+                      const statusBadge = getStatusBadge(order.status);
+                      const orderLabel = order.orderSeq
+                        ? formatOrderNumber(order.orderSeq, orderPrefix)
+                        : `#${order.orderNumber.slice(-8).toUpperCase()}`;
+                      const created = new Date(order.createdAt);
+                      return (
+                        <TableRow key={order.id}>
+                          <TableCell className="px-4 py-2.5">
+                            <Link
+                              href={`/admin/ordenes/${order.id}`}
+                              className="font-semibold text-sm hover:underline tabular-nums"
+                            >
+                              {orderLabel}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="py-2.5 max-w-[220px]">
+                            <div className="font-medium text-sm leading-tight truncate">
+                              {order.customerName}
+                            </div>
+                            <div className="text-xs text-muted-foreground leading-tight truncate">
+                              {order.customerEmail}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2.5 text-sm">
+                            <div className="leading-tight">
+                              {created.toLocaleDateString("es-PE", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </div>
+                            <div className="text-xs text-muted-foreground leading-tight tabular-nums">
+                              {created.toLocaleTimeString("es-PE", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2.5 text-center text-sm tabular-nums">
+                            {order.items.length}
+                          </TableCell>
+                          <TableCell className="py-2.5">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs text-muted-foreground leading-tight">
+                                {PAYMENT_METHOD_LABEL[order.paymentMethod] ??
+                                  order.paymentMethod}
+                              </span>
+                              <span
+                                className={`inline-block w-fit rounded-full px-1.5 py-0.5 text-[10px] font-medium ${paymentBadge.color}`}
+                              >
+                                {paymentBadge.label}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2.5">
+                            <Badge
+                              variant={statusBadge.variant}
+                              className="text-xs"
+                            >
+                              {statusBadge.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-2.5 text-right px-4 font-bold text-sm tabular-nums">
+                            {formatPrice(Number(order.total))}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
 
-                      {/* Fecha y método de pago */}
-                      <div className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:gap-2">
-                        <span>
-                          {new Date(order.createdAt).toLocaleString("es-PE", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
-                        </span>
-                        <span className="hidden sm:inline">•</span>
-                        <span>{order.paymentMethod}</span>
-                      </div>
-                    </div>
-
-                    {/* Total y acciones */}
-                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-                      {/* Total */}
-                      <div className="text-left sm:text-right">
-                        <p className="text-base sm:text-lg font-bold">
-                          {formatPrice(Number(order.total))}
-                        </p>
-                      </div>
-
-                      {/* Botón ver detalles */}
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 border-t px-4 py-3">
+                  <p className="text-xs text-muted-foreground">
+                    Página {pageNum} de {totalPages}
+                  </p>
+                  <div className="flex gap-2">
+                    {pageNum > 1 ? (
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/admin/ordenes/${order.id}`}>
-                          <Eye className="h-4 w-4" />
-                          <span className="ml-2 sm:hidden">Ver</span>
+                        <Link href={buildHref(pageNum - 1)}>
+                          <ChevronLeft className="h-4 w-4" />
+                          <span className="hidden sm:inline ml-1">Anterior</span>
                         </Link>
                       </Button>
-                    </div>
+                    ) : (
+                      <Button variant="outline" size="sm" disabled>
+                        <ChevronLeft className="h-4 w-4" />
+                        <span className="hidden sm:inline ml-1">Anterior</span>
+                      </Button>
+                    )}
+                    {pageNum < totalPages ? (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={buildHref(pageNum + 1)}>
+                          <span className="hidden sm:inline mr-1">Siguiente</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" disabled>
+                        <span className="hidden sm:inline mr-1">Siguiente</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

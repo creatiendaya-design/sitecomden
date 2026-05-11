@@ -1,5 +1,9 @@
+import { headers } from "next/headers"
 import { Eye } from "lucide-react"
-import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme"
+import {
+  resolveActiveTheme,
+  THEME_PREVIEW_HEADER,
+} from "@/lib/themes/resolve-active-theme"
 
 /**
  * Storefront banner that surfaces the admin theme-preview state (Plan 9).
@@ -8,6 +12,10 @@ import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme"
  * (the common case). When the visitor is an admin with an active preview
  * cookie, we show a sticky banner with the preview theme name and an "exit"
  * link that hits /api/admin/themes/exit-preview to clear the cookie.
+ *
+ * Suppressed when the preview comes from the `?theme-preview=` query param
+ * (customizer iframe): inside the customizer there is already a "Salir" UI
+ * in the toolbar, and Shopify's equivalent surface is also chrome-free.
  *
  * Because resolveActiveTheme uses cookies(), embedding this server component
  * marks the layout as dynamic — that's intentional: the storefront is
@@ -23,6 +31,9 @@ import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme"
 export default async function ThemePreviewBanner() {
   const theme = await resolveActiveTheme()
   if (!theme || !theme.isPreview) return null
+
+  const headerList = await headers()
+  if (headerList.get(THEME_PREVIEW_HEADER)) return null
 
   return (
     <div

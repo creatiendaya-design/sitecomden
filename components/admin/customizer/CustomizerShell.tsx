@@ -5,103 +5,170 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   ChevronLeft,
+  ChevronRight,
   Eye,
-  Layers,
   Loader2,
-  Settings,
+  Palette,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import {
   ensureCartPageForTheme,
   ensureHomePageForTheme,
-  updateThemeMetadata,
   type ThemeRow,
 } from "@/actions/themes"
 import type { TemplateRow } from "@/actions/landing-templates"
-import type { PageRow } from "@/actions/pages"
-import type { MenuRow } from "@/actions/menus"
+import { savePageBlocks, type PageRow } from "@/actions/pages"
+import { saveCategoryBlocks } from "@/actions/categories-blocks"
+import {
+  saveThemeSectionGroup,
+  type ThemeSectionRow,
+} from "@/actions/theme-sections"
 import type { BlockInstance } from "@/lib/blocks/types"
+import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
 import {
   CustomizerToolbar,
   type DeviceMode,
 } from "./CustomizerToolbar"
 import { CustomizerPreview } from "./CustomizerPreview"
-import { EmbeddedBlocksEditor } from "./EmbeddedBlocksEditor"
-import { ThemeSettingsPanel } from "./ThemeSettingsPanel"
+import { CustomizerTokensPanel } from "./CustomizerTokensPanel"
+import { ZoneList } from "./ZoneList"
+import { ColorSchemesProvider } from "./color-schemes-context"
 import { RightSidebar } from "@/components/admin/page-builder/RightSidebar/RightSidebar"
+import { ThemeSectionRightSidebar } from "./ThemeSectionRightSidebar"
+import {
+  useThemeSectionsStore,
+  type SectionDraft,
+} from "./theme-sections-store"
+import { useBuilderStore } from "@/components/admin/page-builder/store"
+import type { EditorBlock } from "./EmbeddedBlocksEditor"
 import {
   buildPageTargets,
   findTarget,
 } from "./page-targets"
 
+/**
+ * Plan 14 — the customizer can edit either a Page (home, cart, static
+ * page) or a Category landing. The surface kind drives which save action
+ * the EmbeddedBlocksEditor wires.
+ */
+export type EditableSurface =
+  | { kind: "page"; id: string; title: string | null }
+  | { kind: "category"; id: string; title: string }
+
 interface Props {
   theme: ThemeRow
+  // landingTemplates kept in props for backward compatibility with the
+  // page route, but the picker for it lives outside the customizer now
+  // (theme metadata page) — pending product-section analysis.
   landingTemplates: TemplateRow[]
   pages: PageRow[]
-  menus: MenuRow[]
+  /** All Pages + Categories the page picker should expose. The customize
+   *  page server-fetches these and forwards them so the picker dropdown
+   *  can list real options. */
+  categoryTargets: { id: string; name: string; slug: string }[]
   sampleProductSlug: string | null
   sampleCategorySlug: string | null
   targetKey: string
-  editablePageId: string | null
-  editablePageTitle: string | null
+  editableSurface: EditableSurface | null
   initialBlocks: BlockInstance[]
+  /** Plan 16 — server-fetched ordered HEADER theme sections (with blocks). */
+  headerSections: ThemeSectionRow[]
+  /** Plan 16 — server-fetched ordered FOOTER theme sections (with blocks). */
+  footerSections: ThemeSectionRow[]
+  /** Plan 16 — per-theme allowed section types per group. */
+  sectionCatalog: ThemeSectionCatalog
 }
-
-type LeftTab = "blocks" | "settings"
 
 /**
  * Plan 13 — Customizer split-screen shell (Shopify-style).
  *
  * Layout:
- *  - Toolbar (top): page picker, device toggle, Save (theme settings)
- *  - Left column: tabs Bloques / Tema
- *      · Bloques: page-builder LeftSidebar (block list, drag, add) wired
- *        to the active page's blocks via EmbeddedBlocksEditor
- *      · Tema: pickers for Header menu, Footer menu, Producto template
- *  - Center column: storefront iframe with `?theme-preview=<id>` so the
- *    iframe always renders THIS theme regardless of which is active
+ *  - Toolbar (top): page picker, device toggle, Salir
+ *  - Left column: single ZoneList with three zones (Encabezado /
+ *    Plantilla / Pie de página). All settings auto-save — no Save button.
+ *  - Center column: storefront iframe with `?theme-preview=<id>`.
  *  - Right column: page-builder RightSidebar — visible only when a block
- *    is selected (Shopify-style: settings appear when you pick a section)
+ *    is selected (Shopify-style: settings appear when you pick a section).
  */
 export function CustomizerShell({
   theme,
-  landingTemplates,
   pages,
-  menus,
+  categoryTargets,
   sampleProductSlug,
   sampleCategorySlug,
   targetKey,
-  editablePageId,
-  editablePageTitle,
+  editableSurface,
   initialBlocks,
+  headerSections,
+  footerSections,
+  sectionCatalog,
 }: Props) {
   const router = useRouter()
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
 
-  // ---------- Theme settings draft (manual save) ----------
-  const [draft, setDraft] = useState({
-    headerMenuId: theme.headerMenuId,
-    footerMenuId: theme.footerMenuId,
-    defaultProductLandingTemplateId: theme.defaultProductLandingTemplateId,
-  })
-  const [pendingSave, setPendingSave] = useState(false)
+  // Plan 13 — left-panel view: "sections" (default zone list) or "tokens"
+  // (theme-wide colors / fonts / scale). Tokens live in their own view
+  // because they're a global concern, not a per-section concern, and they
+  // batch-save on demand instead of autosaving each color tweak.
+  const [panelView, setPanelView] = useState<"sections" | "tokens">("sections")
 
-  const isThemeDirty =
-    draft.headerMenuId !== theme.headerMenuId ||
-    draft.footerMenuId !== theme.footerMenuId ||
-    draft.defaultProductLandingTemplateId !==
-      theme.defaultProductLandingTemplateId
+  // Plan 14 — editor key + save callback for the embedded blocks editor.
+  // Differs by surface kind: pages persist via savePageBlocks, categories
+  // via saveCategoryBlocks. The editor itself is surface-agnostic.
+  const editorKey = editableSurface
+    ? `${editableSurface.kind}-${editableSurface.id}`
+    : null
+  const saveBlocks = useCallback(
+    async (next: EditorBlock[]) => {
+      if (!editableSurface) return
+      if (editableSurface.kind === "page") {
+        await savePageBlocks(
+          editableSurface.id,
+          next.map((b) => ({
+            id: b.id,
+            type: b.type as Parameters<
+              typeof savePageBlocks
+            >[1][number]["type"],
+            position: b.position,
+            content: b.content,
+          })),
+        )
+      } else {
+        await saveCategoryBlocks(
+          editableSurface.id,
+          next.map((b) => ({
+            id: b.id,
+            type: b.type as Parameters<
+              typeof saveCategoryBlocks
+            >[1][number]["type"],
+            position: b.position,
+            content: b.content,
+          })),
+        )
+      }
+    },
+    [editableSurface],
+  )
 
   // ---------- Page-type selector ----------
   const targets = useMemo(
     () =>
       buildPageTargets({
         pages,
+        categoryTargets,
         sampleProductSlug,
         sampleCategorySlug,
+        homePageId: theme.homePageId,
+        cartPageId: theme.cartPageId,
       }),
-    [pages, sampleProductSlug, sampleCategorySlug],
+    [
+      pages,
+      categoryTargets,
+      sampleProductSlug,
+      sampleCategorySlug,
+      theme.homePageId,
+      theme.cartPageId,
+    ],
   )
   const currentTarget =
     findTarget(targets, targetKey) ?? targets[0] ?? null
@@ -126,38 +193,96 @@ export function CustomizerShell({
     [router, theme.id],
   )
 
-  // ---------- Save flow (theme settings only — blocks autosave) ----------
-  const handleSave = useCallback(async () => {
-    if (pendingSave || !isThemeDirty) return
-    setPendingSave(true)
+  // Iframe refresh after any save (blocks autosave or settings autosave).
+  // Prefer a postMessage soft refresh — listened to by PreviewRefreshListener
+  // in app/(shop)/layout.tsx and serviced via router.refresh() inside the
+  // iframe — because it's ~10x faster than a full document reload (no asset
+  // re-download, keeps scroll/focus, avoids a fresh Neon cold start). Falls
+  // back to a hard reload if the iframe isn't reachable.
+  //
+  // We intentionally do NOT call `router.refresh()` on the parent here:
+  // the customizer's local Zustand stores (page-builder + theme-sections)
+  // are the source of truth while editing, and theme-sections autosave
+  // already merges the persisted snapshot back into the store via
+  // `replaceGroup`. Refreshing the parent server component on every save
+  // would double the DB read latency AND reset the user's selected
+  // sidebar target on each round-trip.
+  const handleAnySaved = useCallback(() => {
+    const win = iframeRef.current?.contentWindow
+    if (!win) return
     try {
-      await updateThemeMetadata(theme.id, draft)
-      toast.success("Tema guardado")
-      iframeRef.current?.contentWindow?.location.reload()
-      router.refresh()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar")
-    } finally {
-      setPendingSave(false)
-    }
-  }, [draft, isThemeDirty, pendingSave, router, theme.id])
-
-  const handleExit = useCallback(() => {
-    if (isThemeDirty) {
-      const confirmed = window.confirm(
-        "Tenés cambios del tema sin guardar. ¿Salir igual?",
+      win.postMessage(
+        { type: "theme-preview-refresh" },
+        window.location.origin,
       )
-      if (!confirmed) return
+    } catch {
+      win.location.reload()
     }
-    router.push("/admin/personalizar/temas")
-  }, [isThemeDirty, router])
-
-  // Iframe refresh on block autosave
-  const handleBlocksSaved = useCallback(() => {
-    iframeRef.current?.contentWindow?.location.reload()
   }, [])
 
-  // ---------- Auto-create home/cart page when admin lands on an empty target ----------
+  // ---------- Plan 16 — theme-sections store hydration + autosave ----------
+  const hydrateThemeSections = useThemeSectionsStore((s) => s.hydrate)
+  // Hydrate the store ONCE per theme.id. We intentionally exclude
+  // headerSections / footerSections from the dep array: subsequent saves
+  // already merge the persisted snapshot into the store via replaceGroup(),
+  // and Next.js auto-refresh after server actions changes the prop array
+  // references on every save. Re-running hydrate on those reference
+  // changes would reset `selected` to null (right sidebar collapses to
+  // "Plantilla") and discard any in-flight local edits.
+  const hydratedThemeIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (hydratedThemeIdRef.current === theme.id) return
+    hydratedThemeIdRef.current = theme.id
+    hydrateThemeSections(theme.id, headerSections, footerSections)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme.id, hydrateThemeSections])
+
+  const headerDrafts = useThemeSectionsStore((s) => s.header)
+  const footerDrafts = useThemeSectionsStore((s) => s.footer)
+  const headerDirty = useThemeSectionsStore((s) => s.headerDirty)
+  const footerDirty = useThemeSectionsStore((s) => s.footerDirty)
+  const replaceGroup = useThemeSectionsStore((s) => s.replaceGroup)
+  const themeSectionsSelected = useThemeSectionsStore((s) => s.selected)
+  const selectThemeSection = useThemeSectionsStore((s) => s.select)
+
+  // Coordinate selection between the two zones so only ONE thing is selected
+  // at a time. The right sidebar's conditional gives priority to theme-section
+  // selections, so without this, clicking a Plantilla block while a header /
+  // footer section is selected would silently keep showing the header/footer
+  // form. Each effect only fires when ITS watched value transitions to truthy,
+  // so they don't ping-pong: clearing the other side leaves it null, and the
+  // other effect's `if (truthy)` guard keeps it dormant.
+  const builderSelectedBlockId = useBuilderStore((s) => s.selectedBlockId)
+  const selectBuilderBlock = useBuilderStore((s) => s.selectBlock)
+  useEffect(() => {
+    if (builderSelectedBlockId) selectThemeSection(null)
+  }, [builderSelectedBlockId, selectThemeSection])
+  useEffect(() => {
+    if (themeSectionsSelected) selectBuilderBlock(null)
+  }, [themeSectionsSelected, selectBuilderBlock])
+
+  useDebouncedSaveGroup(
+    theme.id,
+    "HEADER",
+    headerDrafts,
+    headerDirty,
+    replaceGroup,
+    handleAnySaved,
+  )
+  useDebouncedSaveGroup(
+    theme.id,
+    "FOOTER",
+    footerDrafts,
+    footerDirty,
+    replaceGroup,
+    handleAnySaved,
+  )
+
+  const handleExit = useCallback(() => {
+    router.push("/admin/personalizar/temas")
+  }, [router])
+
+  // ---------- Auto-create home/cart page for empty targets ----------
   const [creatingPage, setCreatingPage] = useState(false)
   const handleCreateMissingPage = useCallback(async () => {
     if (creatingPage) return
@@ -182,9 +307,6 @@ export function CustomizerShell({
     }
   }, [creatingPage, targetKey, theme.id, router])
 
-  // ---------- Left-panel tab ----------
-  const [leftTab, setLeftTab] = useState<LeftTab>("blocks")
-
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
       <CustomizerToolbar
@@ -194,53 +316,61 @@ export function CustomizerShell({
         onTargetChange={handleTargetChange}
         device={device}
         onDeviceChange={setDevice}
-        isDirty={isThemeDirty}
-        pending={pendingSave}
-        onSave={handleSave}
         onExit={handleExit}
       />
 
       <div className="flex flex-1 min-h-0">
-        {/* Left column: tabs + content */}
+        {/* Left column: sections list OR tokens editor */}
         <div className="w-[340px] shrink-0 flex flex-col bg-card border-r overflow-hidden">
-          <CustomizerHeaderRow
-            themeName={theme.name}
-            onExit={handleExit}
-          />
-          <LeftTabs
-            current={leftTab}
-            onChange={setLeftTab}
-            targetLabel={currentTarget?.label ?? "Tienda"}
-          />
-
-          {leftTab === "blocks" && (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              {editablePageId ? (
-                <EmbeddedBlocksEditor
-                  pageId={editablePageId}
-                  initialBlocks={initialBlocks}
-                  onSaved={handleBlocksSaved}
-                />
-              ) : (
-                <BlocksUnavailable
-                  targetKey={targetKey}
-                  targetLabel={currentTarget?.label ?? "esta plantilla"}
-                  onCreate={handleCreateMissingPage}
-                  pending={creatingPage}
-                />
-              )}
-            </div>
-          )}
-
-          {leftTab === "settings" && (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <ThemeSettingsPanel
-                draft={draft}
-                onDraftChange={setDraft}
-                landingTemplates={landingTemplates}
-                menus={menus}
+          {panelView === "sections" ? (
+            <>
+              <CustomizerHeaderRow
+                themeName={theme.name}
+                onExit={handleExit}
               />
-            </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {editorKey ? (
+                  <ZoneList
+                    themeId={theme.id}
+                    editorKey={editorKey}
+                    initialBlocks={initialBlocks}
+                    saveBlocks={saveBlocks}
+                    targetLabel={currentTarget?.label ?? "Plantilla"}
+                    onBlocksSaved={handleAnySaved}
+                    sectionCatalog={sectionCatalog}
+                  />
+                ) : (
+                  <BlocksUnavailable
+                    targetKey={targetKey}
+                    targetLabel={currentTarget?.label ?? "esta plantilla"}
+                    onCreate={handleCreateMissingPage}
+                    pending={creatingPage}
+                  />
+                )}
+              </div>
+
+              {/* Footer link to switch into the tokens editor. Mirrors
+                  Shopify's "Theme settings" affordance at the bottom of
+                  the customizer sidebar. */}
+              <button
+                type="button"
+                onClick={() => setPanelView("tokens")}
+                className="flex items-center justify-between gap-2 border-t px-4 py-3 text-sm hover:bg-muted/40 transition-colors"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Palette className="h-3.5 w-3.5 text-muted-foreground" />
+                  Configuración del tema
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </>
+          ) : (
+            <CustomizerTokensPanel
+              theme={theme}
+              onBack={() => setPanelView("sections")}
+              onSaved={handleAnySaved}
+            />
           )}
         </div>
 
@@ -260,22 +390,102 @@ export function CustomizerShell({
           )}
         </main>
 
-        {/* Right column: block settings (only meaningful in Bloques tab) */}
-        {leftTab === "blocks" && editablePageId && (
-          <RightSidebar
-            context={{
-              type: "page",
-              page: {
-                id: editablePageId,
-                slug: editablePageTitle ?? "page",
-                title: editablePageTitle ?? "Página",
-              },
-            }}
-          />
-        )}
+        {/* Right column: block settings (only meaningful in sections
+            view; the tokens view is full-bleed in the left panel).
+            Plan 16: when a theme section / section-block is selected,
+            we render ThemeSectionRightSidebar (it reads from the
+            theme-sections store). Otherwise — and only when there's an
+            editable page/category surface — we fall back to the
+            page-builder RightSidebar, wrapped in ColorSchemesProvider
+            so its StyleTab scheme picker can populate. */}
+        {panelView === "sections" &&
+          (themeSectionsSelected ? (
+            <ThemeSectionRightSidebar />
+          ) : editableSurface ? (
+            <ColorSchemesProvider schemes={theme.colorSchemes}>
+              <RightSidebar
+                context={{
+                  type: "page",
+                  // RightSidebar's PageContext accepts both Page-bound
+                  // and Category-bound surfaces — its current consumers
+                  // only read id/title for breadcrumb display, so we
+                  // forward whichever surface the customizer is editing
+                  // without introducing a separate CategoryContext today.
+                  page: {
+                    id: editableSurface.id,
+                    slug: editableSurface.title ?? "page",
+                    title: editableSurface.title ?? "Plantilla",
+                  },
+                }}
+              />
+            </ColorSchemesProvider>
+          ) : null)}
       </div>
     </div>
   )
+}
+
+/**
+ * Debounced autosave for a HEADER or FOOTER theme-sections group. Fires
+ * 250ms after the last edit, but only if any draft is dirty (so initial
+ * hydration doesn't trigger a no-op save). 250ms is short enough that
+ * structural changes (add / remove / reorder / toggle) feel near-instant
+ * but long enough that rapid keystrokes in a text field still coalesce
+ * into a single write. Keeps the call inside the Shell file because it
+ * closes over saveThemeSectionGroup + the toast surface, and pulling it
+ * out adds little value at one caller per group.
+ */
+function useDebouncedSaveGroup(
+  themeId: string,
+  group: "HEADER" | "FOOTER",
+  drafts: SectionDraft[],
+  groupDirty: boolean,
+  replaceGroup: (
+    group: "HEADER" | "FOOTER",
+    rows: ThemeSectionRow[],
+  ) => void,
+  onSaved: () => void,
+) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    // Group-level dirty flag is the source of truth: it captures both
+    // per-draft edits AND deletions (which leave no per-draft dirty
+    // trace because the deleted draft is gone from the array).
+    if (!groupDirty) return
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(async () => {
+      try {
+        const result = await saveThemeSectionGroup(
+          themeId,
+          group,
+          drafts.map((s) => ({
+            id: s.id,
+            type: s.type,
+            position: s.position,
+            content: s.content,
+            enabled: s.enabled,
+            blocks: s.blocks.map((b) => ({
+              id: b.id,
+              type: b.type,
+              position: b.position,
+              content: b.content,
+              enabled: b.enabled,
+            })),
+          })),
+        )
+        // Merge the persisted snapshot back into the local store. This
+        // replaces tmp- ids with real ids in a single tick (no second DB
+        // read, no router.refresh) and clears the group's dirty flag.
+        replaceGroup(group, result.sections)
+        onSaved()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al guardar")
+      }
+    }, 250)
+    return () => {
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [drafts, themeId, group, groupDirty, replaceGroup, onSaved])
 }
 
 function CustomizerHeaderRow({
@@ -300,51 +510,6 @@ function CustomizerHeaderRow({
         <Eye className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="truncate">{themeName}</span>
       </div>
-    </div>
-  )
-}
-
-interface LeftTabsProps {
-  current: LeftTab
-  onChange: (tab: LeftTab) => void
-  targetLabel: string
-}
-
-function LeftTabs({ current, onChange, targetLabel }: LeftTabsProps) {
-  const tabs: { key: LeftTab; label: string; icon: typeof Layers }[] = [
-    { key: "blocks", label: "Bloques", icon: Layers },
-    { key: "settings", label: "Tema", icon: Settings },
-  ]
-  return (
-    <div className="border-b">
-      <div className="flex">
-        {tabs.map((t) => {
-          const Icon = t.icon
-          const active = current === t.key
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => onChange(t.key)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-              aria-pressed={active}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
-      {current === "blocks" && (
-        <div className="px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-t bg-muted/30">
-          Editando: <span className="font-semibold normal-case text-foreground">{targetLabel}</span>
-        </div>
-      )}
     </div>
   )
 }

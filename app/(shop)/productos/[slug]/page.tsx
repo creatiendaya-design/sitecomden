@@ -5,6 +5,12 @@ import ProductStandardView from "@/components/shop/templates/ProductStandardView
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
 import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
+import type {
+  SizeGuideData,
+  SizeGuideTab,
+  SizeGuideTable,
+} from "@/lib/size-guides/types";
+import { getPublicPromotionsForProduct } from "@/lib/promotions/server";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -39,6 +45,16 @@ export default async function ProductDetailPage({
       },
       landingBlocks: {
         orderBy: { position: "asc" },
+      },
+      customizableTemplate: {
+        select: { id: true, surcharge: true },
+      },
+      sizeGuide: { where: { active: true } },
+      codFormTemplate: {
+        include: {
+          blocks: { orderBy: { position: "asc" } },
+          thankYouPage: { select: { slug: true } },
+        },
       },
     },
   });
@@ -85,7 +101,40 @@ export default async function ProductDetailPage({
     hasVariants: product.hasVariants,
     weight: product.weight ? Number(product.weight) : null,
     checkoutMode: (product as any).checkoutMode ?? "STANDARD",
-    codFormSettings: (product as any).codFormSettings ?? null,
+    codFormTemplate: (product as any).codFormTemplate
+      ? {
+          id: (product as any).codFormTemplate.id,
+          name: (product as any).codFormTemplate.name,
+          isDefault: (product as any).codFormTemplate.isDefault,
+          buttonText: (product as any).codFormTemplate.buttonText,
+          buttonStyle: (product as any).codFormTemplate.buttonStyle,
+          postSubmitAction: (product as any).codFormTemplate.postSubmitAction,
+          thankYouTitle: (product as any).codFormTemplate.thankYouTitle,
+          thankYouMessage: (product as any).codFormTemplate.thankYouMessage,
+          whatsappNumber: (product as any).codFormTemplate.whatsappNumber,
+          whatsappMessage: (product as any).codFormTemplate.whatsappMessage,
+          thankYouPageId: (product as any).codFormTemplate.thankYouPageId,
+          thankYouPageSlug:
+            (product as any).codFormTemplate.thankYouPage?.slug ?? null,
+          blocks: ((product as any).codFormTemplate.blocks ?? []).map((b: any) => ({
+            id: b.id,
+            position: b.position,
+            type: b.type,
+            content: b.content ?? {},
+            visible: b.visible,
+            required: b.required,
+          })),
+        }
+      : null,
+    shippingRestriction: (product as any).shippingRestriction ?? null,
+    customizableTemplate: product.customizableTemplate
+      ? {
+          id: product.customizableTemplate.id,
+          surcharge: product.customizableTemplate.surcharge
+            ? Number(product.customizableTemplate.surcharge)
+            : null,
+        }
+      : null,
   };
 
   // Serializar variantes con conversión explícita de options
@@ -137,7 +186,10 @@ export default async function ProductDetailPage({
     updatedAt: new Date(),
   }));
 
-  // Serializar product (Prisma Decimal/Date → JS plain objects)
+  // Serializar product (Prisma Decimal/Date → JS plain objects). The
+  // top-level spread carries nested relations (variants, customizableTemplate)
+  // that still hold Decimal instances, so we override them with already-
+  // serialized versions before passing to Client Components.
   const serializedProductFull = {
     ...product,
     basePrice: Number(product.basePrice),
@@ -145,12 +197,40 @@ export default async function ProductDetailPage({
     weight: product.weight ? Number(product.weight) : null,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
+    variants: serializedVariants,
+    customizableTemplate: product.customizableTemplate
+      ? {
+          id: product.customizableTemplate.id,
+          surcharge: product.customizableTemplate.surcharge
+            ? Number(product.customizableTemplate.surcharge)
+            : null,
+        }
+      : null,
     landingBlocks: renderableLandingBlocks.map((b) => ({
       ...b,
       createdAt: b.createdAt.toISOString(),
       updatedAt: b.updatedAt.toISOString(),
     })),
   };
+
+  // Reshape size guide row into the shape consumed by the modal.
+  const sizeGuideForView: SizeGuideData | null = product.sizeGuide
+    ? {
+        id: product.sizeGuide.id,
+        name: product.sizeGuide.name,
+        unit: product.sizeGuide.unit === "IN" ? "in" : "cm",
+        tabs:
+          (product.sizeGuide.tabs as unknown as SizeGuideTab[]) ?? [],
+        table:
+          (product.sizeGuide.table as unknown as SizeGuideTable) ?? {
+            columns: [],
+            rows: [],
+          },
+        active: product.sizeGuide.active,
+      }
+    : null;
+
+  const promotions = await getPublicPromotionsForProduct(product.id);
 
   // Props compartidos para todos los templates
   const templateProps = {
@@ -163,6 +243,8 @@ export default async function ProductDetailPage({
     inStock,
     totalStock,
     landingBlocks: renderableLandingBlocks,
+    sizeGuide: sizeGuideForView,
+    promotions,
   };
 
   return (

@@ -153,6 +153,7 @@ export async function processCardPayment(data: {
           quantity: item.quantity,
           price: Number(item.price),
           image: item.image || undefined,
+          customDesignImages: (item.customDesignImages as unknown as Array<{ zoneId: string; url: string }> | null) ?? undefined,
         })),
         shippingAddress: order.shippingAddress as any,
       });

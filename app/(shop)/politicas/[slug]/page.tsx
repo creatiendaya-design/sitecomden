@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
+import { sanitizeRichText } from "@/lib/blocks/sanitize-rich-text"
 
 interface PolicyPageParams {
   params: Promise<{ slug: string }>
@@ -75,7 +76,7 @@ export default async function PolicyPage({ params }: PolicyPageParams) {
       {policy.body ? (
         <article
           className="prose prose-sm sm:prose-base max-w-none"
-          dangerouslySetInnerHTML={{ __html: policy.body }}
+          dangerouslySetInnerHTML={{ __html: sanitizeRichText(policy.body) }}
         />
       ) : (
         <p className="text-sm text-muted-foreground italic">

@@ -1,0 +1,58 @@
+// lib/customizer/i18n.ts
+
+export const t = {
+  startCustomizing: "Empieza a diseñar",
+  startCustomizingHint: "Diseña tu polo en 30 segundos →",
+  surchargeLabel: "personalización",
+  builder: {
+    backToProduct: "← Volver al producto",
+    addToCart: "Añadir al carrito",
+    saveChanges: "Guardar cambios",
+    uploading: "Subiendo tu diseño…",
+    addText: "+ Texto",
+    deleteLayer: "Eliminar",
+    duplicateLayer: "Duplicar",
+    confirmExit: "Tus cambios se perderán. ¿Estás seguro?",
+    stayHere: "Quedarme aquí",
+    discardAndExit: "Descartar y salir",
+    emptyZoneHint: "Toca + Texto para empezar",
+    layerOutOfBounds: "El texto saldrá del área de impresión",
+    mustHaveLayer: "Añade al menos un texto en alguna zona",
+    designExpired: "El diseño expiró, vuelve a personalizar",
+    retry: "Reintentar",
+  },
+  tabs: {
+    producto: "Producto",
+    capas: "Capas",
+    texto: "Texto",
+    color: "Color",
+    fuente: "Fuente",
+    transformar: "Transformar",
+    posicion: "Posición",
+    proximamente: "Próximamente",
+  },
+  zones: {
+    frontal: "Frontal",
+    trasera: "Trasera",
+  },
+  fonts: {
+    searchPlaceholder: "Buscar fuente",
+    allFonts: "Todas las fuentes",
+    popularFonts: "Tipos populares",
+    usedInDesign: "Utilizadas en el diseño",
+  },
+  colors: {
+    customColor: "Color personalizado",
+    pickerHexLabel: "Hex",
+  },
+  admin: {
+    customizationCard: "Personalización",
+    templateLabel: "Plantilla de personalización",
+    templateNone: "— Sin personalización —",
+    mockupOverridesLabel: "Mockups por color (opcional)",
+    mockupOverridesHint: "Si dejas vacío, se usará el mockup de la plantilla",
+    axisOptionLabel: "Opción que cambia el mockup",
+    previewExperience: "Vista previa de la experiencia",
+    editTemplate: "Editar plantilla →",
+  },
+} as const;

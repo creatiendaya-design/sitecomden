@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { protectRoute } from "@/lib/protect-route";
 
 // ============================================
 // TIPOS Y UTILIDADES
@@ -150,6 +151,10 @@ export async function registerCustomer(data: {
 }
 
 export async function getCustomerByEmail(email: string) {
+  // Admin-only: returns full PII (orders, DNI, phone, address history). Without
+  // this guard any visitor could enumerate customers and dump their data.
+  // The customer-portal must use a Clerk-session-aware variant instead.
+  await protectRoute("customers:view");
   try {
     const customer = await prisma.customer.findUnique({
       where: { email },
@@ -183,6 +188,10 @@ export async function getCustomerByEmail(email: string) {
 }
 
 export async function getCustomerStats(customerId: string) {
+  // Admin-only for now — exposes points history, totals, and tier of any
+  // customerId. Customer-portal callers should switch to a Clerk-session
+  // variant that derives customerId from the authenticated user.
+  await protectRoute("customers:view");
   try {
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
@@ -264,8 +273,16 @@ export async function getCustomerStats(customerId: string) {
 // ============================================
 // PUNTOS - Ganar y Gastar
 // ============================================
+//
+// addPoints / deductPoints / awardPurchasePoints are intentionally NOT exported.
+// In a "use server" file, every exported async function becomes a Server Action
+// callable from any client (no auth by default). Without ownership/admin checks,
+// an attacker could grant themselves unlimited points or drain another user's
+// balance. Keeping them private confines them to internal callers in this file
+// (registerCustomer, redeemReward, awardPurchasePoints). Admin-facing point
+// adjustments go through `adjustCustomerPoints`, which guards with protectRoute.
 
-export async function addPoints(
+async function addPoints(
   customerId: string,
   data: {
     points: number;
@@ -330,7 +347,7 @@ export async function addPoints(
   }
 }
 
-export async function deductPoints(
+async function deductPoints(
   customerId: string,
   data: {
     points: number;
@@ -394,8 +411,8 @@ export async function deductPoints(
   }
 }
 
-// Dar puntos por compra
-export async function awardPurchasePoints(orderId: string) {
+// Dar puntos por compra (internal — invoked from order/payment confirmation flows)
+async function awardPurchasePoints(orderId: string) {
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -656,6 +673,7 @@ export async function getLoyaltySettings() {
 }
 
 export async function updateLoyaltySettings(data: any) {
+  await protectRoute("loyalty:configure");
   try {
     const settings = await prisma.loyaltyProgramSettings.findFirst();
 
@@ -695,6 +713,7 @@ export async function createReward(data: {
   expiresAt?: Date;
   allowedCategories?: string[];
 }) {
+  await protectRoute("loyalty:manage_rewards");
   try {
     const reward = await prisma.reward.create({
       data,
@@ -711,6 +730,7 @@ export async function createReward(data: {
 }
 
 export async function updateReward(id: string, data: any) {
+  await protectRoute("loyalty:manage_rewards");
   try {
     const reward = await prisma.reward.update({
       where: { id },
@@ -728,6 +748,7 @@ export async function updateReward(id: string, data: any) {
 }
 
 export async function deleteReward(id: string) {
+  await protectRoute("loyalty:manage_rewards");
   try {
     await prisma.reward.delete({
       where: { id },
@@ -753,6 +774,7 @@ export async function getAllCustomers(params?: {
   sortBy?: "points" | "totalSpent" | "registeredAt";
   order?: "asc" | "desc";
 }) {
+  await protectRoute("customers:view");
   try {
     const where: any = {};
 
@@ -795,6 +817,7 @@ export async function adjustCustomerPoints(
   points: number,
   reason: string
 ) {
+  await protectRoute("loyalty:manage_points");
   try {
     if (points > 0) {
       return await addPoints(customerId, {
@@ -820,6 +843,7 @@ export async function adjustCustomerPoints(
 // ============================================
 
 export async function getLoyaltyProgramStats() {
+  await protectRoute("loyalty:view");
   try {
     const totalCustomers = await prisma.customer.count();
     

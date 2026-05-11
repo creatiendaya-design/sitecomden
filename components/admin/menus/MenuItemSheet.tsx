@@ -39,6 +39,9 @@ interface CategoryOption {
 
 interface Props {
   item: DraftItem
+  menuTitle: string
+  ancestors: string[]
+  atMaxDepth: boolean
   pages: PageOption[]
   categories: CategoryOption[]
   onSave: (next: DraftItem) => void
@@ -53,6 +56,9 @@ interface Props {
  */
 export function MenuItemSheet({
   item,
+  menuTitle,
+  ancestors,
+  atMaxDepth,
   pages,
   categories,
   onSave,
@@ -90,6 +96,15 @@ export function MenuItemSheet({
           <SheetDescription>
             Cambiá la etiqueta y el destino del item del menú.
           </SheetDescription>
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">
+            {[menuTitle, ...ancestors].join(" › ")} ›{" "}
+            <span className="font-medium text-foreground">{item.label}</span>
+          </p>
+          {atMaxDepth && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Nivel máximo alcanzado — este item no puede tener subitems.
+            </p>
+          )}
         </SheetHeader>
 
         <div className="flex-1 overflow-auto p-4 space-y-4">

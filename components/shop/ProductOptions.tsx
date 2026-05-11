@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
+import { SizeGuideButton } from "@/components/shop/size-guide/SizeGuideButton";
+import type { SizeGuideData } from "@/lib/size-guides/types";
 
 // 🔧 TIPOS EXPLÍCITOS
 interface OptionValue {
@@ -25,21 +26,34 @@ export interface ProductOptionsProps {
   options: Option[];
   selectedOptions: Record<string, string>;
   onOptionChange: (optionId: string, valueId: string) => void;
+  sizeGuide?: SizeGuideData | null;
 }
 
 export default function ProductOptions({
   options,
   selectedOptions,
   onOptionChange,
+  sizeGuide,
 }: ProductOptionsProps) {
   return (
     <div className="space-y-6">
-      {options.map((option) => (
+      {options.map((option) => {
+        const lowerName = option.name.toLowerCase();
+        const isSizeOption =
+          lowerName.includes("talla") || lowerName.includes("size");
+        const showSizeGuide = isSizeOption && Boolean(sizeGuide);
+
+        return (
         <div key={option.id} className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-base font-semibold text-slate-900">
-              {option.name}
-            </label>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <label className="text-base font-semibold text-slate-900">
+                {option.name}
+              </label>
+              {showSizeGuide && sizeGuide && (
+                <SizeGuideButton guide={sizeGuide} />
+              )}
+            </div>
             {selectedOptions[option.id] && (
               <span className="text-sm text-slate-600">
                 {option.values.find((v) => v.id === selectedOptions[option.id])
@@ -180,7 +194,8 @@ export default function ProductOptions({
             </select>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

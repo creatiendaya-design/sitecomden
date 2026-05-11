@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth";
 import { updateProductSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
@@ -63,6 +64,20 @@ export async function PUT(
     // ✅ Normalizar imágenes para guardar
     const imagesToSave = normalizeImagesForSave(validatedData.images || []);
 
+    // ✅ Resolver plantilla COD: auto-asignar default cuando modo no es STANDARD
+    //    y no se envía codFormTemplateId.
+    const checkoutMode: string =
+      (validatedData as any).checkoutMode || "STANDARD";
+    let resolvedTemplateId: string | null =
+      (validatedData as any).codFormTemplateId ?? null;
+    if (checkoutMode !== "STANDARD" && !resolvedTemplateId) {
+      const defaultTpl = await prisma.codFormTemplate.findFirst({
+        where: { isDefault: true },
+        select: { id: true },
+      });
+      resolvedTemplateId = defaultTpl?.id ?? null;
+    }
+
     // ✅ Usar transacción
     const product = await prisma.$transaction(async (tx) => {
       // 1. Actualizar producto base
@@ -78,12 +93,35 @@ export async function PUT(
         featured: validatedData.featured ?? false,
         hasVariants: validatedData.hasVariants,
         template: validatedData.template || "STANDARD",
-        checkoutMode: (validatedData as any).checkoutMode || "STANDARD",
-        codFormSettings: (validatedData as any).codFormSettings ?? undefined,
+        checkoutMode: checkoutMode as any,
         metaTitle: validatedData.metaTitle || null,
         metaDescription: validatedData.metaDescription || null,
         weight: validatedData.weight || null,
+        customizableTemplateId: validatedData.customizableTemplateId ?? null,
+        customizableMockupOverrides:
+          validatedData.customizableMockupOverrides == null
+            ? Prisma.JsonNull
+            : (validatedData.customizableMockupOverrides as Prisma.InputJsonValue),
+        sizeGuideId: validatedData.sizeGuideId ?? null,
       };
+
+      // Solo actualizar codFormTemplateId si fue enviado explícitamente o
+      // si checkoutMode != STANDARD (auto-asignación de default). Esto evita
+      // que un PUT que no incluya codFormTemplateId borre el ya guardado.
+      if (
+        "codFormTemplateId" in (validatedData as any) ||
+        checkoutMode !== "STANDARD"
+      ) {
+        productUpdate.codFormTemplateId = resolvedTemplateId;
+      }
+
+      // Solo actualizar shippingRestriction si fue enviado en el payload.
+      if ("shippingRestriction" in (validatedData as any)) {
+        productUpdate.shippingRestriction =
+          (validatedData as any).shippingRestriction == null
+            ? Prisma.JsonNull
+            : ((validatedData as any).shippingRestriction as Prisma.InputJsonValue);
+      }
 
       if (!validatedData.hasVariants) {
         productUpdate.stock = validatedData.stock;

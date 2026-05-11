@@ -12,12 +12,23 @@ import { Minus, Plus, Trash2, ShoppingBag, AlertTriangle, RefreshCw } from "luci
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
+import { CustomDesignBadge } from "./CustomDesignBadge";
+import { checkImageReachable } from "@/lib/customizer/validate-cart-images";
+import CartFreeGiftsPreview from "./CartFreeGiftsPreview";
 
 export default function CartView() {
-  const { items, updateQuantity, removeItem, getTotalPrice, getTotalItems } =
-    useCartStore();
+  const {
+    items,
+    updateQuantity,
+    removeItem,
+    getTotalPrice,
+    getTotalItems,
+    getOriginalSubtotal,
+    getTotalDiscount,
+  } = useCartStore();
   
   const [stockCheck, setStockCheck] = useState<{
     loading: boolean;
@@ -36,6 +47,22 @@ export default function CartView() {
     }
   }, []);
 
+  // Validate custom design PNGs are still reachable in Vercel Blob
+  useEffect(() => {
+    const cartItems = useCartStore.getState().items;
+    const mark = useCartStore.getState().markCustomDesignBroken;
+    for (const cartItem of cartItems) {
+      if (cartItem.customDesignImages && cartItem.customDesignImages.length > 0 && !cartItem.customDesignBroken) {
+        Promise.all(
+          cartItem.customDesignImages.map((img) => checkImageReachable(img.url))
+        ).then((results) => {
+          const broken = results.some((r) => !r);
+          if (broken) mark(cartItem.id, true);
+        });
+      }
+    }
+  }, []);
+
   const verifyStock = async () => {
     setStockCheck({ loading: true, errors: [], itemsStatus: {} });
 
@@ -48,6 +75,19 @@ export default function CartView() {
 
     const result = await checkCartStock(stockItems);
 
+    // Limpiar automáticamente items que están asignados a un COD form: no
+    // pueden pasar por este checkout, así que se quitan del carrito normal.
+    const codItems = result.items.filter((it) => it.codOnly);
+    if (codItems.length > 0) {
+      const removeItem = useCartStore.getState().removeItem;
+      codItems.forEach((it) => removeItem(it.id));
+      toast.info(
+        codItems.length === 1
+          ? "Quitamos un producto que solo se vende contra entrega."
+          : `Quitamos ${codItems.length} productos que solo se venden contra entrega.`,
+      );
+    }
+
     const itemsStatus: Record<string, { available: boolean; currentStock: number; message?: string }> = {};
     result.items.forEach((item) => {
       itemsStatus[item.id] = {
@@ -57,15 +97,24 @@ export default function CartView() {
       };
     });
 
+    // Filtrar mensajes de error relacionados con productos COD ya removidos.
+    const filteredErrors = result.errors.filter(
+      (msg) => !msg.includes("contra entrega"),
+    );
+
     setStockCheck({
       loading: false,
-      errors: result.errors,
+      errors: filteredErrors,
       itemsStatus,
     });
   };
 
   // Helper para obtener la URL de imagen correcta
   const getItemImage = (item: any) => {
+    // Prefer custom design PNG (first zone) over base product image
+    if (item.customDesignImages && item.customDesignImages.length > 0 && !item.customDesignBroken) {
+      return item.customDesignImages[0].url;
+    }
     if (typeof item.image === 'string') {
       return item.image;
     }
@@ -162,7 +211,14 @@ export default function CartView() {
                               {item.variantName}
                             </p>
                           )}
-                          
+                          <CustomDesignBadge item={item} />
+                          {item.customDesign && item.customDesign.templateSnapshot.surcharge && item.customDesign.templateSnapshot.surcharge > 0 ? (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              S/ {(item.price - item.customDesign.templateSnapshot.surcharge).toFixed(2)}{" "}
+                              + S/ {item.customDesign.templateSnapshot.surcharge.toFixed(2)} personalización
+                            </p>
+                          ) : null}
+
                           {/* Stock status badges */}
                           <div className="mt-2 flex flex-wrap gap-2">
                             {hasStockIssue && (
@@ -231,9 +287,28 @@ export default function CartView() {
                           <p className="font-semibold">
                             {formatPrice(item.price * item.quantity)}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatPrice(item.price)} c/u
-                          </p>
+                          {item.originalUnitPrice &&
+                          item.originalUnitPrice > item.price ? (
+                            <p className="text-xs text-muted-foreground line-through">
+                              {formatPrice(
+                                item.originalUnitPrice * item.quantity
+                              )}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              {formatPrice(item.price)} c/u
+                            </p>
+                          )}
+                          {item.appliedPromotion && (
+                            <p className="mt-1 inline-block rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                              {item.appliedPromotion.tierLabel}
+                            </p>
+                          )}
+                          {item.subscriptionOptIn && (
+                            <p className="mt-1 ml-1 inline-block rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                              Suscripción
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -241,6 +316,15 @@ export default function CartView() {
                 </Card>
               );
             })}
+          </div>
+
+          {/* Free-gift preview — appears when the cart matches a FREE_GIFT
+              promotion (either already qualified or close to threshold). */}
+          <div className="mt-4">
+            <CartFreeGiftsPreview
+              productIds={items.map((i) => i.productId)}
+              subtotal={getOriginalSubtotal()}
+            />
           </div>
 
           {/* Continue Shopping */}
@@ -262,9 +346,19 @@ export default function CartView() {
                   {getTotalItems() === 1 ? "producto" : "productos"})
                 </span>
                 <span className="font-medium">
-                  {formatPrice(getTotalPrice())}
+                  {formatPrice(getOriginalSubtotal())}
                 </span>
               </div>
+              {getTotalDiscount() > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Descuento por promociones
+                  </span>
+                  <span className="font-semibold text-rose-600">
+                    -{formatPrice(getTotalDiscount())}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Envío</span>
                 <span className="font-medium">Calculado en checkout</span>

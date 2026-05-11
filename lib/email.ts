@@ -20,6 +20,7 @@ interface OrderData {
     variantName?: string;
     quantity: number;
     price: number;
+    customDesignImages?: Array<{ zoneId: string; url: string }>;
   }>;
   shippingAddress: {
     address: string;

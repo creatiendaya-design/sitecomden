@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import { withRateLimit, loginRateLimiter } from "@/lib/rate-limit";
+import { withRateLimit, loginRateLimiter, getClientIp } from "@/lib/rate-limit";
+import { createAdminSession } from "@/lib/admin-session";
 
 export async function POST(request: Request) {
   try {
@@ -52,9 +53,14 @@ export async function POST(request: Request) {
       data: { lastLogin: new Date() },
     });
 
-    // Crear sesión con cookie
+    // Crear sesión server-side (token opaco) y entregar el token en la cookie
+    const sessionToken = await createAdminSession(user.id, {
+      ipAddress: getClientIp(request),
+      userAgent: request.headers.get("user-agent"),
+    });
+
     const cookieStore = await cookies();
-    cookieStore.set("admin_session", user.id, {
+    cookieStore.set("admin_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

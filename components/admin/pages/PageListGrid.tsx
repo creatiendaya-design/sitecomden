@@ -70,20 +70,29 @@ export function PageListGrid({ initialPages }: PageListGridProps) {
   })
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Páginas estáticas</h1>
-          <p className="text-muted-foreground">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Páginas estáticas</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Crea y gestiona páginas como Nosotros, Términos, Privacidad o
             Promociones.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button
+          onClick={() => setCreateOpen(true)}
+          className="hidden md:inline-flex"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Nueva página
         </Button>
       </div>
+
+      {/* Mobile primary CTA */}
+      <Button onClick={() => setCreateOpen(true)} className="md:hidden w-full">
+        <Plus className="mr-2 h-4 w-4" />
+        Nueva página
+      </Button>
 
       {pages.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 text-center">

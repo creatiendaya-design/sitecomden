@@ -12,6 +12,9 @@ import { IconField } from "@/lib/blocks/schema/primitives/IconField"
 import { GroupField } from "@/lib/blocks/schema/primitives/GroupField"
 import { ArrayField } from "@/lib/blocks/schema/primitives/ArrayField"
 import { ProductPickerField } from "@/lib/blocks/schema/primitives/ProductPickerField"
+import { MenuItemListField } from "@/lib/blocks/schema/primitives/MenuItemListField"
+import { MenuPickerField } from "@/lib/blocks/schema/primitives/MenuPickerField"
+import { MultiSelectField } from "@/lib/blocks/schema/primitives/MultiSelectField"
 
 interface Props {
   schema: FormSchema
@@ -81,6 +84,12 @@ function FieldRenderer({
       return <ArrayField field={field} value={fieldValue} onChange={onChangeField} />
     case "product-picker":
       return <ProductPickerField field={field} value={fieldValue} onChange={onChangeField} />
+    case "menu-item-list":
+      return <MenuItemListField field={field} value={fieldValue} onChange={onChangeField} />
+    case "menu-picker":
+      return <MenuPickerField field={field} value={fieldValue} onChange={onChangeField} />
+    case "multi-select":
+      return <MultiSelectField field={field} value={fieldValue} onChange={onChangeField} />
     case "custom": {
       const Comp = field.component
       return <Comp value={fieldValue} onChange={onChangeField} />

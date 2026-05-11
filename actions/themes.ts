@@ -4,6 +4,11 @@ import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
 import type { ThemeTokens } from "@/lib/themes/tokens"
+import {
+  resolveColorSchemes,
+  type ColorSchemeArray,
+} from "@/lib/themes/color-schemes"
+import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
 
 export interface ThemeRow {
   id: string
@@ -23,17 +28,17 @@ export interface ThemeRow {
   cartPageId: string | null
   cartPageTitle: string | null
   cartPageSlug: string | null
-  /** Menu rendered in the storefront header. Null = fallback to slug "main". */
-  headerMenuId: string | null
-  headerMenuTitle: string | null
-  headerMenuSlug: string | null
-  /** Menu rendered in the storefront footer. Null = fallback to slug "footer". */
-  footerMenuId: string | null
-  footerMenuTitle: string | null
-  footerMenuSlug: string | null
   /** Visual design tokens (Plan 11). May be partial or empty {}; consumers
    *  call `resolveTokens()` to merge with system defaults. */
   tokens: ThemeTokens
+  /** Plan 13.1 — named color schemes the admin can author and any block
+   *  can pick via `style.colorSchemeId`. The first scheme is the theme
+   *  default. Always at least one entry: when the DB column is `[]`, the
+   *  resolver synthesizes a scheme from `tokens.colors`. */
+  colorSchemes: ColorSchemeArray
+  /** Plan 16 — per-theme catalog of allowed section types per group. Empty
+   *  `{}` means permissive (all registry types available). */
+  sectionCatalog: ThemeSectionCatalog
   updatedAt: Date
 }
 
@@ -41,8 +46,6 @@ const themeIncludes = {
   defaultProductLandingTemplate: { select: { id: true, name: true } },
   homePage: { select: { id: true, title: true, slug: true } },
   cartPage: { select: { id: true, title: true, slug: true } },
-  headerMenu: { select: { id: true, title: true, slug: true } },
-  footerMenu: { select: { id: true, title: true, slug: true } },
 } as const
 
 type ThemeWithJoins = {
@@ -56,11 +59,9 @@ type ThemeWithJoins = {
   homePage: { id: string; title: string; slug: string } | null
   cartPageId: string | null
   cartPage: { id: string; title: string; slug: string } | null
-  headerMenuId: string | null
-  headerMenu: { id: string; title: string; slug: string } | null
-  footerMenuId: string | null
-  footerMenu: { id: string; title: string; slug: string } | null
   tokens: unknown
+  colorSchemes: unknown
+  sectionCatalog: unknown
   updatedAt: Date
 }
 
@@ -78,13 +79,12 @@ function toThemeRow(t: ThemeWithJoins): ThemeRow {
     cartPageId: t.cartPageId,
     cartPageTitle: t.cartPage?.title ?? null,
     cartPageSlug: t.cartPage?.slug ?? null,
-    headerMenuId: t.headerMenuId,
-    headerMenuTitle: t.headerMenu?.title ?? null,
-    headerMenuSlug: t.headerMenu?.slug ?? null,
-    footerMenuId: t.footerMenuId,
-    footerMenuTitle: t.footerMenu?.title ?? null,
-    footerMenuSlug: t.footerMenu?.slug ?? null,
     tokens: (t.tokens as ThemeTokens) ?? {},
+    colorSchemes: resolveColorSchemes(
+      t.colorSchemes,
+      t.tokens as ThemeTokens | null,
+    ),
+    sectionCatalog: (t.sectionCatalog as ThemeSectionCatalog | null) ?? {},
     updatedAt: t.updatedAt,
   }
 }
@@ -149,9 +149,8 @@ export async function updateThemeMetadata(
     defaultProductLandingTemplateId?: string | null
     homePageId?: string | null
     cartPageId?: string | null
-    headerMenuId?: string | null
-    footerMenuId?: string | null
     tokens?: ThemeTokens
+    colorSchemes?: ColorSchemeArray
   },
 ): Promise<void> {
   await protectRoute("themes:update")
@@ -181,26 +180,6 @@ export async function updateThemeMetadata(
     }
   }
 
-  // Same validation for header/footer menus — assigning an inactive menu
-  // would render an empty header/footer.
-  for (const [field, label] of [
-    [input.headerMenuId, "header"],
-    [input.footerMenuId, "footer"],
-  ] as const) {
-    if (field) {
-      const menu = await prisma.menu.findUnique({
-        where: { id: field },
-        select: { active: true },
-      })
-      if (!menu) throw new Error(`El menú asignado al ${label} no existe.`)
-      if (!menu.active) {
-        throw new Error(
-          `El menú asignado al ${label} está oculto. Activalo antes de asignarlo.`,
-        )
-      }
-    }
-  }
-
   const t = await prisma.theme.update({
     where: { id },
     data: {
@@ -217,14 +196,11 @@ export async function updateThemeMetadata(
       ...(input.cartPageId !== undefined && {
         cartPageId: input.cartPageId,
       }),
-      ...(input.headerMenuId !== undefined && {
-        headerMenuId: input.headerMenuId,
-      }),
-      ...(input.footerMenuId !== undefined && {
-        footerMenuId: input.footerMenuId,
-      }),
       ...(input.tokens !== undefined && {
         tokens: input.tokens as object,
+      }),
+      ...(input.colorSchemes !== undefined && {
+        colorSchemes: input.colorSchemes as unknown as object,
       }),
     },
     select: { active: true },

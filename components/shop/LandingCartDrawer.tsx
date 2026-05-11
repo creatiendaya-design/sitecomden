@@ -7,17 +7,26 @@ import { useCartStore } from "@/store/cart";
 import { formatPrice } from "@/lib/utils";
 import { getProductImageUrl } from "@/lib/image-utils";
 import CodOrderModal, { type CodOrderItem } from "@/components/shop/CodOrderModal";
-import type { CodFormSettings } from "@/lib/types/cod-form";
+import CartFreeGiftsPreview from "@/components/shop/cart/CartFreeGiftsPreview";
+import type { CodFormTemplateData, ShippingRestriction } from "@/lib/cod-forms/types";
 
 interface LandingCartDrawerProps {
-  codSettings: CodFormSettings;
+  template: CodFormTemplateData | null;
+  shippingRestriction?: ShippingRestriction | null;
 }
 
-export default function LandingCartDrawer({ codSettings }: LandingCartDrawerProps) {
+export default function LandingCartDrawer({ template, shippingRestriction }: LandingCartDrawerProps) {
   const [open, setOpen] = useState(false);
   const [codOpen, setCodOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { items, updateQuantity, removeItem, getTotalItems, getTotalPrice } = useCartStore();
+  const {
+    items,
+    updateQuantity,
+    removeItem,
+    getTotalItems,
+    getTotalPrice,
+    getOriginalSubtotal,
+  } = useCartStore();
 
   useEffect(() => {
     setMounted(true);
@@ -46,7 +55,18 @@ export default function LandingCartDrawer({ codSettings }: LandingCartDrawerProp
     quantity: item.quantity,
     name: item.name + (item.variantName ? ` (${item.variantName})` : ""),
     price: item.price,
+    originalUnitPrice: item.originalUnitPrice,
     image: getItemImage(item) ?? undefined,
+    promotionId:
+      item.appliedPromotion?.type === "VOLUME"
+        ? item.appliedPromotion.promotionId
+        : undefined,
+    subscriptionOptIn: item.subscriptionOptIn
+      ? {
+          promotionId: item.subscriptionOptIn.promotionId,
+          email: item.subscriptionOptIn.email,
+        }
+      : undefined,
   }));
 
   return (
@@ -131,9 +151,29 @@ export default function LandingCartDrawer({ codSettings }: LandingCartDrawerProp
                     {item.variantName && (
                       <p className="text-xs text-muted-foreground">{item.variantName}</p>
                     )}
-                    <p className="text-sm font-bold text-red-600 mt-0.5">
-                      {formatPrice(item.price * item.quantity)}
-                    </p>
+                    <div className="mt-0.5 flex items-baseline gap-1.5">
+                      <p className="text-sm font-bold text-red-600">
+                        {formatPrice(item.price * item.quantity)}
+                      </p>
+                      {item.originalUnitPrice &&
+                        item.originalUnitPrice > item.price && (
+                          <p className="text-xs text-muted-foreground line-through">
+                            {formatPrice(
+                              item.originalUnitPrice * item.quantity
+                            )}
+                          </p>
+                        )}
+                    </div>
+                    {item.appliedPromotion && (
+                      <p className="mt-0.5 inline-block rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                        {item.appliedPromotion.tierLabel}
+                      </p>
+                    )}
+                    {item.subscriptionOptIn && (
+                      <p className="mt-0.5 ml-1 inline-block rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                        Suscripción
+                      </p>
+                    )}
 
                     <div className="flex items-center gap-1.5 mt-1.5">
                       <button
@@ -163,6 +203,15 @@ export default function LandingCartDrawer({ codSettings }: LandingCartDrawerProp
               );
             })
           )}
+
+          {items.length > 0 && (
+            <div className="px-4 pb-2">
+              <CartFreeGiftsPreview
+                productIds={items.map((i) => i.productId)}
+                subtotal={getOriginalSubtotal()}
+              />
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -190,7 +239,8 @@ export default function LandingCartDrawer({ codSettings }: LandingCartDrawerProp
         open={codOpen}
         onClose={() => setCodOpen(false)}
         items={codItems}
-        settings={codSettings}
+        template={template}
+        shippingRestriction={shippingRestriction ?? null}
       />
     </>
   );

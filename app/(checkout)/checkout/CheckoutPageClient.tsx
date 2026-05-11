@@ -323,6 +323,22 @@ export default function CheckoutPageClient({
           quantity: item.quantity,
           image: item.image || undefined,
           options: item.options || undefined,
+          promotionId:
+            item.appliedPromotion?.type === "VOLUME"
+              ? item.appliedPromotion.promotionId
+              : undefined,
+          bundlePromotionId:
+            item.appliedPromotion?.type === "BUNDLE"
+              ? item.appliedPromotion.promotionId
+              : undefined,
+          subscriptionOptIn: item.subscriptionOptIn
+            ? {
+                promotionId: item.subscriptionOptIn.promotionId,
+                email: item.subscriptionOptIn.email,
+              }
+            : undefined,
+          customDesign: item.customDesign,
+          customDesignImages: item.customDesignImages,
         })),
         shipping: appliedCoupon?.type === "FREE_SHIPPING" ? 0 : selectedShippingRate.finalCost,
         shippingRateId: selectedShippingRate.id,
@@ -507,6 +523,22 @@ export default function CheckoutPageClient({
           quantity: item.quantity,
           image: item.image || undefined,
           options: item.options || undefined,
+          promotionId:
+            item.appliedPromotion?.type === "VOLUME"
+              ? item.appliedPromotion.promotionId
+              : undefined,
+          bundlePromotionId:
+            item.appliedPromotion?.type === "BUNDLE"
+              ? item.appliedPromotion.promotionId
+              : undefined,
+          subscriptionOptIn: item.subscriptionOptIn
+            ? {
+                promotionId: item.subscriptionOptIn.promotionId,
+                email: item.subscriptionOptIn.email,
+              }
+            : undefined,
+          customDesign: item.customDesign,
+          customDesignImages: item.customDesignImages,
         })),
         shipping: appliedCoupon?.type === "FREE_SHIPPING" ? 0 : selectedShippingRate.finalCost,
         shippingRateId: selectedShippingRate.id,

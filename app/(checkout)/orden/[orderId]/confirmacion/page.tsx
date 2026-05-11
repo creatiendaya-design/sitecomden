@@ -20,6 +20,8 @@ import {
   MessageCircle
 } from "lucide-react";
 import type { Metadata } from "next";
+import { CustomDesignConfirmation } from "@/components/checkout/CustomDesignConfirmation";
+import type { CustomDesign, CustomDesignImage } from "@/lib/customizer/types";
 
 interface PageProps {
   params: Promise<{
@@ -147,42 +149,53 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="divide-y">
-                    {order.items.map((item, index) => (
-                      <div 
-                        key={item.id} 
-                        className="p-4 md:p-6 hover:bg-slate-50/50 transition-colors"
-                      >
-                        <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-lg flex items-center justify-center">
-                            <span className="text-xl md:text-2xl font-bold text-slate-400">
-                              {index + 1}
-                            </span>
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-slate-900 mb-1 text-sm md:text-base">
-                              {item.name}
-                            </h4>
-                            {item.variantName && (
-                              <p className="text-xs md:text-sm text-slate-500 mb-2">
-                                Variante: {item.variantName}
+                    {order.items.map((item, index) => {
+                      const customDesign = item.customDesign as unknown as CustomDesign | null;
+                      const customDesignImages = item.customDesignImages as unknown as CustomDesignImage[] | null;
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-4 md:p-6 hover:bg-slate-50/50 transition-colors"
+                        >
+                          <div className="flex gap-4">
+                            <div className="flex-shrink-0 w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-lg flex items-center justify-center">
+                              <span className="text-xl md:text-2xl font-bold text-slate-400">
+                                {index + 1}
+                              </span>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-slate-900 mb-1 text-sm md:text-base">
+                                {item.name}
+                              </h4>
+                              {item.variantName && (
+                                <p className="text-xs md:text-sm text-slate-500 mb-2">
+                                  Variante: {item.variantName}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-4 text-xs md:text-sm text-slate-600">
+                                <span>Cantidad: <strong>{item.quantity}</strong></span>
+                                <span>•</span>
+                                <span>{formatPrice(Number(item.price))} c/u</span>
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <p className="font-bold text-slate-900 text-base md:text-lg">
+                                {formatPrice(Number(item.price) * item.quantity)}
                               </p>
-                            )}
-                            <div className="flex items-center gap-4 text-xs md:text-sm text-slate-600">
-                              <span>Cantidad: <strong>{item.quantity}</strong></span>
-                              <span>•</span>
-                              <span>{formatPrice(Number(item.price))} c/u</span>
                             </div>
                           </div>
-                          
-                          <div className="text-right">
-                            <p className="font-bold text-slate-900 text-base md:text-lg">
-                              {formatPrice(Number(item.price) * item.quantity)}
-                            </p>
-                          </div>
+                          {customDesign && customDesignImages && customDesignImages.length > 0 && (
+                            <CustomDesignConfirmation
+                              productName={item.name}
+                              design={customDesign}
+                              images={customDesignImages}
+                            />
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Order Summary */}

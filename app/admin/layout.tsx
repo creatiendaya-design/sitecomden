@@ -6,6 +6,7 @@ import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
+  Ruler,
   ShoppingCart,
   Package,
   Clock,
@@ -14,7 +15,6 @@ import {
   Ticket,
   Truck,
   Settings,
-  ChevronDown,
   ChevronRight,
   CreditCard,
   Package2,
@@ -26,11 +26,17 @@ import {
   Shield,
   Users,
   Asterisk,
+  ClipboardList,
   LayoutTemplate,
-  ScrollText
+  ScrollText,
+  Sparkles,
+  Tag,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
+import { AdminThemeProvider } from "@/components/admin/AdminThemeProvider";
+import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
 
 interface NavItem {
   href?: string;
@@ -68,16 +74,22 @@ function AdminLayoutInner({
     /^\/admin\/categorias\/[^/]+\/builder$/.test(pathname ?? "");
   const isThemeCustomizer =
     /^\/admin\/personalizar\/temas\/[^/]+\/customize$/.test(pathname ?? "");
+  const isBulkEditor =
+    /^\/admin\/productos\/bulk-edit\/?$/.test(pathname ?? "");
+  const isCodFormEditor =
+    /^\/admin\/formularios-cod\/[^/]+$/.test(pathname ?? "");
   const isFullScreenBuilder =
     isProductLandingBuilder ||
     isTemplateEditor ||
     isPageEditor ||
     isMenuEditor ||
     isCategoryBuilder ||
-    isThemeCustomizer;
+    isThemeCustomizer ||
+    isBulkEditor ||
+    isCodFormEditor;
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "Configuración",
-    "Métodos de Pago", // Expandir Métodos de Pago por defecto
+    "Métodos de Pago",
   ]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [siteName, setSiteName] = useState("ShopGood Perú");
@@ -120,19 +132,50 @@ function AdminLayoutInner({
       label: "Órdenes",
     },
     {
-      href: "/admin/productos",
       icon: Package,
       label: "Productos",
+      items: [
+        {
+          href: "/admin/productos",
+          icon: Package,
+          label: "Listado",
+        },
+        {
+          href: "/admin/categorias",
+          icon: Package,
+          label: "Categorías",
+        },
+        {
+          href: "/admin/inventario",
+          icon: Package2,
+          label: "Inventario",
+        },
+        {
+          href: "/admin/landing-plantillas",
+          icon: LayoutTemplate,
+          label: "Plantillas de Landing",
+        },
+        {
+          href: "/admin/personalizables",
+          icon: Sparkles,
+          label: "Personalizables",
+        },
+        {
+          href: "/admin/guia-tallas",
+          icon: Ruler,
+          label: "Guía de Tallas",
+        },
+        {
+          href: "/admin/formularios-cod",
+          icon: ClipboardList,
+          label: "Formularios COD",
+        },
+      ],
     },
     {
       href: "/admin/personalizar",
       icon: Store,
       label: "Personalizar tienda",
-    },
-    {
-      href: "/admin/landing-plantillas",
-      icon: LayoutTemplate,
-      label: "Plantillas de Landing",
     },
     {
       href: "/admin/paginas",
@@ -150,19 +193,14 @@ function AdminLayoutInner({
       label: "Menús",
     },
     {
-      href: "/admin/envios/zonas",
+      href: "/admin/envios",
       icon: Truck,
       label: "Envíos",
     },
     {
-      href: "/admin/categorias",
-      icon: Package,
-      label: "Categorías",
-    },
-    {
-      href: "/admin/inventario",
-      icon: Package2,
-      label: "Inventario",
+      href: "/admin/promociones",
+      icon: Tag,
+      label: "Promociones",
     },
     {
       href: "/admin/cupones",
@@ -270,32 +308,35 @@ function AdminLayoutInner({
     );
   }
 
-  // Función recursiva para renderizar items con soporte para múltiples niveles
+  // Recursive nav item renderer with multi-level support and a left accent bar
+  // for the active route — gives the sidebar a clear visual hierarchy.
   const renderNavItem = (item: NavItem, depth: number = 0) => {
     const Icon = item.icon;
 
     if (item.items) {
+      const expanded = isExpanded(item.label);
       return (
         <div key={item.label}>
           <button
             onClick={() => toggleItem(item.label)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-slate-100",
-              isExpanded(item.label) && "bg-slate-100"
+              "group flex w-full items-center gap-3 rounded-md py-2 pr-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              expanded && "text-sidebar-foreground"
             )}
-            style={{ paddingLeft: `${12 + depth * 16}px` }}
+            style={{ paddingLeft: `${12 + depth * 14}px` }}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4 w-4 shrink-0 opacity-70 group-hover:opacity-100" />
             <span className="flex-1 text-left">{item.label}</span>
-            {isExpanded(item.label) ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
+            <ChevronRight
+              className={cn(
+                "h-3.5 w-3.5 opacity-60 transition-transform duration-200",
+                expanded && "rotate-90"
+              )}
+            />
           </button>
 
-          {isExpanded(item.label) && (
-            <div className="mt-1 space-y-1">
+          {expanded && (
+            <div className="mt-0.5 space-y-0.5">
               {item.items.map((subItem) => renderNavItem(subItem, depth + 1))}
             </div>
           )}
@@ -303,106 +344,160 @@ function AdminLayoutInner({
       );
     }
 
+    const active = isActive(item.href!);
     return (
       <Link
         key={item.href}
         href={item.href!}
         className={cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-          isActive(item.href!)
-            ? "bg-primary text-primary-foreground"
-            : "hover:bg-slate-100"
+          "group relative flex items-center gap-3 rounded-md py-2 pr-2 text-sm transition-all",
+          active
+            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
         )}
-        style={{ paddingLeft: `${12 + depth * 16}px` }}
+        style={{ paddingLeft: `${12 + depth * 14}px` }}
       >
-        <Icon className="h-4 w-4" />
-        <span className="text-sm">{item.label}</span>
+        {active && (
+          <span
+            aria-hidden
+            className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-sidebar-primary"
+          />
+        )}
+        <Icon
+          className={cn(
+            "h-4 w-4 shrink-0 transition-opacity",
+            active ? "opacity-100" : "opacity-70 group-hover:opacity-100"
+          )}
+        />
+        <span className="truncate">{item.label}</span>
       </Link>
     );
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Overlay móvil */}
+    <div className="flex min-h-screen bg-background text-foreground">
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden
         />
       )}
 
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-screen w-64 border-r bg-slate-50 transition-transform duration-300 lg:translate-x-0",
+          "fixed left-0 top-0 z-50 flex h-screen w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-300 lg:w-64 lg:translate-x-0 lg:shadow-none",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        aria-label="Navegación principal"
       >
-        <div className="flex h-16 items-center justify-between border-b px-6">
-          <Link href="/admin/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Store className="h-5 w-5" />
+        {/* Brand */}
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-5">
+          <Link
+            href="/admin/dashboard"
+            className="flex items-center gap-2.5 font-semibold tracking-tight"
+          >
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-sm ring-1 ring-primary/20">
+              <Store className="h-4.5 w-4.5" strokeWidth={2.25} />
             </div>
-            <span className="font-bold">Admin Panel</span>
+            <div className="flex flex-col leading-tight">
+              <span className="text-sm font-semibold">Admin</span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                Panel
+              </span>
+            </div>
           </Link>
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="h-8 w-8 lg:hidden"
             onClick={() => setSidebarOpen(false)}
+            aria-label="Cerrar menú"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <nav className="space-y-1 p-4 overflow-y-auto h-[calc(100vh-13rem)]">
+        {/* Nav */}
+        <nav
+          className="admin-scroll flex-1 space-y-0.5 overflow-y-auto px-3 py-4"
+        >
           {navItems.map((item) => renderNavItem(item))}
         </nav>
 
-        <div className="absolute bottom-4 left-4 right-4 space-y-2">
-          <Button variant="outline" className="w-full justify-start" asChild>
-            <Link href="/">
-              <Store className="mr-2 h-4 w-4" />
-              Ver Tienda
+        {/* Footer actions */}
+        <div className="shrink-0 space-y-1 border-t border-sidebar-border p-3">
+          <Button
+            variant="ghost"
+            className="h-9 w-full justify-start gap-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            asChild
+          >
+            <Link href="/" target="_blank">
+              <ExternalLink className="h-4 w-4 opacity-70" />
+              Ver tienda
             </Link>
           </Button>
           <form action="/api/admin/logout" method="POST">
             <Button
               variant="ghost"
-              className="w-full justify-start text-destructive"
               type="submit"
+              className="h-9 w-full justify-start gap-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
+              <LogOut className="h-4 w-4" />
+              Cerrar sesión
             </Button>
           </form>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 lg:ml-64">
-        {/* Header móvil */}
-        <div className="border-b bg-white">
-          <div className="flex items-center justify-between p-4 lg:justify-center lg:p-6">
+      {/* Main */}
+      <main className="flex w-full min-w-0 flex-1 flex-col bg-[#f6f6f7] lg:ml-64 dark:bg-background">
+        {/* Sticky header */}
+        <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+          <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden"
+              className="h-9 w-9 lg:hidden"
               onClick={() => setSidebarOpen(true)}
+              aria-label="Abrir menú"
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5" />
             </Button>
-            <h2 className="text-sm text-muted-foreground">{siteName}</h2>
-            <div className="w-10 lg:hidden" /> {/* Spacer para centrar */}
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground/90">
+                {siteName}
+              </p>
+              <p className="hidden truncate text-xs text-muted-foreground sm:block">
+                Panel de administración
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <AdminThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden h-9 w-9 sm:inline-flex"
+                aria-label="Ver tienda"
+                asChild
+              >
+                <Link href="/" target="_blank">
+                  <Store className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
-        </div>
-        
-        <div className="p-4 lg:p-6">
-          <div className="mx-auto max-w-7xl">{children}</div>
+        </header>
+
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div className="mx-auto w-full max-w-7xl">{children}</div>
         </div>
       </main>
 
-      {/* Toast Notifications */}
       <Toaster position="top-right" richColors />
     </div>
   );
@@ -416,8 +511,10 @@ export default function AdminLayout({
   // useSearchParams() inside AdminLayoutInner requires a Suspense boundary
   // above it (Next.js App Router requirement).
   return (
-    <Suspense fallback={null}>
-      <AdminLayoutInner>{children}</AdminLayoutInner>
-    </Suspense>
+    <AdminThemeProvider>
+      <Suspense fallback={null}>
+        <AdminLayoutInner>{children}</AdminLayoutInner>
+      </Suspense>
+    </AdminThemeProvider>
   );
 }

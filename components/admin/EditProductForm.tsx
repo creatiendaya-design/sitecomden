@@ -13,9 +13,15 @@ import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import LandingBlockList from "@/components/admin/landing-builder/LandingBlockList";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
-import CodFormConfig from "@/components/admin/CodFormConfig";
-import { normalizeCodFormSettings, type CodFormSettings } from "@/lib/types/cod-form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { TemplateSelector } from "@/components/admin/products/TemplateSelector";
+import { CustomizationCard } from "@/components/admin/products/CustomizationCard";
+import { SizeGuideCard } from "@/components/admin/products/SizeGuideCard";
+import type { MockupOverrides } from "@/lib/customizer/types";
+import CodFormTemplateCard from "@/components/admin/products/CodFormTemplateCard";
+import ShippingRestrictionCard from "@/components/admin/products/ShippingRestrictionCard";
+import ProductPromotionsCard from "@/components/admin/products/ProductPromotionsCard";
+import type { ShippingRestriction } from "@/lib/cod-forms/types";
+import type { ProductScopedPromotion } from "@/lib/promotions/types";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
 import dynamic from "next/dynamic";
@@ -72,15 +78,46 @@ interface EditProductFormProps {
     name: string;
   }>;
   showLegacyLandingEditor?: boolean;
+  /** Tipos de bloque que el storefront va a renderizar para este producto,
+   *  ya resueltos (template + detached + locales). Se usa solo para el
+   *  resumen visual de la card "Presentación". */
+  resolvedBlockTypes?: string[];
+  initialPromotions?: ProductScopedPromotion[];
 }
 
-export default function EditProductForm({ product, categories, showLegacyLandingEditor = true }: EditProductFormProps) {
+const BLOCK_TYPE_LABELS: Record<string, string> = {
+  HERO: "Hero",
+  BENEFITS: "Beneficios",
+  GALLERY: "Galería",
+  TESTIMONIALS: "Testimonios",
+  VIDEO: "Video",
+  COLORS: "Colores",
+  TICKER: "Banner",
+  RICH_TEXT: "Texto",
+  FAQ: "FAQ",
+  IMAGE_TEXT: "Imagen + Texto",
+  RELATED_PRODUCTS: "Productos relacionados",
+  TRUST_BADGES: "Sellos de confianza",
+  PRODUCT_GRID: "Grid de productos",
+};
+
+export default function EditProductForm({ product, categories, showLegacyLandingEditor = true, resolvedBlockTypes = [], initialPromotions = [] }: EditProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
     product.categories?.[0]?.category?.id || ""
+  );
+
+  const [customizableTemplateId, setCustomizableTemplateId] = useState<string | null>(
+    product.customizableTemplateId ?? null
+  );
+  const [customizableMockupOverrides, setCustomizableMockupOverrides] = useState<MockupOverrides | null>(
+    (product.customizableMockupOverrides as MockupOverrides | null) ?? null
+  );
+  const [sizeGuideId, setSizeGuideId] = useState<string | null>(
+    product.sizeGuideId ?? null
   );
 
   const [formData, setFormData] = useState({
@@ -98,7 +135,9 @@ export default function EditProductForm({ product, categories, showLegacyLanding
     hasVariants: product.hasVariants,
     template: product.template || "STANDARD",
     checkoutMode: (product as any).checkoutMode || "STANDARD",
-    codFormSettings: normalizeCodFormSettings((product as any).codFormSettings as CodFormSettings),
+    codFormTemplateId: ((product as any).codFormTemplateId as string | null) ?? null,
+    shippingRestriction:
+      ((product as any).shippingRestriction as ShippingRestriction | null) ?? null,
     metaTitle: product.metaTitle || "",
     metaDescription: product.metaDescription || "",
     weight: product.weight?.toString() || "",
@@ -320,6 +359,9 @@ export default function EditProductForm({ product, categories, showLegacyLanding
               stock: parseInt(v.stock) || 0,
             }))
           : [],
+        customizableTemplateId,
+        customizableMockupOverrides,
+        sizeGuideId,
       };
 
       const response = await fetch(`/api/admin/products/${product.id}/update`, {
@@ -364,22 +406,22 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0 pb-24 sm:pb-0">
+      <div className="flex items-center gap-3">
+        <Button variant="outline" size="icon" asChild className="shrink-0">
           <Link href="/admin/productos">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Editar Producto</h1>
-          <p className="text-muted-foreground">{product.name}</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-3xl font-bold leading-tight">Editar Producto</h1>
+          <p className="text-xs sm:text-base text-muted-foreground truncate">{product.name}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Basic Info */}
             <Card>
               <CardHeader>
@@ -657,7 +699,7 @@ export default function EditProductForm({ product, categories, showLegacyLanding
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Estado</CardTitle>
@@ -687,140 +729,102 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   <CardHeader>
     <CardTitle>Presentación</CardTitle>
     <p className="text-sm text-muted-foreground">
-      Elige cómo se mostrará este producto en la tienda
+      Elige la plantilla que define cómo se mostrará este producto en la tienda
     </p>
   </CardHeader>
   <CardContent className="space-y-4">
-    <div>
-      <Label htmlFor="template">Tipo de Página</Label>
-      <Select
-        value={formData.template}
-        onValueChange={(value) =>
-          setFormData({ ...formData, template: value })
-        }
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Selecciona un template" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="STANDARD">
-            <div className="flex flex-col">
-              <span className="font-medium">Página Normal</span>
-              <span className="text-xs text-muted-foreground">
-                Vista estándar de producto
-              </span>
-            </div>
-          </SelectItem>
-          <SelectItem value="LANDING">
-            <div className="flex flex-col">
-              <span className="font-medium">Landing Page</span>
-              <span className="text-xs text-muted-foreground">
-                Con secciones especiales y CTA destacados
-              </span>
-            </div>
-          </SelectItem>
-          {/* Futuros templates */}
-          <SelectItem value="MINIMAL" disabled>
-            <div className="flex flex-col">
-              <span className="font-medium">Minimalista</span>
-              <span className="text-xs text-muted-foreground">
-                Próximamente
-              </span>
-            </div>
-          </SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-    
-    {/* Preview del template seleccionado */}
-    <div className="rounded-lg border p-3 bg-muted/30">
-      <p className="text-xs font-medium mb-2">Vista Previa:</p>
-      {formData.template === "STANDARD" && (
-        <p className="text-xs text-muted-foreground">
-          ✓ Galería de imágenes izquierda<br/>
-          ✓ Información básica derecha<br/>
-          ✓ Descripción debajo
-        </p>
-      )}
-      {formData.template === "LANDING" && (
-        <p className="text-xs text-muted-foreground">
-          ✓ Hero con imagen destacada<br/>
-          ✓ Secciones de beneficios<br/>
-          ✓ Testimonios<br/>
-          ✓ CTAs prominentes
-        </p>
-      )}
-    </div>
+    <TemplateSelector
+      productId={product.id}
+      productSlug={product.slug}
+      currentTemplateId={product.landingTemplateId ?? null}
+      currentBlockCount={resolvedBlockTypes.length}
+    />
 
-    {formData.template === "LANDING" && (
-      <div className="mt-4 pt-4 border-t">
-        {showLegacyLandingEditor ? (
+    {/* Resumen dinámico de lo que renderizará el storefront */}
+    {resolvedBlockTypes.length > 0 ? (
+      <div className="rounded-lg border p-3 bg-muted/30">
+        <p className="text-xs font-medium mb-2">
+          Vista previa — {resolvedBlockTypes.length} bloque
+          {resolvedBlockTypes.length === 1 ? "" : "s"} se renderizarán:
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {resolvedBlockTypes.map((t, i) => (
+            <span
+              key={`${t}-${i}`}
+              className="inline-flex items-center rounded-md border bg-background px-2 py-0.5 text-xs"
+            >
+              {BLOCK_TYPE_LABELS[t] ?? t}
+            </span>
+          ))}
+        </div>
+      </div>
+    ) : (
+      <div className="rounded-lg border p-3 bg-muted/30">
+        <p className="text-xs text-muted-foreground">
+          Sin plantilla vinculada — se mostrará la vista estándar:
+          galería de imágenes + información básica + descripción.
+        </p>
+      </div>
+    )}
+
+    {/* Editor legacy (v1) — accesible cuando el flag v2 está OFF y el
+        producto no tiene plantilla vinculada. Colapsado por defecto para
+        no competir con el flujo principal del selector de plantillas. */}
+    {showLegacyLandingEditor && !product.landingTemplateId && (
+      <details className="rounded-lg border bg-muted/30 group">
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium select-none hover:bg-muted/50 rounded-lg">
+          Bloques personalizados (avanzado)
+          <span className="ml-2 text-muted-foreground font-normal">
+            — edita bloques locales sin usar plantilla
+          </span>
+        </summary>
+        <div className="border-t p-3">
           <LandingBlockList
             productId={product.id}
             initialBlocks={((product as any).landingBlocks ?? []) as LandingBlock[]}
           />
-        ) : (
-          <div className="p-6 border rounded-md bg-muted/40 text-center">
-            <p className="text-sm font-medium mb-1">Nuevo builder visual disponible</p>
-            <p className="text-xs text-muted-foreground mb-4">
-              Edita la landing de este producto con el editor WYSIWYG de pantalla completa.
-            </p>
-            <a
-              href={`/admin/productos/${product.id}?tab=landing`}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Editar en el nuevo builder →
-            </a>
-          </div>
-        )}
-      </div>
+        </div>
+      </details>
     )}
   </CardContent>
 </Card>
 
-<Card>
-  <CardHeader>
-    <CardTitle>Modo de Compra</CardTitle>
-    <p className="text-sm text-muted-foreground">¿Cómo puede comprar el cliente este producto?</p>
-  </CardHeader>
-  <CardContent className="space-y-3">
-    <RadioGroup
-      value={formData.checkoutMode}
-      onValueChange={(v) => setFormData({ ...formData, checkoutMode: v })}
-    >
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="STANDARD" id="cm-standard" />
-        <label htmlFor="cm-standard" className="cursor-pointer">
-          <div className="font-medium text-sm">Checkout normal</div>
-          <div className="text-xs text-muted-foreground">Agrega al carrito → pago con tarjeta/Yape/Plin</div>
-        </label>
-      </div>
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="COD_AND_CART" id="cm-cod-cart" />
-        <label htmlFor="cm-cod-cart" className="cursor-pointer">
-          <div className="font-medium text-sm">Comprar ahora (COD) + Carrito</div>
-          <div className="text-xs text-muted-foreground">Botón principal "Comprar ahora" COD. Botón secundario agrega al carrito.</div>
-        </label>
-      </div>
-      <div className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/30">
-        <RadioGroupItem value="COD_ONLY" id="cm-cod-only" />
-        <label htmlFor="cm-cod-only" className="cursor-pointer">
-          <div className="font-medium text-sm">Solo contra entrega (sin carrito)</div>
-          <div className="text-xs text-muted-foreground">Solo botón "Comprar ahora" COD. No se puede agregar al carrito.</div>
-        </label>
-      </div>
-    </RadioGroup>
+<CustomizationCard
+  productSlug={product.slug}
+  templateId={customizableTemplateId}
+  overrides={customizableMockupOverrides}
+  options={(product.options as ProductOption[]).map((o) => ({
+    id: o.id,
+    name: o.name,
+    values: o.values.map((v) => ({
+      id: v.id,
+      value: v.value,
+      swatch: v.colorHex ?? null,
+    })),
+  }))}
+  onTemplateChange={setCustomizableTemplateId}
+  onOverridesChange={setCustomizableMockupOverrides}
+/>
 
-    {(formData.checkoutMode === "COD_ONLY" || formData.checkoutMode === "COD_AND_CART") && (
-      <CodFormConfig
-        settings={formData.codFormSettings as CodFormSettings}
-        onChange={(s) => setFormData({ ...formData, codFormSettings: s })}
-      />
-    )}
-  </CardContent>
-</Card>
+<SizeGuideCard value={sizeGuideId} onChange={setSizeGuideId} />
 
-            <Card>
+<CodFormTemplateCard
+  checkoutMode={formData.checkoutMode as any}
+  templateId={formData.codFormTemplateId}
+  onChange={(patch) => setFormData({ ...formData, ...patch } as any)}
+/>
+<ShippingRestrictionCard
+  value={formData.shippingRestriction}
+  onChange={(v) => setFormData({ ...formData, shippingRestriction: v })}
+/>
+
+<ProductPromotionsCard
+  productId={product.id}
+  productName={product.name}
+  initialPromotions={initialPromotions}
+/>
+
+            <Card className="hidden sm:block">
               <CardContent className="space-y-2 p-6">
                 <Button type="submit" className="w-full" disabled={loading}>
                   <Save className="mr-2 h-4 w-4" />
@@ -837,6 +841,22 @@ export default function EditProductForm({ product, categories, showLegacyLanding
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Sticky bottom save bar — mobile only */}
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur px-3 py-2.5 flex gap-2 shadow-lg">
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+            className="flex-1 h-10"
+          >
+            <Link href="/admin/productos">Cancelar</Link>
+          </Button>
+          <Button type="submit" className="flex-1 h-10" disabled={loading}>
+            <Save className="mr-2 h-4 w-4" />
+            {loading ? "Guardando…" : "Guardar"}
+          </Button>
         </div>
       </form>
 

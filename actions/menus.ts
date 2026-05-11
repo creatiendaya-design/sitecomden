@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
+import { z } from "zod"
+import { MAX_MENU_DEPTH } from "@/lib/menus/constants"
 
 export interface MenuRow {
   id: string
@@ -33,37 +35,6 @@ export async function listMenus(): Promise<MenuRow[]> {
   await protectRoute("menus:view")
   const rows = await prisma.menu.findMany({
     orderBy: { updatedAt: "desc" },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      description: true,
-      active: true,
-      updatedAt: true,
-      _count: { select: { items: true } },
-    },
-  })
-  return rows.map((r) => ({
-    id: r.id,
-    slug: r.slug,
-    title: r.title,
-    description: r.description,
-    active: r.active,
-    itemCount: r._count.items,
-    updatedAt: r.updatedAt,
-  }))
-}
-
-/**
- * Slim variant of `listMenus` for use inside the theme picker UI. Gated by
- * `themes:update` (not `menus:view`) so an admin who can edit themes but
- * not browse the full Menus section can still pick header/footer menus.
- */
-export async function listMenusForThemePicker(): Promise<MenuRow[]> {
-  await protectRoute("themes:update")
-  const rows = await prisma.menu.findMany({
-    where: { active: true },
-    orderBy: { title: "asc" },
     select: {
       id: true,
       slug: true,
@@ -216,11 +187,113 @@ interface IncomingItem {
   openInNewTab: boolean
 }
 
+const linkTypeEnum = z.enum([
+  "HOME",
+  "PRODUCTS_INDEX",
+  "COLLECTIONS_INDEX",
+  "PAGE",
+  "PRODUCT",
+  "CATEGORY",
+  "EXTERNAL_URL",
+])
+
+const incomingItemSchema = z.object({
+  id: z.string().min(1),
+  parentId: z.string().nullable(),
+  position: z.number().int().min(0),
+  label: z.string().trim().min(1).max(120),
+  linkType: linkTypeEnum,
+  targetId: z.string().nullable(),
+  // externalUrl is stored as-is. URL well-formedness is enforced at the form
+  // boundary (LinkPicker) and only matters when linkType === "EXTERNAL_URL".
+  // Validating here would reject existing data with partial/malformed URLs.
+  externalUrl: z
+    .string()
+    .nullable()
+    .transform((v) => (v === "" ? null : v)),
+  openInNewTab: z.boolean(),
+})
+
+const incomingItemsSchema = z.array(incomingItemSchema)
+
+type ValidatedItem = z.infer<typeof incomingItemSchema>
+
+/**
+ * Walks the parent chain of `itemId` and returns its depth (root = 0).
+ * Throws on cycles. Used to enforce MAX_MENU_DEPTH server-side.
+ */
+function computeDepth(
+  itemId: string,
+  byId: Map<string, ValidatedItem>,
+  seen: Set<string> = new Set(),
+): number {
+  if (seen.has(itemId)) {
+    throw new Error("Ciclo detectado en el árbol del menú")
+  }
+  // Early bail-out before recursing further: caps stack depth at MAX_MENU_DEPTH
+  // regardless of payload size. assertDepthAndAcyclic still surfaces the
+  // user-facing depth message — this throw protects against malicious payloads
+  // (e.g. 10k-deep chains) reaching Node's recursion limit.
+  if (seen.size >= MAX_MENU_DEPTH) {
+    throw new Error(
+      `El menú no puede tener más de ${MAX_MENU_DEPTH} niveles`,
+    )
+  }
+  const it = byId.get(itemId)
+  if (!it || it.parentId === null) return 0
+  seen.add(itemId)
+  return 1 + computeDepth(it.parentId, byId, seen)
+}
+
+/**
+ * Throws if any item exceeds MAX_MENU_DEPTH or if the tree contains a cycle.
+ */
+function assertDepthAndAcyclic(items: ValidatedItem[]): void {
+  const byId = new Map(items.map((i) => [i.id, i]))
+  for (const it of items) {
+    const depth = computeDepth(it.id, byId)
+    if (depth >= MAX_MENU_DEPTH) {
+      throw new Error(
+        `El menú no puede tener más de ${MAX_MENU_DEPTH} niveles`,
+      )
+    }
+  }
+}
+
+/**
+ * Asserts that every non-tmp parentId reference points to an item that
+ * already belongs to the same menu. Prevents cross-menu reparenting via
+ * crafted payloads.
+ */
+async function assertParentsBelongToMenu(
+  menuId: string,
+  items: ValidatedItem[],
+): Promise<void> {
+  const incomingIds = new Set(items.map((i) => i.id))
+  const externalParentIds = items
+    .map((i) => i.parentId)
+    .filter((p): p is string => p !== null && !p.startsWith("tmp-") && !incomingIds.has(p))
+  if (externalParentIds.length === 0) return
+  const found = await prisma.menuItem.findMany({
+    where: { id: { in: externalParentIds } },
+    select: { id: true, menuId: true },
+  })
+  for (const id of externalParentIds) {
+    const row = found.find((f) => f.id === id)
+    if (!row || row.menuId !== menuId) {
+      throw new Error("parentId inválido: no pertenece a este menú")
+    }
+  }
+}
+
 export async function saveMenuItems(
   menuId: string,
   incoming: IncomingItem[],
 ): Promise<{ success: true }> {
   await protectRoute("menus:update")
+  const items = incomingItemsSchema.parse(incoming)
+  assertDepthAndAcyclic(items)
+  await assertParentsBelongToMenu(menuId, items)
 
   const menu = await prisma.menu.findUnique({
     where: { id: menuId },
@@ -240,7 +313,7 @@ export async function saveMenuItems(
       select: { id: true },
     })
     const existingIds = new Set(existing.map((b) => b.id))
-    const incomingIds = new Set(incoming.map((b) => b.id))
+    const incomingIds = new Set(items.map((b) => b.id))
 
     const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
     if (toDelete.length > 0) {
@@ -250,7 +323,7 @@ export async function saveMenuItems(
       // then deleting the child errors. Sort: leaves first.
       const childOf = new Map<string, string[]>()
       for (const e of existing) {
-        const parent = incoming.find((i) => i.id === e.id)?.parentId ?? null
+        const parent = items.find((i) => i.id === e.id)?.parentId ?? null
         if (parent) {
           if (!childOf.has(parent)) childOf.set(parent, [])
           childOf.get(parent)!.push(e.id)
@@ -260,48 +333,64 @@ export async function saveMenuItems(
       await tx.menuItem.deleteMany({ where: { id: { in: toDelete } } })
     }
 
-    // Pass 1 — items with no parent (or with parent that already has a real id).
-    // Pass 2 — items whose parent was a tmp- id that we mapped in pass 1.
-    const roots = incoming.filter((i) => i.parentId === null)
-    const children = incoming.filter((i) => i.parentId !== null)
+    // Topological insert: each pass inserts items whose parent is already
+    // resolved (root, previously inserted in this transaction, or pre-existing).
+    // Repeat until none remain. If a pass makes no progress, the payload has
+    // a cycle or an unreachable parent — abort.
+    let pending: ValidatedItem[] = [...items]
+    let lastSize = -1
 
-    for (const it of roots) {
-      const data = {
-        menuId,
-        parentId: null,
-        position: it.position,
-        label: it.label,
-        linkType: it.linkType,
-        targetId: it.targetId,
-        externalUrl: it.externalUrl,
-        openInNewTab: it.openInNewTab,
+    while (pending.length > 0 && pending.length !== lastSize) {
+      lastSize = pending.length
+      const next: ValidatedItem[] = []
+
+      for (const it of pending) {
+        const parentResolved =
+          it.parentId === null ||
+          tmpToReal.has(it.parentId) ||
+          existingIds.has(it.parentId)
+
+        if (!parentResolved) {
+          next.push(it)
+          continue
+        }
+
+        const realParentId =
+          it.parentId === null
+            ? null
+            : tmpToReal.get(it.parentId) ?? it.parentId
+
+        const data = {
+          menuId,
+          parentId: realParentId,
+          position: it.position,
+          label: it.label,
+          linkType: it.linkType,
+          targetId: it.targetId,
+          externalUrl: it.externalUrl,
+          openInNewTab: it.openInNewTab,
+        }
+
+        const isNew = it.id.startsWith("tmp-") || !existingIds.has(it.id)
+        if (isNew) {
+          const created = await tx.menuItem.create({
+            data,
+            select: { id: true },
+          })
+          tmpToReal.set(it.id, created.id)
+        } else {
+          await tx.menuItem.update({ where: { id: it.id }, data })
+          tmpToReal.set(it.id, it.id)
+        }
       }
-      if (it.id.startsWith("tmp-") || !existingIds.has(it.id)) {
-        const created = await tx.menuItem.create({ data, select: { id: true } })
-        tmpToReal.set(it.id, created.id)
-      } else {
-        await tx.menuItem.update({ where: { id: it.id }, data })
-        tmpToReal.set(it.id, it.id)
-      }
+
+      pending = next
     }
 
-    for (const it of children) {
-      const realParentId = tmpToReal.get(it.parentId!) ?? it.parentId!
-      const data = {
-        menuId,
-        parentId: realParentId,
-        position: it.position,
-        label: it.label,
-        linkType: it.linkType,
-        targetId: it.targetId,
-        externalUrl: it.externalUrl,
-        openInNewTab: it.openInNewTab,
-      }
-      if (it.id.startsWith("tmp-") || !existingIds.has(it.id)) {
-        await tx.menuItem.create({ data })
-      } else {
-        await tx.menuItem.update({ where: { id: it.id }, data })
-      }
+    if (pending.length > 0) {
+      throw new Error(
+        "No se pudo guardar el menú: referencia inválida en parentId",
+      )
     }
 
     await tx.menu.update({

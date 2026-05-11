@@ -9,6 +9,7 @@ interface OrderConfirmationEmailProps {
     variantName?: string;
     quantity: number;
     price: number;
+    customDesignImages?: Array<{ zoneId: string; url: string }>;
   }>;
   shippingAddress: {
     address: string;
@@ -157,6 +158,27 @@ export default function OrderConfirmationEmail({
                     <strong>S/ {item.price.toFixed(2)}</strong>
                   </div>
                 </div>
+                {item.customDesignImages && item.customDesignImages.length > 0 && (
+                  <div style={{
+                    marginTop: 8,
+                    padding: 12,
+                    backgroundColor: "#eff6ff",
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Tu diseño personalizado:</div>
+                    {item.customDesignImages.map((img) => (
+                      <div key={img.zoneId} style={{ fontSize: 12, margin: "4px 0" }}>
+                        <a href={img.url} style={{ color: "#2563eb", textDecoration: "underline" }}>
+                          Ver {img.zoneId} →
+                        </a>
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                      Tu diseño ya está en producción.
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
 

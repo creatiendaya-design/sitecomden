@@ -20,11 +20,13 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import {
   ArrowLeft,
+  ChevronDown,
   GripVertical,
   Pencil,
   Plus,
   Trash2,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -40,6 +42,7 @@ import {
 import { toast } from "sonner"
 import { saveMenuItems, type MenuItemRow } from "@/actions/menus"
 import { MenuItemSheet, type DraftItem } from "./MenuItemSheet"
+import { MAX_MENU_DEPTH } from "@/lib/menus/constants"
 
 interface PageOption {
   id: string
@@ -97,6 +100,21 @@ export function MenuTreeEditor({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   )
 
+  // Local UI state — collapse/expand per item id (not persisted).
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(items.filter((i) => i.parentId === null).map((i) => i.id)),
+  )
+  const toggleExpand = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const expandAll = () =>
+    setExpanded(new Set(items.map((i) => i.id)))
+  const collapseAll = () => setExpanded(new Set())
+
   const roots = items
     .filter((i) => i.parentId === null)
     .sort((a, b) => a.position - b.position)
@@ -123,6 +141,11 @@ export function MenuTreeEditor({
   }
 
   const addChild = (parentId: string) => {
+    // Ensure the parent is expanded so the newly-added child is visible.
+    setExpanded((prev) => {
+      if (prev.has(parentId)) return prev
+      return new Set([...prev, parentId])
+    })
     const siblings = items.filter((i) => i.parentId === parentId)
     setItems((prev) => [
       ...prev,
@@ -140,7 +163,20 @@ export function MenuTreeEditor({
   }
 
   const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id && i.parentId !== id))
+    setItems((prev) => {
+      const toRemove = new Set<string>([id])
+      let added = true
+      while (added) {
+        added = false
+        for (const it of prev) {
+          if (it.parentId && toRemove.has(it.parentId) && !toRemove.has(it.id)) {
+            toRemove.add(it.id)
+            added = true
+          }
+        }
+      }
+      return prev.filter((i) => !toRemove.has(i.id))
+    })
     setConfirmDeleteId(null)
   }
 
@@ -211,6 +247,20 @@ export function MenuTreeEditor({
     originalRef.current = JSON.stringify(initialItems)
   }
 
+  const ancestorsOf = (id: string): DraftItem[] => {
+    const chain: DraftItem[] = []
+    let current = items.find((i) => i.id === id)
+    while (current && current.parentId) {
+      const parent = items.find((i) => i.id === current!.parentId)
+      if (!parent) break
+      chain.unshift(parent)
+      current = parent
+    }
+    return chain
+  }
+
+  const depthOf = (id: string): number => ancestorsOf(id).length
+
   return (
     <div className="h-screen flex flex-col bg-muted/20">
       {/* Header */}
@@ -228,6 +278,14 @@ export function MenuTreeEditor({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={expanded.size > 0 ? collapseAll : expandAll}
+            className="text-xs"
+          >
+            {expanded.size > 0 ? "Colapsar todo" : "Expandir todo"}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -264,24 +322,39 @@ export function MenuTreeEditor({
                 items={roots.map((i) => i.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {roots.map((root) => (
-                  <SortableMenuItem
-                    key={root.id}
-                    item={root}
-                    onEdit={() => setEditing(root)}
-                    onDelete={() => setConfirmDeleteId(root.id)}
-                  >
-                    <NestedChildren
-                      parentId={root.id}
-                      items={childrenOf(root.id)}
-                      onReorder={reorderChildren(root.id)}
-                      sensors={sensors}
-                      onEdit={(it) => setEditing(it)}
-                      onDelete={(id) => setConfirmDeleteId(id)}
+                {roots.map((root) => {
+                  const children = childrenOf(root.id)
+                  const isExpanded = expanded.has(root.id)
+                  return (
+                    <SortableMenuItem
+                      key={root.id}
+                      item={root}
+                      depth={0}
+                      hasChildren={children.length > 0}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() => toggleExpand(root.id)}
+                      onEdit={() => setEditing(root)}
+                      onDelete={() => setConfirmDeleteId(root.id)}
                       onAddChild={() => addChild(root.id)}
-                    />
-                  </SortableMenuItem>
-                ))}
+                    >
+                      {isExpanded && (
+                        <NestedChildren
+                          parentId={root.id}
+                          items={children}
+                          childrenOf={childrenOf}
+                          onReorder={reorderChildren}
+                          sensors={sensors}
+                          onEdit={(it) => setEditing(it)}
+                          onDelete={(id) => setConfirmDeleteId(id)}
+                          onAddChild={(pid) => addChild(pid)}
+                          depth={1}
+                          expanded={expanded}
+                          toggleExpand={toggleExpand}
+                        />
+                      )}
+                    </SortableMenuItem>
+                  )
+                })}
               </SortableContext>
             </DndContext>
           )}
@@ -298,6 +371,9 @@ export function MenuTreeEditor({
       {editing && (
         <MenuItemSheet
           item={editing}
+          menuTitle={menu.title}
+          ancestors={ancestorsOf(editing.id).map((a) => a.label)}
+          atMaxDepth={depthOf(editing.id) >= MAX_MENU_DEPTH - 1}
           pages={pages}
           categories={categories}
           onSave={updateItem}
@@ -333,17 +409,28 @@ export function MenuTreeEditor({
 
 function SortableMenuItem({
   item,
+  depth,
+  hasChildren,
+  isExpanded,
+  onToggleExpand,
   onEdit,
   onDelete,
+  onAddChild,
   children,
 }: {
   item: DraftItem
+  depth: number
+  hasChildren: boolean
+  isExpanded: boolean
+  onToggleExpand: () => void
   onEdit: () => void
   onDelete: () => void
+  onAddChild?: () => void
   children?: React.ReactNode
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id })
+  const levelLabel = `L${depth + 1}`
   return (
     <div
       ref={setNodeRef}
@@ -352,7 +439,7 @@ function SortableMenuItem({
         transition,
         opacity: isDragging ? 0.5 : 1,
       }}
-      className="rounded-lg border bg-card"
+      className="rounded-lg border bg-card group/item"
     >
       <div className="flex items-center gap-2 p-3">
         <button
@@ -363,14 +450,46 @@ function SortableMenuItem({
         >
           <GripVertical className="h-4 w-4" />
         </button>
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={isExpanded ? "Colapsar" : "Expandir"}
+            aria-expanded={isExpanded}
+          >
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                isExpanded ? "rotate-0" : "-rotate-90",
+              )}
+            />
+          </button>
+        ) : (
+          <span className="w-3.5" aria-hidden />
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{item.label}</p>
-          <p className="text-[11px] text-muted-foreground">
-            <Badge variant="secondary" className="text-[10px] font-normal">
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+            <Badge variant="outline" className="text-[10px] font-normal h-4 px-1">
+              {levelLabel}
+            </Badge>
+            <Badge variant="secondary" className="text-[10px] font-normal h-4 px-1.5">
               {LINK_TYPE_LABEL[item.linkType] ?? item.linkType}
             </Badge>
           </p>
         </div>
+        {onAddChild && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 opacity-0 group-hover/item:opacity-100 transition-opacity"
+            onClick={onAddChild}
+            aria-label="Agregar subitem"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        )}
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
@@ -389,53 +508,96 @@ function SortableMenuItem({
 }
 
 function NestedChildren({
+  parentId,
   items,
+  childrenOf,
   onReorder,
   sensors,
   onEdit,
   onDelete,
   onAddChild,
+  depth,
+  expanded,
+  toggleExpand,
 }: {
   parentId: string
   items: DraftItem[]
-  onReorder: (e: DragEndEvent) => void
+  childrenOf: (id: string) => DraftItem[]
+  onReorder: (parentId: string) => (e: DragEndEvent) => void
   sensors: ReturnType<typeof useSensors>
   onEdit: (item: DraftItem) => void
   onDelete: (id: string) => void
-  onAddChild: () => void
+  onAddChild: (parentId: string) => void
+  depth: number
+  expanded: Set<string>
+  toggleExpand: (id: string) => void
 }) {
+  const canAddDeeper = depth < MAX_MENU_DEPTH - 1
+  const indent = depth === 1 ? "pl-6" : "pl-12"
+  const bg = depth === 1 ? "bg-muted/30" : "bg-muted/50"
+  const borderColor = depth === 1 ? "border-primary/30" : "border-primary/50"
+
   return (
-    <div className="border-t pl-6 pr-3 pb-3 pt-2 space-y-2 bg-muted/30">
+    <div className={`border-t ${indent} pr-3 pb-3 pt-2 space-y-2 ${bg} border-l-2 ${borderColor}`}>
       {items.length > 0 ? (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragEnd={onReorder}
+          onDragEnd={onReorder(parentId)}
         >
           <SortableContext
             items={items.map((i) => i.id)}
             strategy={verticalListSortingStrategy}
           >
-            {items.map((child) => (
-              <SortableMenuItem
-                key={child.id}
-                item={child}
-                onEdit={() => onEdit(child)}
-                onDelete={() => onDelete(child.id)}
-              />
-            ))}
+            {items.map((child) => {
+              const grandchildren = childrenOf(child.id)
+              const isExpanded = expanded.has(child.id)
+              return (
+                <SortableMenuItem
+                  key={child.id}
+                  item={child}
+                  depth={depth}
+                  hasChildren={grandchildren.length > 0}
+                  isExpanded={isExpanded}
+                  onToggleExpand={() => toggleExpand(child.id)}
+                  onEdit={() => onEdit(child)}
+                  onDelete={() => onDelete(child.id)}
+                  onAddChild={
+                    canAddDeeper ? () => onAddChild(child.id) : undefined
+                  }
+                >
+                  {isExpanded && canAddDeeper && (
+                    <NestedChildren
+                      parentId={child.id}
+                      items={grandchildren}
+                      childrenOf={childrenOf}
+                      onReorder={onReorder}
+                      sensors={sensors}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      onAddChild={onAddChild}
+                      depth={depth + 1}
+                      expanded={expanded}
+                      toggleExpand={toggleExpand}
+                    />
+                  )}
+                </SortableMenuItem>
+              )
+            })}
           </SortableContext>
         </DndContext>
       ) : null}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-xs"
-        onClick={onAddChild}
-      >
-        <Plus className="mr-1.5 h-3 w-3" />
-        Agregar subitem
-      </Button>
+      {canAddDeeper && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs"
+          onClick={() => onAddChild(parentId)}
+        >
+          <Plus className="mr-1.5 h-3 w-3" />
+          Agregar subitem
+        </Button>
+      )}
     </div>
   )
 }

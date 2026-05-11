@@ -3,6 +3,7 @@ import { getCspNonce } from "@/lib/csp";
 import Header from "@/components/shop/Header";
 import Footer from "@/components/shop/Footer";
 import ThemePreviewBanner from "@/components/shop/ThemePreviewBanner";
+import { PreviewRefreshListener } from "@/components/shop/PreviewRefreshListener";
 import { getActivePixels } from "@/actions/tracking-pixels";
 import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
 import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
@@ -72,6 +73,7 @@ export default async function ShopLayout({
           under this wrapper, so admin pages never inherit storefront tokens. */}
       <div className={`flex min-h-screen flex-col${themeClass ? ` ${themeClass}` : ""}`}>
         <ThemePreviewBanner />
+        <PreviewRefreshListener />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

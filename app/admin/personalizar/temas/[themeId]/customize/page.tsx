@@ -4,8 +4,11 @@ import { prisma } from "@/lib/db"
 import { getTheme } from "@/actions/themes"
 import { listLandingTemplates } from "@/actions/landing-templates"
 import { listPagesForThemePicker } from "@/actions/pages"
-import { listMenusForThemePicker } from "@/actions/menus"
-import { CustomizerShell } from "@/components/admin/customizer/CustomizerShell"
+import { listThemeSections } from "@/actions/theme-sections"
+import {
+  CustomizerShell,
+  type EditableSurface,
+} from "@/components/admin/customizer/CustomizerShell"
 import type {
   BlockContentV2,
   BlockInstance,
@@ -20,12 +23,18 @@ interface RouteParams {
 }
 
 /**
- * Plan 13 — Theme Customizer (Shopify-style split screen).
+ * Plan 13/14 — Theme Customizer (Shopify-style split screen).
  *
- * The `?target=<key>` query controls which page's blocks are being edited
- * AND which path the iframe loads. Defaults to "home". Switching the
- * picker in the toolbar reloads this server component with a new target,
- * so block fetching stays server-side and the iframe URL updates in sync.
+ * The `?target=<key>` query controls which surface is being edited AND
+ * which path the iframe loads. Defaults to "home". Switching the picker
+ * in the toolbar reloads this server component with a new target so
+ * block fetching stays server-side.
+ *
+ * Supported target kinds:
+ *   - home / cart       → underlying Page in `Theme.homePageId/cartPageId`
+ *   - page:<id>         → a specific static Page
+ *   - category:<id>     → a Category landing — Plan 14 wired editing
+ *   - other             → iframe-only preview (no left-side editor)
  */
 export default async function CustomizeThemePage({
   params,
@@ -35,73 +44,115 @@ export default async function CustomizeThemePage({
   const [{ themeId }, { target }] = await Promise.all([params, searchParams])
   const targetKey = target ?? "home"
 
-  const [theme, landingTemplates, pages, menus, sampleProduct, sampleCategory] =
-    await Promise.all([
-      getTheme(themeId),
-      listLandingTemplates({ active: true }),
-      listPagesForThemePicker(),
-      listMenusForThemePicker(),
-      prisma.product.findFirst({
-        where: { active: true },
-        orderBy: { createdAt: "desc" },
-        select: { slug: true },
-      }),
-      prisma.category.findFirst({
-        where: { active: true, parentId: null },
-        orderBy: { order: "asc" },
-        select: { slug: true },
-      }),
-    ])
+  const [
+    theme,
+    landingTemplates,
+    pages,
+    sampleProduct,
+    sampleCategory,
+    activeCategories,
+  ] = await Promise.all([
+    getTheme(themeId),
+    listLandingTemplates({ active: true }),
+    listPagesForThemePicker(),
+    prisma.product.findFirst({
+      where: { active: true },
+      orderBy: { createdAt: "desc" },
+      select: { slug: true },
+    }),
+    prisma.category.findFirst({
+      where: { active: true, parentId: null },
+      orderBy: { order: "asc" },
+      select: { slug: true },
+    }),
+    // Plan 14 — list all active root-level categories for the page picker.
+    // We surface only top-level ones; sub-categories rarely have their
+    // own landing blocks, and listing them all would clutter the dropdown.
+    prisma.category.findMany({
+      where: { active: true, parentId: null },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, slug: true },
+    }),
+  ])
 
   if (!theme) notFound()
 
-  // Resolve which Page (if any) is the target's underlying record. Only
-  // certain targets map to an editable Page in our data model:
-  //   - home → theme.homePageId
-  //   - cart → theme.cartPageId
-  //   - page:<id> → that specific Page
-  // Other targets (products, category) don't have block-level editing in
-  // v1 — the customizer for those just shows the iframe, no left editor.
-  const editablePageId = resolveEditablePageId(targetKey, theme)
-  const editablePage = editablePageId
-    ? await prisma.page.findUnique({
-        where: { id: editablePageId },
-        include: { pageBlocks: { orderBy: { position: "asc" } } },
-      })
-    : null
+  // Plan 16 — Fetch the ordered HEADER / FOOTER theme sections + the
+  // per-theme section catalog. The customizer hydrates its zustand store
+  // from these on mount; autosave round-trips replace tmp- ids on next
+  // server render via router.refresh().
+  const [headerSections, footerSections] = await Promise.all([
+    listThemeSections(theme.id, "HEADER"),
+    listThemeSections(theme.id, "FOOTER"),
+  ])
+  const sectionCatalog = theme.sectionCatalog
 
-  const initialBlocks: BlockInstance[] = editablePage
-    ? editablePage.pageBlocks.map((b) => ({
+  // ---------- Resolve which surface (Page or Category) the target maps to ----------
+  let editableSurface: EditableSurface | null = null
+  let initialBlocks: BlockInstance[] = []
+
+  const pageId = resolveEditablePageId(targetKey, theme)
+  if (pageId) {
+    const page = await prisma.page.findUnique({
+      where: { id: pageId },
+      include: { pageBlocks: { orderBy: { position: "asc" } } },
+    })
+    if (page) {
+      editableSurface = {
+        kind: "page",
+        id: page.id,
+        title: page.title,
+      }
+      initialBlocks = page.pageBlocks.map((b) => ({
         id: b.id,
         type: b.type as LandingBlockTypeUnion,
         position: b.position,
-        // Stored Json doesn't statically overlap BlockContentV2; pass
-        // through unknown for the cast. Runtime shape is enforced by the
-        // saver, which writes via SchemaForm-validated content.
         content: b.content as unknown as BlockContentV2,
       }))
-    : []
+    }
+  } else if (targetKey.startsWith("category:")) {
+    const categoryId = targetKey.slice("category:".length)
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: { categoryBlocks: { orderBy: { position: "asc" } } },
+    })
+    if (category) {
+      editableSurface = {
+        kind: "category",
+        id: category.id,
+        title: category.name,
+      }
+      initialBlocks = category.categoryBlocks.map((b) => ({
+        id: b.id,
+        type: b.type as LandingBlockTypeUnion,
+        position: b.position,
+        content: b.content as unknown as BlockContentV2,
+      }))
+    }
+  }
 
   return (
     <CustomizerShell
       theme={theme}
       landingTemplates={landingTemplates}
       pages={pages}
-      menus={menus}
+      categoryTargets={activeCategories}
       sampleProductSlug={sampleProduct?.slug ?? null}
       sampleCategorySlug={sampleCategory?.slug ?? null}
       targetKey={targetKey}
-      editablePageId={editablePageId}
-      editablePageTitle={editablePage?.title ?? null}
+      editableSurface={editableSurface}
       initialBlocks={initialBlocks}
+      headerSections={headerSections}
+      footerSections={footerSections}
+      sectionCatalog={sectionCatalog}
     />
   )
 }
 
 /**
  * Maps a target key to the Page id whose blocks the editor should
- * manipulate. Returns null when the target doesn't map to a Page (e.g.
- * "products-index" — that's a system route, not a page-builder page).
+ * manipulate. Returns null when the target doesn't map to a Page.
+ * Category targets are handled separately by the caller.
  */
 function resolveEditablePageId(
   targetKey: string,

@@ -1,8 +1,9 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
+import { getActivePixelsCached } from "@/lib/tracking-pixels";
 
 // ============================================
 // TIPOS Y SCHEMAS
@@ -157,6 +158,7 @@ export async function savePixel(
     }
 
     revalidatePath("/admin/configuracion/pixeles");
+    updateTag("tracking-pixels");
 
     return { success: true };
   } catch (error) {
@@ -183,6 +185,7 @@ export async function deletePixel(platform: PixelPlatform) {
     });
 
     revalidatePath("/admin/configuracion/pixeles");
+    updateTag("tracking-pixels");
 
     return { success: true };
   } catch (error) {
@@ -203,6 +206,7 @@ export async function togglePixel(platform: PixelPlatform, enabled: boolean) {
     });
 
     revalidatePath("/admin/configuracion/pixeles");
+    updateTag("tracking-pixels");
 
     return { success: true };
   } catch (error) {
@@ -215,27 +219,23 @@ export async function togglePixel(platform: PixelPlatform, enabled: boolean) {
 // OBTENER PÍXELES ACTIVOS (para frontend)
 // ============================================
 
-export async function getActivePixels() {
-  try {
-    const pixels = await prisma.trackingPixel.findMany({
-      where: { enabled: true },
-      select: {
-        platform: true,
-        config: true,
-        testMode: true,
-      },
-    });
-
-    return {
-      success: true,
-      pixels: pixels.map((p) => ({
-        platform: p.platform,
-        config: p.config as PixelConfig,
-        testMode: p.testMode,
-      })),
-    };
-  } catch (error) {
-    console.error("Error al obtener píxeles activos:", error);
-    return { success: false, pixels: [] };
-  }
+/**
+ * Cached delegate. The actual `unstable_cache` wrapper lives in
+ * `lib/tracking-pixels.ts` because a `"use server"` module can't export
+ * non-server-action helpers safely. Mutations below call
+ * `updateTag("tracking-pixels")` to invalidate this read.
+ */
+export async function getActivePixels(): Promise<{
+  success: boolean;
+  pixels: Array<{ platform: PixelPlatform; config: PixelConfig; testMode: boolean }>;
+}> {
+  const result = await getActivePixelsCached();
+  return {
+    success: result.success,
+    pixels: result.pixels.map((p) => ({
+      platform: p.platform,
+      config: p.config as PixelConfig,
+      testMode: p.testMode,
+    })),
+  };
 }

@@ -34,17 +34,17 @@ export default async function RolesPage() {
   const activeRoles = roles.filter(r => r.active).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Gestión de Roles</h1>
-          <p className="text-muted-foreground mt-1">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Gestión de Roles</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Administra roles y permisos del sistema
           </p>
         </div>
         {canManage && (
-          <Button asChild>
+          <Button asChild className="hidden sm:inline-flex">
             <Link href="/admin/configuracion/roles/nuevo">
               <Plus className="mr-2 h-4 w-4" />
               Crear Rol
@@ -53,59 +53,85 @@ export default async function RolesPage() {
         )}
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Mobile primary CTA */}
+      {canManage && (
+        <Button asChild className="sm:hidden w-full">
+          <Link href="/admin/configuracion/roles/nuevo">
+            <Plus className="mr-2 h-4 w-4" />
+            Crear Rol
+          </Link>
+        </Button>
+      )}
+
+      {/* Stats - 2 cols on mobile to fit all 4 in one screen */}
+      <div className="grid gap-2 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <Shield className="h-6 w-6 text-primary" />
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center gap-2.5 sm:gap-4">
+              <div className="rounded-lg bg-primary/10 p-1.5 sm:p-3 shrink-0">
+                <Shield className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">{totalRoles}</p>
-                <p className="text-sm text-muted-foreground">Roles Totales</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold tabular-nums leading-none">
+                  {totalRoles}
+                </p>
+                <p className="text-[11px] sm:text-sm text-muted-foreground mt-1 truncate">
+                  Roles Totales
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-blue-500/10 p-3">
-                <Users className="h-6 w-6 text-blue-500" />
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center gap-2.5 sm:gap-4">
+              <div className="rounded-lg bg-blue-500/10 p-1.5 sm:p-3 shrink-0">
+                <Users className="h-4 w-4 sm:h-6 sm:w-6 text-blue-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">{totalUsers}</p>
-                <p className="text-sm text-muted-foreground">Usuarios Asignados</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-purple-500/10 p-3">
-                <Shield className="h-6 w-6 text-purple-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{systemRoles}</p>
-                <p className="text-sm text-muted-foreground">Roles del Sistema</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold tabular-nums leading-none">
+                  {totalUsers}
+                </p>
+                <p className="text-[11px] sm:text-sm text-muted-foreground mt-1 truncate">
+                  Usuarios
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-green-500/10 p-3">
-                <Shield className="h-6 w-6 text-green-500" />
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center gap-2.5 sm:gap-4">
+              <div className="rounded-lg bg-purple-500/10 p-1.5 sm:p-3 shrink-0">
+                <Shield className="h-4 w-4 sm:h-6 sm:w-6 text-purple-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">{activeRoles}</p>
-                <p className="text-sm text-muted-foreground">Roles Activos</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold tabular-nums leading-none">
+                  {systemRoles}
+                </p>
+                <p className="text-[11px] sm:text-sm text-muted-foreground mt-1 truncate">
+                  Sistema
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center gap-2.5 sm:gap-4">
+              <div className="rounded-lg bg-green-500/10 p-1.5 sm:p-3 shrink-0">
+                <Shield className="h-4 w-4 sm:h-6 sm:w-6 text-green-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold tabular-nums leading-none">
+                  {activeRoles}
+                </p>
+                <p className="text-[11px] sm:text-sm text-muted-foreground mt-1 truncate">
+                  Activos
+                </p>
               </div>
             </div>
           </CardContent>
@@ -113,7 +139,7 @@ export default async function RolesPage() {
       </div>
 
       {/* Lista de Roles */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {roles.length === 0 ? (
           <Card className="sm:col-span-2 lg:col-span-3">
             <CardContent className="py-12 text-center">
@@ -133,79 +159,148 @@ export default async function RolesPage() {
           </Card>
         ) : (
           roles.map((role) => (
-            <Card key={role.id} className={!role.active ? "opacity-60" : ""}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-4 w-4 rounded-full"
-                      style={{ backgroundColor: role.color || "#6366f1" }}
+            <div key={role.id}>
+              {/* ============ MOBILE: compact row ============ */}
+              <div
+                className={`sm:hidden flex items-center gap-2 rounded-lg border bg-card pl-3 pr-2 py-2.5 ${
+                  !role.active ? "opacity-60" : ""
+                }`}
+              >
+                <Link
+                  href={`/admin/configuracion/roles/${role.id}`}
+                  className="flex items-center gap-2.5 flex-1 min-w-0 active:opacity-70"
+                >
+                  <div
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: role.color || "#6366f1" }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-sm truncate">
+                        {role.name}
+                      </span>
+                      {role.isSystem && (
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 leading-none">
+                          Sistema
+                        </Badge>
+                      )}
+                      {!role.active && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 leading-none">
+                          Inactivo
+                        </Badge>
+                      )}
+                    </div>
+                    {role.description && (
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {role.description}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                      Nivel {role.level} · {role.permissions.length} permisos ·{" "}
+                      {role._count.users} usuario
+                      {role._count.users !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                </Link>
+                {canManage && !role.isSystem && (
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <ToggleRoleButton roleId={role.id} isActive={role.active} />
+                    <DeleteRoleButton
+                      roleId={role.id}
+                      roleName={role.name}
+                      userCount={role._count.users}
                     />
-                    <CardTitle className="text-lg">{role.name}</CardTitle>
                   </div>
-                  <div className="flex gap-1">
-                    {role.isSystem && (
-                      <Badge variant="secondary" className="text-xs">
-                        Sistema
-                      </Badge>
-                    )}
-                    {!role.active && (
-                      <Badge variant="outline" className="text-xs">
-                        Inactivo
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <CardDescription className="line-clamp-2">
-                  {role.description || "Sin descripción"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Stats del rol */}
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-lg bg-muted p-2">
-                    <p className="text-lg font-bold">{role.level}</p>
-                    <p className="text-xs text-muted-foreground">Nivel</p>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2">
-                    <p className="text-lg font-bold">{role.permissions.length}</p>
-                    <p className="text-xs text-muted-foreground">Permisos</p>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2">
-                    <p className="text-lg font-bold">{role._count.users}</p>
-                    <p className="text-xs text-muted-foreground">Usuarios</p>
-                  </div>
-                </div>
+                )}
+              </div>
 
-                {/* Acciones */}
-                {canManage ? (
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
+              {/* ============ DESKTOP: card with stat boxes ============ */}
+              <Card
+                className={`hidden sm:block ${!role.active ? "opacity-60" : ""}`}
+              >
+                <CardHeader className="px-6 py-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div
+                        className="h-3 w-3 rounded-full shrink-0"
+                        style={{ backgroundColor: role.color || "#6366f1" }}
+                      />
+                      <CardTitle className="text-lg truncate">
+                        {role.name}
+                      </CardTitle>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      {role.isSystem && (
+                        <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                          Sistema
+                        </Badge>
+                      )}
+                      {!role.active && (
+                        <Badge variant="outline" className="text-xs h-5 px-1.5">
+                          Inactivo
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <CardDescription className="line-clamp-2 text-sm mt-1">
+                    {role.description || "Sin descripción"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="px-6 pb-6 space-y-4">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg bg-muted px-1 py-2">
+                      <p className="text-lg font-bold tabular-nums leading-none">
+                        {role.level}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Nivel</p>
+                    </div>
+                    <div className="rounded-lg bg-muted px-1 py-2">
+                      <p className="text-lg font-bold tabular-nums leading-none">
+                        {role.permissions.length}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Permisos
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted px-1 py-2">
+                      <p className="text-lg font-bold tabular-nums leading-none">
+                        {role._count.users}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Usuarios
+                      </p>
+                    </div>
+                  </div>
+
+                  {canManage ? (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="flex-1" asChild>
+                        <Link href={`/admin/configuracion/roles/${role.id}`}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </Link>
+                      </Button>
+                      {!role.isSystem && (
+                        <>
+                          <ToggleRoleButton roleId={role.id} isActive={role.active} />
+                          <DeleteRoleButton
+                            roleId={role.id}
+                            roleName={role.name}
+                            userCount={role._count.users}
+                          />
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" className="w-full" asChild>
                       <Link href={`/admin/configuracion/roles/${role.id}`}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Editar
+                        Ver Detalles
                       </Link>
                     </Button>
-                    {!role.isSystem && (
-                      <>
-                        <ToggleRoleButton roleId={role.id} isActive={role.active} />
-                        <DeleteRoleButton
-                          roleId={role.id}
-                          roleName={role.name}
-                          userCount={role._count.users}
-                        />
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <Button variant="outline" size="sm" className="w-full" asChild>
-                    <Link href={`/admin/configuracion/roles/${role.id}`}>
-                      Ver Detalles
-                    </Link>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           ))
         )}
       </div>

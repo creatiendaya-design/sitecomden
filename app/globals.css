@@ -157,6 +157,137 @@
   display: none !important;
 }
 
+/* Admin: smooth color transitions on theme switch (only on themable surfaces).
+   Excluded properties (transform, opacity) avoid unwanted animation on
+   hover/scale interactions. */
+[data-admin-theme] *,
+[data-admin-theme] *::before,
+[data-admin-theme] *::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Admin: thin, themable scrollbar for the sidebar nav */
+.admin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-border) transparent;
+}
+.admin-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.admin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admin-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--sidebar-border);
+  border-radius: 9999px;
+}
+.admin-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
+/* Admin dark-mode retrofit: many existing pages use hardcoded Tailwind colors
+   (bg-white, bg-slate-50, text-gray-700…). Map them to themable tokens when
+   inside the admin dark scope so the whole panel switches consistently
+   without touching ~50 source files. The selectors are scoped to
+   [data-admin-theme="dark"] so the storefront and admin light mode stay
+   untouched. !important is required to beat Tailwind v4 utilities, which
+   are emitted inside @layer utilities — layered rules can outrank higher
+   specificity unlayered ones in some cases, so we force the override. */
+[data-admin-theme="dark"] .bg-white {
+  background-color: var(--card) !important;
+}
+[data-admin-theme="dark"] .bg-slate-50,
+[data-admin-theme="dark"] .bg-slate-100,
+[data-admin-theme="dark"] .bg-gray-50,
+[data-admin-theme="dark"] .bg-gray-100,
+[data-admin-theme="dark"] .bg-neutral-50,
+[data-admin-theme="dark"] .bg-neutral-100,
+[data-admin-theme="dark"] .bg-zinc-50,
+[data-admin-theme="dark"] .bg-zinc-100 {
+  background-color: var(--muted) !important;
+}
+[data-admin-theme="dark"] .bg-slate-200,
+[data-admin-theme="dark"] .bg-gray-200,
+[data-admin-theme="dark"] .bg-neutral-200,
+[data-admin-theme="dark"] .bg-zinc-200 {
+  background-color: var(--accent) !important;
+}
+
+/* Hover variants — explicit selectors (plain + common /opacity suffixes).
+   We avoid `[class*=…]` because "slate-50" would also match "slate-500".
+   Tailwind escapes `/` and `:` in CSS, so each variant is listed separately. */
+[data-admin-theme="dark"] .hover\:bg-white:hover,
+[data-admin-theme="dark"] .hover\:bg-white\/50:hover,
+[data-admin-theme="dark"] .hover\:bg-white\/80:hover,
+[data-admin-theme="dark"] .hover\:bg-white\/90:hover {
+  background-color: var(--card) !important;
+}
+[data-admin-theme="dark"] .hover\:bg-slate-50:hover,
+[data-admin-theme="dark"] .hover\:bg-slate-50\/50:hover,
+[data-admin-theme="dark"] .hover\:bg-slate-50\/80:hover,
+[data-admin-theme="dark"] .hover\:bg-slate-100:hover,
+[data-admin-theme="dark"] .hover\:bg-slate-100\/50:hover,
+[data-admin-theme="dark"] .hover\:bg-slate-100\/80:hover,
+[data-admin-theme="dark"] .hover\:bg-gray-50:hover,
+[data-admin-theme="dark"] .hover\:bg-gray-50\/50:hover,
+[data-admin-theme="dark"] .hover\:bg-gray-100:hover,
+[data-admin-theme="dark"] .hover\:bg-gray-100\/50:hover,
+[data-admin-theme="dark"] .hover\:bg-neutral-50:hover,
+[data-admin-theme="dark"] .hover\:bg-neutral-100:hover,
+[data-admin-theme="dark"] .hover\:bg-zinc-50:hover,
+[data-admin-theme="dark"] .hover\:bg-zinc-100:hover {
+  background-color: var(--accent) !important;
+}
+[data-admin-theme="dark"] .hover\:bg-slate-200:hover,
+[data-admin-theme="dark"] .hover\:bg-gray-200:hover,
+[data-admin-theme="dark"] .hover\:bg-neutral-200:hover {
+  background-color: color-mix(in oklch, var(--accent) 70%, var(--foreground) 5%) !important;
+}
+
+/* Borders */
+[data-admin-theme="dark"] .border-gray-100,
+[data-admin-theme="dark"] .border-gray-200,
+[data-admin-theme="dark"] .border-slate-100,
+[data-admin-theme="dark"] .border-slate-200,
+[data-admin-theme="dark"] .border-neutral-100,
+[data-admin-theme="dark"] .border-neutral-200 {
+  border-color: var(--border) !important;
+}
+
+/* Text — invert dark grays so they stay readable on a dark background.
+   Light grays (400/500) map to muted-foreground; dark grays (700/800/900)
+   map to foreground. */
+[data-admin-theme="dark"] .text-black,
+[data-admin-theme="dark"] .text-gray-900,
+[data-admin-theme="dark"] .text-gray-800,
+[data-admin-theme="dark"] .text-slate-900,
+[data-admin-theme="dark"] .text-slate-800,
+[data-admin-theme="dark"] .text-neutral-900,
+[data-admin-theme="dark"] .text-neutral-800,
+[data-admin-theme="dark"] .text-zinc-900,
+[data-admin-theme="dark"] .text-zinc-800 {
+  color: var(--foreground) !important;
+}
+[data-admin-theme="dark"] .text-gray-700,
+[data-admin-theme="dark"] .text-gray-600,
+[data-admin-theme="dark"] .text-slate-700,
+[data-admin-theme="dark"] .text-slate-600,
+[data-admin-theme="dark"] .text-neutral-700,
+[data-admin-theme="dark"] .text-neutral-600 {
+  color: oklch(0.85 0.013 255.508) !important;
+}
+[data-admin-theme="dark"] .text-gray-500,
+[data-admin-theme="dark"] .text-gray-400,
+[data-admin-theme="dark"] .text-slate-500,
+[data-admin-theme="dark"] .text-slate-400,
+[data-admin-theme="dark"] .text-neutral-500,
+[data-admin-theme="dark"] .text-neutral-400 {
+  color: var(--muted-foreground) !important;
+}
+
 /* Estilos adicionales para ProductCard */
 
 /* Animación suave para hover de imágenes */
@@ -256,5 +387,19 @@
 body.is-landing-page header,
 body.is-landing-page footer {
   display: none !important;
+}
+
+/* Neutralize Chrome's autofill blue/lavender background on COD form inputs.
+   The browser injects a high-specificity style; we override it with an
+   inset white shadow large enough to cover the input area. */
+.cod-no-autofill:-webkit-autofill,
+.cod-no-autofill:-webkit-autofill:hover,
+.cod-no-autofill:-webkit-autofill:focus,
+.cod-no-autofill:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  caret-color: #111827;
+  transition: background-color 9999s ease-in-out 0s;
 }
 

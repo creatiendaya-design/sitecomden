@@ -32,9 +32,10 @@ model Category {
   /// (Plan 7). Defaults to false — grid renders below the blocks.
   hideProductGrid Boolean @default(false)
 
-  products       ProductCategory[]
-  conditions     CategoryCondition[]
-  categoryBlocks CategoryBlock[]
+  products         ProductCategory[]
+  conditions       CategoryCondition[]
+  categoryBlocks   CategoryBlock[]
+  promotionTargets PromotionCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -104,7 +105,6 @@ model Product {
   hasVariants      Boolean         @default(false)
   template         ProductTemplate @default(STANDARD)
   checkoutMode     CheckoutMode    @default(STANDARD)
-  codFormSettings  Json?
   metaTitle        String?
   metaDescription  String?
   featured         Boolean         @default(false)
@@ -123,6 +123,15 @@ model Product {
   landingBlocks      LandingBlock[]
   landingTemplateId  String?
   landingTemplate    LandingTemplate?    @relation(fields: [landingTemplateId], references: [id], onDelete: SetNull)
+  customizableTemplateId      String?
+  customizableTemplate        CustomizableTemplate? @relation(fields: [customizableTemplateId], references: [id], onDelete: SetNull)
+  customizableMockupOverrides Json?
+  sizeGuideId String?
+  sizeGuide   SizeGuide? @relation(fields: [sizeGuideId], references: [id], onDelete: SetNull)
+  codFormTemplateId   String?
+  codFormTemplate     CodFormTemplate? @relation(fields: [codFormTemplateId], references: [id], onDelete: SetNull)
+  shippingRestriction Json?
+  promotionTargets    PromotionProduct[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -130,6 +139,9 @@ model Product {
   @@index([active])
   @@index([featured])
   @@index([template])
+  @@index([customizableTemplateId])
+  @@index([sizeGuideId])
+  @@index([codFormTemplateId])
 }
 
 model LandingBlock {
@@ -314,6 +326,8 @@ model OrderItem {
   image          String?
   sku            String?
   variantOptions Json?
+  customDesign        Json?
+  customDesignImages  Json?
   order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product        Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   variant        ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
@@ -422,6 +436,30 @@ enum CheckoutMode {
   COD_AND_CART
 }
 
+enum CodFormBlockType {
+  HEADER
+  CART_ITEMS
+  SHIPPING_OPTIONS
+  ORDER_SUMMARY
+  SUBMIT_BUTTON
+  FIELD_NAME
+  FIELD_PHONE
+  FIELD_EMAIL
+  FIELD_DNI
+  FIELD_ADDRESS
+  FIELD_ADDRESS_2
+  FIELD_PROVINCE
+  FIELD_CITY
+  FIELD_REFERENCE
+  FIELD_NOTES
+}
+
+enum PostSubmitAction {
+  INLINE_THANK_YOU
+  WHATSAPP_REDIRECT
+  THANK_YOU_PAGE
+}
+
 enum IgvType {
   GRAVADO
   EXONERADO
@@ -458,6 +496,60 @@ enum CouponType {
   PERCENTAGE
   FIXED_AMOUNT
   FREE_SHIPPING
+}
+
+model Promotion {
+  id                    String                @id @default(cuid())
+  name                  String
+  type                  ProductPromotionType
+  active                Boolean               @default(true)
+  priority              Int                   @default(0)
+  config                Json                  @default("{}")
+  startsAt              DateTime?
+  expiresAt             DateTime?
+  usageCount            Int                   @default(0)
+  /// Sum of discount amounts applied across all orders that used this
+  /// promotion (in PEN). For FREE_GIFT it accumulates the basePrice of
+  /// the gift handed out per order.
+  totalDiscountApplied  Decimal               @default(0) @db.Decimal(12, 2)
+  productTargets        PromotionProduct[]
+  categoryTargets       PromotionCategory[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([active])
+  @@index([type])
+}
+
+model PromotionProduct {
+  promotionId String
+  productId   String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@id([promotionId, productId])
+  @@index([productId])
+  @@index([promotionId])
+}
+
+model PromotionCategory {
+  promotionId String
+  categoryId  String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@id([promotionId, categoryId])
+  @@index([categoryId])
+  @@index([promotionId])
+}
+
+enum ProductPromotionType {
+  VOLUME
+  SUBSCRIPTION
+  FREE_GIFT
+  BUNDLE
 }
 
 model InventoryMovement {
@@ -627,6 +719,7 @@ model User {
   roleId            String?
   role              Role?            @relation(fields: [roleId], references: [id])
   customPermissions UserPermission[]
+  sessions          AdminSession[]
   active            Boolean          @default(true)
   lastLogin         DateTime?
   createdAt         DateTime         @default(now())
@@ -635,6 +728,28 @@ model User {
   @@index([email])
   @@index([active])
   @@index([roleId])
+}
+
+// Server-side admin sessions. The cookie carries an opaque random token
+// (32 random bytes hex-encoded) that maps to a row here. Storing the user.id
+// directly in the cookie would let anyone who learned a user's id authenticate
+// as them and there would be no way to invalidate a leaked cookie.
+//
+// On password change or admin revocation, delete the user's rows here to log
+// them out everywhere immediately.
+model AdminSession {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Setting {
@@ -659,6 +774,24 @@ model NewsletterSubscriber {
 
   @@index([email])
   @@index([active])
+}
+
+/// One-time email-ownership check used to gate the subscription discount.
+/// The customer requests a code, we send it via email, and the discount is
+/// only honored when a matching unexpired `verifiedAt` row exists.
+model SubscriptionVerification {
+  id         String    @id @default(cuid())
+  email      String    @unique // canonical (normalized) form
+  code       String    // 6-digit numeric code
+  attempts   Int       @default(0)
+  verifiedAt DateTime?
+  expiresAt  DateTime
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([email])
+  @@index([verifiedAt])
 }
 
 model Department {
@@ -702,40 +835,21 @@ model ShippingZone {
   description String? @db.Text
 
   districts ShippingZoneDistrict[]
-
-  rateGroups ShippingRateGroup[]
+  rates     ShippingRate[]
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model ShippingRateGroup {
+model ShippingRate {
   id     String       @id @default(cuid())
   zoneId String
   zone   ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
   name        String
   description String? @db.Text
-
-  rates ShippingRate[]
-
-  order  Int     @default(0)
-  active Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([zoneId])
-}
-
-model ShippingRate {
-  id      String            @id @default(cuid())
-  groupId String
-  group   ShippingRateGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  name        String
-  description String? @db.Text
+  category    String?
 
   baseCost Decimal @db.Decimal(10, 2)
 
@@ -751,10 +865,19 @@ model ShippingRate {
   order  Int     @default(0)
   active Boolean @default(true)
 
+  /// When true the rate is hidden from the regular cart checkout. It only
+  /// appears in COD form flows for templates that explicitly assign it.
+  excludeFromRegularCheckout Boolean @default(false)
+
+  /// COD form templates that whitelist this rate. When a template has at
+  /// least one rate assigned, only those rates appear in its COD modal;
+  /// otherwise the modal falls back to the regular (non-excluded) rates.
+  codFormTemplates CodFormTemplate[] @relation("CodFormTemplateShippingRates")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([groupId])
+  @@index([zoneId])
 }
 
 model ShippingZoneDistrict {
@@ -1057,6 +1180,53 @@ model LandingTemplate {
   @@index([active, category])
 }
 
+model CodFormTemplate {
+  id               String           @id @default(cuid())
+  name             String           @unique
+  isDefault        Boolean          @default(false)
+
+  buttonText       String           @default("Realizar Pedido y Pagar al Recibir")
+  buttonStyle      Json             @default("{}")
+
+  postSubmitAction PostSubmitAction @default(INLINE_THANK_YOU)
+  thankYouTitle    String?
+  thankYouMessage  String?          @db.Text
+  whatsappNumber   String?
+  whatsappMessage  String?          @db.Text
+  thankYouPageId   String?
+  thankYouPage     Page?            @relation("CodFormThankYouPage", fields: [thankYouPageId], references: [id], onDelete: SetNull)
+
+  blocks           CodFormBlock[]
+  products         Product[]
+
+  /// Per-template shipping profile. When non-empty, only these rates appear
+  /// in the COD modal for products bound to this template (Shopify-style
+  /// shipping profile). When empty, the modal falls back to the regular
+  /// (non-excluded) rates for the customer's district.
+  shippingRates    ShippingRate[]   @relation("CodFormTemplateShippingRates")
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([isDefault])
+  @@index([thankYouPageId])
+}
+
+model CodFormBlock {
+  id         String           @id @default(cuid())
+  templateId String
+  template   CodFormTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  position   Int
+  type       CodFormBlockType
+  content    Json             @default("{}")
+  visible    Boolean          @default(true)
+  required   Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([templateId, position])
+}
+
 /// A user-editable static page (Nosotros, Términos, FAQ, etc.) authored
 /// via the page builder. The storefront resolves /<slug> to the active
 /// Page when one exists, falling back to hardcoded route files otherwise.
@@ -1091,6 +1261,8 @@ model Page {
   themesUsingAsHome Theme[] @relation("ThemeHomePage")
   /** Themes that point to this page as their cart-blocks wrapper. */
   themesUsingAsCart Theme[] @relation("ThemeCartPage")
+  /** CodFormTemplates that point to this page as their thank-you destination. */
+  codFormTemplates CodFormTemplate[] @relation("CodFormThankYouPage")
 
   @@index([slug, active])
 }
@@ -1107,10 +1279,6 @@ model Menu {
   description String?
   active      Boolean    @default(true)
   items       MenuItem[]
-  /** Themes that point to this menu as their storefront header (Plan 9). */
-  themesUsingAsHeader Theme[] @relation("ThemeHeaderMenu")
-  /** Themes that point to this menu as their storefront footer (Plan 9). */
-  themesUsingAsFooter Theme[] @relation("ThemeFooterMenu")
   createdBy   String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -1122,7 +1290,9 @@ model MenuItem {
   id            String     @id @default(cuid())
   menuId        String
   menu          Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
-  /// Self-referential parent for one level of nesting (max depth 2 in v1).
+  /// Self-referential parent. Max depth 3 — enforced server-side in
+  /// actions/menus.ts (computeDepth + cycle check). The DB itself does
+  /// not enforce a cap; depth is treated as a domain rule.
   parentId      String?
   parent        MenuItem?  @relation("MenuItemNesting", fields: [parentId], references: [id], onDelete: Cascade)
   children      MenuItem[] @relation("MenuItemNesting")
@@ -1222,20 +1392,31 @@ model Theme {
   /// Null = no blocks; cart UI shows alone.
   cartPageId                      String?
   cartPage                        Page?            @relation("ThemeCartPage", fields: [cartPageId], references: [id], onDelete: SetNull)
-  /// Menu rendered in the storefront header. Null = fetch by slug "main"
-  /// (Plan 9 fallback for legacy compatibility).
-  headerMenuId                    String?
-  headerMenu                      Menu?            @relation("ThemeHeaderMenu", fields: [headerMenuId], references: [id], onDelete: SetNull)
-  /// Menu rendered in the storefront footer. Null = fetch by slug "footer".
-  footerMenuId                    String?
-  footerMenu                      Menu?            @relation("ThemeFooterMenu", fields: [footerMenuId], references: [id], onDelete: SetNull)
   /// Visual design tokens (colors, fonts, scale, radii) — Plan 11.
   /// Materialized into a single class-scoped stylesheet served via
   /// /api/themes/tokens.css; the storefront layout sets body class
   /// `theme-<slug>` to pick the right scope. Default {} means "use the
   /// system fallbacks" — the storefront keeps working even before any
   /// theme has tokens authored.
+  ///
+  /// Plan 13.1: tokens.colors is the legacy single palette and stays as
+  /// the FALLBACK scheme. Multi-scheme palettes live in `colorSchemes`.
   tokens                          Json             @default("{}")
+  /// Plan 13.1 — Shopify-style color schemes. Array of named palettes
+  /// (`{ id, name, colors }`) so blocks can pick which scheme to render
+  /// with via `content.style.colorSchemeId`. The first scheme acts as
+  /// the default for blocks without an explicit pick. Empty array =
+  /// fall back to the legacy `tokens.colors` palette.
+  colorSchemes                    Json             @default("[]")
+  /// Plan 16 — per-theme catalog of section types this theme exposes.
+  /// Shape: { header?: string[], footer?: string[] }. Empty {} = permissive
+  /// default (all registry types available). The customizer's
+  /// AddSectionPanel intersects the registry with this catalog.
+  sectionCatalog                  Json             @default("{}")
+  /// Plan 16 — ordered Header / Footer sections that drive the storefront
+  /// header and footer. Replaces the legacy single-Menu reference model
+  /// (Phase E dropped the legacy headerMenuId/footerMenuId columns).
+  sections                        ThemeSection[]
   createdBy                       String?
   createdAt                       DateTime @default(now())
   updatedAt                       DateTime @updatedAt
@@ -1254,4 +1435,88 @@ model TemplateBlock {
   updatedAt  DateTime         @updatedAt
 
   @@index([templateId, position])
+}
+
+/// Plan 16 — one section instance inside a theme's Header or Footer group.
+/// Ordered by `position` within `(themeId, group)`. `content` follows the
+/// same convention as LandingBlock.content: schema-defined fields at the
+/// top level plus an optional `style` BlockStyle.
+model ThemeSection {
+  id        String              @id @default(cuid())
+  themeId   String
+  theme     Theme               @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  group     ThemeSectionGroup
+  /// Type id from lib/theme-sections/registry.ts (e.g. "HEADER_MAIN").
+  /// String — not enum — so adding a section type does not require migration.
+  type      String
+  position  Int
+  content   Json                @default("{}")
+  /// Toggle visibility from the customizer eye icon without destroying content.
+  enabled   Boolean             @default(true)
+  blocks    ThemeSectionBlock[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([themeId, group, position])
+}
+
+/// Plan 16 — sub-block inside a ThemeSection (e.g. a LINK_COLUMN inside
+/// FOOTER_COLUMNS, a MEGA_MENU_PANEL inside MEGA_MENU). Ordered by
+/// `position` within its parent section.
+model ThemeSectionBlock {
+  id        String       @id @default(cuid())
+  sectionId String
+  section   ThemeSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  type      String
+  position  Int
+  content   Json         @default("{}")
+  enabled   Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([sectionId, position])
+}
+
+enum ThemeSectionGroup {
+  HEADER
+  FOOTER
+}
+
+model CustomizableTemplate {
+  id                String    @id @default(cuid())
+  name              String
+  description       String?
+  active            Boolean   @default(true)
+  surcharge         Decimal?  @db.Decimal(10, 2)
+  zones             Json      @default("[]")
+  allowedFonts      Json      @default("[]")
+  allowedColors     Json      @default("[]")
+  allowCustomColors Boolean   @default(true)
+  sizeGuide         Json?
+  maxLayersPerZone  Int       @default(8)
+  maxCharsPerLayer  Int       @default(40)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  products          Product[]
+
+  @@index([active])
+}
+
+enum SizeUnit {
+  CM
+  IN
+}
+
+model SizeGuide {
+  id        String    @id @default(cuid())
+  name      String
+  unit      SizeUnit  @default(CM)
+  tabs      Json      @default("[]")
+  table     Json      @default("{}")
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@index([active])
 }

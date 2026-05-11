@@ -24,6 +24,9 @@ export type FormField =
   | ProductPickerFieldDef
   | GroupFieldDef
   | CustomFieldDef
+  | MenuItemListFieldDef
+  | MenuPickerFieldDef
+  | MultiSelectFieldDef
 
 interface BaseFieldDef {
   /** Key in content.data where this field's value lives. For nested paths,
@@ -134,4 +137,34 @@ export interface CustomFieldDef extends BaseFieldDef {
     value: unknown
     onChange: (v: unknown) => void
   }>
+}
+
+/**
+ * Editable list of inline menu links — each item is { label, href, openInNewTab }.
+ * Used when a section needs its own link list independent of the global Menu model
+ * (e.g. a footer column with curated quick links). Supports reorder + add/remove.
+ */
+export interface MenuItemListFieldDef extends BaseFieldDef {
+  type: "menu-item-list"
+  /** Max number of links allowed. Default 20. */
+  maxLinks?: number
+}
+
+/**
+ * Dropdown that lists `Menu` rows by id. Stores the selected menu id (or null).
+ * Used by sections that render an existing menu (e.g. header / footer link group).
+ */
+export interface MenuPickerFieldDef extends BaseFieldDef {
+  type: "menu-picker"
+  /** Placeholder for the empty/none option. Default "Sin asignar". */
+  emptyLabel?: string
+}
+
+/**
+ * Checkbox list of allowed values. Stores a string[] of selected option values.
+ * Used e.g. by FOOTER_PAYMENT_ICONS to pick which payment methods to display.
+ */
+export interface MultiSelectFieldDef extends BaseFieldDef {
+  type: "multi-select"
+  options: Array<{ value: string; label: string }>
 }

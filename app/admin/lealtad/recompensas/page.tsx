@@ -212,23 +212,28 @@ export default function RecompensasAdminPage() {
   const inactiveRewards = rewards.filter((r) => !r.active);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Recompensas</h1>
-          <p className="text-muted-foreground">
-            {rewards.length} recompensas ({activeRewards.length} activas)
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Recompensas</h1>
+          <p className="text-xs sm:text-base text-muted-foreground tabular-nums">
+            {rewards.length} recompensas · {activeRewards.length} activas
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
+        <div className="flex gap-1.5 sm:gap-2 shrink-0">
+          <Button variant="outline" asChild size="icon" className="h-9 w-9 sm:hidden">
+            <Link href="/admin/lealtad" aria-label="Volver">
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button variant="outline" asChild className="hidden sm:inline-flex">
             <Link href="/admin/lealtad">
               <ChevronLeft className="mr-2 h-4 w-4" />
               Volver
             </Link>
           </Button>
-          <Button asChild>
+          <Button asChild className="hidden sm:inline-flex">
             <Link href="/admin/lealtad/recompensas/nueva">
               <Plus className="mr-2 h-4 w-4" />
               Nueva Recompensa
@@ -237,17 +242,25 @@ export default function RecompensasAdminPage() {
         </div>
       </div>
 
+      {/* Mobile primary CTA */}
+      <Button asChild className="sm:hidden w-full">
+        <Link href="/admin/lealtad/recompensas/nueva">
+          <Plus className="mr-2 h-4 w-4" />
+          Nueva Recompensa
+        </Link>
+      </Button>
+
       {/* Recompensas Activas */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Recompensas Activas</h2>
+      <div className="space-y-3">
+        <h2 className="text-base sm:text-xl font-semibold">Recompensas Activas</h2>
         {loading ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">Cargando...</p>
+              <p className="text-sm text-muted-foreground">Cargando...</p>
             </CardContent>
           </Card>
         ) : activeRewards.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {activeRewards.map((reward) => (
               <RewardCard
                 key={reward.id}
@@ -262,7 +275,7 @@ export default function RecompensasAdminPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <Gift className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No hay recompensas activas</p>
+              <p className="text-sm text-muted-foreground">No hay recompensas activas</p>
             </CardContent>
           </Card>
         )}
@@ -270,9 +283,9 @@ export default function RecompensasAdminPage() {
 
       {/* Recompensas Inactivas */}
       {inactiveRewards.length > 0 && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Recompensas Inactivas</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-3">
+          <h2 className="text-base sm:text-xl font-semibold">Recompensas Inactivas</h2>
+          <div className="grid gap-2 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {inactiveRewards.map((reward) => (
               <RewardCard
                 key={reward.id}
@@ -348,75 +361,102 @@ function RewardCard({
 }) {
   return (
     <Card className={!reward.active ? "opacity-60" : ""}>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <RewardIcon type={reward.rewardType} />
-          <Badge variant={reward.active ? "default" : "secondary"}>
+      <CardHeader className="px-4 py-3 sm:px-6 sm:py-6">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <RewardIcon type={reward.rewardType} />
+            <div className="min-w-0">
+              <CardTitle className="text-sm sm:text-lg leading-tight truncate">
+                {reward.name}
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm line-clamp-1">
+                {reward.description || "Sin descripción"}
+              </CardDescription>
+            </div>
+          </div>
+          <Badge
+            variant={reward.active ? "default" : "secondary"}
+            className="text-[10px] sm:text-xs h-5 px-1.5 shrink-0"
+          >
             {reward.active ? "Activa" : "Inactiva"}
           </Badge>
         </div>
-        <CardTitle className="text-lg mt-3">{reward.name}</CardTitle>
-        <CardDescription>{reward.description || "Sin descripción"}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Costo</span>
-          <span className="text-xl font-bold text-primary">
-            {reward.pointsCost} pts
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Valor</span>
-          <span className="font-semibold">
-            {getRewardValueDisplay(reward)}
-          </span>
-        </div>
-
-        {reward.minPurchase && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Compra mínima</span>
-            <span className="font-semibold">S/. {reward.minPurchase}</span>
+      <CardContent className="px-4 pb-3 sm:px-6 sm:pb-6 space-y-2 sm:space-y-3">
+        {/* Metrics grid */}
+        <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+          <div className="rounded-md bg-muted/40 px-2 py-1.5">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Costo</p>
+            <p className="text-sm sm:text-lg font-bold text-primary tabular-nums">
+              {reward.pointsCost} pts
+            </p>
           </div>
-        )}
-
-        {reward.maxUses && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Disponibles</span>
-            <span className="font-semibold">
-              {reward.maxUses - reward.usageCount} / {reward.maxUses}
-            </span>
+          <div className="rounded-md bg-muted/40 px-2 py-1.5">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Valor</p>
+            <p className="text-sm sm:text-base font-semibold tabular-nums truncate">
+              {getRewardValueDisplay(reward)}
+            </p>
           </div>
-        )}
-
-        <div className="flex items-center justify-between pt-2 border-t">
-          <span className="text-sm text-muted-foreground">Canjeados</span>
-          <Badge variant="outline">{reward.usageCount}</Badge>
+          {reward.minPurchase && (
+            <div className="rounded-md bg-muted/40 px-2 py-1.5">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                <span className="hidden sm:inline">Compra mínima</span>
+                <span className="sm:hidden">Mín. compra</span>
+              </p>
+              <p className="text-sm sm:text-base font-semibold tabular-nums">
+                S/. {reward.minPurchase}
+              </p>
+            </div>
+          )}
+          {reward.maxUses && (
+            <div className="rounded-md bg-muted/40 px-2 py-1.5">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Disponibles
+              </p>
+              <p className="text-sm sm:text-base font-semibold tabular-nums">
+                {reward.maxUses - reward.usageCount}/{reward.maxUses}
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex items-center justify-between pt-1.5 border-t">
+          <span className="text-[11px] sm:text-sm text-muted-foreground">
+            Canjeados
+          </span>
+          <Badge variant="outline" className="text-[10px] sm:text-xs h-5 px-1.5 tabular-nums">
+            {reward.usageCount}
+          </Badge>
+        </div>
+
+        <div className="flex gap-1.5 sm:gap-2 pt-1">
           <Button
             size="sm"
             variant="outline"
-            className="flex-1"
+            className="flex-1 h-8 sm:h-9"
             onClick={onEdit}
           >
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
+            <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Editar</span>
+            <span className="sm:hidden ml-1.5 text-xs">Editar</span>
           </Button>
           <Button
-            size="sm"
+            size="icon"
             variant="outline"
             onClick={onToggleStatus}
+            className="h-8 w-8 sm:h-9 sm:w-9 shrink-0"
+            aria-label={reward.active ? "Desactivar" : "Activar"}
           >
-            {reward.active ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+            {reward.active ? <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
           </Button>
           <Button
-            size="sm"
+            size="icon"
             variant="outline"
             onClick={onDelete}
+            className="h-8 w-8 sm:h-9 sm:w-9 shrink-0"
+            aria-label="Eliminar"
           >
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-500" />
           </Button>
         </div>
       </CardContent>

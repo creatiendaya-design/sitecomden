@@ -19,11 +19,17 @@ import { Trash2, Loader2 } from "lucide-react";
 interface DeleteProductButtonProps {
   productId: string;
   productName: string;
+  className?: string;
+  iconClassName?: string;
+  variant?: "destructive" | "ghost";
 }
 
 export default function DeleteProductButton({
   productId,
   productName,
+  className,
+  iconClassName,
+  variant = "destructive",
 }: DeleteProductButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -59,8 +65,17 @@ export default function DeleteProductButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="icon">
-          <Trash2 className="h-4 w-4" />
+        <Button
+          variant={variant}
+          size="icon"
+          className={
+            variant === "ghost"
+              ? `text-destructive hover:text-destructive hover:bg-destructive/10 ${className ?? ""}`
+              : className
+          }
+          aria-label="Eliminar producto"
+        >
+          <Trash2 className={iconClassName ?? "h-4 w-4"} />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>

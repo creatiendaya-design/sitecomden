@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   getShippingOptionsForCheckout,
-  type ShippingGroup,
   type ShippingRate,
 } from "@/actions/shipping-checkout";
 import {
@@ -32,18 +31,38 @@ function formatPrice(amount: number): string {
   }).format(amount);
 }
 
+interface CategoryGroup {
+  category: string | null;
+  rates: ShippingRate[];
+}
+
+function groupByCategory(rates: ShippingRate[]): CategoryGroup[] {
+  const groups = new Map<string, CategoryGroup>();
+  const order: string[] = [];
+
+  for (const rate of rates) {
+    const key = rate.category ?? "__none__";
+    if (!groups.has(key)) {
+      groups.set(key, { category: rate.category, rates: [] });
+      order.push(key);
+    }
+    groups.get(key)!.rates.push(rate);
+  }
+
+  return order.map((k) => groups.get(k)!);
+}
+
 export function ShippingOptions({
   districtCode,
   subtotal,
   onSelect,
   selectedRateId,
 }: ShippingOptionsProps) {
-  const [groups, setGroups] = useState<ShippingGroup[]>([]);
+  const [rates, setRates] = useState<ShippingRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoneName, setZoneName] = useState<string>("");
 
-  // Cargar opciones cuando cambia distrito o subtotal
   useEffect(() => {
     loadShippingOptions();
   }, [districtCode, subtotal]);
@@ -61,32 +80,27 @@ export function ShippingOptions({
 
     if (!result.success) {
       setError(result.error || "Error al cargar opciones de envío");
-      setGroups([]);
+      setRates([]);
       setLoading(false);
       return;
     }
 
-    setGroups(result.data);
+    setRates(result.data);
     setZoneName(result.zone?.name || "");
     setLoading(false);
 
-    // Si solo hay una opción, seleccionarla automáticamente
-    if (result.data.length === 1 && result.data[0].rates.length === 1) {
-      const singleRate = result.data[0].rates[0];
-      onSelect(singleRate);
+    if (result.data.length === 1) {
+      onSelect(result.data[0]);
     }
   };
 
   const handleSelectRate = (rateId: string) => {
-    // Buscar la tarifa seleccionada en todos los grupos
-    for (const group of groups) {
-      const rate = group.rates.find((r) => r.id === rateId);
-      if (rate) {
-        onSelect(rate);
-        return;
-      }
-    }
+    const rate = rates.find((r) => r.id === rateId);
+    if (rate) onSelect(rate);
   };
+
+  const groups = useMemo(() => groupByCategory(rates), [rates]);
+  const hasCategoriesToShow = groups.some((g) => g.category);
 
   if (loading) {
     return (
@@ -124,8 +138,7 @@ export function ShippingOptions({
             <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="font-semibold mb-2">Ingresa tu dirección</h3>
             <p className="text-sm text-muted-foreground">
-              Completa tu dirección de entrega para ver las opciones de envío
-              disponibles
+              Completa tu dirección de entrega para ver las opciones de envío disponibles
             </p>
           </div>
         </CardContent>
@@ -133,15 +146,13 @@ export function ShippingOptions({
     );
   }
 
-  if (groups.length === 0) {
+  if (rates.length === 0) {
     return (
       <Card>
         <CardContent className="py-12">
           <div className="flex flex-col items-center justify-center text-center">
             <Truck className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">
-              No hay opciones de envío disponibles
-            </h3>
+            <h3 className="font-semibold mb-2">No hay opciones de envío disponibles</h3>
             <p className="text-sm text-muted-foreground">
               Por favor verifica tu dirección o monto del pedido
             </p>
@@ -156,7 +167,7 @@ export function ShippingOptions({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Truck className="h-5 w-5" />
-          Método de Envío
+          Método de envío
         </CardTitle>
         {zoneName && (
           <CardDescription>
@@ -167,18 +178,18 @@ export function ShippingOptions({
       <CardContent>
         <RadioGroup value={selectedRateId || ""} onValueChange={handleSelectRate}>
           <div className="space-y-4">
-            {groups.map((group) => (
-              <div key={group.id} className="space-y-3">
-                {/* Nombre del Grupo */}
-                <div className="flex items-center gap-2 pt-2">
-                  <div className="h-px flex-1 bg-border" />
-                  <span className="text-sm font-semibold text-muted-foreground">
-                    {group.name}
-                  </span>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
+            {groups.map((group, idx) => (
+              <div key={group.category ?? `none-${idx}`} className="space-y-3">
+                {hasCategoriesToShow && group.category && (
+                  <div className="flex items-center gap-2 pt-2">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-sm font-semibold text-muted-foreground">
+                      {group.category}
+                    </span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                )}
 
-                {/* Tarifas del Grupo */}
                 {group.rates.map((rate) => (
                   <label
                     key={rate.id}
@@ -190,7 +201,7 @@ export function ShippingOptions({
                     }`}
                   >
                     <RadioGroupItem value={rate.id} id={rate.id} className="mt-1" />
-                    
+
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2 font-medium">
                         {rate.name}
@@ -208,7 +219,6 @@ export function ShippingOptions({
                       )}
 
                       <div className="flex flex-wrap gap-3 pt-1">
-                        {/* Tiempo de entrega */}
                         {rate.estimatedDays && (
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
@@ -216,14 +226,12 @@ export function ShippingOptions({
                           </div>
                         )}
 
-                        {/* Ventana horaria */}
                         {rate.timeWindow && (
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <span>Horario: {rate.timeWindow}</span>
                           </div>
                         )}
 
-                        {/* Courier */}
                         {rate.carrier && (
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Truck className="h-3 w-3" />
@@ -233,13 +241,10 @@ export function ShippingOptions({
                       </div>
                     </div>
 
-                    {/* Precio */}
                     <div className="text-right">
                       {rate.isFree ? (
                         <div>
-                          <p className="text-lg font-bold text-green-600">
-                            GRATIS
-                          </p>
+                          <p className="text-lg font-bold text-green-600">GRATIS</p>
                           <p className="text-xs text-muted-foreground line-through">
                             {formatPrice(rate.baseCost)}
                           </p>
@@ -257,22 +262,17 @@ export function ShippingOptions({
           </div>
         </RadioGroup>
 
-        {/* Info de envío gratis */}
-        {groups.some((g) =>
-          g.rates.some((r) => r.minOrderAmount && subtotal < r.minOrderAmount)
-        ) && (
+        {rates.some((r) => r.minOrderAmount && subtotal < r.minOrderAmount) && (
           <Alert className="mt-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-sm">
               <strong>¡Casi!</strong> Agrega{" "}
               {formatPrice(
                 Math.min(
-                  ...groups.flatMap((g) =>
-                    g.rates
-                      .filter((r) => r.minOrderAmount && subtotal < r.minOrderAmount!)
-                      .map((r) => r.minOrderAmount! - subtotal)
-                  )
-                )
+                  ...rates
+                    .filter((r) => r.minOrderAmount && subtotal < r.minOrderAmount!)
+                    .map((r) => r.minOrderAmount! - subtotal),
+                ),
               )}{" "}
               más para desbloquear más opciones de envío.
             </AlertDescription>

@@ -7,6 +7,15 @@ import { trackConversion } from "@/lib/conversion-api";
 import { headers } from "next/headers";
 import { getSiteSettings } from "@/lib/site-settings";
 import { formatOrderNumber } from "@/lib/utils";
+import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
+import type { ShippingRestriction } from "@/lib/cod-forms/types";
+import {
+  resolveAppliedVolumeDiscount,
+  resolveAppliedSubscriptionDiscount,
+  resolveAppliedFreeGifts,
+  subscribeNewsletterFromOrder,
+  incrementPromotionUsage,
+} from "@/lib/promotions/server";
 
 export async function createCodOrder(rawData: unknown) {
   const parsed = createCodOrderSchema.safeParse(rawData);
@@ -25,6 +34,16 @@ export async function createCodOrder(rawData: unknown) {
   }
 
   let subtotal = 0;
+  let promotionDiscount = 0;
+  const subscriptionEmails = new Set<string>();
+  const promotionSavedBy = new Map<string, number>();
+  const trackPromotionSaved = (promotionId: string, amount: number) => {
+    if (amount <= 0) return;
+    promotionSavedBy.set(
+      promotionId,
+      (promotionSavedBy.get(promotionId) ?? 0) + amount
+    );
+  };
   const resolvedItems: {
     productId: string;
     variantId?: string;
@@ -35,6 +54,11 @@ export async function createCodOrder(rawData: unknown) {
   }[] = [];
 
   for (const item of itemList) {
+    let baseUnitPrice = 0;
+    let resolvedProductId = "";
+    let resolvedName = "";
+    let resolvedImage: string | undefined;
+
     if (item.variantId) {
       const variant = await prisma.productVariant.findUnique({
         where: { id: item.variantId },
@@ -47,10 +71,10 @@ export async function createCodOrder(rawData: unknown) {
       });
       if (!variant) return { success: false, error: "Variante no encontrada" };
       if (variant.stock < item.quantity) return { success: false, error: "Stock insuficiente" };
-      const price = Number(variant.price);
-      subtotal += price * item.quantity;
-      const img = variant.image ?? getProductImageUrl(variant.product.images) ?? undefined;
-      resolvedItems.push({ productId: variant.product.id, variantId: item.variantId, quantity: item.quantity, price, name: variant.product.name, image: img });
+      baseUnitPrice = Number(variant.price);
+      resolvedProductId = variant.product.id;
+      resolvedName = variant.product.name;
+      resolvedImage = variant.image ?? getProductImageUrl(variant.product.images) ?? undefined;
     } else {
       const product = await prisma.product.findUnique({
         where: { id: item.productId },
@@ -58,42 +82,96 @@ export async function createCodOrder(rawData: unknown) {
       });
       if (!product) return { success: false, error: "Producto no encontrado" };
       if (product.stock < item.quantity) return { success: false, error: "Stock insuficiente" };
-      const price = Number(product.basePrice);
-      subtotal += price * item.quantity;
-      const img = getProductImageUrl(product.images) ?? undefined;
-      resolvedItems.push({ productId: item.productId, quantity: item.quantity, price, name: product.name, image: img });
+      baseUnitPrice = Number(product.basePrice);
+      resolvedProductId = item.productId!;
+      resolvedName = product.name;
+      resolvedImage = getProductImageUrl(product.images) ?? undefined;
     }
+
+    let volumeDiscountPerUnit = 0;
+    if (item.promotionId) {
+      const applied = await resolveAppliedVolumeDiscount({
+        promotionId: item.promotionId,
+        productId: resolvedProductId,
+        quantity: item.quantity,
+        unitPrice: baseUnitPrice,
+      });
+      if (applied) {
+        volumeDiscountPerUnit = applied.discountPerUnit;
+        const saved = applied.discountPerUnit * item.quantity;
+        promotionDiscount += saved;
+        trackPromotionSaved(applied.promotionId, saved);
+      }
+    }
+
+    if (item.subscriptionOptIn) {
+      const netUnit = baseUnitPrice - volumeDiscountPerUnit;
+      const applied = await resolveAppliedSubscriptionDiscount({
+        promotionId: item.subscriptionOptIn.promotionId,
+        productId: resolvedProductId,
+        unitPrice: netUnit,
+        email: item.subscriptionOptIn.email,
+      });
+      if (applied) {
+        const saved = applied.discountPerUnit * item.quantity;
+        promotionDiscount += saved;
+        trackPromotionSaved(applied.promotionId, saved);
+        subscriptionEmails.add(item.subscriptionOptIn.email.trim().toLowerCase());
+      }
+    }
+
+    // Convention: subtotal is the gross (sum of base prices × qty), and
+    // promotionDiscount is subtracted in the final total. OrderItem.price
+    // stores the original unit price; the savings live in Order.discount.
+    subtotal += baseUnitPrice * item.quantity;
+    resolvedItems.push({
+      productId: resolvedProductId,
+      variantId: item.variantId,
+      quantity: item.quantity,
+      price: baseUnitPrice,
+      name: resolvedName,
+      image: resolvedImage,
+    });
   }
 
-  // Server-side shipping restriction validation
+  // Apply free-gift promotions once the cart is resolved. Each gift gets
+  // appended as an additional OrderItem priced at 0; subtotal stays
+  // unchanged because the gift doesn't add to what the buyer pays.
+  const cartProductIds = resolvedItems.map((i) => i.productId);
+  const freeGifts = await resolveAppliedFreeGifts({
+    cartProductIds,
+    cartSubtotal: subtotal,
+  });
+  for (const gift of freeGifts) {
+    resolvedItems.push({
+      productId: gift.productId,
+      variantId: gift.variantId,
+      quantity: 1,
+      price: 0,
+      name: `🎁 Regalo: ${gift.name}`,
+      image: gift.image ?? undefined,
+    });
+    trackPromotionSaved(gift.promotionId, gift.basePrice);
+  }
+
+  // Server-side shipping restriction validation — read from
+  // Product.shippingRestriction (new column), not the legacy codFormSettings.
   const primaryProductId = itemList[0].productId;
   const primaryProduct = await prisma.product.findUnique({
     where: { id: primaryProductId },
-    select: { codFormSettings: true },
+    select: { shippingRestriction: true },
   });
-  const restriction = (primaryProduct?.codFormSettings as any)?.shippingRestriction;
-  if (restriction?.enabled) {
-    if (
-      restriction.allowedDepartmentIds?.length > 0 &&
-      data.departmentId &&
-      !restriction.allowedDepartmentIds.includes(data.departmentId)
-    ) {
-      return { success: false, error: "Tu departamento no tiene cobertura para este producto" };
-    }
-    if (
-      restriction.allowedProvinceIds?.length > 0 &&
-      data.provinceId &&
-      !restriction.allowedProvinceIds.includes(data.provinceId)
-    ) {
-      return { success: false, error: "Tu provincia no tiene cobertura para este producto" };
-    }
-    if (
-      restriction.allowedDistrictCodes?.length > 0 &&
-      data.districtCode &&
-      !restriction.allowedDistrictCodes.includes(data.districtCode)
-    ) {
-      return { success: false, error: "Tu distrito no tiene cobertura para este producto" };
-    }
+  const restrictionRaw = (primaryProduct as any)?.shippingRestriction;
+  const restrictionErr = validateShippingRestriction(
+    (restrictionRaw as ShippingRestriction | null) ?? null,
+    {
+      departmentId: data.departmentId ?? null,
+      provinceId: data.provinceId ?? null,
+      districtCode: data.districtCode ?? null,
+    },
+  );
+  if (restrictionErr) {
+    return { success: false, error: restrictionErr };
   }
 
   const locationJson = {
@@ -103,6 +181,63 @@ export async function createCodOrder(rawData: unknown) {
     city: data.provinceName ?? "",
     department: data.departmentName ?? "",
   };
+
+  // Server-side shipping cost resolution. The client never sets the price —
+  // we always re-resolve from the rate id in /admin/envios so a tampered
+  // payload cannot under-charge the customer. We also enforce that the
+  // chosen rate is actually allowed for this product's COD form template:
+  // either it's whitelisted on the template (Shopify-style profile), or
+  // the template has no profile and the rate is a regular (non-excluded)
+  // one available in fallback mode.
+  let shippingCost = 0;
+  let shippingMethodLabel = "standard";
+  if (data.shippingRateId) {
+    const rate = await prisma.shippingRate.findUnique({
+      where: { id: data.shippingRateId },
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        baseCost: true,
+        freeShippingMin: true,
+        excludeFromRegularCheckout: true,
+        zone: { select: { active: true } },
+      },
+    });
+    if (!rate || !rate.active || !rate.zone.active) {
+      return { success: false, error: "La tarifa de envío seleccionada ya no está disponible" };
+    }
+
+    const productWithTemplate = await prisma.product.findUnique({
+      where: { id: primaryProductId },
+      select: {
+        codFormTemplateId: true,
+        codFormTemplate: {
+          select: { shippingRates: { select: { id: true } } },
+        },
+      },
+    });
+    const assignedIds =
+      productWithTemplate?.codFormTemplate?.shippingRates.map((r) => r.id) ?? [];
+    const useTemplateProfile = assignedIds.length > 0;
+    const allowed = useTemplateProfile
+      ? assignedIds.includes(rate.id)
+      : !rate.excludeFromRegularCheckout;
+    if (!allowed) {
+      return {
+        success: false,
+        error: "La tarifa de envío seleccionada no aplica a este producto",
+      };
+    }
+
+    const baseCost = Number(rate.baseCost);
+    const freeMin = rate.freeShippingMin ? Number(rate.freeShippingMin) : null;
+    shippingCost = freeMin && subtotal >= freeMin ? 0 : baseCost;
+    shippingMethodLabel = rate.name;
+  }
+
+  const roundedDiscount = Math.round(promotionDiscount * 100) / 100;
+  const total = subtotal + shippingCost - roundedDiscount;
 
   const order = await prisma.order.create({
     data: {
@@ -114,12 +249,12 @@ export async function createCodOrder(rawData: unknown) {
       billingAddress: locationJson,
       shippingAddress: locationJson,
       subtotal,
-      shipping: 0,
-      discount: 0,
+      shipping: shippingCost,
+      discount: roundedDiscount,
       tax: 0,
-      total: subtotal,
+      total,
       paymentMethod: "COD",
-      shippingMethod: "standard",
+      shippingMethod: shippingMethodLabel,
       items: {
         create: resolvedItems.map((item) => ({
           productId: item.productId,
@@ -132,6 +267,18 @@ export async function createCodOrder(rawData: unknown) {
       },
     },
   });
+
+  // Subscribe collected emails (one per unique address) to the newsletter.
+  // Failures are swallowed inside the helper so they cannot block the order.
+  for (const email of subscriptionEmails) {
+    await subscribeNewsletterFromOrder({ email, name: data.name });
+  }
+
+  // Bump analytics counters on each applied promotion. These are best-effort
+  // and never block; if they fail the order still exists with correct totals.
+  for (const [promotionId, savedAmount] of promotionSavedBy) {
+    await incrementPromotionUsage(promotionId, savedAmount);
+  }
 
   // Server-side conversion tracking (Conversions API)
   try {
@@ -148,7 +295,7 @@ export async function createCodOrder(rawData: unknown) {
       phone: data.phone,
       firstName,
       lastName: lastName || firstName,
-      value: subtotal,
+      value: total,
       currency: "PEN",
       transactionId: order.id,
       items: resolvedItems.map((item) => ({
@@ -170,25 +317,4 @@ export async function createCodOrder(rawData: unknown) {
     : `#${order.id.slice(-8).toUpperCase()}`;
 
   return { success: true, orderId: order.id, formattedNumber };
-}
-
-export async function getCartCodData(productIds: string[]): Promise<{
-  hasCod: boolean;
-  settings: import("@/lib/types/cod-form").CodFormSettings | null;
-}> {
-  if (!productIds.length) return { hasCod: false, settings: null };
-
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: { id: true, checkoutMode: true, codFormSettings: true, name: true },
-  });
-
-  const codProduct = products.find(
-    (p) => p.checkoutMode === "COD_ONLY" || p.checkoutMode === "COD_AND_CART"
-  );
-
-  return {
-    hasCod: !!codProduct,
-    settings: (codProduct?.codFormSettings as import("@/lib/types/cod-form").CodFormSettings | null) ?? null,
-  };
 }

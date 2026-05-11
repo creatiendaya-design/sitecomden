@@ -49,6 +49,18 @@ function anchorIdOf(b: LandingBlock): string | undefined {
   return (c?.anchorId as string | undefined) || undefined;
 }
 
+// Plan 13.1 — read the colorSchemeId set on the block style zone. The
+// storefront stylesheet has a rule per scheme keyed by
+// [data-color-scheme="<id>"] that overrides --theme-* for the wrapped
+// subtree. Blocks without a scheme inherit the theme default.
+function colorSchemeIdOf(b: LandingBlock): string | undefined {
+  const c = b.content as Record<string, unknown>;
+  const style = c?.style as Record<string, unknown> | undefined;
+  const id = style?.colorSchemeId;
+  if (typeof id === "string" && id.length > 0) return id;
+  return undefined;
+}
+
 // Tailwind CSS classes that hide a block based on viewport breakpoint.
 // Uses the `lg` breakpoint (1024px) to match the editor's Desktop/Mobile
 // cutoff defined in lib/blocks/resolve.ts.
@@ -141,8 +153,14 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             return null;
         }
 
+        const schemeId = colorSchemeIdOf(block);
         return (
-          <div key={block.id} id={anchorIdOf(block) || undefined} className={className || undefined}>
+          <div
+            key={block.id}
+            id={anchorIdOf(block) || undefined}
+            className={className || undefined}
+            data-color-scheme={schemeId}
+          >
             {inner}
           </div>
         );

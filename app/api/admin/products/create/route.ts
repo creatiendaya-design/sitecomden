@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth";
 import { createProductSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
@@ -79,6 +80,19 @@ export async function POST(request: Request) {
       optionsToCreate: data.options?.length || 0, // 🆕
     });
 
+    // ✅ Auto-asignar plantilla COD por defecto si modo no es STANDARD y no se envió templateId
+    let resolvedTemplateId: string | null =
+      (validatedData as any).codFormTemplateId ?? null;
+    const checkoutMode: string =
+      (validatedData as any).checkoutMode || "STANDARD";
+    if (checkoutMode !== "STANDARD" && !resolvedTemplateId) {
+      const defaultTpl = await prisma.codFormTemplate.findFirst({
+        where: { isDefault: true },
+        select: { id: true },
+      });
+      resolvedTemplateId = defaultTpl?.id ?? null;
+    }
+
     // ✅ Crear producto con transacción
     const product = await prisma.$transaction(async (tx) => {
       // 1. Crear producto base
@@ -97,11 +111,21 @@ export async function POST(request: Request) {
           featured: validatedData.featured ?? false,
           hasVariants: validatedData.hasVariants,
           template: validatedData.template || "STANDARD",
-          checkoutMode: (validatedData as any).checkoutMode || "STANDARD",
-          codFormSettings: (validatedData as any).codFormSettings ?? undefined,
+          checkoutMode: checkoutMode as any,
+          codFormTemplateId: resolvedTemplateId,
+          shippingRestriction:
+            (validatedData as any).shippingRestriction == null
+              ? Prisma.JsonNull
+              : ((validatedData as any).shippingRestriction as Prisma.InputJsonValue),
           metaTitle: validatedData.metaTitle || null,
           metaDescription: validatedData.metaDescription || null,
           weight: validatedData.weight || null,
+          customizableTemplateId: validatedData.customizableTemplateId ?? null,
+          customizableMockupOverrides:
+            validatedData.customizableMockupOverrides == null
+              ? Prisma.JsonNull
+              : (validatedData.customizableMockupOverrides as Prisma.InputJsonValue),
+          sizeGuideId: validatedData.sizeGuideId ?? null,
         },
       });
 

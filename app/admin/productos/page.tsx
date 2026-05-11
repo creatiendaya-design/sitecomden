@@ -86,7 +86,7 @@ export default async function ProductsAdminPage({
     orderBy: { name: "asc" },
   });
 
-  // Serializar Decimals para Client Component
+  // Serializar Decimals para Client Component (incluyendo campos de variantes)
   const serializedProducts = products.map((p) => ({
     ...p,
     basePrice: Number(p.basePrice),
@@ -95,6 +95,8 @@ export default async function ProductsAdminPage({
     variants: p.variants.map((v) => ({
       ...v,
       price: Number(v.price),
+      compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
+      weight: v.weight ? Number(v.weight) : null,
     })),
   }));
 
@@ -114,57 +116,86 @@ export default async function ProductsAdminPage({
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold">Productos</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
             Gestiona el catálogo de tu tienda
           </p>
         </div>
+
         {canCreate && (
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/admin/productos/importar">
-                <Upload className="mr-2 h-4 w-4" />
-                Importar
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/admin/productos/exportar">
-                <Download className="mr-2 h-4 w-4" />
-                Exportar
-              </Link>
-            </Button>
-            <Button asChild className="w-full sm:w-auto">
-              <Link href="/admin/productos/nuevo">
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo Producto
-              </Link>
-            </Button>
-          </div>
+          <>
+            {/* Mobile: icon-only secondary actions */}
+            <div className="flex gap-1 sm:hidden shrink-0">
+              <Button asChild variant="ghost" size="icon" className="h-9 w-9">
+                <Link href="/admin/productos/importar" aria-label="Importar">
+                  <Upload className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" size="icon" className="h-9 w-9">
+                <Link href="/admin/productos/exportar" aria-label="Exportar">
+                  <Download className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+
+            {/* Desktop: full button row */}
+            <div className="hidden sm:flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/admin/productos/importar">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Importar
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/admin/productos/exportar">
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/admin/productos/nuevo">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nuevo Producto
+                </Link>
+              </Button>
+            </div>
+          </>
         )}
       </div>
 
+      {/* Mobile primary CTA */}
+      {canCreate && (
+        <Button asChild className="sm:hidden w-full">
+          <Link href="/admin/productos/nuevo">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Producto
+          </Link>
+        </Button>
+      )}
+
       {/* Filters */}
       <Card>
-        <CardContent className="p-4 sm:p-6">
+        <CardContent className="p-3 sm:p-6">
           <ProductFiltersBar categories={categories} />
         </CardContent>
       </Card>
 
       {/* Products List */}
       <Card>
-        <CardHeader className="p-4 sm:p-6">
+        <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-lg sm:text-xl">
-              {totalCount === 0
-                ? "Sin productos"
-                : `${firstItem}–${lastItem} de ${totalCount} producto${totalCount !== 1 ? "s" : ""}`}
+            <CardTitle className="text-base sm:text-lg">
+              {totalCount === 0 ? "Sin productos" : "Lista de Productos"}
             </CardTitle>
-            {totalPages > 1 && (
-              <span className="text-sm text-muted-foreground">
-                Página {page} de {totalPages}
-              </span>
+            {totalCount > 0 && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+                <span>{firstItem}–{lastItem} de {totalCount}</span>
+                {totalPages > 1 && (
+                  <span className="hidden sm:inline">· Pág. {page}/{totalPages}</span>
+                )}
+              </div>
             )}
           </div>
         </CardHeader>

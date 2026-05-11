@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {prisma} from "@/lib/db";
 import { z } from "zod";
+import { withRateLimit, formRateLimiter } from "@/lib/rate-limit";
 
 const subscribeSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -9,6 +10,12 @@ const subscribeSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = await withRateLimit(request, formRateLimiter, {
+      action: "newsletter_subscribe",
+      errorMessage: "Demasiados intentos de suscripción. Intenta nuevamente en una hora.",
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
     const body = await request.json();
     const { email, name } = subscribeSchema.parse(body);
 

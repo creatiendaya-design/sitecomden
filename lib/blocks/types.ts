@@ -46,6 +46,11 @@ export interface BlockStyle {
   textWeight?: DeviceValue<TextWeight>
   /** Linear gradient. Overrides `backgroundColor` when both are set. */
   backgroundGradient?: BackgroundGradient
+  /** Plan 13.1 — id of the theme color scheme this block opts into. The
+   *  storefront emits `data-color-scheme={id}` on the block wrapper and
+   *  the per-theme stylesheet rebinds `--theme-*` underneath. Empty/null
+   *  → block inherits the theme's default scheme. */
+  colorSchemeId?: string
 }
 
 export interface BlockMedia {

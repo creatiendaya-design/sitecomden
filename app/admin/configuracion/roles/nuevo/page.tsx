@@ -73,22 +73,22 @@ export default function NewRolePage() {
   };
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0 pb-24 sm:pb-0">
       {/* Header */}
       <div>
-        <Button variant="ghost" size="sm" asChild className="mb-2">
+        <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
           <Link href="/admin/configuracion/roles">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold">Crear Nuevo Rol</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-xl sm:text-3xl font-bold">Crear Nuevo Rol</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
           Define un nuevo rol con permisos personalizados
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         {/* Información Básica */}
         <Card>
           <CardHeader>
@@ -164,19 +164,26 @@ export default function NewRolePage() {
               <div className="space-y-2">
                 <Label htmlFor="color">Color</Label>
                 <div className="flex gap-2">
-                  <Input
-                    id="color"
-                    type="color"
-                    value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="h-10 w-20"
-                  />
+                  <label
+                    className="relative flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-md border shrink-0"
+                    style={{ backgroundColor: formData.color || "#6366f1" }}
+                    aria-label="Elegir color"
+                  >
+                    <input
+                      id="color"
+                      type="color"
+                      value={formData.color}
+                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    />
+                  </label>
                   <Input
                     type="text"
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                     placeholder="#6366f1"
-                    className="flex-1"
+                    className="flex-1 font-mono text-sm uppercase"
+                    maxLength={7}
                   />
                 </div>
               </div>
@@ -205,14 +212,30 @@ export default function NewRolePage() {
           </CardContent>
         </Card>
 
-        {/* Acciones */}
-        <div className="flex justify-end gap-4">
+        {/* Acciones desktop */}
+        <div className="hidden sm:flex justify-end gap-4">
           <Button type="button" variant="outline" asChild>
             <Link href="/admin/configuracion/roles">Cancelar</Link>
           </Button>
           <Button type="submit" disabled={loading}>
             <Save className="mr-2 h-4 w-4" />
             {loading ? "Creando..." : "Crear Rol"}
+          </Button>
+        </div>
+
+        {/* Sticky bottom save bar — mobile only */}
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur px-3 py-2.5 flex gap-2 shadow-lg">
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+            className="flex-1 h-10"
+          >
+            <Link href="/admin/configuracion/roles">Cancelar</Link>
+          </Button>
+          <Button type="submit" className="flex-1 h-10" disabled={loading}>
+            <Save className="mr-2 h-4 w-4" />
+            {loading ? "Creando…" : "Crear Rol"}
           </Button>
         </div>
       </form>
