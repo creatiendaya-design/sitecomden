@@ -32,9 +32,10 @@ model Category {
   /// (Plan 7). Defaults to false — grid renders below the blocks.
   hideProductGrid Boolean @default(false)
 
-  products       ProductCategory[]
-  conditions     CategoryCondition[]
-  categoryBlocks CategoryBlock[]
+  products         ProductCategory[]
+  conditions       CategoryCondition[]
+  categoryBlocks   CategoryBlock[]
+  promotionTargets PromotionCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,6 +131,7 @@ model Product {
   codFormTemplateId   String?
   codFormTemplate     CodFormTemplate? @relation(fields: [codFormTemplateId], references: [id], onDelete: SetNull)
   shippingRestriction Json?
+  promotionTargets    PromotionProduct[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -496,6 +498,60 @@ enum CouponType {
   FREE_SHIPPING
 }
 
+model Promotion {
+  id                    String                @id @default(cuid())
+  name                  String
+  type                  ProductPromotionType
+  active                Boolean               @default(true)
+  priority              Int                   @default(0)
+  config                Json                  @default("{}")
+  startsAt              DateTime?
+  expiresAt             DateTime?
+  usageCount            Int                   @default(0)
+  /// Sum of discount amounts applied across all orders that used this
+  /// promotion (in PEN). For FREE_GIFT it accumulates the basePrice of
+  /// the gift handed out per order.
+  totalDiscountApplied  Decimal               @default(0) @db.Decimal(12, 2)
+  productTargets        PromotionProduct[]
+  categoryTargets       PromotionCategory[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([active])
+  @@index([type])
+}
+
+model PromotionProduct {
+  promotionId String
+  productId   String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@id([promotionId, productId])
+  @@index([productId])
+  @@index([promotionId])
+}
+
+model PromotionCategory {
+  promotionId String
+  categoryId  String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@id([promotionId, categoryId])
+  @@index([categoryId])
+  @@index([promotionId])
+}
+
+enum ProductPromotionType {
+  VOLUME
+  SUBSCRIPTION
+  FREE_GIFT
+  BUNDLE
+}
+
 model InventoryMovement {
   id        String                @id @default(cuid())
   variantId String?
@@ -720,6 +776,24 @@ model NewsletterSubscriber {
   @@index([active])
 }
 
+/// One-time email-ownership check used to gate the subscription discount.
+/// The customer requests a code, we send it via email, and the discount is
+/// only honored when a matching unexpired `verifiedAt` row exists.
+model SubscriptionVerification {
+  id         String    @id @default(cuid())
+  email      String    @unique // canonical (normalized) form
+  code       String    // 6-digit numeric code
+  attempts   Int       @default(0)
+  verifiedAt DateTime?
+  expiresAt  DateTime
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([email])
+  @@index([verifiedAt])
+}
+
 model Department {
   id        String     @id @default(cuid())
   code      String     @unique
@@ -790,6 +864,15 @@ model ShippingRate {
 
   order  Int     @default(0)
   active Boolean @default(true)
+
+  /// When true the rate is hidden from the regular cart checkout. It only
+  /// appears in COD form flows for templates that explicitly assign it.
+  excludeFromRegularCheckout Boolean @default(false)
+
+  /// COD form templates that whitelist this rate. When a template has at
+  /// least one rate assigned, only those rates appear in its COD modal;
+  /// otherwise the modal falls back to the regular (non-excluded) rates.
+  codFormTemplates CodFormTemplate[] @relation("CodFormTemplateShippingRates")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1115,6 +1198,12 @@ model CodFormTemplate {
 
   blocks           CodFormBlock[]
   products         Product[]
+
+  /// Per-template shipping profile. When non-empty, only these rates appear
+  /// in the COD modal for products bound to this template (Shopify-style
+  /// shipping profile). When empty, the modal falls back to the regular
+  /// (non-excluded) rates for the customer's district.
+  shippingRates    ShippingRate[]   @relation("CodFormTemplateShippingRates")
 
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt

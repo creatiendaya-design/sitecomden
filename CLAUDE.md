@@ -101,7 +101,7 @@ app/
 │   ├── categorias/               nueva, [categoryId], builder
 │   ├── ordenes/                  + [orderId]
 │   ├── inventario/               nuevo, ajustar, movimientos, [productId]
-│   ├── envios/                   grupos, tarifas, zonas
+│   ├── envios/                   dashboard, zonas/[id] (tabs Tarifas + Distritos), tarifas (vista global), tarifas/[id]/editar
 │   ├── pagos-pendientes/
 │   ├── cupones/                  nuevo, [couponId]
 │   ├── lealtad/                  configuracion, clientes, recompensas
@@ -240,7 +240,7 @@ Highlights from [prisma/schema.prisma](prisma/schema.prisma):
 - **Loyalty**: `Customer` (referrals, tier, points) → `PointTransaction` / `RewardRedemption` ← `Reward`; `LoyaltyProgramSettings` singleton. Tiers: BRONZE → SILVER → GOLD → PLATINUM.
 - **RBAC**: `User` → `Role` (`level` Int) → `RolePermission` → `Permission`; `UserPermission` (type GRANT/DENY) for per-user overrides.
 - **Content**: `Theme`, `Page`, `PageBlock`, `Menu`, `MenuItem`, `Policy`, `LandingTemplate`, `TemplateBlock`, `LandingBlock`, `CategoryBlock`.
-- **Shipping**: `ShippingZone` → `ShippingZoneDistrict` (PE district codes), `ShippingZone` → `ShippingRateGroup` → `ShippingRate`.
+- **Shipping**: `ShippingZone` → `ShippingZoneDistrict` (PE district codes), `ShippingZone` → `ShippingRate` (flat — `ShippingRateGroup` se eliminó el 2026-05-06; las tarifas pueden agruparse visualmente en checkout vía el campo opcional `ShippingRate.category`).
 - **Geo**: `Department` → `Province` → `District`.
 - **Misc**: `Coupon`, `Cart` / `CartItem`, `ProductReview`, `Setting`, `NewsletterSubscriber`, `TrackingPixel`, `Complaint`, `ComplaintFormField`, `InventoryMovement`.
 
