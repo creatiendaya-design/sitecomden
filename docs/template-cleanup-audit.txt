@@ -1,0 +1,26 @@
+=== Product.template Cleanup Audit ===
+Date: 2026-05-03
+Environment: CI / development (no DATABASE_URL set)
+
+RESULT: AUDIT COULD NOT RUN — no database connection available.
+The environment variable DATABASE_URL is not set in this environment.
+
+REQUIRED ACTION (human):
+  Run the following command against staging or production before approving Phase 3:
+
+    npx tsx scripts/audit-product-template.ts
+
+  The script queries:
+    1. prisma.product.groupBy({ by: ['template'], _count: { _all: true } })
+       → distribution of STANDARD / LANDING / MINIMAL values
+    2. All products where template != STANDARD AND landingTemplateId IS NULL AND
+       count(LandingBlocks) == 0
+       → these are "at-risk" products that were rendering as LANDING via the
+          legacy switch but would fall back to ProductStandardView after Phase 3.
+
+  If the script exits 0 (zero at-risk products) → Phase 3 is safe to apply.
+  If the script exits 1 (at-risk products found) → migrate those products first
+    (assign a LandingTemplate or create LandingBlocks), then re-run the audit.
+
+Phase 3 changes are NOT included in this PR.
+See PR description for the full checklist.
