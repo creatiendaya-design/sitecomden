@@ -39,7 +39,9 @@ function generateNonce(): string {
 
 /**
  * Construye la directiva CSP usando un nonce dinámico + strict-dynamic.
- * - En producción: sin 'unsafe-inline' / 'unsafe-eval' en script-src.
+ * - En producción: solo nonce + strict-dynamic. Sin 'unsafe-inline' / 'https:'
+ *   para no anular strict-dynamic (browsers compatibles lo aplican; el resto
+ *   queda en modo sin scripts, que es el comportamiento seguro).
  * - En desarrollo: agrega 'unsafe-eval' (Next.js HMR) y 'unsafe-inline' como
  *   fallback para navegadores que ignoran strict-dynamic.
  */
@@ -48,10 +50,10 @@ function buildCsp(nonce: string, allowSameOriginEmbed: boolean): string {
     "'self'",
     `'nonce-${nonce}'`,
     "'strict-dynamic'",
-    // Fallback para navegadores que no soportan strict-dynamic
-    'https:',
-    "'unsafe-inline'",
-    ...(isProduction ? [] : ["'unsafe-eval'"]),
+    // Fallback solo en desarrollo. En producción strict-dynamic + nonce ya
+    // cubre todos los navegadores modernos; añadir 'unsafe-inline' anularía
+    // strict-dynamic y abriría XSS.
+    ...(isProduction ? [] : ['https:', "'unsafe-inline'", "'unsafe-eval'"]),
   ].join(' ');
 
   const directives = [
@@ -114,6 +116,10 @@ function applySecurityHeaders(
       'microphone=()',
       'geolocation=(self)',
       'interest-cohort=()',
+      'usb=()',
+      'payment=(self)',
+      'fullscreen=(self)',
+      'clipboard-write=(self)',
     ].join(', ')
   );
 
