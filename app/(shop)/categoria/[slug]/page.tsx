@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import ProductCard from "@/components/shop/ProductCard";
 import { getSiteSettings } from "@/lib/site-settings";
 import { Metadata } from "next";
@@ -15,15 +17,26 @@ interface CategoryPageProps {
   }>;
 }
 
+// Cached: 60s TTL. Invalidate via revalidateTag(`category:${slug}`) from
+// admin server actions when the category or its blocks change.
+const getCategoryBySlug = cache((slug: string) =>
+  unstable_cache(
+    () =>
+      prisma.category.findUnique({
+        where: { slug, active: true },
+        include: {
+          categoryBlocks: { orderBy: { position: "asc" } },
+        },
+      }),
+    ["category-by-slug", slug],
+    { revalidate: 60, tags: [`category:${slug}`, "categories"] },
+  )(),
+);
+
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
 
-  const category = await prisma.category.findUnique({
-    where: { slug, active: true },
-    include: {
-      categoryBlocks: { orderBy: { position: "asc" } },
-    },
-  });
+  const category = await getCategoryBySlug(slug);
 
   if (!category) {
     notFound();
@@ -120,63 +133,68 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   );
 }
 
-async function loadCategoryProducts(categoryId: string) {
-  const productCategories = await prisma.productCategory.findMany({
-    where: {
-      categoryId,
-      product: { active: true },
-    },
-    include: {
-      product: {
+// Same dual-cache pattern as getCategoryBySlug. The grid is what makes
+// category pages expensive (joins + variants), so caching it is the highest-
+// impact win for storefront TTFB.
+const loadCategoryProducts = cache((categoryId: string) =>
+  unstable_cache(
+    async () => {
+      const productCategories = await prisma.productCategory.findMany({
+        where: {
+          categoryId,
+          product: { active: true },
+        },
         include: {
-          categories: { include: { category: true } },
-          variants: {
-            where: { active: true },
-            orderBy: { price: "asc" },
-            take: 1,
+          product: {
+            include: {
+              categories: { include: { category: true } },
+              variants: {
+                where: { active: true },
+                orderBy: { price: "asc" },
+                take: 1,
+              },
+            },
           },
         },
-      },
-    },
-  });
+      });
 
-  return productCategories.map((pc) => {
-    const product = pc.product;
-    return {
-      ...product,
-      basePrice: Number(product.basePrice),
-      compareAtPrice: product.compareAtPrice
-        ? Number(product.compareAtPrice)
-        : null,
-      variants: product.variants.map((v) => ({
-        ...v,
-        price: Number(v.price),
-        compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
-      })),
-    };
-  });
-}
+      return productCategories.map((pc) => {
+        const product = pc.product;
+        return {
+          ...product,
+          basePrice: Number(product.basePrice),
+          compareAtPrice: product.compareAtPrice
+            ? Number(product.compareAtPrice)
+            : null,
+          variants: product.variants.map((v) => ({
+            ...v,
+            price: Number(v.price),
+            compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
+          })),
+        };
+      });
+    },
+    ["category-products", categoryId],
+    {
+      revalidate: 60,
+      tags: [`category:${categoryId}:products`, "products"],
+    },
+  )(),
+);
 
 export async function generateMetadata({
   params,
 }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const settings = await getSiteSettings();
-
-  const category = await prisma.category.findUnique({
-    where: { slug },
-    select: {
-      name: true,
-      description: true,
-      metaTitle: true,
-      metaDescription: true,
-      image: true,
-    },
-  });
+  const [category, settings] = await Promise.all([
+    getCategoryBySlug(slug),
+    getSiteSettings(),
+  ]);
 
   if (!category) {
     return {
       title: "Categoría no encontrada",
+      robots: { index: false, follow: false },
     };
   }
 

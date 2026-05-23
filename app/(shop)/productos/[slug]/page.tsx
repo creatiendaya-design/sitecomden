@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import ProductTracking from "./tracking-client";
 import ProductStandardView from "@/components/shop/templates/ProductStandardView";
@@ -26,9 +27,13 @@ interface ProductDetailPageProps {
   }>;
 }
 
-// React `cache` dedupes the query between generateMetadata and the page
-// component within the same request, so we don't double-hit Postgres.
-const getProductBySlug = cache((slug: string) =>
+// Two layers of caching:
+// 1. `unstable_cache` — cross-request cache (60s TTL, keyed by slug). Tagged
+//    so server actions can invalidate via revalidateTag(`product:${slug}`)
+//    when the admin saves changes.
+// 2. React `cache` — per-request dedupe between generateMetadata and the
+//    page render so we only call into the cached fetcher once per request.
+const fetchProductBySlug = (slug: string) =>
   prisma.product.findUnique({
     where: { slug, active: true },
     include: {
@@ -63,7 +68,14 @@ const getProductBySlug = cache((slug: string) =>
         },
       },
     },
-  }),
+  });
+
+const getProductBySlug = cache((slug: string) =>
+  unstable_cache(
+    () => fetchProductBySlug(slug),
+    ["product-by-slug", slug],
+    { revalidate: 60, tags: [`product:${slug}`, "products"] },
+  )(),
 );
 
 function stripHtml(input: string | null | undefined): string {

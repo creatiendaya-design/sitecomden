@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
 import type { LandingBlockType } from "@prisma/client"
+import { invalidateCategory } from "@/lib/cache/invalidate"
 
 export interface CategoryWithBlocks {
   id: string
@@ -108,6 +109,8 @@ export async function saveCategoryBlocks(
   })
 
   updateTag(`category:${category.slug}`)
+  invalidateCategory(category.slug)
+  invalidateCategory(categoryId)
   revalidatePath(`/categoria/${category.slug}`)
   revalidatePath(`/admin/categorias/${categoryId}/builder`)
   return { success: true }
@@ -130,6 +133,8 @@ export async function toggleHideProductGrid(
   })
 
   updateTag(`category:${c.slug}`)
+  invalidateCategory(c.slug)
+  invalidateCategory(categoryId)
   revalidatePath(`/categoria/${c.slug}`)
   revalidatePath(`/admin/categorias/${categoryId}`)
   return { hideProductGrid: next }

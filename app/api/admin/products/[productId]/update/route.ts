@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth";
 import { updateProductSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
+import { invalidateProduct } from "@/lib/cache/invalidate";
 import { prisma } from "@/lib/db";
 import { normalizeImagesForSave } from "@/lib/image-utils";
 
@@ -342,10 +343,11 @@ export async function PUT(
 
     console.log(`✅ Producto actualizado exitosamente por usuario ${user.id}:`, product.name);
 
-    // Revalidar rutas
+    // Revalidar rutas + invalidar cache del storefront (tags)
     revalidatePath("/admin/productos");
     revalidatePath(`/admin/productos/${productId}`);
     revalidatePath(`/productos/${product.slug}`);
+    invalidateProduct(product.slug);
 
     // Obtener producto completo
     const completeProduct = await prisma.product.findUnique({

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { invalidateProduct } from "@/lib/cache/invalidate";
 
 const productRowSchema = z.object({
   kind: z.literal("product"),
@@ -235,7 +236,10 @@ export async function POST(request: Request) {
     });
 
     revalidatePath("/admin/productos");
-    slugsToRevalidate.forEach((slug) => revalidatePath(`/productos/${slug}`));
+    slugsToRevalidate.forEach((slug) => {
+      revalidatePath(`/productos/${slug}`);
+      invalidateProduct(slug);
+    });
 
     return NextResponse.json({ success: true, updatedProducts, updatedVariants });
   } catch (error) {
