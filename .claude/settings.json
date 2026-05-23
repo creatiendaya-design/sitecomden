@@ -4,6 +4,7 @@
     "claude-mem@thedotmack": true,
     "code-review@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "product-skills@claude-code-skills": true
+    "product-skills@claude-code-skills": true,
+    "aaron-seo-geo@aaron-seo-geo": false
   }
 }

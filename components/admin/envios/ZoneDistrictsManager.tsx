@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -335,7 +335,6 @@ function DistrictSearch({
   useEffect(() => {
     if (debounced.length < 2) {
       setResults([]);
-      setSelected(new Set());
       return;
     }
     let cancelled = false;
@@ -343,7 +342,6 @@ function DistrictSearch({
     searchDistrictsForZone(zoneId, debounced).then((res) => {
       if (cancelled) return;
       setResults(res.success ? res.data : []);
-      setSelected(new Set());
       setSearching(false);
     });
     return () => {
@@ -355,11 +353,20 @@ function DistrictSearch({
   const allSelected = available.length > 0 && available.every((r) => selected.has(r.code));
 
   const toggleAll = () => {
-    if (allSelected) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(available.map((r) => r.code)));
-    }
+    const codes = available.map((r) => r.code);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        codes.forEach((c) => next.delete(c));
+      } else {
+        codes.forEach((c) => next.add(c));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelected(new Set());
   };
 
   const toggle = (code: string) => {
@@ -429,6 +436,24 @@ function DistrictSearch({
         </p>
       )}
 
+      {selected.size > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs sm:text-sm">
+          <span className="font-medium">
+            {selected.size} distrito(s) seleccionado(s) en total
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={clearSelection}
+            disabled={pending}
+            className="h-7 px-2 text-xs"
+          >
+            Limpiar
+          </Button>
+        </div>
+      )}
+
       {!searching && results.length > 0 && (
         <div className="rounded-md border">
           <div className="flex items-center justify-between p-2 border-b bg-muted/50 gap-2 sticky top-0 z-10">
@@ -441,9 +466,7 @@ function DistrictSearch({
                 />
               )}
               <Label htmlFor="select-all" className="text-xs sm:text-sm cursor-pointer truncate">
-                {selected.size > 0
-                  ? `${selected.size} seleccionado(s)`
-                  : `${available.length} disp. de ${results.length}`}
+                {`${available.filter((r) => selected.has(r.code)).length} de ${available.length} disp. en resultados`}
               </Label>
             </div>
             <Button
@@ -523,6 +546,7 @@ function ProvinceBulkPicker({
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
+  const visitedProvincesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     getDepartments().then((res) => {
@@ -533,7 +557,6 @@ function ProvinceBulkPicker({
   useEffect(() => {
     setProvinceId("");
     setDistricts([]);
-    setSelected(new Set());
     if (!departmentId) {
       setProvinces([]);
       return;
@@ -544,7 +567,6 @@ function ProvinceBulkPicker({
   }, [departmentId]);
 
   useEffect(() => {
-    setSelected(new Set());
     if (!provinceId) {
       setDistricts([]);
       return;
@@ -553,7 +575,19 @@ function ProvinceBulkPicker({
     getProvinceDistrictsForZone(zoneId, provinceId).then((res) => {
       if (res.success) {
         setDistricts(res.data);
-        setSelected(new Set(res.data.filter((d) => !d.assignedZoneId).map((d) => d.code)));
+        if (!visitedProvincesRef.current.has(provinceId)) {
+          visitedProvincesRef.current.add(provinceId);
+          const autoCodes = res.data
+            .filter((d) => !d.assignedZoneId)
+            .map((d) => d.code);
+          if (autoCodes.length > 0) {
+            setSelected((prev) => {
+              const next = new Set(prev);
+              autoCodes.forEach((c) => next.add(c));
+              return next;
+            });
+          }
+        }
       }
       setLoading(false);
     });
@@ -563,8 +597,20 @@ function ProvinceBulkPicker({
   const allSelected = available.length > 0 && available.every((d) => selected.has(d.code));
 
   const toggleAll = () => {
-    if (allSelected) setSelected(new Set());
-    else setSelected(new Set(available.map((d) => d.code)));
+    const codes = available.map((d) => d.code);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        codes.forEach((c) => next.delete(c));
+      } else {
+        codes.forEach((c) => next.add(c));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelected(new Set());
   };
 
   const toggle = (code: string) => {
@@ -594,6 +640,7 @@ function ProvinceBulkPicker({
       setDepartmentId("");
       setDistricts([]);
       setSelected(new Set());
+      visitedProvincesRef.current = new Set();
       onChange();
     });
   };
@@ -647,6 +694,24 @@ function ProvinceBulkPicker({
         </div>
       )}
 
+      {selected.size > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs sm:text-sm">
+          <span className="font-medium">
+            {selected.size} distrito(s) seleccionado(s) en total
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={clearSelection}
+            disabled={pending}
+            className="h-7 px-2 text-xs"
+          >
+            Limpiar
+          </Button>
+        </div>
+      )}
+
       {!loading && provinceId && districts.length > 0 && (
         <div className="rounded-md border">
           <div className="flex items-center justify-between p-2 border-b bg-muted/50 gap-2 sticky top-0 z-10">
@@ -659,9 +724,7 @@ function ProvinceBulkPicker({
                 />
               )}
               <Label htmlFor="select-all-prov" className="text-xs sm:text-sm cursor-pointer truncate">
-                {selected.size > 0
-                  ? `${selected.size} de ${available.length} disp.`
-                  : `${available.length} disp. de ${districts.length}`}
+                {`${available.filter((d) => selected.has(d.code)).length} de ${available.length} disp. en esta provincia`}
               </Label>
             </div>
             <Button
