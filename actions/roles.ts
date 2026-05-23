@@ -5,6 +5,13 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
 import { requirePermission } from "@/lib/permissions";
 import { protectRoute } from "@/lib/protect-route";
+import { z } from "zod";
+import { roleFormSchema } from "@/lib/validations/admin";
+import { logAudit } from "@/lib/audit-log";
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ");
+}
 
 // ============================================================
 // TIPOS
@@ -123,12 +130,14 @@ export async function createRole(data: RoleFormData) {
     const userId = await getCurrentUserId();
     await requirePermission(userId, "users:manage_roles");
 
-    if (!data.name || !data.slug) {
-      return { success: false, error: "Nombre y slug son requeridos" };
+    const parsed = roleFormSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
     }
+    const input = parsed.data;
 
     const existing = await prisma.role.findUnique({
-      where: { slug: data.slug },
+      where: { slug: input.slug },
     });
 
     if (existing) {
@@ -137,19 +146,19 @@ export async function createRole(data: RoleFormData) {
 
     const role = await prisma.role.create({
       data: {
-        name: data.name,
-        slug: data.slug,
-        description: data.description,
-        level: data.level,
-        color: data.color || "#6366f1",
-        active: data.active,
+        name: input.name,
+        slug: input.slug,
+        description: input.description ?? null,
+        level: input.level,
+        color: input.color || "#6366f1",
+        active: input.active,
         isSystem: false,
       },
     });
 
-    if (data.permissionIds.length > 0) {
+    if (input.permissionIds.length > 0) {
       await prisma.rolePermission.createMany({
-        data: data.permissionIds.map((permissionId) => ({
+        data: input.permissionIds.map((permissionId) => ({
           roleId: role.id,
           permissionId,
         })),
@@ -157,6 +166,19 @@ export async function createRole(data: RoleFormData) {
     }
 
     revalidatePath("/admin/configuracion/roles");
+
+    await logAudit({
+      action: "role.created",
+      userId: userId ?? null,
+      entityType: "Role",
+      entityId: role.id,
+      after: {
+        name: role.name,
+        slug: role.slug,
+        level: role.level,
+        permissionCount: input.permissionIds.length,
+      },
+    });
 
     return { success: true, role };
   } catch (error) {
@@ -174,8 +196,15 @@ export async function updateRole(roleId: string, data: RoleFormData) {
     const userId = await getCurrentUserId();
     await requirePermission(userId, "users:manage_roles");
 
+    const parsed = roleFormSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
+    }
+    const input = parsed.data;
+
     const existingRole = await prisma.role.findUnique({
       where: { id: roleId },
+      include: { permissions: { select: { permissionId: true } } },
     });
 
     if (!existingRole) {
@@ -189,9 +218,9 @@ export async function updateRole(roleId: string, data: RoleFormData) {
       };
     }
 
-    if (data.slug !== existingRole.slug) {
+    if (input.slug !== existingRole.slug) {
       const slugInUse = await prisma.role.findUnique({
-        where: { slug: data.slug },
+        where: { slug: input.slug },
       });
 
       if (slugInUse) {
@@ -203,12 +232,12 @@ export async function updateRole(roleId: string, data: RoleFormData) {
       const updatedRole = await tx.role.update({
         where: { id: roleId },
         data: {
-          name: data.name,
-          slug: data.slug,
-          description: data.description,
-          level: data.level,
-          color: data.color,
-          active: data.active,
+          name: input.name,
+          slug: input.slug,
+          description: input.description ?? null,
+          level: input.level,
+          color: input.color,
+          active: input.active,
         },
       });
 
@@ -216,9 +245,9 @@ export async function updateRole(roleId: string, data: RoleFormData) {
         where: { roleId: roleId },
       });
 
-      if (data.permissionIds.length > 0) {
+      if (input.permissionIds.length > 0) {
         await tx.rolePermission.createMany({
-          data: data.permissionIds.map((permissionId) => ({
+          data: input.permissionIds.map((permissionId) => ({
             roleId: roleId,
             permissionId,
           })),
@@ -230,6 +259,27 @@ export async function updateRole(roleId: string, data: RoleFormData) {
 
     revalidatePath("/admin/configuracion/roles");
     revalidatePath(`/admin/configuracion/roles/${roleId}`);
+
+    await logAudit({
+      action: "role.updated",
+      userId: userId ?? null,
+      entityType: "Role",
+      entityId: roleId,
+      before: {
+        name: existingRole.name,
+        slug: existingRole.slug,
+        level: existingRole.level,
+        active: existingRole.active,
+        permissionIds: existingRole.permissions.map((p) => p.permissionId),
+      },
+      after: {
+        name: role.name,
+        slug: role.slug,
+        level: role.level,
+        active: role.active,
+        permissionIds: input.permissionIds,
+      },
+    });
 
     return { success: true, role };
   } catch (error) {
@@ -279,6 +329,18 @@ export async function deleteRole(roleId: string) {
     });
 
     revalidatePath("/admin/configuracion/roles");
+
+    await logAudit({
+      action: "role.deleted",
+      userId: userId ?? null,
+      entityType: "Role",
+      entityId: roleId,
+      before: {
+        name: role.name,
+        slug: role.slug,
+        level: role.level,
+      },
+    });
 
     return { success: true };
   } catch (error) {
@@ -375,6 +437,14 @@ export async function toggleRoleStatus(roleId: string, active: boolean) {
     });
 
     revalidatePath("/admin/configuracion/roles");
+
+    await logAudit({
+      action: active ? "role.activated" : "role.deactivated",
+      userId: userId ?? null,
+      entityType: "Role",
+      entityId: roleId,
+      metadata: { active },
+    });
 
     return { success: true };
   } catch (error) {

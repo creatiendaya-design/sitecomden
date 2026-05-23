@@ -9,6 +9,13 @@ import {
   type ColorSchemeArray,
 } from "@/lib/themes/color-schemes"
 import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
+import { z } from "zod"
+import { createThemeSchema } from "@/lib/validations/admin"
+import { logAudit } from "@/lib/audit-log"
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ")
+}
 
 export interface ThemeRow {
   id: string
@@ -121,7 +128,9 @@ export async function createTheme(input: {
   description?: string
 }): Promise<{ id: string }> {
   const userId = await protectRoute("themes:create")
-  if (!input.name.trim()) throw new Error("El nombre es obligatorio")
+
+  const parsed = createThemeSchema.safeParse(input)
+  if (!parsed.success) throw new Error(flattenZodError(parsed.error))
 
   // First theme created in the system becomes active automatically — there
   // must always be exactly one active theme once any exist.
@@ -129,8 +138,8 @@ export async function createTheme(input: {
 
   const theme = await prisma.theme.create({
     data: {
-      name: input.name.trim(),
-      description: input.description?.trim() || null,
+      name: parsed.data.name,
+      description: parsed.data.description ?? null,
       active: existingActive === 0,
       createdBy: userId,
     },
@@ -138,6 +147,15 @@ export async function createTheme(input: {
   revalidatePath("/admin/personalizar")
   revalidatePath("/admin/personalizar/temas")
   if (existingActive === 0) updateTag("active-theme")
+
+  await logAudit({
+    action: "theme.created",
+    userId,
+    entityType: "Theme",
+    entityId: theme.id,
+    after: { name: theme.name, active: theme.active },
+  })
+
   return { id: theme.id }
 }
 
@@ -223,7 +241,9 @@ export async function updateThemeMetadata(
 }
 
 export async function setActiveTheme(id: string): Promise<void> {
-  await protectRoute("themes:activate")
+  const userId = await protectRoute("themes:activate")
+
+  if (typeof id !== "string" || !id) throw new Error("Tema inválido")
 
   await prisma.$transaction(async (tx) => {
     const exists = await tx.theme.findUnique({ where: { id }, select: { id: true } })
@@ -240,17 +260,38 @@ export async function setActiveTheme(id: string): Promise<void> {
   revalidatePath("/carrito")
   revalidatePath("/admin/personalizar")
   revalidatePath("/admin/personalizar/temas")
+
+  await logAudit({
+    action: "theme.activated",
+    userId,
+    entityType: "Theme",
+    entityId: id,
+  })
 }
 
 export async function deleteTheme(id: string): Promise<void> {
-  await protectRoute("themes:delete")
-  const t = await prisma.theme.findUnique({ where: { id }, select: { active: true } })
+  const userId = await protectRoute("themes:delete")
+
+  if (typeof id !== "string" || !id) throw new Error("Tema inválido")
+
+  const t = await prisma.theme.findUnique({
+    where: { id },
+    select: { active: true, name: true },
+  })
   if (!t) throw new Error("Tema no encontrado")
   if (t.active) {
     throw new Error("No podés eliminar el tema activo. Activá otro primero.")
   }
   await prisma.theme.delete({ where: { id } })
   revalidatePath("/admin/personalizar/temas")
+
+  await logAudit({
+    action: "theme.deleted",
+    userId,
+    entityType: "Theme",
+    entityId: id,
+    before: { name: t.name },
+  })
 }
 
 /**

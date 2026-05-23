@@ -4,6 +4,17 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { InventoryMovementType } from "@prisma/client"; // ✅ Importar el enum
 import { protectRoute } from "@/lib/protect-route";
+import { z } from "zod";
+import {
+  adjustStockSchema,
+  createInventoryMovementSchema,
+} from "@/lib/validations/admin";
+import { logAudit } from "@/lib/audit-log";
+import { getCurrentUserId } from "@/lib/auth";
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ");
+}
 
 // Tipos
 export interface InventoryItem {
@@ -242,56 +253,62 @@ export async function createInventoryMovement(data: {
 }) {
   await protectRoute("products:manage_inventory");
   try {
-    // Validar que se proporcione productId o variantId
-    if (!data.productId && !data.variantId) {
-      return {
-        success: false,
-        error: "Debe proporcionar productId o variantId",
-      };
-    }
+    const currentUserId = await getCurrentUserId();
 
-    // Validar cantidad
-    if (data.quantity === 0) {
-      return {
-        success: false,
-        error: "La cantidad no puede ser 0",
-      };
+    const parsed = createInventoryMovementSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
     }
+    const input = parsed.data;
 
     // Crear el movimiento
     const movement = await prisma.inventoryMovement.create({
       data: {
-        productId: data.productId,
-        variantId: data.variantId,
-        type: data.type,
-        quantity: data.quantity,
-        reason: data.reason,
-        reference: data.reference,
+        productId: input.productId ?? undefined,
+        variantId: input.variantId ?? undefined,
+        type: input.type as InventoryMovementType,
+        quantity: input.quantity,
+        reason: input.reason,
+        reference: input.reference,
       },
     });
 
     // Actualizar el stock
-    if (data.variantId) {
+    if (input.variantId) {
       await prisma.productVariant.update({
-        where: { id: data.variantId },
+        where: { id: input.variantId },
         data: {
           stock: {
-            increment: data.quantity,
+            increment: input.quantity,
           },
         },
       });
-    } else if (data.productId) {
+    } else if (input.productId) {
       await prisma.product.update({
-        where: { id: data.productId },
+        where: { id: input.productId },
         data: {
           stock: {
-            increment: data.quantity,
+            increment: input.quantity,
           },
         },
       });
     }
 
     revalidatePath("/admin/inventario");
+
+    await logAudit({
+      action: "inventory.movement_created",
+      userId: currentUserId ?? null,
+      entityType: input.variantId ? "ProductVariant" : "Product",
+      entityId: input.variantId ?? input.productId ?? null,
+      metadata: {
+        type: input.type,
+        quantity: input.quantity,
+        reason: input.reason ?? null,
+        reference: input.reference ?? null,
+        movementId: movement.id,
+      },
+    });
 
     return {
       success: true,
@@ -315,38 +332,32 @@ export async function adjustStock(data: {
 }) {
   await protectRoute("products:manage_inventory");
   try {
-    if (!data.productId && !data.variantId) {
-      return {
-        success: false,
-        error: "Debe proporcionar productId o variantId",
-      };
-    }
+    const currentUserId = await getCurrentUserId();
 
-    if (data.newStock < 0) {
-      return {
-        success: false,
-        error: "El stock no puede ser negativo",
-      };
+    const parsed = adjustStockSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
     }
+    const input = parsed.data;
 
     let currentStock = 0;
 
     // Obtener stock actual
-    if (data.variantId) {
+    if (input.variantId) {
       const variant = await prisma.productVariant.findUnique({
-        where: { id: data.variantId },
+        where: { id: input.variantId },
         select: { stock: true },
       });
       currentStock = variant?.stock || 0;
-    } else if (data.productId) {
+    } else if (input.productId) {
       const product = await prisma.product.findUnique({
-        where: { id: data.productId },
+        where: { id: input.productId },
         select: { stock: true },
       });
       currentStock = product?.stock || 0;
     }
 
-    const difference = data.newStock - currentStock;
+    const difference = input.newStock - currentStock;
 
     if (difference === 0) {
       return {
@@ -358,28 +369,41 @@ export async function adjustStock(data: {
     // Crear movimiento de ajuste
     await prisma.inventoryMovement.create({
       data: {
-        productId: data.productId,
-        variantId: data.variantId,
+        productId: input.productId ?? undefined,
+        variantId: input.variantId ?? undefined,
         type: "ADJUSTMENT",
         quantity: difference,
-        reason: data.reason,
+        reason: input.reason,
       },
     });
 
     // Actualizar stock
-    if (data.variantId) {
+    if (input.variantId) {
       await prisma.productVariant.update({
-        where: { id: data.variantId },
-        data: { stock: data.newStock },
+        where: { id: input.variantId },
+        data: { stock: input.newStock },
       });
-    } else if (data.productId) {
+    } else if (input.productId) {
       await prisma.product.update({
-        where: { id: data.productId },
-        data: { stock: data.newStock },
+        where: { id: input.productId },
+        data: { stock: input.newStock },
       });
     }
 
     revalidatePath("/admin/inventario");
+
+    await logAudit({
+      action: "inventory.stock_adjusted",
+      userId: currentUserId ?? null,
+      entityType: input.variantId ? "ProductVariant" : "Product",
+      entityId: input.variantId ?? input.productId ?? null,
+      before: { stock: currentStock },
+      after: { stock: input.newStock },
+      metadata: {
+        difference,
+        reason: input.reason,
+      },
+    });
 
     return {
       success: true,

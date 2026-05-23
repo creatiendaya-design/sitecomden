@@ -6,6 +6,18 @@ import { getCurrentUserId } from "@/lib/auth";
 import { requirePermission, isSuperAdmin, hasPermission } from "@/lib/permissions"; // ← CAMBIO 1: Agregar hasPermission
 import { revokeAllAdminSessionsForUser } from "@/lib/admin-session";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
+import {
+  assignCustomPermissionSchema,
+  changePasswordSchema,
+  createUserSchema,
+  updateUserSchema,
+} from "@/lib/validations/admin";
+import { logAudit } from "@/lib/audit-log";
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ");
+}
 
 // ============================================================
 // TIPOS
@@ -98,18 +110,15 @@ export async function createUser(data: UserFormData & { password: string }) {
     const currentUserId = await getCurrentUserId();
     await requirePermission(currentUserId, "users:create");
 
-    // Validaciones
-    if (!data.name || !data.email || !data.password) {
-      return { success: false, error: "Nombre, email y contraseña son requeridos" };
+    const parsed = createUserSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
     }
-
-    if (data.password.length < 6) {
-      return { success: false, error: "La contraseña debe tener al menos 6 caracteres" };
-    }
+    const input = parsed.data;
 
     // Verificar que el email no exista
     const existing = await prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email: input.email },
     });
 
     if (existing) {
@@ -117,9 +126,9 @@ export async function createUser(data: UserFormData & { password: string }) {
     }
 
     // Si se asigna un rol, verificar que existe
-    if (data.roleId) {
+    if (input.roleId) {
       const role = await prisma.role.findUnique({
-        where: { id: data.roleId },
+        where: { id: input.roleId },
       });
 
       if (!role) {
@@ -128,16 +137,16 @@ export async function createUser(data: UserFormData & { password: string }) {
     }
 
     // Hash de contraseña
-    const hashedPassword = await bcrypt.hash(data.password, 12);
+    const hashedPassword = await bcrypt.hash(input.password, 12);
 
     // Crear usuario
     const user = await prisma.user.create({
       data: {
-        name: data.name,
-        email: data.email,
+        name: input.name,
+        email: input.email,
         password: hashedPassword,
-        roleId: data.roleId,
-        active: data.active,
+        roleId: input.roleId ?? null,
+        active: input.active,
       },
       include: {
         role: true,
@@ -145,6 +154,18 @@ export async function createUser(data: UserFormData & { password: string }) {
     });
 
     revalidatePath("/admin/configuracion/usuarios");
+
+    await logAudit({
+      action: "user.created",
+      userId: currentUserId ?? null,
+      entityType: "User",
+      entityId: user.id,
+      after: {
+        email: user.email,
+        roleId: user.roleId,
+        active: user.active,
+      },
+    });
 
     const { password, ...userWithoutPassword } = user;
     return { success: true, user: userWithoutPassword };
@@ -163,6 +184,12 @@ export async function updateUser(userId: string, data: UserFormData) {
     const currentUserId = await getCurrentUserId();
     await requirePermission(currentUserId, "users:edit");
 
+    const parsed = updateUserSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
+    }
+    const input = parsed.data;
+
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
@@ -173,7 +200,7 @@ export async function updateUser(userId: string, data: UserFormData) {
     }
 
     // No permitir que un usuario se desactive a sí mismo
-    if (userId === currentUserId && !data.active) {
+    if (userId === currentUserId && !input.active) {
       return { success: false, error: "No puedes desactivarte a ti mismo" };
     }
 
@@ -195,9 +222,9 @@ export async function updateUser(userId: string, data: UserFormData) {
     }
 
     // Verificar email único (si cambió)
-    if (data.email !== existingUser.email) {
+    if (input.email !== existingUser.email) {
       const emailInUse = await prisma.user.findUnique({
-        where: { email: data.email },
+        where: { email: input.email },
       });
 
       if (emailInUse) {
@@ -206,9 +233,9 @@ export async function updateUser(userId: string, data: UserFormData) {
     }
 
     // Si se asigna un rol, verificar que existe
-    if (data.roleId) {
+    if (input.roleId) {
       const role = await prisma.role.findUnique({
-        where: { id: data.roleId },
+        where: { id: input.roleId },
       });
 
       if (!role) {
@@ -220,10 +247,10 @@ export async function updateUser(userId: string, data: UserFormData) {
     const user = await prisma.user.update({
       where: { id: userId },
       data: {
-        name: data.name,
-        email: data.email,
-        roleId: data.roleId,
-        active: data.active,
+        name: input.name,
+        email: input.email,
+        roleId: input.roleId ?? null,
+        active: input.active,
       },
       include: {
         role: true,
@@ -232,6 +259,23 @@ export async function updateUser(userId: string, data: UserFormData) {
 
     revalidatePath("/admin/configuracion/usuarios");
     revalidatePath(`/admin/configuracion/usuarios/${userId}`);
+
+    await logAudit({
+      action: "user.updated",
+      userId: currentUserId ?? null,
+      entityType: "User",
+      entityId: userId,
+      before: {
+        email: existingUser.email,
+        roleId: existingUser.roleId,
+        active: existingUser.active,
+      },
+      after: {
+        email: user.email,
+        roleId: user.roleId,
+        active: user.active,
+      },
+    });
 
     const { password, ...userWithoutPassword } = user;
     return { success: true, user: userWithoutPassword };
@@ -248,26 +292,37 @@ export async function updateUser(userId: string, data: UserFormData) {
 export async function changeUserPassword(userId: string, newPassword: string) {
   try {
     const currentUserId = await getCurrentUserId();
-    
+
     // Solo puede cambiar su propia contraseña o si tiene permiso de editar usuarios
     if (userId !== currentUserId) {
       await requirePermission(currentUserId, "users:edit");
     }
 
-    if (newPassword.length < 6) {
-      return { success: false, error: "La contraseña debe tener al menos 6 caracteres" };
+    const parsed = changePasswordSchema.safeParse({ userId, newPassword });
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await bcrypt.hash(parsed.data.newPassword, 12);
 
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: parsed.data.userId },
       data: { password: hashedPassword },
     });
 
     // Revocar todas las sesiones activas del usuario: si la contraseña cambió,
     // cualquier cookie previa (potencialmente robada) deja de ser válida.
-    await revokeAllAdminSessionsForUser(userId);
+    await revokeAllAdminSessionsForUser(parsed.data.userId);
+
+    await logAudit({
+      action: "user.password_changed",
+      userId: currentUserId ?? null,
+      entityType: "User",
+      entityId: parsed.data.userId,
+      metadata: {
+        selfService: currentUserId === parsed.data.userId,
+      },
+    });
 
     return { success: true };
   } catch (error) {
@@ -315,6 +370,18 @@ export async function deleteUser(userId: string) {
     });
 
     revalidatePath("/admin/configuracion/usuarios");
+
+    await logAudit({
+      action: "user.deleted",
+      userId: currentUserId ?? null,
+      entityType: "User",
+      entityId: userId,
+      before: {
+        email: user.email,
+        roleId: user.roleId,
+        roleLevel: user.role?.level ?? null,
+      },
+    });
 
     return { success: true };
   } catch (error) {
@@ -364,9 +431,18 @@ export async function assignCustomPermission(
     const currentUserId = await getCurrentUserId();
     await requirePermission(currentUserId, "users:manage_permissions");
 
+    const parsed = assignCustomPermissionSchema.safeParse({
+      userId,
+      permissionId,
+      type,
+    });
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
+    }
+
     // Verificar que el usuario existe
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: parsed.data.userId },
     });
 
     if (!user) {
@@ -375,7 +451,7 @@ export async function assignCustomPermission(
 
     // Verificar que el permiso existe
     const permission = await prisma.permission.findUnique({
-      where: { id: permissionId },
+      where: { id: parsed.data.permissionId },
     });
 
     if (!permission) {
@@ -386,21 +462,33 @@ export async function assignCustomPermission(
     await prisma.userPermission.upsert({
       where: {
         userId_permissionId: {
-          userId,
-          permissionId,
+          userId: parsed.data.userId,
+          permissionId: parsed.data.permissionId,
         },
       },
       create: {
-        userId,
-        permissionId,
-        type,
+        userId: parsed.data.userId,
+        permissionId: parsed.data.permissionId,
+        type: parsed.data.type,
       },
       update: {
-        type,
+        type: parsed.data.type,
       },
     });
 
     revalidatePath(`/admin/configuracion/usuarios/${userId}`);
+
+    await logAudit({
+      action: "user.permission_assigned",
+      userId: currentUserId ?? null,
+      entityType: "User",
+      entityId: parsed.data.userId,
+      metadata: {
+        permissionId: parsed.data.permissionId,
+        permissionKey: permission.key,
+        type: parsed.data.type,
+      },
+    });
 
     return { success: true };
   } catch (error) {
@@ -418,6 +506,10 @@ export async function removeCustomPermission(userId: string, permissionId: strin
     const currentUserId = await getCurrentUserId();
     await requirePermission(currentUserId, "users:manage_permissions");
 
+    if (typeof userId !== "string" || !userId || typeof permissionId !== "string" || !permissionId) {
+      return { success: false, error: "Parámetros inválidos" };
+    }
+
     await prisma.userPermission.delete({
       where: {
         userId_permissionId: {
@@ -428,6 +520,14 @@ export async function removeCustomPermission(userId: string, permissionId: strin
     });
 
     revalidatePath(`/admin/configuracion/usuarios/${userId}`);
+
+    await logAudit({
+      action: "user.permission_removed",
+      userId: currentUserId ?? null,
+      entityType: "User",
+      entityId: userId,
+      metadata: { permissionId },
+    });
 
     return { success: true };
   } catch (error) {

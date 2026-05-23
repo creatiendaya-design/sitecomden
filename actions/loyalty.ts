@@ -3,6 +3,17 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { protectRoute } from "@/lib/protect-route";
+import { z } from "zod";
+import {
+  adjustCustomerPointsSchema,
+  loyaltySettingsSchema,
+} from "@/lib/validations/admin";
+import { logAudit } from "@/lib/audit-log";
+import { getCurrentUserId } from "@/lib/auth";
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ");
+}
 
 // ============================================
 // TIPOS Y UTILIDADES
@@ -672,9 +683,16 @@ export async function getLoyaltySettings() {
   }
 }
 
-export async function updateLoyaltySettings(data: any) {
+export async function updateLoyaltySettings(data: unknown) {
   await protectRoute("loyalty:configure");
   try {
+    const currentUserId = await getCurrentUserId();
+
+    const parsed = loyaltySettingsSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
+    }
+
     const settings = await prisma.loyaltyProgramSettings.findFirst();
 
     if (!settings) {
@@ -683,11 +701,19 @@ export async function updateLoyaltySettings(data: any) {
 
     const updated = await prisma.loyaltyProgramSettings.update({
       where: { id: settings.id },
-      data,
+      data: parsed.data,
     });
 
     revalidatePath("/admin/lealtad");
     revalidatePath("/cuenta");
+
+    await logAudit({
+      action: "loyalty.settings_updated",
+      userId: currentUserId ?? null,
+      entityType: "LoyaltyProgramSettings",
+      entityId: settings.id,
+      after: parsed.data as Record<string, unknown>,
+    });
 
     return { success: true, settings: updated };
   } catch (error) {
@@ -819,19 +845,43 @@ export async function adjustCustomerPoints(
 ) {
   await protectRoute("loyalty:manage_points");
   try {
-    if (points > 0) {
-      return await addPoints(customerId, {
-        points,
-        type: "ADMIN_ADJUSTMENT",
-        description: reason || "Ajuste manual del administrador",
-      });
-    } else {
-      return await deductPoints(customerId, {
-        points: Math.abs(points),
-        type: "ADMIN_ADJUSTMENT",
-        description: reason || "Ajuste manual del administrador",
-      });
+    const currentUserId = await getCurrentUserId();
+
+    const parsed = adjustCustomerPointsSchema.safeParse({
+      customerId,
+      delta: points,
+      reason,
+    });
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
     }
+    const { delta } = parsed.data;
+
+    const result =
+      delta > 0
+        ? await addPoints(parsed.data.customerId, {
+            points: delta,
+            type: "ADMIN_ADJUSTMENT",
+            description: parsed.data.reason,
+          })
+        : await deductPoints(parsed.data.customerId, {
+            points: Math.abs(delta),
+            type: "ADMIN_ADJUSTMENT",
+            description: parsed.data.reason,
+          });
+
+    await logAudit({
+      action: delta > 0 ? "loyalty.points_added" : "loyalty.points_deducted",
+      userId: currentUserId ?? null,
+      entityType: "Customer",
+      entityId: parsed.data.customerId,
+      metadata: {
+        delta,
+        reason: parsed.data.reason,
+      },
+    });
+
+    return result;
   } catch (error) {
     console.error("Error ajustando puntos:", error);
     return { success: false, error: "Error al ajustar puntos" };

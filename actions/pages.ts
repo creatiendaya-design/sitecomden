@@ -5,6 +5,13 @@ import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
 import type { LandingBlockType } from "@prisma/client"
 import { isReservedSlug } from "@/lib/pages/reserved-slugs"
+import { z } from "zod"
+import { createPageSchema } from "@/lib/validations/admin"
+import { logAudit } from "@/lib/audit-log"
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ")
+}
 
 export interface PageRow {
   id: string
@@ -151,10 +158,16 @@ export async function createPage(input: {
   noIndex?: boolean
 }): Promise<{ id: string }> {
   const userId = await protectRoute("pages:create")
-  if (!input.title.trim()) throw new Error("El título es obligatorio")
 
-  const slug = normalizeSlug(input.slug)
-  if (!slug) throw new Error("El slug es obligatorio")
+  // Pre-normalize so the schema's regex check sees the cleaned slug.
+  const normalized = {
+    ...input,
+    slug: normalizeSlug(input.slug),
+  }
+  const parsed = createPageSchema.safeParse(normalized)
+  if (!parsed.success) throw new Error(flattenZodError(parsed.error))
+
+  const slug = parsed.data.slug
   if (isReservedSlug(slug)) {
     throw new Error(
       `El slug "${slug}" está reservado por el sistema. Elegí otro.`,
@@ -172,8 +185,8 @@ export async function createPage(input: {
   const p = await prisma.page.create({
     data: {
       slug,
-      title: input.title.trim(),
-      description: input.description?.trim() || null,
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
       seoTitle: input.seoTitle?.trim() || null,
       seoDescription: input.seoDescription?.trim() || null,
       seoImage: input.seoImage?.trim() || null,
@@ -182,6 +195,15 @@ export async function createPage(input: {
     },
   })
   revalidatePath("/admin/paginas")
+
+  await logAudit({
+    action: "page.created",
+    userId,
+    entityType: "Page",
+    entityId: p.id,
+    after: { slug: p.slug, title: p.title },
+  })
+
   return { id: p.id }
 }
 
@@ -322,16 +344,26 @@ export async function savePageBlocks(
 }
 
 export async function deletePage(id: string): Promise<void> {
-  await protectRoute("pages:delete")
+  const userId = await protectRoute("pages:delete")
+  if (typeof id !== "string" || !id) throw new Error("Página inválida")
+
   const p = await prisma.page.findUnique({
     where: { id },
-    select: { slug: true },
+    select: { slug: true, title: true },
   })
   if (!p) return
   await prisma.page.delete({ where: { id } })
   updateTag(`page:${p.slug}`)
   updateTag(`page-blocks:${id}`)
   revalidatePath("/admin/paginas")
+
+  await logAudit({
+    action: "page.deleted",
+    userId,
+    entityType: "Page",
+    entityId: id,
+    before: { slug: p.slug, title: p.title },
+  })
 }
 
 export async function togglePageActive(id: string): Promise<void> {
