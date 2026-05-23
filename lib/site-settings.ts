@@ -27,6 +27,10 @@ export interface SiteSettings {
 
   // Orders
   order_prefix: string;
+
+  // i18n / multi-currency (Plan 17 foundation)
+  default_locale: string;     // BCP 47, e.g. "es-PE"
+  default_currency: string;   // ISO 4217, e.g. "PEN"
 }
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -50,6 +54,9 @@ const DEFAULT_SETTINGS: SiteSettings = {
   social_tiktok: "",
 
   order_prefix: "PED",
+
+  default_locale: "es-PE",
+  default_currency: "PEN",
 };
 
 /**
@@ -87,6 +94,7 @@ async function _getSiteSettings(): Promise<SiteSettings> {
           { category: "general" },
           { category: "contact" },
           { category: "social" },
+          { category: "i18n" },
         ],
       },
     });
@@ -176,6 +184,10 @@ async function createDefaultSettings() {
     { key: 'social_instagram', value: '', category: 'social' },
     { key: 'social_twitter', value: '', category: 'social' },
     { key: 'social_tiktok', value: '', category: 'social' },
+
+    // i18n / multi-currency (Plan 17 foundation)
+    { key: 'default_locale', value: 'es-PE', category: 'i18n' },
+    { key: 'default_currency', value: 'PEN', category: 'i18n' },
   ];
 
   try {

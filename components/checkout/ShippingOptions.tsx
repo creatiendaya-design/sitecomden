@@ -16,19 +16,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Truck, Clock, MapPin, AlertCircle } from "lucide-react";
+import { formatPrice } from "@/lib/i18n/format";
 
 interface ShippingOptionsProps {
   districtCode: string;
   subtotal: number;
   onSelect: (rate: ShippingRate | null) => void;
   selectedRateId?: string | null;
-}
-
-function formatPrice(amount: number): string {
-  return new Intl.NumberFormat("es-PE", {
-    style: "currency",
-    currency: "PEN",
-  }).format(amount);
 }
 
 interface CategoryGroup {

@@ -25,13 +25,7 @@ import {
   Globe,
   ListChecks,
 } from "lucide-react";
-
-function formatPrice(amount: number) {
-  return new Intl.NumberFormat("es-PE", {
-    style: "currency",
-    currency: "PEN",
-  }).format(amount);
-}
+import { formatPrice } from "@/lib/i18n/format";
 
 export default async function ShippingDashboardPage() {
   const [{ data: stats }, { data: zones }, { data: rates }] = await Promise.all([

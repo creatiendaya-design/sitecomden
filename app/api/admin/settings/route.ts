@@ -92,5 +92,6 @@ function getCategoryFromKey(key: string): string {
   if (key.startsWith("social_")) return "social";
   if (key.startsWith("contact_")) return "contact";
   if (key.startsWith("order_")) return "orders";
+  if (key === "default_locale" || key === "default_currency") return "i18n";
   return "general";
 }

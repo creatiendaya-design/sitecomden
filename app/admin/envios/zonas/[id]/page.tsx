@@ -32,13 +32,7 @@ import {
 } from "lucide-react";
 import { ZoneDistrictsManager } from "@/components/admin/envios/ZoneDistrictsManager";
 import { QuickRateDialog } from "@/components/admin/envios/QuickRateDialog";
-
-function formatPrice(amount: number) {
-  return new Intl.NumberFormat("es-PE", {
-    style: "currency",
-    currency: "PEN",
-  }).format(amount);
-}
+import { formatPrice } from "@/lib/i18n/format";
 
 interface PageProps {
   params: Promise<{ id: string }>;

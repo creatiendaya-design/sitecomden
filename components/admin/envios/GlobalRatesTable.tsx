@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { formatPrice } from "@/lib/i18n/format";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,13 +35,6 @@ interface RateRow {
   zoneId: string;
   zoneName: string;
   zoneActive: boolean;
-}
-
-function formatPrice(amount: number) {
-  return new Intl.NumberFormat("es-PE", {
-    style: "currency",
-    currency: "PEN",
-  }).format(amount);
 }
 
 interface Props {

@@ -10,6 +10,7 @@ import {
   Users,
   Shield,
   Database,
+  Globe,
 } from "lucide-react";
 import { protectRoute } from "@/lib/protect-route";
 import { prisma } from "@/lib/db";
@@ -95,6 +96,14 @@ export default async function ConfiguracionPage() {
       href: "/admin/libro-reclamaciones",
       color: "text-indigo-600",
       bgColor: "bg-indigo-100",
+    },
+    {
+      title: "Idioma y Moneda",
+      description: "Configura el idioma y la moneda por defecto de la tienda",
+      icon: Globe,
+      href: "/admin/configuracion/i18n",
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-100",
     },
   ];
 
