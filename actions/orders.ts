@@ -61,7 +61,7 @@ const orderItemSchema = z.object({
   customDesignImages: z.array(z.object({ zoneId: z.string(), url: z.string() })).optional(),
 });
 
-const createOrderSchema = z.object({
+export const createOrderSchema = z.object({
   customerName: z.string().min(3, "Nombre debe tener al menos 3 caracteres").max(200),
   customerEmail: z.string().check(z.email("Email inválido")),
   customerPhone: z.string().min(9, "Teléfono inválido").max(20),
