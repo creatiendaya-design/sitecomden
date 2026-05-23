@@ -5,6 +5,12 @@ import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
 import { z } from "zod"
 import { MAX_MENU_DEPTH } from "@/lib/menus/constants"
+import { menuFormSchema } from "@/lib/validations/admin"
+import { logAudit } from "@/lib/audit-log"
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ")
+}
 
 export interface MenuRow {
   id: string
@@ -103,25 +109,38 @@ export async function createMenu(input: {
   description?: string
 }): Promise<{ id: string }> {
   const userId = await protectRoute("menus:create")
-  if (!input.title.trim()) throw new Error("El título es obligatorio")
-  const slug = normalizeSlug(input.slug)
-  if (!slug) throw new Error("El slug es obligatorio")
+
+  // Pre-normalize slug so the regex check sees the cleaned value.
+  const parsed = menuFormSchema.safeParse({
+    ...input,
+    slug: normalizeSlug(input.slug),
+  })
+  if (!parsed.success) throw new Error(flattenZodError(parsed.error))
 
   const exists = await prisma.menu.findUnique({
-    where: { slug },
+    where: { slug: parsed.data.slug },
     select: { id: true },
   })
-  if (exists) throw new Error(`Ya existe un menú con el slug "${slug}".`)
+  if (exists) throw new Error(`Ya existe un menú con el slug "${parsed.data.slug}".`)
 
   const m = await prisma.menu.create({
     data: {
-      slug,
-      title: input.title.trim(),
-      description: input.description?.trim() || null,
+      slug: parsed.data.slug,
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
       createdBy: userId,
     },
   })
   revalidatePath("/admin/menus")
+
+  await logAudit({
+    action: "menu.created",
+    userId,
+    entityType: "Menu",
+    entityId: m.id,
+    after: { slug: m.slug, title: m.title },
+  })
+
   return { id: m.id }
 }
 
@@ -409,10 +428,12 @@ export async function saveMenuItems(
 }
 
 export async function deleteMenu(id: string): Promise<void> {
-  await protectRoute("menus:delete")
+  const userId = await protectRoute("menus:delete")
+  if (typeof id !== "string" || !id) throw new Error("Menú inválido")
+
   const m = await prisma.menu.findUnique({
     where: { id },
-    select: { slug: true },
+    select: { slug: true, title: true },
   })
   if (!m) return
   await prisma.menu.delete({ where: { id } })
@@ -420,10 +441,20 @@ export async function deleteMenu(id: string): Promise<void> {
   updateTag(`menu-id:${id}`)
   updateTag("active-theme-menus")
   revalidatePath("/admin/menus")
+
+  await logAudit({
+    action: "menu.deleted",
+    userId,
+    entityType: "Menu",
+    entityId: id,
+    before: { slug: m.slug, title: m.title },
+  })
 }
 
 export async function toggleMenuActive(id: string): Promise<void> {
-  await protectRoute("menus:update")
+  const userId = await protectRoute("menus:update")
+  if (typeof id !== "string" || !id) throw new Error("Menú inválido")
+
   const m = await prisma.menu.findUnique({
     where: { id },
     select: { active: true, slug: true },
@@ -435,4 +466,12 @@ export async function toggleMenuActive(id: string): Promise<void> {
   })
   updateTag(`menu:${m.slug}`)
   revalidatePath("/admin/menus")
+
+  await logAudit({
+    action: m.active ? "menu.deactivated" : "menu.activated",
+    userId,
+    entityType: "Menu",
+    entityId: id,
+    metadata: { active: !m.active },
+  })
 }

@@ -295,7 +295,14 @@ export async function setPromotionActive(
   promotionId: string,
   active: boolean
 ): Promise<{ success: true; promotion: PromotionData }> {
-  await protectRoute("products:update");
+  const userId = await protectRoute("products:update");
+
+  if (typeof promotionId !== "string" || !promotionId) {
+    throw new Error("promotionId inválido");
+  }
+  if (typeof active !== "boolean") {
+    throw new Error("active debe ser boolean");
+  }
 
   const updated = await prisma.promotion.update({
     where: { id: promotionId },
@@ -307,6 +314,14 @@ export async function setPromotionActive(
   for (const t of updated.productTargets) {
     revalidatePath(`/admin/productos/${t.productId}`);
   }
+
+  await logAudit({
+    action: active ? "promotion.activated" : "promotion.deactivated",
+    userId,
+    entityType: "Promotion",
+    entityId: promotionId,
+    metadata: { active },
+  });
 
   return { success: true, promotion: serialize(updated) };
 }
@@ -356,7 +371,14 @@ export async function linkProductToPromotion(
   promotionId: string,
   productId: string
 ): Promise<{ success: true }> {
-  await protectRoute("products:update");
+  const userId = await protectRoute("products:update");
+
+  if (
+    typeof promotionId !== "string" || !promotionId ||
+    typeof productId !== "string" || !productId
+  ) {
+    throw new Error("IDs inválidos");
+  }
 
   await prisma.promotionProduct.upsert({
     where: { promotionId_productId: { promotionId, productId } },
@@ -366,6 +388,15 @@ export async function linkProductToPromotion(
 
   revalidatePath(`/admin/productos/${productId}`);
   revalidatePath("/admin/promociones");
+
+  await logAudit({
+    action: "promotion.product_linked",
+    userId,
+    entityType: "Promotion",
+    entityId: promotionId,
+    metadata: { productId },
+  });
+
   return { success: true };
 }
 
@@ -373,7 +404,14 @@ export async function unlinkProductFromPromotion(
   promotionId: string,
   productId: string
 ): Promise<{ success: true }> {
-  await protectRoute("products:update");
+  const userId = await protectRoute("products:update");
+
+  if (
+    typeof promotionId !== "string" || !promotionId ||
+    typeof productId !== "string" || !productId
+  ) {
+    throw new Error("IDs inválidos");
+  }
 
   await prisma.promotionProduct.delete({
     where: { promotionId_productId: { promotionId, productId } },
@@ -381,6 +419,15 @@ export async function unlinkProductFromPromotion(
 
   revalidatePath(`/admin/productos/${productId}`);
   revalidatePath("/admin/promociones");
+
+  await logAudit({
+    action: "promotion.product_unlinked",
+    userId,
+    entityType: "Promotion",
+    entityId: promotionId,
+    metadata: { productId },
+  });
+
   return { success: true };
 }
 

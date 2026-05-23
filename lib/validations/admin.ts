@@ -175,3 +175,108 @@ export const createPageSchema = z.object({
   description: z.string().max(500).nullable().optional(),
 });
 export type CreatePageInput = z.infer<typeof createPageSchema>;
+
+// ===================================================================
+// COMPLAINTS (Libro de Reclamaciones)
+// ===================================================================
+
+export const complaintFormFieldSchema = z.object({
+  label: z.string().trim().min(1).max(200),
+  fieldType: z.string().min(1).max(40),
+  section: z.string().max(80).optional(),
+  width: z.enum(["full", "half", "third", "quarter"]).optional(),
+  placeholder: z.string().max(200).optional(),
+  helpText: z.string().max(500).optional(),
+  required: z.boolean(),
+  options: z.array(z.string().max(200)).max(50).optional(),
+  otherLabel: z.string().max(200).optional(),
+  minLength: z.number().int().min(0).max(10000).optional(),
+  maxLength: z.number().int().min(0).max(10000).optional(),
+  pattern: z.string().max(500).optional(),
+});
+export type ComplaintFormFieldInput = z.infer<typeof complaintFormFieldSchema>;
+
+export const updateComplaintFormFieldSchema = complaintFormFieldSchema
+  .partial()
+  .extend({ active: z.boolean().optional() });
+export type UpdateComplaintFormFieldInput = z.infer<
+  typeof updateComplaintFormFieldSchema
+>;
+
+export const submitComplaintSchema = z.object({
+  formData: z.record(z.string(), z.unknown()).refine(
+    (d) => Object.keys(d).length > 0,
+    { message: "El formulario está vacío" },
+  ),
+  ipAddress: z.string().max(64).optional(),
+  userAgent: z.string().max(500).optional(),
+});
+export type SubmitComplaintInput = z.infer<typeof submitComplaintSchema>;
+
+// ===================================================================
+// MENUS
+// ===================================================================
+
+export const menuFormSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .regex(/^[a-z0-9-]+$/, "Slug debe contener minúsculas, números y guiones"),
+  description: z.string().max(500).nullable().optional(),
+});
+export type MenuFormInput = z.infer<typeof menuFormSchema>;
+
+export const menuItemInputSchema = z.object({
+  id: z.string(),
+  label: z.string().trim().min(1).max(200),
+  link: z.looseObject({
+    type: z.string(),
+    slug: z.string().nullable().optional(),
+    url: z.string().max(2048).nullable().optional(),
+    productId: CUID.nullable().optional(),
+    categoryId: CUID.nullable().optional(),
+    pageId: CUID.nullable().optional(),
+    policyId: CUID.nullable().optional(),
+  }),
+  parentId: z.string().nullable().optional(),
+  position: z.number().int().min(0).max(1000),
+});
+export type MenuItemInput = z.infer<typeof menuItemInputSchema>;
+
+// ===================================================================
+// SUNAT
+// ===================================================================
+
+export const sunatConfigSchema = z.object({
+  enabled: z.boolean(),
+  emissionMode: z.enum(["auto", "manual", "mixed"]),
+  apiKey: z.string().max(500).optional(),
+  apiUrl: z
+    .url("URL inválida")
+    .max(500)
+    .refine((u) => u.startsWith("https://"), "Debe ser HTTPS"),
+  ruc: z
+    .string()
+    .regex(/^\d{11}$/, "El RUC debe tener exactamente 11 dígitos"),
+  razonSocial: z.string().trim().min(1).max(200),
+  address: z.string().trim().min(1).max(500),
+  boletaSeries: z
+    .string()
+    .trim()
+    .regex(/^[A-Z0-9]{1,4}$/, "Series inválido (máx 4 alfanuméricos)"),
+  facturaSeries: z
+    .string()
+    .trim()
+    .regex(/^[A-Z0-9]{1,4}$/, "Series inválido (máx 4 alfanuméricos)"),
+  pricesIncludeIgv: z.boolean(),
+});
+export type SunatConfigInput = z.infer<typeof sunatConfigSchema>;
+
+export const cancelDocumentSchema = z.object({
+  documentId: CUID,
+  reason: z.string().trim().min(3).max(500),
+});
+export type CancelDocumentInput = z.infer<typeof cancelDocumentSchema>;

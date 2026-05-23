@@ -9,6 +9,16 @@ import { sendComprobanteEmail } from "@/lib/email";
 import type { DocumentType, Prisma } from "@prisma/client";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
+import { z } from "zod";
+import {
+  cancelDocumentSchema,
+  sunatConfigSchema,
+} from "@/lib/validations/admin";
+import { logAudit } from "@/lib/audit-log";
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ");
+}
 
 // ── Emitir comprobante manualmente desde admin ──────────────────
 export async function emitDocumentAction(orderId: string) {
@@ -85,15 +95,28 @@ export async function resendComprobanteEmailAction(orderId: string) {
 
 // ── Anular comprobante ──────────────────────────────────────────
 export async function cancelDocumentAction(documentId: string, reason: string) {
-  await protectRoute("orders:update");
+  const userId = await protectRoute("orders:update");
+
+  const parsed = cancelDocumentSchema.safeParse({ documentId, reason });
+  if (!parsed.success) {
+    return { success: false, error: flattenZodError(parsed.error) };
+  }
 
   const config = await getSunatConfig();
   if (!config) return { success: false, error: "Facturación electrónica no configurada" };
 
   const provider = getSunatProvider();
-  await provider.cancelDocument(documentId, reason, config);
+  await provider.cancelDocument(parsed.data.documentId, parsed.data.reason, config);
 
   revalidatePath("/admin/facturacion");
+
+  await logAudit({
+    action: "sunat.document_cancelled",
+    userId,
+    entityType: "ElectronicDocument",
+    entityId: parsed.data.documentId,
+    metadata: { reason: parsed.data.reason },
+  });
 
   return { success: true };
 }
@@ -111,19 +134,25 @@ export async function saveSunatConfigAction(data: {
   facturaSeries: string;
   pricesIncludeIgv: boolean;
 }) {
-  await protectRoute("settings:edit");
+  const userId = await protectRoute("settings:edit");
+
+  const parsed = sunatConfigSchema.safeParse(data);
+  if (!parsed.success) {
+    return { success: false, error: flattenZodError(parsed.error) };
+  }
+  const input = parsed.data;
 
   const entries: Array<[string, Prisma.InputJsonValue]> = [
-    ["sunat_enabled", data.enabled],
-    ["sunat_emission_mode", data.emissionMode],
-    ["sunat_api_url", data.apiUrl],
-    ...(data.apiKey ? [["sunat_api_key", encrypt(data.apiKey)] as [string, Prisma.InputJsonValue]] : []),
-    ["sunat_ruc", data.ruc],
-    ["sunat_razon_social", data.razonSocial],
-    ["sunat_address", data.address],
-    ["sunat_boleta_series", data.boletaSeries],
-    ["sunat_factura_series", data.facturaSeries],
-    ["sunat_prices_include_igv", data.pricesIncludeIgv],
+    ["sunat_enabled", input.enabled],
+    ["sunat_emission_mode", input.emissionMode],
+    ["sunat_api_url", input.apiUrl],
+    ...(input.apiKey ? [["sunat_api_key", encrypt(input.apiKey)] as [string, Prisma.InputJsonValue]] : []),
+    ["sunat_ruc", input.ruc],
+    ["sunat_razon_social", input.razonSocial],
+    ["sunat_address", input.address],
+    ["sunat_boleta_series", input.boletaSeries],
+    ["sunat_factura_series", input.facturaSeries],
+    ["sunat_prices_include_igv", input.pricesIncludeIgv],
   ];
 
   await Promise.all(
@@ -137,6 +166,20 @@ export async function saveSunatConfigAction(data: {
   );
 
   revalidatePath("/admin/configuracion/sunat");
+
+  await logAudit({
+    action: "sunat.config_updated",
+    userId,
+    entityType: "Setting",
+    metadata: {
+      enabled: input.enabled,
+      emissionMode: input.emissionMode,
+      ruc: input.ruc,
+      apiUrl: input.apiUrl,
+      apiKeyRotated: Boolean(input.apiKey),
+    },
+  });
+
   return { success: true };
 }
 

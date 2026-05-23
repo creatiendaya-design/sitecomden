@@ -7,6 +7,17 @@ import { FormField, ComplaintsConfig } from "@/types/complaints";
 import { prismaFieldToFormField } from "@/lib/complaints-helpers";
 import { escapeHtml } from "@/lib/sanitize";
 import { protectRoute } from "@/lib/protect-route";
+import { z } from "zod";
+import {
+  complaintFormFieldSchema,
+  submitComplaintSchema,
+  updateComplaintFormFieldSchema,
+} from "@/lib/validations/admin";
+import { logAudit } from "@/lib/audit-log";
+
+function flattenZodError(err: z.ZodError): string {
+  return err.issues.map((i) => i.message).join("; ");
+}
 
 // ==========================================
 // TIPOS DE RETORNO
@@ -83,7 +94,14 @@ export async function createFormField(data: {
   pattern?: string;
 }) {
   try {
-    await protectRoute("complaints:configure");
+    const userId = await protectRoute("complaints:configure");
+
+    const parsed = complaintFormFieldSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
+    }
+    const input = parsed.data;
+
     // Obtener el último order
     const lastField = await prisma.complaintFormField.findFirst({
       orderBy: { order: "desc" },
@@ -94,25 +112,33 @@ export async function createFormField(data: {
 
     const field = await prisma.complaintFormField.create({
       data: {
-        label: data.label,
-        fieldType: data.fieldType,
-        section: data.section,
-        width: data.width || "full",
-        placeholder: data.placeholder,
-        helpText: data.helpText,
-        required: data.required,
+        label: input.label,
+        fieldType: input.fieldType,
+        section: input.section,
+        width: input.width || "full",
+        placeholder: input.placeholder,
+        helpText: input.helpText,
+        required: input.required,
         // ✅ Conversión explícita: array con elementos o undefined
-        options: data.options && data.options.length > 0 ? data.options : undefined,
-        otherLabel: data.otherLabel,
-        minLength: data.minLength,
-        maxLength: data.maxLength,
-        pattern: data.pattern,
+        options: input.options && input.options.length > 0 ? input.options : undefined,
+        otherLabel: input.otherLabel,
+        minLength: input.minLength,
+        maxLength: input.maxLength,
+        pattern: input.pattern,
         order: nextOrder,
         active: true,
       },
     });
 
     revalidatePath("/admin/libro-reclamaciones");
+
+    await logAudit({
+      action: "complaint.form_field_created",
+      userId,
+      entityType: "ComplaintFormField",
+      entityId: field.id,
+      after: { label: field.label, fieldType: field.fieldType },
+    });
 
     return {
       success: true,
@@ -143,22 +169,30 @@ export async function updateFormField(
   }
 ) {
   try {
-    await protectRoute("complaints:configure");
-    const updateData: any = {};
-    
-    if (data.label !== undefined) updateData.label = data.label;
-    if (data.fieldType !== undefined) updateData.fieldType = data.fieldType;
-    if (data.placeholder !== undefined) updateData.placeholder = data.placeholder;
-    if (data.helpText !== undefined) updateData.helpText = data.helpText;
-    if (data.required !== undefined) updateData.required = data.required;
-    if (data.minLength !== undefined) updateData.minLength = data.minLength;
-    if (data.maxLength !== undefined) updateData.maxLength = data.maxLength;
-    if (data.pattern !== undefined) updateData.pattern = data.pattern;
-    if (data.active !== undefined) updateData.active = data.active;
-    
+    const userId = await protectRoute("complaints:configure");
+
+    const parsed = updateComplaintFormFieldSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
+    }
+    const input = parsed.data;
+
+    const updateData: Record<string, unknown> = {};
+
+    if (input.label !== undefined) updateData.label = input.label;
+    if (input.fieldType !== undefined) updateData.fieldType = input.fieldType;
+    if (input.placeholder !== undefined) updateData.placeholder = input.placeholder;
+    if (input.helpText !== undefined) updateData.helpText = input.helpText;
+    if (input.required !== undefined) updateData.required = input.required;
+    if (input.minLength !== undefined) updateData.minLength = input.minLength;
+    if (input.maxLength !== undefined) updateData.maxLength = input.maxLength;
+    if (input.pattern !== undefined) updateData.pattern = input.pattern;
+    if (input.active !== undefined) updateData.active = input.active;
+
     // ✅ Manejo especial para options
-    if (data.options !== undefined) {
-      updateData.options = data.options && data.options.length > 0 ? data.options : undefined;
+    if (input.options !== undefined) {
+      updateData.options =
+        input.options && input.options.length > 0 ? input.options : undefined;
     }
 
     const field = await prisma.complaintFormField.update({
@@ -167,6 +201,14 @@ export async function updateFormField(
     });
 
     revalidatePath("/admin/libro-reclamaciones");
+
+    await logAudit({
+      action: "complaint.form_field_updated",
+      userId,
+      entityType: "ComplaintFormField",
+      entityId: id,
+      after: updateData,
+    });
 
     return {
       success: true,
@@ -239,15 +281,29 @@ export async function submitComplaint(data: {
   userAgent?: string;
 }) {
   try {
+    // Public endpoint — validate everything strictly.
+    const parsed = submitComplaintSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
+    }
+    const input = parsed.data;
+    const formData = input.formData as Record<string, unknown>;
+
     // Extraer datos principales
-    const customerEmail = data.formData.email || data.formData.correo || null;
+    const pickString = (k: string): string | null => {
+      const v = formData[k];
+      return typeof v === "string" ? v : null;
+    };
+    const customerEmail =
+      pickString("email") ?? pickString("correo");
     const customerName =
-      data.formData.nombre ||
-      data.formData.name ||
-      data.formData["nombre completo"] ||
-      null;
+      pickString("nombre") ??
+      pickString("name") ??
+      pickString("nombre completo");
     const customerPhone =
-      data.formData.telefono || data.formData.phone || data.formData.celular || null;
+      pickString("telefono") ??
+      pickString("phone") ??
+      pickString("celular");
 
     // Obtener configuración
     const config = await prisma.setting.findUnique({
@@ -282,12 +338,14 @@ export async function submitComplaint(data: {
     const complaint = await prisma.complaint.create({
       data: {
         complaintNumber,
-        formData: data.formData,
+        // Zod typed it as Record<string, unknown>; Prisma's InputJsonValue
+        // accepts arbitrary JSON-serializable values, but TS can't narrow.
+        formData: input.formData as object,
         customerEmail,
         customerName,
         customerPhone,
-        ipAddress: data.ipAddress,
-        userAgent: data.userAgent,
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
         status: "PENDING",
       },
     });
