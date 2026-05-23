@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { rejectPaymentSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
+import { logAudit } from "@/lib/audit-log";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
@@ -142,6 +143,21 @@ export async function POST(request: Request) {
       amount: pendingPayment.amount,
       method: pendingPayment.method,
       reason: reason || "No especificado",
+    });
+
+    await logAudit({
+      action: "payment.rejected",
+      userId: user.id,
+      userEmail: user.email,
+      entityType: "PendingPayment",
+      entityId: paymentId,
+      metadata: {
+        orderId,
+        orderNumber: order.orderNumber,
+        amount: Number(pendingPayment.amount),
+        method: pendingPayment.method,
+        reason: reason ?? null,
+      },
     });
 
     return NextResponse.json({ success: true });

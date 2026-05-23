@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { invalidateProduct } from "@/lib/cache/invalidate";
+import { logAudit } from "@/lib/audit-log";
 
 export async function DELETE(request: Request) {
   const { user, response: authResponse } = await requirePermission("products:delete");
@@ -29,7 +31,23 @@ export async function DELETE(request: Request) {
     await prisma.product.deleteMany({ where: { id: { in: foundIds } } });
 
     revalidatePath("/admin/productos");
-    products.forEach((p) => revalidatePath(`/productos/${p.slug}`));
+    products.forEach((p) => {
+      revalidatePath(`/productos/${p.slug}`);
+      invalidateProduct(p.slug);
+    });
+
+    await logAudit({
+      action: "product.bulk_deleted",
+      userId: user.id,
+      userEmail: user.email,
+      entityType: "Product",
+      metadata: {
+        deletedCount: foundIds.length,
+        requestedCount: ids.length,
+        productIds: foundIds,
+        productSlugs: products.map((p) => p.slug),
+      },
+    });
 
     return NextResponse.json({ success: true, deleted: foundIds.length });
   } catch (error) {

@@ -1520,3 +1520,26 @@ model SizeGuide {
 
   @@index([active])
 }
+
+/// Append-only audit trail of admin actions. Inserted via lib/audit-log.ts.
+/// `userId` is intentionally a plain String (not a relation) so deleting a
+/// user never cascades or blocks deletion of historical audit rows.
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  userEmail  String?
+  action     String
+  entityType String?
+  entityId   String?
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?  @db.Text
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

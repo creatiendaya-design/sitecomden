@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { invalidateProduct } from "@/lib/cache/invalidate";
 import { prisma } from "@/lib/db";
+import { logAudit } from "@/lib/audit-log";
 
 export async function DELETE(
   request: Request,
@@ -72,6 +74,24 @@ export async function DELETE(
     revalidatePath("/admin/productos");
     revalidatePath(`/admin/productos/${productId}`);
     revalidatePath(`/productos/${product.slug}`);
+    invalidateProduct(product.slug);
+
+    await logAudit({
+      action: "product.deleted",
+      userId: user.id,
+      userEmail: user.email,
+      entityType: "Product",
+      entityId: productId,
+      before: {
+        name: product.name,
+        slug: product.slug,
+        sku: product.sku,
+      },
+      metadata: {
+        unlinkedOrderItems: product.orderItems.length,
+        variantsDeleted: variantsCount,
+      },
+    });
 
     return NextResponse.json({
       success: true,

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { withRateLimit, loginRateLimiter, getClientIp } from "@/lib/rate-limit";
 import { createAdminSession } from "@/lib/admin-session";
+import { logAudit } from "@/lib/audit-log";
 
 export async function POST(request: Request) {
   try {
@@ -31,6 +32,11 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
+      await logAudit({
+        action: "admin.login.failed",
+        userEmail: typeof email === "string" ? email : null,
+        metadata: { reason: "user_not_found" },
+      });
       return NextResponse.json(
         { error: "Credenciales inválidas" },
         { status: 401 }
@@ -41,6 +47,12 @@ export async function POST(request: Request) {
     const isValid = await bcrypt.compare(password, user.password);
 
     if (!isValid) {
+      await logAudit({
+        action: "admin.login.failed",
+        userId: user.id,
+        userEmail: user.email,
+        metadata: { reason: "bad_password" },
+      });
       return NextResponse.json(
         { error: "Credenciales inválidas" },
         { status: 401 }
@@ -66,6 +78,13 @@ export async function POST(request: Request) {
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
+    });
+
+    await logAudit({
+      action: "admin.login.success",
+      userId: user.id,
+      userEmail: user.email,
+      metadata: { roleId: user.roleId ?? null },
     });
 
     // ⭐ CAMBIO 2: Actualizar respuesta con nuevo formato

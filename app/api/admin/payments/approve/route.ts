@@ -6,6 +6,7 @@ import {
   decrementStockAtomic,
   StockUnavailableError,
 } from "@/lib/inventory/decrement-stock";
+import { logAudit } from "@/lib/audit-log";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
@@ -118,6 +119,20 @@ export async function POST(request: Request) {
       orderNumber: order.orderNumber,
       amount: pendingPayment.amount,
       method: pendingPayment.method,
+    });
+
+    await logAudit({
+      action: "payment.approved",
+      userId: user.id,
+      userEmail: user.email,
+      entityType: "PendingPayment",
+      entityId: paymentId,
+      metadata: {
+        orderId,
+        orderNumber: order.orderNumber,
+        amount: Number(pendingPayment.amount),
+        method: pendingPayment.method,
+      },
     });
 
     return NextResponse.json({ success: true });
