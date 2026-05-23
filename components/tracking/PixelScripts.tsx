@@ -1,5 +1,12 @@
 "use client";
 
+// This file embeds vendor pixel snippets (Facebook, TikTok, etc.) copied
+// verbatim from the official integration docs. They use legacy JS idioms
+// (`arguments`, `.apply()`, `var`) on purpose — "modernizing" them risks
+// breaking the pixel. Lint rules that target those idioms are disabled
+// here only.
+/* eslint-disable prefer-spread, prefer-rest-params, no-var */
+
 import { useEffect } from "react";
 import Script from "next/script";
 
@@ -95,7 +102,7 @@ function TikTokPixel({ config, testMode }: { config: any; testMode: boolean }) {
       // Inicializar TikTok Pixel
       (function (w: any, d: any, t: any) {
         w.TiktokAnalyticsObject = t;
-        var ttq = (w[t] = w[t] || []);
+        const ttq = (w[t] = w[t] || []);
         ttq.methods = [
           "page",
           "track",
@@ -116,14 +123,14 @@ function TikTokPixel({ config, testMode }: { config: any; testMode: boolean }) {
             t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
           };
         };
-        for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+        for (let i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
         ttq.instance = function (t: any) {
           for (var e = ttq._i[t] || [], n = 0; n < ttq.methods.length; n++)
             ttq.setAndDefer(e, ttq.methods[n]);
           return e;
         };
         ttq.load = function (e: any, n: any) {
-          var i = "https://analytics.tiktok.com/i18n/pixel/events.js";
+          const i = "https://analytics.tiktok.com/i18n/pixel/events.js";
           ttq._i = ttq._i || {};
           ttq._i[e] = [];
           ttq._i[e]._u = i;
@@ -131,11 +138,11 @@ function TikTokPixel({ config, testMode }: { config: any; testMode: boolean }) {
           ttq._t[e] = +new Date();
           ttq._o = ttq._o || {};
           ttq._o[e] = n || {};
-          var o = document.createElement("script");
+          const o = document.createElement("script");
           o.type = "text/javascript";
           o.async = true;
           o.src = i + "?sdkid=" + e + "&lib=" + t;
-          var a = document.getElementsByTagName("script")[0];
+          const a = document.getElementsByTagName("script")[0];
           a.parentNode!.insertBefore(o, a);
         };
 

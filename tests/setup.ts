@@ -9,8 +9,8 @@ afterEach(() => {
 
 // Mock react-konva — renders divs with data attrs reflecting key props.
 vi.mock("react-konva", () => {
-  const make = (name: string) =>
-    ({ children, ...props }: { children?: React.ReactNode; [k: string]: unknown }) => {
+  const make = (name: string) => {
+    const Mocked = ({ children, ...props }: { children?: React.ReactNode; [k: string]: unknown }) => {
       const dataProps: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(props)) {
         if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
@@ -19,6 +19,9 @@ vi.mock("react-konva", () => {
       }
       return React.createElement("div", { "data-konva": name, ...dataProps }, children);
     };
+    Mocked.displayName = `MockKonva.${name}`;
+    return Mocked;
+  };
   return {
     Stage: make("Stage"),
     Layer: make("Layer"),

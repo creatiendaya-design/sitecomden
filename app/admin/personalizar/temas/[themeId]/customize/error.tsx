@@ -25,7 +25,6 @@ export default function CustomizerError({
     // Surfaced for debugging in dev. In production, errors with digests
     // are forwarded by Next to the configured logger.
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
       console.error("Customizer error:", error)
     }
   }, [error])
