@@ -7,11 +7,14 @@ import {
   StockUnavailableError,
 } from "@/lib/inventory/decrement-stock";
 import { logAudit } from "@/lib/audit-log";
+import { getRequestLogger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
   const { user, response: authResponse } = await requirePermission("payments:verify");
   if (authResponse) return authResponse;
+
+  const log = (await getRequestLogger()).child({ route: "payments/approve" });
 
   try {
     const data = await request.json();
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
 
     const { paymentId, orderId } = validatedData;
 
-    console.log(`✅ Aprobando pago ${paymentId} para orden ${orderId} por usuario ${user.id}`);
+    log.info({ paymentId, orderId, userId: user.id }, "Approving payment");
 
     // Verificar que el pago exista y esté pendiente
     const pendingPayment = await prisma.pendingPayment.findUnique({
@@ -113,13 +116,17 @@ export async function POST(request: Request) {
       throw txError;
     }
 
-    console.log(`✅ Pago aprobado exitosamente por usuario ${user.id}:`, {
-      paymentId,
-      orderId,
-      orderNumber: order.orderNumber,
-      amount: pendingPayment.amount,
-      method: pendingPayment.method,
-    });
+    log.info(
+      {
+        paymentId,
+        orderId,
+        orderNumber: order.orderNumber,
+        amount: Number(pendingPayment.amount),
+        method: pendingPayment.method,
+        userId: user.id,
+      },
+      "Payment approved successfully",
+    );
 
     await logAudit({
       action: "payment.approved",
@@ -137,7 +144,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error al aprobar pago:", error);
+    log.error({ err: error }, "Failed to approve payment");
 
     // Manejo de errores de validación Zod
     if (error instanceof Error && error.name === "ZodError") {

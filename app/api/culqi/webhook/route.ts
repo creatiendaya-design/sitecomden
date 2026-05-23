@@ -13,6 +13,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCulqiCharge } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
+
+const log = logger.child({ module: "culqi-webhook" });
 
 // Deshabilitar body parsing para poder leer el raw body
 export const runtime = "nodejs";
@@ -74,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
-    console.error("❌ Error processing Culqi webhook:", error);
+    log.error({ err: error }, "Culqi webhook processing failed");
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }
@@ -95,7 +98,7 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
   // Culqi no firma webhooks, así que esta llamada de vuelta es la única prueba confiable.
   const isValid = await verifyCulqiCharge(data.id, data.amount, data.currency_code);
   if (!isValid) {
-    console.error(`❌ Charge ${data.id} failed verification against Culqi API`);
+    log.error({ chargeId: data.id }, "Charge failed verification against Culqi API");
     return;
   }
 
@@ -170,7 +173,7 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
   revalidatePath("/admin/ordenes");
   revalidatePath(`/orden/${orderId}/confirmacion`);
 
-  console.log(`✅ Order ${order.orderNumber} updated via webhook`);
+  log.info({ orderNumber: order.orderNumber, orderId: order.id }, "Order updated via webhook");
 }
 
 /**
@@ -181,11 +184,11 @@ async function handleChargeFailed(event: CulqiWebhookEvent) {
   const orderId = data.metadata?.order_id;
 
   if (!orderId) {
-    console.warn("⚠️ Charge failed but no order_id in metadata");
+    log.warn("Charge failed webhook received without order_id metadata");
     return;
   }
 
-  console.log(`❌ Charge failed for order ${orderId}`);
+  log.info({ orderId }, "Charge failed for order");
 
   // Actualizar orden como fallida
   await prisma.order.update({
@@ -211,7 +214,7 @@ async function handleRefundSucceeded(event: CulqiWebhookEvent) {
   const { data } = event;
   const chargeId = data.id;
 
-  console.log(`💰 Refund succeeded for charge ${chargeId}`);
+  log.info({ chargeId }, "Refund succeeded for charge");
 
   // Buscar orden por chargeId
   const order = await prisma.order.findFirst({
@@ -219,7 +222,7 @@ async function handleRefundSucceeded(event: CulqiWebhookEvent) {
   });
 
   if (!order) {
-    console.error(`❌ Order with chargeId ${chargeId} not found`);
+    log.error({ chargeId }, "Order with given chargeId not found on refund");
     return;
   }
 
@@ -234,7 +237,7 @@ async function handleRefundSucceeded(event: CulqiWebhookEvent) {
 
   revalidatePath("/admin/ordenes");
 
-  console.log(`✅ Order ${order.orderNumber} refunded via webhook`);
+  log.info({ orderNumber: order.orderNumber, orderId: order.id }, "Order refunded via webhook");
 }
 
 // GET no permitido

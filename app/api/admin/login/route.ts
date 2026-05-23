@@ -5,6 +5,9 @@ import bcrypt from "bcryptjs";
 import { withRateLimit, loginRateLimiter, getClientIp } from "@/lib/rate-limit";
 import { createAdminSession } from "@/lib/admin-session";
 import { logAudit } from "@/lib/audit-log";
+import { logger } from "@/lib/logger";
+
+const log = logger.child({ module: "admin-login" });
 
 export async function POST(request: Request) {
   try {
@@ -105,7 +108,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error en login:", error);
+    log.error({ err: error }, "Admin login failed");
     return NextResponse.json(
       { error: "Error del servidor" },
       { status: 500 }

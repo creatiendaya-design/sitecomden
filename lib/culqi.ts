@@ -4,7 +4,9 @@
  */
 
 import { getActiveCulqiKeys } from "@/actions/culqi-settings";
+import { logger } from "@/lib/logger";
 
+const log = logger.child({ module: "culqi" });
 const CULQI_API_URL = "https://api.culqi.com/v2";
 
 interface CulqiChargeData {
@@ -94,15 +96,15 @@ interface CulqiError {
 export async function getCulqiPublicKey(): Promise<string | null> {
   try {
     const keys = await getActiveCulqiKeys();
-    
+
     if (!keys || !keys.publicKey) {
-      console.error("❌ No se encontraron claves de Culqi configuradas");
+      log.error("Culqi public key not configured");
       return null;
     }
-    
+
     return keys.publicKey;
   } catch (error) {
-    console.error("❌ Error obteniendo clave pública de Culqi:", error);
+    log.error({ err: error }, "Failed to load Culqi public key");
     return null;
   }
 }
@@ -116,9 +118,9 @@ export async function createCulqiCharge(
   try {
     // Obtener la clave secreta activa
     const keys = await getActiveCulqiKeys();
-    
+
     if (!keys || !keys.secretKey) {
-      console.error("❌ Culqi no está configurado correctamente");
+      log.error("Culqi secret key not configured");
       return {
         success: false,
         error: "El sistema de pagos no está configurado. Contacta al administrador.",
@@ -128,7 +130,7 @@ export async function createCulqiCharge(
     const CULQI_SECRET_KEY = keys.secretKey;
     const mode = keys.mode;
 
-    console.log(`🔧 Procesando pago con Culqi en modo: ${mode}`);
+    log.info({ mode, amount: data.amount, currency: data.currency_code }, "Culqi charge request");
 
     const response = await fetch(`${CULQI_API_URL}/charges`, {
       method: "POST",
@@ -144,8 +146,8 @@ export async function createCulqiCharge(
     // Si la respuesta no es OK, es un error
     if (!response.ok) {
       const error = result as CulqiError;
-      console.error("❌ Culqi charge error:", error);
-      
+      log.error({ culqiError: error, mode }, "Culqi charge rejected");
+
       return {
         success: false,
         error: error.user_message || error.merchant_message || "Error al procesar el pago",
@@ -153,25 +155,28 @@ export async function createCulqiCharge(
     }
 
     const charge = result as CulqiChargeResponse;
-    
+
     // Verificar que el cargo fue exitoso
     if (charge.outcome?.type !== "venta_exitosa") {
-      console.error("❌ Culqi charge failed:", charge.outcome);
-      
+      log.error(
+        { outcome: charge.outcome, chargeId: charge.id, mode },
+        "Culqi charge unsuccessful outcome",
+      );
+
       return {
         success: false,
         error: charge.outcome?.user_message || "El pago no pudo ser procesado",
       };
     }
 
-    console.log(`✅ Culqi charge successful (${mode}):`, charge.id);
+    log.info({ chargeId: charge.id, mode, amount: charge.amount }, "Culqi charge successful");
 
     return {
       success: true,
       data: charge,
     };
   } catch (error) {
-    console.error("❌ Culqi API error:", error);
+    log.error({ err: error }, "Culqi API request failed");
     return {
       success: false,
       error: "Error de conexión con el procesador de pagos",
@@ -203,7 +208,7 @@ export async function getCulqiCharge(chargeId: string) {
 
     return await response.json();
   } catch (error) {
-    console.error("Error getting Culqi charge:", error);
+    log.error({ err: error, chargeId }, "Failed to fetch Culqi charge");
     throw error;
   }
 }

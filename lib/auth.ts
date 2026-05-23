@@ -26,7 +26,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "./db";
 import { SUPER_ADMIN_LEVEL } from "./constants";
 import { getAdminSession } from "./admin-session";
+import { logger } from "./logger";
 import type { User, Role } from "@prisma/client";
+
+const log = logger.child({ module: "auth" });
 
 // ===================================================================
 // TIPOS
@@ -74,7 +77,7 @@ export async function getCurrentUser(): Promise<UserWithRole> {
       throw error;
     }
 
-    console.error("Error getting current user:", error);
+    log.error({ err: error }, "Failed to load current user");
     redirect("/admin-auth/login");
   }
 }
@@ -105,7 +108,7 @@ async function _getCurrentUserOrNull(): Promise<UserWithRole | null> {
     if (!user || !user.role) return null;
     return user as UserWithRole;
   } catch (error) {
-    console.error("Error getting current user:", error);
+    log.error({ err: error }, "Failed to resolve current user (non-redirect)");
     return null;
   }
 }
@@ -264,7 +267,7 @@ export async function requirePermission(permissionSlug: string): Promise<AuthRes
     return { user, response: null };
 
   } catch (error) {
-    console.error("Error verificando permiso:", error);
+    log.error({ err: error }, "Permission check failed");
     return {
       user: null,
       response: NextResponse.json(

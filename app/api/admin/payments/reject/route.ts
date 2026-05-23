@@ -3,11 +3,14 @@ import { requirePermission } from "@/lib/auth";
 import { rejectPaymentSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit-log";
+import { getRequestLogger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
   const { user, response: authResponse } = await requirePermission("payments:verify");
   if (authResponse) return authResponse;
+
+  const log = (await getRequestLogger()).child({ route: "payments/reject" });
 
   try {
     const data = await request.json();
@@ -17,7 +20,7 @@ export async function POST(request: Request) {
 
     const { paymentId, orderId, reason } = validatedData;
 
-    console.log(`❌ Rechazando pago ${paymentId} para orden ${orderId} por usuario ${user.id}`);
+    log.info({ paymentId, orderId, userId: user.id }, "Rejecting payment");
 
     // Verificar que el pago exista y esté pendiente
     const pendingPayment = await prisma.pendingPayment.findUnique({
@@ -96,10 +99,14 @@ export async function POST(request: Request) {
               },
             });
 
-            console.log(`  ↩️ Stock restaurado - Variante ${item.variantId}: +${item.quantity}`);
+            log.debug(
+              { variantId: item.variantId, restored: item.quantity },
+              "Variant stock restored",
+            );
           } catch (error) {
-            console.log(
-              `  ⚠️ Variante ${item.variantId} fue eliminada - No se restaura stock`
+            log.warn(
+              { variantId: item.variantId, err: error },
+              "Variant deleted — stock not restored",
             );
           }
         } else if (item.productId) {
@@ -121,29 +128,37 @@ export async function POST(request: Request) {
               },
             });
 
-            console.log(`  ↩️ Stock restaurado - Producto ${item.productId}: +${item.quantity}`);
+            log.debug(
+              { productId: item.productId, restored: item.quantity },
+              "Product stock restored",
+            );
           } catch (error) {
-            console.log(
-              `  ⚠️ Producto ${item.productId} fue eliminado - No se restaura stock`
+            log.warn(
+              { productId: item.productId, err: error },
+              "Product deleted — stock not restored",
             );
           }
         } else {
-          // Producto fue eliminado, no hay stock que restaurar
-          console.log(
-            `  ⚠️ Item sin producto: ${item.name} - Producto fue eliminado, no se restaura stock`
+          log.warn(
+            { itemName: item.name },
+            "Order item has no product/variant reference — stock not restored",
           );
         }
       }
     });
 
-    console.log(`✅ Pago rechazado exitosamente por usuario ${user.id}:`, {
-      paymentId,
-      orderId,
-      orderNumber: order.orderNumber,
-      amount: pendingPayment.amount,
-      method: pendingPayment.method,
-      reason: reason || "No especificado",
-    });
+    log.info(
+      {
+        paymentId,
+        orderId,
+        orderNumber: order.orderNumber,
+        amount: Number(pendingPayment.amount),
+        method: pendingPayment.method,
+        reason: reason ?? null,
+        userId: user.id,
+      },
+      "Payment rejected successfully",
+    );
 
     await logAudit({
       action: "payment.rejected",
@@ -162,7 +177,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error al rechazar pago:", error);
+    log.error({ err: error }, "Failed to reject payment");
 
     // Manejo de errores de validación Zod
     if (error instanceof Error && error.name === "ZodError") {

@@ -17,6 +17,9 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import type { Duration } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { logger } from "@/lib/logger";
+
+const log = logger.child({ module: "rate-limit" });
 
 // ===================================================================
 // CONFIGURACIÓN DE REDIS
@@ -27,9 +30,7 @@ const hasUpstashConfig = Boolean(
 );
 
 if (!hasUpstashConfig && process.env.NODE_ENV !== "production") {
-  console.warn(
-    "ℹ️ UPSTASH_REDIS env vars not set — rate limiting disabled (dev mode fallback)."
-  );
+  log.warn("UPSTASH_REDIS env vars not set — rate limiting disabled (dev mode fallback)");
 }
 
 const redis = new Redis({
@@ -238,20 +239,26 @@ export async function checkRateLimit(
   try {
     result = await limiter.limit(identifier);
   } catch (err) {
-    console.warn("⚠️ Rate limiter unavailable (Redis unreachable), allowing request:", err instanceof Error ? err.message : err);
+    log.warn(
+      { err: err instanceof Error ? err.message : err },
+      "Rate limiter unavailable (Redis unreachable), allowing request",
+    );
     return { success: true, remaining: 0, reset: Date.now(), limit: 0 };
   }
 
   // Si se excedió el límite, loguear
   if (!result.success && context) {
-    console.warn("🚫 Rate limit exceeded:", {
-      identifier,
-      action: context.action || "unknown",
-      userId: context.userId,
-      remaining: result.remaining,
-      reset: new Date(result.reset),
-      ...context.details,
-    });
+    log.warn(
+      {
+        identifier,
+        action: context.action || "unknown",
+        userId: context.userId,
+        remaining: result.remaining,
+        reset: new Date(result.reset).toISOString(),
+        ...context.details,
+      },
+      "Rate limit exceeded",
+    );
 
     // TODO: Agregar a base de datos para análisis
     // await logSecurityEvent({
@@ -346,7 +353,7 @@ export async function resetRateLimit(
 ): Promise<void> {
   const key = `ratelimit:${prefix}:${identifier}`;
   await redis.del(key);
-  console.log(`🔄 Rate limit reset para: ${key}`);
+  log.info({ key }, "Rate limit reset");
 }
 
 // ===================================================================
@@ -424,7 +431,7 @@ export async function POST(request: Request) {
     );
   }
 
-  console.log(`📤 Upload permitido. Restantes: ${remaining}/20`);
+  log.debug({ remaining, limit: 20 }, "Upload allowed");
 
   // Continuar con upload...
 }

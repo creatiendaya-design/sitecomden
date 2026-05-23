@@ -19,6 +19,22 @@ import type { NextRequest } from 'next/server';
 const isProduction = process.env.NODE_ENV === 'production';
 
 const NONCE_HEADER = 'x-nonce';
+const REQUEST_ID_HEADER = 'x-request-id';
+
+/**
+ * Edge-safe request id. We don't import lib/logger here because pino
+ * pulls in worker_threads / fs, which Edge runtime can't load. Node
+ * handlers downstream read the header back to bind their logger.
+ */
+function generateRequestIdEdge(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex;
+}
 
 // ========================================
 // FUNCIONES DE SEGURIDAD
@@ -95,8 +111,15 @@ function applySecurityHeaders(
   response: NextResponse,
   nonce: string,
   allowSameOriginEmbed: boolean = false,
+  requestId?: string,
 ) {
   const headers = response.headers;
+
+  // Echo back the request id so clients (and Sentry) can correlate a UI
+  // error to a server log line.
+  if (requestId) {
+    headers.set(REQUEST_ID_HEADER, requestId);
+  }
 
   // Plan 13: SAMEORIGIN when the request is for an admin Customizer iframe
   // (presence of ?theme-preview=). DENY everywhere else — clickjacking
@@ -309,8 +332,14 @@ export default clerkMiddleware((auth, req) => {
 
   // 🔐 Generar nonce único por request y exponerlo a Server Components
   const nonce = generateNonce();
+  // Respect an upstream `x-request-id` (e.g. from a load balancer / Vercel
+  // edge tracing) if present; otherwise mint one. Downstream Node handlers
+  // bind their pino logger to this id via lib/logger.ts → getRequestLogger().
+  const requestId =
+    req.headers.get(REQUEST_ID_HEADER) ?? generateRequestIdEdge();
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(NONCE_HEADER, nonce);
+  requestHeaders.set(REQUEST_ID_HEADER, requestId);
 
   // Plan 13 — copy ?theme-preview=<id> into a request header so the theme
   // resolver can pick it up without prop-drilling searchParams. The
@@ -335,18 +364,18 @@ export default clerkMiddleware((auth, req) => {
   // ✅ 3. Manejar rutas admin (tu lógica original)
   const adminResult = handleAdminRoutes(req, requestHeaders);
   if (adminResult) {
-    return applySecurityHeaders(adminResult, nonce, allowSameOriginEmbed);
+    return applySecurityHeaders(adminResult, nonce, allowSameOriginEmbed, requestId);
   }
 
   // ✅ 4. Rutas públicas de shop (tu lógica original)
   if (isPublicRoute(req)) {
     const response = NextResponse.next({ request: { headers: requestHeaders } });
-    return applySecurityHeaders(response, nonce, allowSameOriginEmbed);
+    return applySecurityHeaders(response, nonce, allowSameOriginEmbed, requestId);
   }
 
   // ✅ 5. Otras rutas (como /cuenta)
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  return applySecurityHeaders(response, nonce, allowSameOriginEmbed);
+  return applySecurityHeaders(response, nonce, allowSameOriginEmbed, requestId);
 });
 
 export const config = {
