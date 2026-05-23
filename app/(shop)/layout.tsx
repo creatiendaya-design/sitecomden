@@ -9,6 +9,7 @@ import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
 import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
 import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme";
 import { getThemesHash } from "@/lib/themes/get-themes-hash";
+import { buildWebSiteSchema } from "@/lib/seo/jsonld";
 export default async function ShopLayout({
   children,
 }: {
@@ -53,6 +54,14 @@ export default async function ShopLayout({
       settings.social_tiktok,
     ].filter(Boolean),
   };
+
+  const siteUrl = settings.site_url.replace(/\/$/, "");
+  const websiteSchema = buildWebSiteSchema({
+    name: settings.site_name,
+    url: settings.site_url,
+    searchUrlTemplate: `${siteUrl}/productos?q={search_term_string}`,
+  });
+
  const { pixels } = await getActivePixels();
   return (
     <>
@@ -67,6 +76,12 @@ export default async function ShopLayout({
         type="application/ld+json"
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      {/* Structured Data del sitio (habilita el search-box en Google) */}
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
       {/* Theme scope: every storefront rule that uses var(--theme-*) lives

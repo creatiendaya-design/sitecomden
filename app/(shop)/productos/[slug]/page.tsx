@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { cache } from "react";
+import type { Metadata } from "next";
 import ProductTracking from "./tracking-client";
 import ProductStandardView from "@/components/shop/templates/ProductStandardView";
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
@@ -11,6 +13,12 @@ import type {
   SizeGuideTable,
 } from "@/lib/size-guides/types";
 import { getPublicPromotionsForProduct } from "@/lib/promotions/server";
+import { getSiteSettings } from "@/lib/site-settings";
+import { getCspNonce } from "@/lib/csp";
+import {
+  buildBreadcrumbList,
+  buildProductSchema,
+} from "@/lib/seo/jsonld";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -18,12 +26,10 @@ interface ProductDetailPageProps {
   }>;
 }
 
-export default async function ProductDetailPage({
-  params,
-}: ProductDetailPageProps) {
-  const { slug } = await params;
-
-  const product = await prisma.product.findUnique({
+// React `cache` dedupes the query between generateMetadata and the page
+// component within the same request, so we don't double-hit Postgres.
+const getProductBySlug = cache((slug: string) =>
+  prisma.product.findUnique({
     where: { slug, active: true },
     include: {
       categories: {
@@ -57,7 +63,88 @@ export default async function ProductDetailPage({
         },
       },
     },
-  });
+  }),
+);
+
+function stripHtml(input: string | null | undefined): string {
+  if (!input) return "";
+  return input.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export async function generateMetadata({
+  params,
+}: ProductDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const [product, settings] = await Promise.all([
+    getProductBySlug(slug),
+    getSiteSettings(),
+  ]);
+
+  if (!product) {
+    return {
+      title: "Producto no encontrado",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = product.metaTitle ?? product.name;
+  const rawDescription =
+    product.metaDescription ??
+    product.shortDescription ??
+    stripHtml(product.description);
+  const description =
+    rawDescription && rawDescription.length > 0
+      ? rawDescription.slice(0, 160)
+      : settings.seo_home_description;
+
+  const images = Array.isArray(product.images)
+    ? (product.images as string[])
+    : [];
+  const image = images[0] ?? settings.seo_home_og_image;
+  const url = `${settings.site_url.replace(/\/$/, "")}/productos/${product.slug}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/productos/${product.slug}` },
+    openGraph: {
+      type: "website",
+      url,
+      title,
+      description,
+      siteName: settings.site_name,
+      locale: "es_PE",
+      images: image ? [{ url: image, alt: product.name }] : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: image ? [image] : [],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
+
+export default async function ProductDetailPage({
+  params,
+}: ProductDetailPageProps) {
+  const { slug } = await params;
+
+  const [product, settings, nonce] = await Promise.all([
+    getProductBySlug(slug),
+    getSiteSettings(),
+    getCspNonce(),
+  ]);
 
   if (!product) {
     notFound();
@@ -247,10 +334,63 @@ export default async function ProductDetailPage({
     promotions,
   };
 
+  // JSON-LD structured data: Product + BreadcrumbList. Google uses these for
+  // rich snippets (price, availability, breadcrumbs) in search results.
+  const baseUrl = settings.site_url.replace(/\/$/, "");
+  const productUrl = `${baseUrl}/productos/${product.slug}`;
+  const productImages = Array.isArray(product.images)
+    ? (product.images as string[])
+    : [];
+  const primaryCategory = product.categories[0]?.category;
+  const productSchema = buildProductSchema({
+    name: product.name,
+    description:
+      product.shortDescription ??
+      (product.description
+        ? product.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 5000)
+        : product.name),
+    images: productImages,
+    sku: product.sku ?? null,
+    brand: settings.site_name,
+    category: primaryCategory?.name ?? null,
+    offer: {
+      url: productUrl,
+      price: initialPrice,
+      priceCurrency: "PEN",
+      availability: inStock ? "InStock" : "OutOfStock",
+      sku: product.sku ?? null,
+    },
+  });
+  const breadcrumbSchema = buildBreadcrumbList([
+    { name: "Inicio", url: `${baseUrl}/` },
+    { name: "Productos", url: `${baseUrl}/productos` },
+    ...(primaryCategory
+      ? [
+          {
+            name: primaryCategory.name,
+            url: `${baseUrl}/categoria/${primaryCategory.slug}`,
+          },
+        ]
+      : []),
+    { name: product.name, url: productUrl },
+  ]);
+
   return (
     <>
       {/* Tracking */}
       <ProductTracking product={trackingData} />
+
+      {/* JSON-LD structured data for search engines */}
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
 
       {/* 🎯 RENDERIZAR SEGÚN TEMPLATE */}
       {product.template === "LANDING" ? (
