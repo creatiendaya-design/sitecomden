@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb', // ✅ Agregado para subir imágenes OG
@@ -40,4 +42,25 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry — wrapper opt-in. If SENTRY_AUTH_TOKEN / SENTRY_ORG / SENTRY_PROJECT
+// are not set, source-map upload is skipped silently and the SDK still works
+// in runtime (it just won't symbolicate). DSN is read at runtime by
+// sentry.*.config.ts; without it, Sentry is a no-op.
+const sentryEnabled = Boolean(
+  process.env.SENTRY_AUTH_TOKEN &&
+    process.env.SENTRY_ORG &&
+    process.env.SENTRY_PROJECT,
+);
+
+export default sentryEnabled
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      tunnelRoute: "/monitoring",
+      disableLogger: true,
+      automaticVercelMonitors: true,
+    })
+  : nextConfig;
