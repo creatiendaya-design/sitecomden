@@ -4,8 +4,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { SUPER_ADMIN_LEVEL } from "@/lib/constants";
-
-type UserWithPermissions = Awaited<ReturnType<typeof fetchUserWithPermissions>>;
+import { checkPermission } from "@/lib/permissions-check";
 
 // Cached per-request: múltiples llamadas a hasPermission en el mismo render
 // solo disparan una query a la DB.
@@ -26,20 +25,6 @@ const fetchUserWithPermissions = cache(async (userId: string) => {
     },
   });
 });
-
-function checkPermission(user: NonNullable<UserWithPermissions>, permissionKey: string): boolean {
-  if (user.role && user.role.level >= SUPER_ADMIN_LEVEL) {
-    return true;
-  }
-
-  const custom = user.customPermissions.find(
-    (cp) => cp.permission.key === permissionKey
-  );
-  if (custom?.type === "DENY") return false;
-  if (custom?.type === "GRANT") return true;
-
-  return user.role?.permissions.some((rp) => rp.permission.key === permissionKey) ?? false;
-}
 
 export async function hasPermission(userId: string, permissionKey: string): Promise<boolean> {
   try {
