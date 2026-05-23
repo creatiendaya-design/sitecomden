@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { invalidateCategory } from "@/lib/cache/invalidate";
+import { logAudit } from "@/lib/audit-log";
 
 export async function DELETE(
   request: Request,
@@ -33,21 +35,36 @@ export async function DELETE(
       );
     }
 
-    // Eliminar categoría (las relaciones se eliminan por cascade)
-    await prisma.category.delete({
+    // Soft-delete: tombstone + deactivate. ProductCategory join rows quedan
+    // intactos pero la categoría no aparece más en el storefront porque las
+    // queries ya filtran `active: true`.
+    await prisma.category.update({
       where: { id: categoryId },
+      data: { deletedAt: new Date(), active: false },
     });
 
-    console.log(`✅ Categoría eliminada por usuario ${user.id}:`, category.name);
+    console.log(`✅ Categoría soft-eliminada por usuario ${user.id}:`, category.name);
 
     if (category._count.products > 0) {
-      console.log(`ℹ️ ${category._count.products} productos desvinculados de la categoría`);
+      console.log(`ℹ️ ${category._count.products} productos siguen vinculados (tombstone preserva el join)`);
     }
 
     // Revalidar rutas para actualizar cache
     revalidatePath("/");
     revalidatePath("/admin/categorias");
     revalidatePath(`/productos`);
+    invalidateCategory(category.slug);
+    invalidateCategory(categoryId);
+
+    await logAudit({
+      action: "category.soft_deleted",
+      userId: user.id,
+      userEmail: user.email,
+      entityType: "Category",
+      entityId: categoryId,
+      before: { name: category.name, slug: category.slug },
+      metadata: { productCount: category._count.products },
+    });
 
     return NextResponse.json({
       success: true,

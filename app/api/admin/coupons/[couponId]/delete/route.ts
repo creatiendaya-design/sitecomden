@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { logAudit } from "@/lib/audit-log";
 
 export async function DELETE(
   request: Request,
@@ -13,7 +14,7 @@ export async function DELETE(
   try {
     const { couponId } = await params;
 
-    console.log(`🗑️ Eliminando cupón ${couponId} por usuario ${user.id}`);
+    console.log(`🗑️ Soft-eliminando cupón ${couponId} por usuario ${user.id}`);
 
     const coupon = await prisma.coupon.findUnique({
       where: { id: couponId },
@@ -33,15 +34,27 @@ export async function DELETE(
 
     if (usedCount > 0) {
       console.log(
-        `⚠️ Advertencia: Eliminando cupón usado en ${usedCount} órdenes`
+        `⚠️ Cupón usado en ${usedCount} órdenes — soft-delete preserva el código`
       );
     }
 
-    await prisma.coupon.delete({
+    // Soft-delete: tombstone + deactivate. Order.couponCode lookups still resolve.
+    await prisma.coupon.update({
       where: { id: couponId },
+      data: { deletedAt: new Date(), active: false },
     });
 
-    console.log(`✅ Cupón eliminado por usuario ${user.id}:`, coupon.code);
+    console.log(`✅ Cupón soft-eliminado por usuario ${user.id}:`, coupon.code);
+
+    await logAudit({
+      action: "coupon.soft_deleted",
+      userId: user.id,
+      userEmail: user.email,
+      entityType: "Coupon",
+      entityId: couponId,
+      before: { code: coupon.code, type: coupon.type },
+      metadata: { orderUsageCount: usedCount },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

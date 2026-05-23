@@ -47,8 +47,9 @@ export default async function ProductsAdminPage({
   const page = Math.max(1, parseInt(pageParam ?? "1", 10));
   const skip = (page - 1) * PAGE_SIZE;
 
-  // Construir filtros
-  const where: any = {};
+  // Construir filtros. `deletedAt: null` oculta tombstones del soft-delete
+  // (los productos eliminados siguen en la BD para preservar histórico).
+  const where: any = { deletedAt: null };
 
   if (search) {
     where.OR = [

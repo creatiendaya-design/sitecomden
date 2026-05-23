@@ -10,6 +10,7 @@ import DeleteCouponButton from "@/components/admin/DeleteCouponButton";
 
 export default async function CouponsPage() {
   const coupons = await prisma.coupon.findMany({
+    where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
   });
 

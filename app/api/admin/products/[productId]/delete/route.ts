@@ -55,14 +55,17 @@ export async function DELETE(
       deletedByEmail: user.email,
     });
 
-    // Eliminar producto
-    // Las variantes se eliminan por onDelete: Cascade
-    // Los OrderItems se desvinculan por onDelete: SetNull
-    await prisma.product.delete({
+    // Soft-delete: marcamos `deletedAt` + `active: false`. El storefront ya
+    // filtra `active: true` en todas sus queries, así que el producto deja
+    // de ser visible sin tener que tocar cada findMany. Variantes y
+    // OrderItems quedan intactos (la cascada/SetNull solo se dispararía con
+    // un hard-delete real).
+    await prisma.product.update({
       where: { id: productId },
+      data: { deletedAt: new Date(), active: false },
     });
 
-    console.log(`✅ Producto eliminado exitosamente por usuario ${user.id}`);
+    console.log(`✅ Producto soft-eliminado exitosamente por usuario ${user.id}`);
 
     if (hasOrders) {
       console.log(
@@ -77,7 +80,7 @@ export async function DELETE(
     invalidateProduct(product.slug);
 
     await logAudit({
-      action: "product.deleted",
+      action: "product.soft_deleted",
       userId: user.id,
       userEmail: user.email,
       entityType: "Product",
@@ -88,8 +91,8 @@ export async function DELETE(
         sku: product.sku,
       },
       metadata: {
-        unlinkedOrderItems: product.orderItems.length,
-        variantsDeleted: variantsCount,
+        relatedOrderItems: product.orderItems.length,
+        variantsCount,
       },
     });
 

@@ -10,6 +10,7 @@ import DeleteCategoryButton from "@/components/admin/DeleteCategoryButton";
 
 export default async function CategoriesPage() {
   const categories = await prisma.category.findMany({
+    where: { deletedAt: null },
     include: {
       _count: {
         select: { products: true },

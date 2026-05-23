@@ -5,6 +5,7 @@ import type { Promotion, ProductPromotionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { protectRoute } from "@/lib/protect-route";
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit-log";
 import {
   createPromotionSchema,
   updatePromotionSchema,
@@ -101,6 +102,7 @@ export async function listAllPromotions(): Promise<PromotionData[]> {
   await protectRoute("products:view");
 
   const rows = await prisma.promotion.findMany({
+    where: { deletedAt: null },
     orderBy: [{ active: "desc" }, { priority: "desc" }, { createdAt: "desc" }],
     include: fullInclude,
   });
@@ -141,6 +143,7 @@ export async function listPromotionsForProduct(
 
   const rows = await prisma.promotion.findMany({
     where: {
+      deletedAt: null,
       OR: [
         { productTargets: { some: { productId } } },
         ...(categoryIds.length > 0
@@ -311,20 +314,38 @@ export async function setPromotionActive(
 export async function deletePromotion(
   promotionId: string
 ): Promise<{ success: true }> {
-  await protectRoute("products:update");
+  const userId = await protectRoute("products:update");
 
   const existing = await prisma.promotion.findUnique({
     where: { id: promotionId },
-    select: { productTargets: { select: { productId: true } } },
+    select: {
+      name: true,
+      type: true,
+      productTargets: { select: { productId: true } },
+    },
   });
   if (!existing) throw new Error("Promoción no encontrada");
 
-  await prisma.promotion.delete({ where: { id: promotionId } });
+  // Soft-delete: tombstone + deactivate. Preserva analytics histórico
+  // (totalDiscountApplied, usageCount) y los targets join rows.
+  await prisma.promotion.update({
+    where: { id: promotionId },
+    data: { deletedAt: new Date(), active: false },
+  });
 
   revalidatePath("/admin/promociones");
   for (const t of existing.productTargets) {
     revalidatePath(`/admin/productos/${t.productId}`);
   }
+
+  await logAudit({
+    action: "promotion.soft_deleted",
+    userId,
+    entityType: "Promotion",
+    entityId: promotionId,
+    before: { name: existing.name, type: existing.type },
+    metadata: { productTargetCount: existing.productTargets.length },
+  });
 
   return { success: true };
 }
@@ -373,6 +394,7 @@ export async function listPromotionsForLinking(
 
   const rows = await prisma.promotion.findMany({
     where: {
+      deletedAt: null,
       NOT: { productTargets: { some: { productId } } },
     },
     orderBy: [{ active: "desc" }, { name: "asc" }],

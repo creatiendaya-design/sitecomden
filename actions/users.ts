@@ -46,6 +46,7 @@ export async function getUsers() {
     await requirePermission(currentUserId, "users:view");
 
     const users = await prisma.user.findMany({
+      where: { deletedAt: null },
       include: {
         role: true,
         customPermissions: {
@@ -365,14 +366,20 @@ export async function deleteUser(userId: string) {
       }
     }
 
-    await prisma.user.delete({
+    // Soft-delete: tombstone + deactivate. AuditLog references this userId
+    // (via plain string column, no FK) so historical entries stay readable.
+    // Active admin sessions are revoked separately so the user is logged out
+    // immediately.
+    await prisma.user.update({
       where: { id: userId },
+      data: { deletedAt: new Date(), active: false },
     });
+    await revokeAllAdminSessionsForUser(userId);
 
     revalidatePath("/admin/configuracion/usuarios");
 
     await logAudit({
-      action: "user.deleted",
+      action: "user.soft_deleted",
       userId: currentUserId ?? null,
       entityType: "User",
       entityId: userId,

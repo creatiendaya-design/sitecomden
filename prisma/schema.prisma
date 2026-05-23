@@ -39,11 +39,14 @@ model Category {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  /// Soft-delete tombstone. See Product.deletedAt for rationale.
+  deletedAt DateTime?
 
   @@index([slug])
   @@index([active])
   @@index([parentId])
   @@index([collectionType])
+  @@index([deletedAt])
 }
 
 /// Optional landing blocks rendered above the product grid on a category
@@ -134,6 +137,10 @@ model Product {
   promotionTargets    PromotionProduct[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  /// Soft-delete tombstone. Null = live row. Non-null = the admin removed
+  /// the product but its history (OrderItem snapshots, audit trail) must
+  /// remain intact. Storefront queries must filter `deletedAt: null`.
+  deletedAt          DateTime?
 
   @@index([slug])
   @@index([active])
@@ -142,6 +149,7 @@ model Product {
   @@index([customizableTemplateId])
   @@index([sizeGuideId])
   @@index([codFormTemplateId])
+  @@index([deletedAt])
 }
 
 model LandingBlock {
@@ -487,9 +495,13 @@ model Coupon {
   active            Boolean    @default(true)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
+  /// Soft-delete tombstone. Coupons can be referenced from past Orders via
+  /// snapshot fields; tombstoning preserves that lookup chain.
+  deletedAt         DateTime?
 
   @@index([code])
   @@index([active])
+  @@index([deletedAt])
 }
 
 enum CouponType {
@@ -516,9 +528,13 @@ model Promotion {
   categoryTargets       PromotionCategory[]
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
+  /// Soft-delete tombstone. Preserves analytics on
+  /// `totalDiscountApplied` and `usageCount` after retirement.
+  deletedAt             DateTime?
 
   @@index([active])
   @@index([type])
+  @@index([deletedAt])
 }
 
 model PromotionProduct {
@@ -724,10 +740,16 @@ model User {
   lastLogin         DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
+  /// Soft-delete tombstone. AuditLog references userId as a plain string
+  /// (no FK) so we *could* hard-delete here, but keeping a tombstone lets
+  /// us still resolve "who did this?" lookups in the admin UI.
+  /// Login/permission checks must filter `deletedAt: null`.
+  deletedAt         DateTime?
 
   @@index([email])
   @@index([active])
   @@index([roleId])
+  @@index([deletedAt])
 }
 
 // Server-side admin sessions. The cookie carries an opaque random token

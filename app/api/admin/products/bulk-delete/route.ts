@@ -28,7 +28,11 @@ export async function DELETE(request: Request) {
 
     const foundIds = products.map((p) => p.id);
 
-    await prisma.product.deleteMany({ where: { id: { in: foundIds } } });
+    // Soft-delete: tombstone + deactivate. See single-delete route for rationale.
+    await prisma.product.updateMany({
+      where: { id: { in: foundIds } },
+      data: { deletedAt: new Date(), active: false },
+    });
 
     revalidatePath("/admin/productos");
     products.forEach((p) => {
@@ -37,7 +41,7 @@ export async function DELETE(request: Request) {
     });
 
     await logAudit({
-      action: "product.bulk_deleted",
+      action: "product.bulk_soft_deleted",
       userId: user.id,
       userEmail: user.email,
       entityType: "Product",

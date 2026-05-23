@@ -24,8 +24,9 @@ export async function POST(request: Request) {
     }
 
     // ⭐ CAMBIO 1: Incluir relación role
-    const user = await prisma.user.findUnique({
-      where: { email, active: true },
+    // Soft-delete: tombstoned users (deletedAt != null) tampoco pueden loguearse.
+    const user = await prisma.user.findFirst({
+      where: { email, active: true, deletedAt: null },
       include: {
         role: true, // ⭐ AGREGAR ESTO
       },
