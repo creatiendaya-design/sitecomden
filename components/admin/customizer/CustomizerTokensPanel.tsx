@@ -134,6 +134,26 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
 // Schemes index (grid of cards + typography link)
 // ============================================================
 
+/**
+ * Returns the next sequential number for an auto-generated scheme name.
+ * Parses existing names matching "Esquema N" (case-insensitive, trim-tolerant)
+ * and returns max(N) + 1, so deleting an intermediate scheme never produces
+ * a duplicate name. Falls back to schemes.length + 1 when no numbered names
+ * exist yet.
+ */
+function getNextSchemeNumber(schemes: ReadonlyArray<ColorScheme>): number {
+  const pattern = /^esquema\s+(\d+)$/i
+  let max = 0
+  for (const s of schemes) {
+    const match = s.name?.trim().match(pattern)
+    if (match) {
+      const n = parseInt(match[1], 10)
+      if (Number.isFinite(n) && n > max) max = n
+    }
+  }
+  return max > 0 ? max + 1 : schemes.length + 1
+}
+
 interface SchemesIndexProps {
   theme: ThemeRow
   onPickScheme: (schemeId: string) => void
@@ -157,12 +177,13 @@ function SchemesIndex({
     if (pending) return
     startTransition(async () => {
       try {
-        const id = generateSchemeId(`scheme ${schemes.length + 1}`, schemes)
+        const nextNumber = getNextSchemeNumber(schemes)
+        const id = generateSchemeId(`scheme ${nextNumber}`, schemes)
         const next: ColorSchemeArray = [
           ...schemes,
           {
             id,
-            name: `Esquema ${schemes.length + 1}`,
+            name: `Esquema ${nextNumber}`,
             colors: { ...DEFAULT_THEME_TOKENS.colors },
           },
         ]
@@ -418,6 +439,30 @@ function SchemeEditor({ theme, schemeId, onBack, onSaved }: SchemeEditorProps) {
               label="Borde"
               value={colors.border}
               onChange={(v) => setColors((p) => ({ ...p, border: v }))}
+              disabled={pending}
+            />
+            <ColorField
+              label="Fondo drawer / modal"
+              value={colors.drawerBg}
+              onChange={(v) => setColors((p) => ({ ...p, drawerBg: v }))}
+              disabled={pending}
+            />
+            <ColorField
+              label="Texto drawer / modal"
+              value={colors.drawerText}
+              onChange={(v) => setColors((p) => ({ ...p, drawerText: v }))}
+              disabled={pending}
+            />
+            <ColorField
+              label="Fondo card"
+              value={colors.cardBg}
+              onChange={(v) => setColors((p) => ({ ...p, cardBg: v }))}
+              disabled={pending}
+            />
+            <ColorField
+              label="Texto card"
+              value={colors.cardText}
+              onChange={(v) => setColors((p) => ({ ...p, cardText: v }))}
               disabled={pending}
             />
           </div>

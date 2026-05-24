@@ -78,6 +78,9 @@ export interface ImageFieldDef extends BaseFieldDef {
 export interface SelectFieldDef extends BaseFieldDef {
   type: "select"
   options: Array<{ value: string | number; label: string }>
+  /** If true, value stored as DeviceValue<string|number> — desktop/mobile
+   *  split with the same UX as ColorField. Opt-in per field. */
+  deviceOverride?: boolean
 }
 
 export interface SwitchFieldDef extends BaseFieldDef {

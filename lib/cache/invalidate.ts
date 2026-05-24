@@ -1,4 +1,4 @@
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 
 /**
  * Cache invalidation helpers for storefront `unstable_cache` entries.
@@ -9,30 +9,33 @@ import { updateTag } from "next/cache";
  * should call these after mutations so changes propagate immediately
  * instead of waiting for the TTL.
  *
- * Uses `updateTag` (Next 16+), which is the single-argument replacement
- * for the old `revalidateTag(tag)` signature. The new `revalidateTag` now
- * requires a cache profile and is only callable from Server Actions.
+ * Uses `revalidateTag` with `{ expire: 0 }` — the correct API in Next 16
+ * for invalidating `unstable_cache` entries from both Route Handlers and
+ * Server Actions. (`updateTag` is reserved for the new `'use cache'`
+ * directive and only works inside Server Actions.)
  *
  * Even if a mutation forgets to call these, the 60s TTL means staleness
  * is bounded — these helpers are an optimization, not a correctness gate.
  */
 
+const IMMEDIATE = { expire: 0 } as const;
+
 export function invalidateProduct(slug: string) {
-  updateTag(`product:${slug}`);
-  updateTag("products");
+  revalidateTag(`product:${slug}`, IMMEDIATE);
+  revalidateTag("products", IMMEDIATE);
 }
 
 export function invalidateAllProducts() {
-  updateTag("products");
+  revalidateTag("products", IMMEDIATE);
 }
 
 export function invalidateCategory(slugOrId: string) {
-  updateTag(`category:${slugOrId}`);
-  updateTag(`category:${slugOrId}:products`);
-  updateTag("categories");
+  revalidateTag(`category:${slugOrId}`, IMMEDIATE);
+  revalidateTag(`category:${slugOrId}:products`, IMMEDIATE);
+  revalidateTag("categories", IMMEDIATE);
 }
 
 export function invalidateAllCategories() {
-  updateTag("categories");
-  updateTag("products");
+  revalidateTag("categories", IMMEDIATE);
+  revalidateTag("products", IMMEDIATE);
 }

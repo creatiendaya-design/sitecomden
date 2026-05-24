@@ -206,6 +206,8 @@ The "themes" feature is the bulk of recent work. It implements a Shopify-style c
 
 The Theme Customizer (`/admin/personalizar/temas/[themeId]/customize`) is a split-screen Shopify-style editor with **auto-save** (no manual save button — `SaveStatusIndicator` shows status) and zone-based navigation (`ZoneList`). It embeds the page-builder canvas + tabs, and includes a tokens/color-schemes panel that swaps the right sidebar.
 
+**Live preview**: the customizer iframe patches its own DOM directly from Zustand store mutations via [components/admin/customizer/useLivePreviewOverrides.ts](components/admin/customizer/useLivePreviewOverrides.ts), bypassing the autosave round-trip for colors / padding / scheme switching / text content / visibility. Before adding new style fields, portal-rendered surfaces (Radix Sheet / Dialog / Popover), or custom text fields to a section or block, read [docs/superpowers/guides/customizer-live-preview-conventions.md](docs/superpowers/guides/customizer-live-preview-conventions.md) — it documents the `data-preview-target`, `data-content-field`, and `portalOverrides` conventions that determine whether new fields get free live preview or require manual bridging.
+
 ### Key Lib Utilities
 
 | File | Purpose |

@@ -23,4 +23,12 @@ export const announcementBarDefinition: ThemeSectionDefinition = {
     linkHref: "",
     openInNewTab: false,
   },
+  // Full-width bar across the very top — alignment / corner radius /
+  // border / shadow don't produce a useful visual effect on the wrapper.
+  styleSupport: {
+    alignment: false,
+    cornerRadius: false,
+    border: false,
+    shadow: false,
+  },
 }

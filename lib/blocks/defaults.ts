@@ -31,11 +31,24 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
       title: "Título del hero",
       subtitle: "",
       ctaText: "Comprar ahora",
+      // Overlay defaults — visible darken pass with subtle gradient so text
+      // stays legible on bright photos. Admin can disable per block.
+      overlayEnabled: true,
+      overlayColor: "#000000",
+      overlayOpacity: 45,
+      overlayStyle: "gradient-bottom",
+      // Image presentation
+      imageFit: "cover",
+      imagePosition: "center",
+      // Layout
+      minHeight: "md",
+      cornerRadius: "none",
+      contentAlignment: "center",
+      ctaVariant: "solid",
     },
     style: { ...DEFAULT_STYLE, paddingY: "xl" },
     media: {
       bgImage: { desktop: "", mobile: "" },
-      bgOverlay: { desktop: "rgba(0,0,0,0.3)", mobile: "rgba(0,0,0,0.3)" },
     },
   },
   BENEFITS: {

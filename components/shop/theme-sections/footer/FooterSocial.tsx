@@ -41,6 +41,7 @@ export async function FooterSocial({ section }: Props) {
       className={`container mx-auto px-4 py-6 ${className}`}
       style={style}
       data-color-scheme={dataColorScheme}
+      data-preview-target={`section:${section.id}`}
     >
       {data.title && (
         <h3 className="text-sm font-semibold mb-3 text-center">{data.title}</h3>

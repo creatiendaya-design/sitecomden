@@ -14,6 +14,14 @@ export interface TemplateDiff {
  * Comparison key is `block.id`. A block in `current` but not in `original` is
  * "added". A block in `original` but not in `current` is "removed". A block
  * in both whose content/position/type differs is "modified".
+ *
+ * Content equality uses reference identity, NOT JSON.stringify. This is safe
+ * because the page-builder store mutates immutably: only the edited block
+ * gets a fresh `content` reference; reorder/add/remove map all blocks but
+ * shallow-spread (`{...b, position}`) preserves the inner `content` ref for
+ * blocks whose data didn't actually change. Ref comparison is O(1) per block;
+ * the previous JSON.stringify was O(content size) and ran on every keystroke
+ * in the template editor — a measurable hit for blocks with richtext / arrays.
  */
 export function computeTemplateDiff(
   original: BlockInstance[],
@@ -35,7 +43,7 @@ export function computeTemplateDiff(
     if (
       before.type !== after.type ||
       before.position !== after.position ||
-      JSON.stringify(before.content) !== JSON.stringify(after.content)
+      before.content !== after.content
     ) {
       modified.push({ before, after })
     }

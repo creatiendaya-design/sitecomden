@@ -51,6 +51,20 @@ export interface BlockStyle {
    *  the per-theme stylesheet rebinds `--theme-*` underneath. Empty/null
    *  → block inherits the theme's default scheme. */
   colorSchemeId?: string
+  /** Explicit choice between "use a theme color scheme" vs "set raw
+   *  bg/text colors". Persisted so the customizer's Esquema/Personalizado
+   *  toggle remembers the admin's choice across section switches and
+   *  reloads — even when the chosen mode has no values yet. Storefront
+   *  renderers ignore this field; it's UI-only state. Absent → mode is
+   *  inferred from whether colorSchemeId / backgroundColor / textColor
+   *  are present (legacy fallback). */
+  colorMode?: "scheme" | "custom"
+  /** Optional drawer/modal surface override — currently used by HEADER_MAIN
+   *  for the mobile menu drawer. When undefined the drawer falls back to
+   *  the theme scheme's `--theme-drawer-bg`. Opt-in via `styleSupport.drawerColors`. */
+  drawerBgColor?: DeviceValue<string>
+  /** Companion to `drawerBgColor` — text/icon color inside the drawer. */
+  drawerTextColor?: DeviceValue<string>
 }
 
 export interface BlockMedia {
@@ -149,6 +163,11 @@ export interface BlockStyleSupport {
    *  must opt in once they've made their internals respond to the wrapper. */
   typography?: boolean
   gradient?: boolean                // default: false (opt-in — most blocks won't expose gradients).
+  /** Default: FALSE (opt-in). When true, exposes "Fondo del drawer" /
+   *  "Texto del drawer" inputs in the Personalizado section. Used by
+   *  HEADER_MAIN to let admins recolor the mobile menu drawer surface
+   *  without affecting the header itself. */
+  drawerColors?: boolean
 }
 
 /** Normalize a partial BlockStyleSupport to a fully-populated record. */
@@ -167,5 +186,6 @@ export function resolveStyleSupport(partial: Partial<BlockStyleSupport> | undefi
     paddingTopBottom: partial?.paddingTopBottom ?? true,
     typography: partial?.typography ?? false,
     gradient: partial?.gradient ?? false,
+    drawerColors: partial?.drawerColors ?? false,
   }
 }

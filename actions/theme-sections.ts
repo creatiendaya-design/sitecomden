@@ -15,14 +15,22 @@ import {
  * `revalidatePath("/")` because that nukes the layout-level caches
  * (site-settings, tracking-pixels, theme-meta) which don't change when
  * sections are edited — re-running them on every autosave is the main
- * driver of slow iframe refresh during the customizer. Instead we
- * invalidate only the per-(theme, group) tag that `getThemedSections`
- * uses, plus the admin customize path so the page-level data fetch picks
- * up the new state.
+ * driver of slow iframe refresh during the customizer.
+ *
+ * We also intentionally skip `revalidatePath` on the admin customize page:
+ *   1. That page is `dynamic = "force-dynamic"`, so its cache isn't kept
+ *      anyway — revalidation is a no-op for non-cached pages.
+ *   2. In Next.js 15, calling `revalidatePath` from a Server Action while
+ *      the user is on that route piggy-backs a client-side soft refresh.
+ *      During the customizer's autosave that re-render races with our
+ *      `replaceGroup` write — the right-sidebar select's controlled value
+ *      momentarily reads stale store data on the in-flight render and
+ *      collapses back to "Heredar del tema". The local Zustand store is
+ *      authoritative during the editing session, so we don't need the
+ *      server-driven refresh here.
  */
 function invalidateSectionGroup(themeId: string, group: ThemeSectionGroup) {
   updateTag(`theme-sections-${themeId}-${group}`)
-  revalidatePath(`/admin/personalizar/temas/${themeId}/customize`)
 }
 
 // ---------- Row types ----------

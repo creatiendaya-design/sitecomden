@@ -48,6 +48,7 @@ export function FooterNewsletter({ section }: Props) {
       className={`container mx-auto px-4 py-8 text-center ${className}`}
       style={style}
       data-color-scheme={dataColorScheme}
+      data-preview-target={`section:${section.id}`}
     >
       {data.title && (
         <h3 className="text-xl font-semibold mb-2">{data.title}</h3>

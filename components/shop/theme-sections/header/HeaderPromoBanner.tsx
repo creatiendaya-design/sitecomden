@@ -30,7 +30,12 @@ export function HeaderPromoBanner({ section }: Props) {
     </div>
   )
   return (
-    <div className={className} style={style} data-color-scheme={dataColorScheme}>
+    <div
+      className={className}
+      style={style}
+      data-color-scheme={dataColorScheme}
+      data-preview-target={`section:${section.id}`}
+    >
       {data.linkHref ? <Link href={data.linkHref}>{img}</Link> : img}
     </div>
   )

@@ -65,7 +65,14 @@ export default function ImageTextBlock({ content: rawContent, onCtaClick }: Imag
 
           {/* Text column */}
           <div className={cn(position === "right" && "@md:order-1")}>
-            {data.title && <h2 className="text-2xl @md:text-3xl font-bold mb-3">{data.title}</h2>}
+            {data.title && (
+              <h2
+                data-content-field="title"
+                className="text-2xl @md:text-3xl font-bold mb-3"
+              >
+                {data.title}
+              </h2>
+            )}
             <div
               className="prose prose-sm @md:prose-base max-w-none"
               dangerouslySetInnerHTML={{ __html: sanitized }}
@@ -74,10 +81,19 @@ export default function ImageTextBlock({ content: rawContent, onCtaClick }: Imag
               <div className="mt-6">
                 {data.ctaUrl ? (
                   <Button asChild>
-                    <a href={data.ctaUrl} target="_blank" rel="noopener noreferrer">{data.ctaText}</a>
+                    <a
+                      data-content-field="ctaText"
+                      href={data.ctaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {data.ctaText}
+                    </a>
                   </Button>
                 ) : (
-                  <Button onClick={onCtaClick}>{data.ctaText}</Button>
+                  <Button data-content-field="ctaText" onClick={onCtaClick}>
+                    {data.ctaText}
+                  </Button>
                 )}
               </div>
             )}

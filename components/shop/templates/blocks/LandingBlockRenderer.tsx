@@ -160,6 +160,7 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             id={anchorIdOf(block) || undefined}
             className={className || undefined}
             data-color-scheme={schemeId}
+            data-preview-target={`block:${block.id}`}
           >
             {inner}
           </div>

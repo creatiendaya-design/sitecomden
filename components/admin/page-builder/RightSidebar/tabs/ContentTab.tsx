@@ -30,8 +30,14 @@ export function ContentTab() {
   }
 
   const data = (block.content.data as Record<string, unknown>) ?? {}
+  // `key={block.id}` forces the form (and every debounced input under it)
+  // to remount when the admin selects a different block. Unmount fires
+  // each input's flush hook, which commits any half-typed value to the
+  // OLD block via the closure captured at this render — preventing lost
+  // edits when switching blocks within the debounce window.
   return (
     <SchemaForm
+      key={block.id}
       schema={def.contentSchema}
       value={data}
       onChange={(nextData) =>

@@ -389,6 +389,189 @@ body.is-landing-page footer {
   display: none !important;
 }
 
+/* Per-block device-aware color overrides. Emitted by applyBlockStyle
+   when the admin sets a desktop/mobile split on backgroundColor /
+   textColor: the block wrapper gets `--block-bg-mobile` /
+   `--block-text-mobile` inline (with the desktop value as the inline
+   background-color / color), and one of these classes. Below 768px the
+   media-query swaps to the mobile value via `!important` so it wins
+   over the inline desktop value. */
+@media (max-width: 767px) {
+  .block-bg-mobile {
+    background-color: var(--block-bg-mobile) !important;
+  }
+  .block-text-mobile {
+    color: var(--block-text-mobile) !important;
+  }
+  /* Theme-section variant: rebind --theme-bg / --theme-text so children
+     that inherit via `bg-brand-bg` / `text-brand-text` follow the
+     mobile override too (e.g. HeaderMain's cart button). */
+  .theme-bg-mobile {
+    --theme-bg: var(--theme-bg-mobile);
+  }
+  .theme-text-mobile {
+    --theme-text: var(--theme-text-mobile);
+  }
+}
+
+/* HERO block — wrapper-level CSS vars set by SSR + live-preview hook drive
+   every visual aspect (min-height, image fit/position, alignment, overlay,
+   CTA tokens). Below 768px we swap the descendants to the *-mobile vars so
+   admin device overrides take effect.
+
+   IMPORTANT: properties driven by CSS vars (`object-fit`, etc.) MUST live
+   in CSS rules (not React inline styles). React's typed `style` object
+   strips values that don't match the enum for some props in dev mode, and
+   `var(...)` strings get tossed. Keeping it in CSS sidesteps that. */
+.hero-block {
+  /* Defaults (safe fallback if SSR misses a var). */
+  --hero-img-fit: cover;
+  --hero-img-fit-mobile: var(--hero-img-fit);
+  --hero-img-position: center;
+  --hero-img-position-mobile: var(--hero-img-position);
+  --hero-min-height-desktop: 60vh;
+  --hero-min-height-mobile: 40vh;
+  --hero-radius: 0px;
+  --hero-align-items: center;
+  --hero-justify-content: center;
+  --hero-text-align: center;
+  --hero-align-items-mobile: var(--hero-align-items);
+  --hero-justify-content-mobile: var(--hero-justify-content);
+  --hero-text-align-mobile: var(--hero-text-align);
+  --hero-overlay: none;
+  --hero-cta-bg: #ffffff;
+  --hero-cta-color: #0f172a;
+  --hero-cta-border: transparent;
+  --hero-cta-backdrop: none;
+
+  /* All these read from the wrapper's vars — overriding setProperty()
+     on the wrapper repaints the descendants instantly. */
+  min-height: var(--hero-min-height-desktop);
+  border-radius: var(--hero-radius);
+}
+.hero-block > picture > img.hero-img {
+  object-fit: var(--hero-img-fit);
+  object-position: var(--hero-img-position);
+}
+.hero-block > .hero-overlay {
+  background: var(--hero-overlay);
+}
+.hero-block > .hero-content {
+  align-items: var(--hero-align-items);
+  justify-content: var(--hero-justify-content);
+  text-align: var(--hero-text-align);
+}
+.hero-block .hero-cta-btn {
+  background-color: var(--hero-cta-bg);
+  color: var(--hero-cta-color);
+  border-color: var(--hero-cta-border);
+  backdrop-filter: var(--hero-cta-backdrop);
+  -webkit-backdrop-filter: var(--hero-cta-backdrop);
+}
+
+/* "Adapt to image" mode — when the admin picks Altura: "Adaptar a imagen",
+   the wrapper carries `data-image-mode="adapt"` and the layout switches:
+   the picture goes from absolute-positioned cover to inline flow so the
+   image's natural aspect ratio dictates the hero's height. Content
+   absolute-positions over the image.
+
+   Defensive width caps: the SSR <picture> / <img> ship with Tailwind
+   `absolute inset-0 w-full h-full`, which under flex/relative layouts can
+   resolve to the image's intrinsic pixel size on mobile (when its natural
+   width exceeds the viewport, the hero overflows horizontally and the
+   image appears "shifted" / clipped — the bug reported on mobile). We
+   force a hard cap on every level so the section can never exceed its
+   container, and `min-width: 0` keeps min-content sizing from kicking in. */
+.hero-block[data-image-mode="adapt"] {
+  min-height: 0 !important;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.hero-block[data-image-mode="adapt"] > picture {
+  position: relative !important;
+  display: block !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+  height: auto !important;
+  box-sizing: border-box;
+}
+.hero-block[data-image-mode="adapt"] > picture > img.hero-img {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+  height: auto !important;
+  /* object-fit irrelevant once the picture flows naturally. */
+  object-fit: contain !important;
+}
+.hero-block[data-image-mode="adapt"] > .hero-overlay,
+.hero-block[data-image-mode="adapt"] > .hero-vignette {
+  /* Re-anchor over the now-flow picture. */
+  position: absolute;
+  inset: 0;
+}
+.hero-block[data-image-mode="adapt"] > .hero-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+/* Overlay visibility — driven by the wrapper's data-overlay-enabled attr
+   so the SSR + live-preview hook just toggle ONE attribute to show/hide. */
+.hero-block[data-overlay-enabled="false"] > .hero-overlay {
+  display: none;
+}
+.hero-block[data-overlay-enabled="true"] > .hero-vignette {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* Mobile-side min-height — overrides the inline desktop value because
+     `style="min-height: var(--hero-min-height-desktop)"` is set on the
+     element; `!important` here wins inside the media query. */
+  .hero-block {
+    min-height: var(--hero-min-height-mobile) !important;
+  }
+  .hero-block > picture > img.hero-img {
+    object-fit: var(--hero-img-fit-mobile) !important;
+    object-position: var(--hero-img-position-mobile) !important;
+  }
+  .hero-block > .hero-content {
+    align-items: var(--hero-align-items-mobile) !important;
+    justify-content: var(--hero-justify-content-mobile) !important;
+    text-align: var(--hero-text-align-mobile) !important;
+  }
+}
+
+/* Reveal animation — keep self-contained (no per-block <style> tag). */
+@keyframes hero-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-anim-in {
+  animation: hero-fade-in 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.hero-anim-delay-1 { animation-delay: 120ms; }
+.hero-anim-delay-2 { animation-delay: 240ms; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-anim-in { animation: none; }
+}
+
 /* Neutralize Chrome's autofill blue/lavender background on COD form inputs.
    The browser injects a high-specificity style; we override it with an
    inset white shadow large enough to cover the input area. */

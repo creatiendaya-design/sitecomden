@@ -35,6 +35,16 @@ export const megaMenuDefinition: ThemeSectionDefinition = {
   acceptedBlockTypes: [megaMenuPanelDefinition],
   fields: [],
   defaultContent: {},
+  // Mega menu sits inside the header bar — alignment / corner radius /
+  // border / shadow apply to the dropdown panels (handled separately),
+  // not to the outer nav wrapper, so we hide them here to avoid
+  // confusion.
+  styleSupport: {
+    alignment: false,
+    cornerRadius: false,
+    border: false,
+    shadow: false,
+  },
   defaultBlocks: [
     {
       type: "MEGA_MENU_PANEL",

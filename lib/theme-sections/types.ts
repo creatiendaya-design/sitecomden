@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react"
 import type { ThemeSectionGroup } from "@prisma/client"
-import type { BlockStyle } from "@/lib/blocks/types"
+import type { BlockStyle, BlockStyleSupport } from "@/lib/blocks/types"
 import type { FormSchema } from "@/lib/blocks/schema/types"
 
 export type { ThemeSectionGroup }
@@ -69,6 +69,16 @@ export interface ThemeSectionDefinition {
   defaultContent: ThemeSectionContent
   /** Sub-blocks created automatically when this section is added. */
   defaultBlocks?: Array<{ type: string; content: ThemeSectionContent }>
+  /** Opt-out flags for style sections in the customizer's Estilo tab.
+   *  Omit → all style controls render (current behavior). Set fields to
+   *  false to hide irrelevant sections (e.g. headers skip alignment /
+   *  border / shadow since they're full-width sticky bars). Reuses the
+   *  same shape as page-builder blocks via `resolveStyleSupport`. */
+  styleSupport?: Partial<BlockStyleSupport>
+  /** Declarative bridge for live-preview of custom colors that pinta
+   *  elements rendered in React portals (Radix Sheet / Dialog / Popover
+   *  / DropdownMenu / etc). See `PortalOverrideMapping` below. */
+  portalOverrides?: PortalOverrideMapping[]
 }
 
 export interface ThemeSectionBlockDefinition {
@@ -79,6 +89,57 @@ export interface ThemeSectionBlockDefinition {
   defaultContent: ThemeSectionContent
   /** Max number of instances of this sub-block type per parent section. */
   maxPerSection?: number
+  /** Same opt-out flags as the parent section — see above. */
+  styleSupport?: Partial<BlockStyleSupport>
+  /** Same portal-bridge mechanism as the parent section — see below. */
+  portalOverrides?: PortalOverrideMapping[]
+}
+
+/**
+ * Declarative mapping that tells the customizer's live-preview hook
+ * (`useLivePreviewOverrides`) how to push custom color edits into a
+ * React portal — i.e. a piece of UI that's rendered outside the
+ * section's wrapper (Radix Sheet for mobile drawers, Dialog for modals,
+ * Popover/HoverCard for dropdowns, etc).
+ *
+ * Without this bridge, those portal-rendered surfaces would only pick
+ * up admin edits after the autosave + server refresh cycle, because
+ * their colors travel as React props baked into inline styles. With it,
+ * the hook emits a CSS rule against `selector` that overrides the
+ * declared CSS variables — so the portal repaints in the same tick
+ * even though the portal lives outside our DOM subtree.
+ *
+ * @example
+ *   // HEADER_MAIN renders MobileMenu in a Radix portal. The drawer
+ *   // tags its SheetContent with `data-mobile-drawer`. To make custom
+ *   // drawer colors live-previewable, the section declares:
+ *   portalOverrides: [
+ *     {
+ *       selector: '[data-mobile-drawer]',
+ *       device: 'mobile',
+ *       vars: {
+ *         drawerBgColor: '--drawer-bg',
+ *         drawerTextColor: '--drawer-text',
+ *       },
+ *     },
+ *   ]
+ */
+export interface PortalOverrideMapping {
+  /** Global CSS selector for the portal element. The portal renderer
+   *  must emit a matching data-attribute (or class) — without that
+   *  hook the selector can't find the element. */
+  selector: string
+  /** Map of BlockStyle field name → target CSS variable. The variable
+   *  name MUST include the leading `--`. The hook reads the section's
+   *  current style for each field, resolves the color value, and emits
+   *  `<var>: <value> !important` against the selector. */
+  vars: Record<string, `--${string}`>
+  /** Which device override to prefer for DeviceValue fields:
+   *   - `mobile` (default for drawers / mobile-only surfaces) — emit
+   *     the mobile value with desktop fallback.
+   *   - `shared` (desktop / responsive surfaces) — emit the shared
+   *     value (desktop fallback to mobile). */
+  device?: "mobile" | "shared"
 }
 
 /**

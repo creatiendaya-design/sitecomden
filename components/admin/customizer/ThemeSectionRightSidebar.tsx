@@ -2,8 +2,10 @@
 
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SchemaForm } from "@/components/admin/page-builder/forms/SchemaForm"
 import { useThemeSectionsStore } from "./theme-sections-store"
+import { ThemeSectionStyleTab } from "./ThemeSectionStyleTab"
 import {
   getThemeSectionDefinition,
   getSectionBlockDefinition,
@@ -12,7 +14,8 @@ import {
 /**
  * RightSidebar variant for theme-section editing. Reads the current
  * SidebarTarget from the theme-sections store, looks up the registry
- * definition, and renders a SchemaForm bound to the target's content.
+ * definition, and renders Contenido / Estilo tabs bound to the target's
+ * content.
  *
  * Mirrors the page-builder RightSidebar but is a separate component so
  * the page-builder flow (used by /admin/personalizar editing pages and
@@ -60,6 +63,7 @@ export function ThemeSectionRightSidebar() {
   if (selected.kind === "section") {
     const def = getThemeSectionDefinition(sectionDraft.type)
     const Icon = def?.icon
+    const hasContentFields = (def?.fields?.length ?? 0) > 0
     return (
       <aside className="w-[340px] shrink-0 border-l bg-background flex flex-col overflow-hidden">
         <div className="p-3 border-b flex items-center gap-2 shrink-0">
@@ -77,19 +81,46 @@ export function ThemeSectionRightSidebar() {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex-1 overflow-auto p-3">
-          {def?.fields && def.fields.length > 0 ? (
-            <SchemaForm
-              schema={def.fields}
-              value={sectionDraft.content}
-              onChange={(next) => updateSectionContent(sectionDraft.id, next)}
+        <Tabs
+          defaultValue={hasContentFields ? "content" : "style"}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
+          <TabsList className="mx-3 mt-2 shrink-0">
+            <TabsTrigger value="content" className="flex-1">
+              Contenido
+            </TabsTrigger>
+            <TabsTrigger value="style" className="flex-1">
+              Estilo
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent
+            value="content"
+            className="flex-1 overflow-auto p-3 mt-0"
+          >
+            {hasContentFields ? (
+              <SchemaForm
+                schema={def!.fields}
+                value={sectionDraft.content}
+                onChange={(next) =>
+                  updateSectionContent(sectionDraft.id, next)
+                }
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Esta sección no tiene configuración de contenido.
+              </p>
+            )}
+          </TabsContent>
+          <TabsContent value="style" className="flex-1 overflow-auto p-3 mt-0">
+            <ThemeSectionStyleTab
+              content={sectionDraft.content}
+              onChange={(next) =>
+                updateSectionContent(sectionDraft.id, next)
+              }
+              styleSupport={def?.styleSupport}
             />
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Esta sección no tiene configuración.
-            </p>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </aside>
     )
   }
@@ -98,6 +129,7 @@ export function ThemeSectionRightSidebar() {
   if (!blockDraft) return null
   const blockDef = getSectionBlockDefinition(sectionDraft.type, blockDraft.type)
   const Icon = blockDef?.block.icon
+  const hasBlockFields = (blockDef?.block.fields?.length ?? 0) > 0
   return (
     <aside className="w-[340px] shrink-0 border-l bg-background flex flex-col overflow-hidden">
       <div className="p-3 border-b flex items-center gap-2 shrink-0">
@@ -115,19 +147,39 @@ export function ThemeSectionRightSidebar() {
           <X className="h-4 w-4" />
         </Button>
       </div>
-      <div className="flex-1 overflow-auto p-3">
-        {blockDef?.block.fields && blockDef.block.fields.length > 0 ? (
-          <SchemaForm
-            schema={blockDef.block.fields}
-            value={blockDraft.content}
+      <Tabs
+        defaultValue={hasBlockFields ? "content" : "style"}
+        className="flex-1 flex flex-col overflow-hidden"
+      >
+        <TabsList className="mx-3 mt-2 shrink-0">
+          <TabsTrigger value="content" className="flex-1">
+            Contenido
+          </TabsTrigger>
+          <TabsTrigger value="style" className="flex-1">
+            Estilo
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="content" className="flex-1 overflow-auto p-3 mt-0">
+          {hasBlockFields ? (
+            <SchemaForm
+              schema={blockDef!.block.fields}
+              value={blockDraft.content}
+              onChange={(next) => updateBlockContent(blockDraft.id, next)}
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Este bloque no tiene configuración de contenido.
+            </p>
+          )}
+        </TabsContent>
+        <TabsContent value="style" className="flex-1 overflow-auto p-3 mt-0">
+          <ThemeSectionStyleTab
+            content={blockDraft.content}
             onChange={(next) => updateBlockContent(blockDraft.id, next)}
+            styleSupport={blockDef?.block.styleSupport}
           />
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Este bloque no tiene configuración.
-          </p>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </aside>
   )
 }

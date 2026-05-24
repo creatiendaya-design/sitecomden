@@ -69,7 +69,12 @@ export default async function ProductGridBlock({
         style={inlineStyle}
       >
         {data.title && (
-          <h2 className="mb-4 text-2xl font-bold">{data.title}</h2>
+          <h2
+            data-content-field="title"
+            className="mb-4 text-2xl font-bold"
+          >
+            {data.title}
+          </h2>
         )}
         <p className="text-sm text-muted-foreground">
           Esta categoría aún no tiene productos.
@@ -87,7 +92,12 @@ export default async function ProductGridBlock({
       style={inlineStyle}
     >
       {data.title && (
-        <h2 className="mb-6 text-2xl md:text-3xl font-bold">{data.title}</h2>
+        <h2
+          data-content-field="title"
+          className="mb-6 text-2xl md:text-3xl font-bold"
+        >
+          {data.title}
+        </h2>
       )}
       <div className={cn("grid gap-4 sm:gap-6", colsMobile, "sm:grid-cols-2", colsDesktop)}>
         {products.map((product) => (

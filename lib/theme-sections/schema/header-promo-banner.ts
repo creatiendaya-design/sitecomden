@@ -14,4 +14,13 @@ export const headerPromoBannerDefinition: ThemeSectionDefinition = {
     { type: "text", key: "altText", label: "Texto alternativo" },
   ],
   defaultContent: { image: "", linkHref: "", altText: "" },
+  // Full-width image banner inside the sticky header — alignment doesn't
+  // apply (no text), and the wrapper's own border / radius / shadow
+  // would clip the image edge oddly, so we hide them.
+  styleSupport: {
+    alignment: false,
+    cornerRadius: false,
+    border: false,
+    shadow: false,
+  },
 }

@@ -39,6 +39,135 @@ const existing: BlockDefinition[] = [
       { type: "text", key: "title", label: "Título" },
       { type: "text", key: "subtitle", label: "Subtítulo" },
       { type: "text", key: "ctaText", label: "Texto del botón" },
+      {
+        type: "text",
+        key: "ctaHref",
+        label: "Enlace del botón",
+        placeholder: "/productos o https://...",
+        helpText:
+          "Opcional. Si lo dejas vacío y el bloque vive en una landing de producto, el CTA abre el flujo normal.",
+      },
+
+      // ─── Imagen ────────────────────────────────────────────────────────
+      {
+        type: "select",
+        key: "imageFit",
+        label: "Adaptar imagen",
+        deviceOverride: true,
+        options: [
+          { value: "cover", label: "Cubrir (recorta)" },
+          { value: "contain", label: "Contener (sin recorte)" },
+          { value: "fill", label: "Estirar" },
+          { value: "none", label: "Tamaño original" },
+        ],
+        helpText:
+          "Cómo encaja la imagen en el área del hero. ‘Cubrir’ es lo más común.",
+      },
+      {
+        type: "select",
+        key: "imagePosition",
+        label: "Posición de la imagen",
+        deviceOverride: true,
+        options: [
+          { value: "center", label: "Centro" },
+          { value: "top", label: "Arriba" },
+          { value: "bottom", label: "Abajo" },
+          { value: "left", label: "Izquierda" },
+          { value: "right", label: "Derecha" },
+          { value: "top-left", label: "Arriba izquierda" },
+          { value: "top-right", label: "Arriba derecha" },
+          { value: "bottom-left", label: "Abajo izquierda" },
+          { value: "bottom-right", label: "Abajo derecha" },
+        ],
+      },
+
+      // ─── Overlay ───────────────────────────────────────────────────────
+      {
+        type: "switch",
+        key: "overlayEnabled",
+        label: "Activar overlay",
+        helpText:
+          "Capa de color sobre la imagen para mejorar la legibilidad del texto.",
+      },
+      {
+        type: "select",
+        key: "overlayStyle",
+        label: "Estilo del overlay",
+        options: [
+          { value: "solid", label: "Color sólido" },
+          { value: "gradient-bottom", label: "Degradado (abajo)" },
+          { value: "gradient-top", label: "Degradado (arriba)" },
+          { value: "gradient-radial", label: "Degradado radial" },
+        ],
+        showWhen: { field: "overlayEnabled", equals: true },
+      },
+      {
+        type: "color",
+        key: "overlayColor",
+        label: "Color del overlay",
+        showWhen: { field: "overlayEnabled", equals: true },
+      },
+      {
+        type: "number",
+        key: "overlayOpacity",
+        label: "Opacidad del overlay (%)",
+        min: 0,
+        max: 100,
+        step: 5,
+        showWhen: { field: "overlayEnabled", equals: true },
+      },
+
+      // ─── Forma y tamaño ───────────────────────────────────────────────
+      {
+        type: "select",
+        key: "minHeight",
+        label: "Altura del hero",
+        deviceOverride: true,
+        options: [
+          { value: "adapt", label: "Adaptar a la imagen" },
+          { value: "sm", label: "Pequeño" },
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+          { value: "screen", label: "Pantalla completa" },
+        ],
+        helpText:
+          "‘Adaptar’: el hero toma la proporción natural de la imagen al ancho de pantalla (estilo Shopify). El resto son alturas fijas en % del viewport.",
+      },
+      {
+        type: "select",
+        key: "cornerRadius",
+        label: "Bordes redondeados",
+        options: [
+          { value: "none", label: "Sin redondear" },
+          { value: "sm", label: "Pequeño" },
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+          { value: "full", label: "Completo" },
+        ],
+      },
+      {
+        type: "select",
+        key: "contentAlignment",
+        label: "Alineación del contenido",
+        deviceOverride: true,
+        options: [
+          { value: "left", label: "Izquierda" },
+          { value: "center", label: "Centro" },
+          { value: "right", label: "Derecha" },
+        ],
+      },
+      {
+        type: "select",
+        key: "ctaVariant",
+        label: "Estilo del botón",
+        options: [
+          { value: "solid", label: "Sólido" },
+          { value: "outline", label: "Contorno" },
+          { value: "glass", label: "Cristal (glassmorphism)" },
+        ],
+      },
     ],
     styleSupport: {
       bgImage: true,

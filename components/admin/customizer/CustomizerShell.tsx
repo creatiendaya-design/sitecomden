@@ -40,6 +40,7 @@ import {
   type SectionDraft,
 } from "./theme-sections-store"
 import { useBuilderStore } from "@/components/admin/page-builder/store"
+import { useLivePreviewOverrides } from "./useLivePreviewOverrides"
 import type { EditorBlock } from "./EmbeddedBlocksEditor"
 import {
   buildPageTargets,
@@ -105,6 +106,14 @@ export function CustomizerShell({
 }: Props) {
   const router = useRouter()
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+
+  // Live-preview: push color overrides directly into the iframe DOM on
+  // every Zustand mutation. Bypasses the autosave + server round-trip so
+  // colors paint instantly (Shopify-style). Background autosave still
+  // persists for reload survival. Receives the theme's color schemes so
+  // scheme switching can rebind `--theme-*` custom properties inline
+  // (more reliable than waiting for the per-theme CSS rule to win).
+  useLivePreviewOverrides(iframeRef, theme.colorSchemes)
 
   // Plan 13 — left-panel view: "sections" (default zone list) or "tokens"
   // (theme-wide colors / fonts / scale). Tokens live in their own view
@@ -241,7 +250,6 @@ export function CustomizerShell({
   const footerDrafts = useThemeSectionsStore((s) => s.footer)
   const headerDirty = useThemeSectionsStore((s) => s.headerDirty)
   const footerDirty = useThemeSectionsStore((s) => s.footerDirty)
-  const replaceGroup = useThemeSectionsStore((s) => s.replaceGroup)
   const themeSectionsSelected = useThemeSectionsStore((s) => s.selected)
   const selectThemeSection = useThemeSectionsStore((s) => s.select)
 
@@ -261,12 +269,13 @@ export function CustomizerShell({
     if (themeSectionsSelected) selectBuilderBlock(null)
   }, [themeSectionsSelected, selectBuilderBlock])
 
+  const mergeSavedIds = useThemeSectionsStore((s) => s.mergeSavedIds)
   useDebouncedSaveGroup(
     theme.id,
     "HEADER",
     headerDrafts,
     headerDirty,
-    replaceGroup,
+    mergeSavedIds,
     handleAnySaved,
   )
   useDebouncedSaveGroup(
@@ -274,7 +283,7 @@ export function CustomizerShell({
     "FOOTER",
     footerDrafts,
     footerDirty,
-    replaceGroup,
+    mergeSavedIds,
     handleAnySaved,
   )
 
@@ -400,7 +409,13 @@ export function CustomizerShell({
             so its StyleTab scheme picker can populate. */}
         {panelView === "sections" &&
           (themeSectionsSelected ? (
-            <ThemeSectionRightSidebar />
+            // ColorSchemesProvider also wraps the theme-section sidebar so
+            // its Estilo tab's ColorSchemeControl can list the theme's
+            // schemes. Without it, the picker hides itself (it gates on
+            // schemes.length < 2).
+            <ColorSchemesProvider schemes={theme.colorSchemes}>
+              <ThemeSectionRightSidebar />
+            </ColorSchemesProvider>
           ) : editableSurface ? (
             <ColorSchemesProvider schemes={theme.colorSchemes}>
               <RightSidebar
@@ -428,37 +443,63 @@ export function CustomizerShell({
 /**
  * Debounced autosave for a HEADER or FOOTER theme-sections group. Fires
  * 250ms after the last edit, but only if any draft is dirty (so initial
- * hydration doesn't trigger a no-op save). 250ms is short enough that
- * structural changes (add / remove / reorder / toggle) feel near-instant
- * but long enough that rapid keystrokes in a text field still coalesce
- * into a single write. Keeps the call inside the Shell file because it
- * closes over saveThemeSectionGroup + the toast surface, and pulling it
- * out adds little value at one caller per group.
+ * hydration doesn't trigger a no-op save).
+ *
+ * Two correctness guarantees beyond simple debouncing:
+ *
+ *  1. Non-destructive merge — `mergeSavedIds` only remaps tmp-ids to
+ *     persisted ids. The in-memory store is the canonical CURRENT state
+ *     and stays put; the server response is the canonical SAVED state
+ *     and we only borrow ids from it. This is the fix for the "edits
+ *     revert mid-typing" bug: when the admin keeps editing during the
+ *     300-800ms server roundtrip, those edits used to be clobbered by
+ *     `replaceGroup`. Now they survive.
+ *
+ *  2. Serialized saves — only one save is in flight per group at a time.
+ *     A `savingRef` flag blocks new fires until the current one resolves.
+ *     If the group became dirty again during the save (admin kept
+ *     editing), we re-arm the timer right after, so nothing is lost.
+ *     Without this, two concurrent saves could race and reorder writes
+ *     against the server.
  */
 function useDebouncedSaveGroup(
   themeId: string,
   group: "HEADER" | "FOOTER",
   drafts: SectionDraft[],
   groupDirty: boolean,
-  replaceGroup: (
+  mergeSavedIds: (
     group: "HEADER" | "FOOTER",
-    rows: ThemeSectionRow[],
+    sent: SectionDraft[],
+    saved: ThemeSectionRow[],
   ) => void,
   onSaved: () => void,
 ) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savingRef = useRef(false)
+  // Latest props captured in refs so the timer callback always sees the
+  // freshest state — without re-creating the timer on every keystroke
+  // (which would prevent debouncing entirely).
+  const draftsRef = useRef(drafts)
+  const dirtyRef = useRef(groupDirty)
+  draftsRef.current = drafts
+  dirtyRef.current = groupDirty
+
   useEffect(() => {
-    // Group-level dirty flag is the source of truth: it captures both
-    // per-draft edits AND deletions (which leave no per-draft dirty
-    // trace because the deleted draft is gone from the array).
     if (!groupDirty) return
+    if (savingRef.current) return // a save is already in flight; it'll re-check on completion
     if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(async () => {
+
+    const fire = async () => {
+      savingRef.current = true
+      // Snapshot at fire time — used both as the request body AND as the
+      // sent-side input to mergeSavedIds (so id remapping aligns by
+      // position with what the server actually saw).
+      const sent = draftsRef.current
       try {
         const result = await saveThemeSectionGroup(
           themeId,
           group,
-          drafts.map((s) => ({
+          sent.map((s) => ({
             id: s.id,
             type: s.type,
             position: s.position,
@@ -473,19 +514,26 @@ function useDebouncedSaveGroup(
             })),
           })),
         )
-        // Merge the persisted snapshot back into the local store. This
-        // replaces tmp- ids with real ids in a single tick (no second DB
-        // read, no router.refresh) and clears the group's dirty flag.
-        replaceGroup(group, result.sections)
+        mergeSavedIds(group, sent, result.sections)
         onSaved()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Error al guardar")
+      } finally {
+        savingRef.current = false
+        // If the admin kept editing while we were saving, the group is
+        // still dirty — schedule another save to catch up.
+        if (dirtyRef.current) {
+          if (timer.current) clearTimeout(timer.current)
+          timer.current = setTimeout(fire, 250)
+        }
       }
-    }, 250)
+    }
+
+    timer.current = setTimeout(fire, 250)
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [drafts, themeId, group, groupDirty, replaceGroup, onSaved])
+  }, [themeId, group, groupDirty, mergeSavedIds, onSaved])
 }
 
 function CustomizerHeaderRow({

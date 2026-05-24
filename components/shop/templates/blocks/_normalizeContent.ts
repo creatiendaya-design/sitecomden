@@ -22,8 +22,13 @@ function flattenV2Content(content: BlockContentV2, blockType: string): Record<st
     // Pick desktop image as the default single value for v1 compatibility
     const bgImage = content.media.bgImage?.desktop ?? content.media.bgImage?.mobile
     if (bgImage) flat.bgImage = bgImage
-    const bgOverlay = content.media.bgOverlay?.desktop ?? content.media.bgOverlay?.mobile
-    if (bgOverlay) flat.overlayColor = bgOverlay
+    // Legacy fallback only — the new HERO schema stores `overlayColor` on
+    // `content.data` directly, which already lives in `flat` via the spread
+    // above. Don't overwrite it when the admin has already set a value.
+    if (flat.overlayColor === undefined) {
+      const bgOverlay = content.media.bgOverlay?.desktop ?? content.media.bgOverlay?.mobile
+      if (bgOverlay) flat.overlayColor = bgOverlay
+    }
   }
 
   return flat

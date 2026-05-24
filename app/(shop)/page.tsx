@@ -11,16 +11,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getActiveThemeHome(),
   ]);
 
-  // When the active theme has a Page assigned as home, prefer its SEO fields
-  // (so the admin can override per-page just like any other static page).
-  // Site-level seo_home_* settings remain the fallback.
-  const title =
-    themeHome?.seoTitle ?? themeHome?.title ?? settings.seo_home_title;
-  const description =
-    themeHome?.seoDescription ??
-    themeHome?.description ??
-    settings.seo_home_description;
-  const ogImage = themeHome?.seoImage ?? settings.seo_home_og_image;
+  // Shopify-style: the home's SEO lives in site settings (/admin/configuracion),
+  // not on the Page that backs the home. Other Pages keep their own SEO.
+  const title = settings.seo_home_title;
+  const description = settings.seo_home_description;
+  const ogImage = settings.seo_home_og_image;
   const noIndex = themeHome?.noIndex ?? false;
 
   return {

@@ -51,6 +51,7 @@ export async function FooterColumns({ section }: Props) {
       className={`container mx-auto px-4 py-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 ${className}`}
       style={style}
       data-color-scheme={dataColorScheme}
+      data-preview-target={`section:${section.id}`}
     >
       {(data.aboutTitle || data.aboutText) && (
         <div>

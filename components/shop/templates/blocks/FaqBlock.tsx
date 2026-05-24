@@ -57,7 +57,12 @@ export default function FaqBlock({ content: rawContent }: FaqBlockProps) {
       />
       <div className="container mx-auto px-4 max-w-3xl">
         {content.title && (
-          <h2 className="text-2xl @md:text-3xl font-bold mb-6 text-center">{content.title}</h2>
+          <h2
+            data-content-field="title"
+            className="text-2xl @md:text-3xl font-bold mb-6 text-center"
+          >
+            {content.title}
+          </h2>
         )}
         {content.allowMultipleOpen ? (
           <Accordion

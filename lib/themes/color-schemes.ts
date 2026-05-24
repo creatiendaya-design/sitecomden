@@ -24,6 +24,14 @@ export interface ColorScheme {
     accentForeground: string
     muted: string
     border: string
+    /** Drawer/modal surface background (cart drawer, dialogs). */
+    drawerBg: string
+    /** Text color inside drawers/modals. */
+    drawerText: string
+    /** Card surface background (product cards, tiles). */
+    cardBg: string
+    /** Text color inside cards. */
+    cardText: string
   }
 }
 
@@ -83,6 +91,10 @@ function normalizeScheme(
       accentForeground: c.accentForeground || def.accentForeground,
       muted: c.muted || def.muted,
       border: c.border || def.border,
+      drawerBg: c.drawerBg || def.drawerBg,
+      drawerText: c.drawerText || def.drawerText,
+      cardBg: c.cardBg || def.cardBg,
+      cardText: c.cardText || def.cardText,
     },
   }
 }

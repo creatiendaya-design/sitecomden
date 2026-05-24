@@ -35,6 +35,7 @@ export function FooterPaymentIcons({ section }: Props) {
       className={`container mx-auto px-4 py-4 flex flex-wrap gap-3 justify-center items-center ${className}`}
       style={style}
       data-color-scheme={dataColorScheme}
+      data-preview-target={`section:${section.id}`}
     >
       {methods.map((m) => (
         <PaymentIcon key={m} method={m} />

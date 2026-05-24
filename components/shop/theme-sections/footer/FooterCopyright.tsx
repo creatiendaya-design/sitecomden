@@ -26,6 +26,7 @@ export async function FooterCopyright({ section }: Props) {
       className={`container mx-auto px-4 py-4 text-center text-xs ${className}`}
       style={style}
       data-color-scheme={dataColorScheme}
+      data-preview-target={`section:${section.id}`}
     >
       {text}
     </div>

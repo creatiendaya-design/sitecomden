@@ -13,12 +13,59 @@ export type LandingBlockType =
   | "RELATED_PRODUCTS"
   | "PRODUCT_GRID";
 
+export type HeroImageFit = "cover" | "contain" | "fill" | "none";
+export type HeroImagePosition =
+  | "center"
+  | "top"
+  | "bottom"
+  | "left"
+  | "right"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+export type HeroMinHeight = "sm" | "md" | "lg" | "xl" | "screen" | "adapt";
+export type HeroCornerRadius = "none" | "sm" | "md" | "lg" | "xl" | "full";
+export type HeroOverlayStyle =
+  | "solid"
+  | "gradient-bottom"
+  | "gradient-top"
+  | "gradient-radial";
+export type HeroContentAlignment = "left" | "center" | "right";
+export type HeroCtaVariant = "solid" | "outline" | "glass";
+
 export interface HeroBlockContent {
   title: string;
   subtitle?: string;
   bgImage?: string;
-  overlayColor?: string;
   ctaText?: string;
+  /** Overlay (Plan: hero redesign). When `overlayEnabled` is false the
+   *  overlay layer is skipped entirely — useful for hero photos that don't
+   *  need a darkening pass. */
+  overlayEnabled?: boolean;
+  overlayColor?: string;
+  /** 0–100. Applied as `color-mix(...)` over `overlayColor`. */
+  overlayOpacity?: number;
+  overlayStyle?: HeroOverlayStyle;
+  /** Image fit (object-fit). Device-aware: stored as DeviceValue. */
+  imageFit?: HeroImageFit | { desktop?: HeroImageFit; mobile?: HeroImageFit };
+  /** Image position (object-position). Device-aware. */
+  imagePosition?:
+    | HeroImagePosition
+    | { desktop?: HeroImagePosition; mobile?: HeroImagePosition };
+  /** Minimum height preset for the hero section. Device-aware. */
+  minHeight?: HeroMinHeight | { desktop?: HeroMinHeight; mobile?: HeroMinHeight };
+  /** Corner radius applied to the hero wrapper. */
+  cornerRadius?: HeroCornerRadius;
+  /** Horizontal content alignment inside the hero. Device-aware. */
+  contentAlignment?:
+    | HeroContentAlignment
+    | { desktop?: HeroContentAlignment; mobile?: HeroContentAlignment };
+  /** Visual style of the CTA button. */
+  ctaVariant?: HeroCtaVariant;
+  /** Optional CTA link (overrides the default product-landing behavior on
+   *  storefront pages where no landing template is attached). */
+  ctaHref?: string;
 }
 
 export interface BenefitCard {

@@ -42,6 +42,23 @@ function diffCount(a: BlockInstance[], b: BlockInstance[]): number {
   return diffCountFromHelper(computeTemplateDiff(a, b))
 }
 
+/**
+ * Recompute the pending-change counter only when relevant.
+ *
+ * The counter feeds the template editor's "N cambios pendientes" topbar
+ * badge — it is dead state in every other consumer (customizer / page
+ * editor / category editor). Skipping the diff outside template mode
+ * avoids building two Maps per keystroke, which dominates input lag in
+ * pages with many blocks.
+ */
+function pendingCountFor(
+  mode: EditorMode,
+  snapshot: BlockInstance[],
+  blocks: BlockInstance[],
+): number {
+  return mode === "template" ? diffCount(snapshot, blocks) : 0
+}
+
 export const useBuilderStore = create<BuilderState>((set, get) => ({
   blocks: [],
   selectedBlockId: null,
@@ -54,25 +71,51 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   pendingChangeCount: 0,
 
   setBlocks: (blocks) => {
-    set({ blocks, isDirty: false })
-    set({ pendingChangeCount: diffCount(get().originalSnapshot, blocks) })
+    set({
+      blocks,
+      isDirty: false,
+      pendingChangeCount: pendingCountFor(
+        get().editorMode,
+        get().originalSnapshot,
+        blocks,
+      ),
+    })
   },
   selectBlock: (id) => set({ selectedBlockId: id }),
   setDevice: (device) => set({ device }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),
   setEditorMode: (editorMode) => set({ editorMode }),
   setOriginalSnapshot: (originalSnapshot) => {
-    set({ originalSnapshot })
-    set({ pendingChangeCount: diffCount(originalSnapshot, get().blocks) })
+    set({
+      originalSnapshot,
+      pendingChangeCount: pendingCountFor(
+        get().editorMode,
+        originalSnapshot,
+        get().blocks,
+      ),
+    })
   },
   recomputePendingCount: () => {
-    set({ pendingChangeCount: diffCount(get().originalSnapshot, get().blocks) })
+    set({
+      pendingChangeCount: pendingCountFor(
+        get().editorMode,
+        get().originalSnapshot,
+        get().blocks,
+      ),
+    })
   },
 
   updateBlockContent: (id, content) => {
     const blocks = get().blocks.map((b) => (b.id === id ? { ...b, content } : b))
-    set({ blocks, isDirty: true })
-    set({ pendingChangeCount: diffCount(get().originalSnapshot, blocks) })
+    set({
+      blocks,
+      isDirty: true,
+      pendingChangeCount: pendingCountFor(
+        get().editorMode,
+        get().originalSnapshot,
+        blocks,
+      ),
+    })
     return blocks
   },
 
@@ -81,8 +124,15 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     const [moved] = current.splice(fromIndex, 1)
     current.splice(toIndex, 0, moved)
     const blocks = current.map((b, i) => ({ ...b, position: i }))
-    set({ blocks, isDirty: true })
-    set({ pendingChangeCount: diffCount(get().originalSnapshot, blocks) })
+    set({
+      blocks,
+      isDirty: true,
+      pendingChangeCount: pendingCountFor(
+        get().editorMode,
+        get().originalSnapshot,
+        blocks,
+      ),
+    })
     return blocks
   },
 
@@ -112,8 +162,16 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       newBlock,
       ...current.slice(insertAt),
     ].map((b, i) => ({ ...b, position: i }))
-    set({ blocks: next, selectedBlockId: tempId, isDirty: true })
-    set({ pendingChangeCount: diffCount(get().originalSnapshot, next) })
+    set({
+      blocks: next,
+      selectedBlockId: tempId,
+      isDirty: true,
+      pendingChangeCount: pendingCountFor(
+        get().editorMode,
+        get().originalSnapshot,
+        next,
+      ),
+    })
     return next
   },
 
@@ -134,8 +192,16 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       clone,
       ...current.slice(idx + 1),
     ].map((b, i) => ({ ...b, position: i }))
-    set({ blocks: next, selectedBlockId: tempId, isDirty: true })
-    set({ pendingChangeCount: diffCount(get().originalSnapshot, next) })
+    set({
+      blocks: next,
+      selectedBlockId: tempId,
+      isDirty: true,
+      pendingChangeCount: pendingCountFor(
+        get().editorMode,
+        get().originalSnapshot,
+        next,
+      ),
+    })
     return next
   },
 
@@ -144,8 +210,16 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       .blocks.filter((b) => b.id !== id)
       .map((b, i) => ({ ...b, position: i }))
     const selected = get().selectedBlockId === id ? null : get().selectedBlockId
-    set({ blocks: next, selectedBlockId: selected, isDirty: true })
-    set({ pendingChangeCount: diffCount(get().originalSnapshot, next) })
+    set({
+      blocks: next,
+      selectedBlockId: selected,
+      isDirty: true,
+      pendingChangeCount: pendingCountFor(
+        get().editorMode,
+        get().originalSnapshot,
+        next,
+      ),
+    })
     return next
   },
 }))

@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import Image from "next/image"
-import { Upload, X } from "lucide-react"
+import { Upload, X, Info } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,9 +15,10 @@ import { updatePageMetadata, type PageWithBlocks } from "@/actions/pages"
 
 interface EditPageMetadataFormProps {
   page: PageWithBlocks
+  isHome?: boolean
 }
 
-export function EditPageMetadataForm({ page }: EditPageMetadataFormProps) {
+export function EditPageMetadataForm({ page, isHome = false }: EditPageMetadataFormProps) {
   const router = useRouter()
   const [slug, setSlug] = useState(page.slug)
   const [title, setTitle] = useState(page.title)
@@ -122,6 +124,30 @@ export function EditPageMetadataForm({ page }: EditPageMetadataFormProps) {
         </p>
       </div>
 
+      {isHome ? (
+        <div className="border-t pt-5">
+          <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+            <div className="space-y-1 text-sm">
+              <p className="font-medium text-blue-900 dark:text-blue-200">
+                SEO de la página de inicio
+              </p>
+              <p className="text-blue-700 dark:text-blue-300">
+                Esta página es la <strong>home</strong> del tema activo. Su SEO
+                (título, descripción, imagen Open Graph y keywords) se configura
+                en{" "}
+                <Link
+                  href="/admin/configuracion"
+                  className="underline underline-offset-2 hover:text-blue-900 dark:hover:text-blue-100"
+                >
+                  Configuración → SEO
+                </Link>
+                .
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="border-t pt-5 space-y-4">
         <div>
           <h2 className="text-sm font-semibold">SEO</h2>
@@ -226,6 +252,7 @@ export function EditPageMetadataForm({ page }: EditPageMetadataFormProps) {
           </div>
         </div>
       </div>
+      )}
 
       <div className="flex items-center gap-3 border-t pt-5">
         <Switch

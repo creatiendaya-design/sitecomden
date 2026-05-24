@@ -105,17 +105,20 @@ function NavItem({
     const href = resolveMenuItemHref(item)
     if (!href) return null
     if (depth === 0) {
+      // Top-level items inherit color/opacity from the header wrapper
+      // (via `text-current` defaults). Hover reduces opacity instead of
+      // swapping to a shadcn token so the header's theme color survives.
       return (
         <MenuLink
           item={item}
-          className="transition-colors hover:text-foreground/80 whitespace-nowrap"
+          className="text-sm font-medium opacity-90 transition-opacity hover:opacity-100 whitespace-nowrap"
         />
       )
     }
     return (
       <MenuLink
         item={item}
-        className="block px-2 py-1.5 text-sm rounded hover:bg-muted transition-colors"
+        className="block px-2 py-1.5 text-sm rounded hover:bg-current/10 transition-colors"
       />
     )
   }
@@ -154,12 +157,17 @@ function NavItem({
       <button
         type="button"
         className={cn(
-          "inline-flex items-center gap-1 transition-colors hover:text-foreground/80 whitespace-nowrap",
+          // Use opacity (not a shadcn token) for hover so the header's
+          // own text color from the theme wins on dark/light backgrounds.
+          // For non-top items (inside the dropdown panel), hover uses
+          // `bg-current/10` so the highlight is a translucent overlay of
+          // the current text color — works on dark and light panels alike.
+          "inline-flex items-center gap-1 whitespace-nowrap transition-colors",
           isTop
-            ? ""
-            : "w-full justify-between px-2 py-1.5 text-sm rounded hover:bg-muted",
-          open && !isTop && "bg-muted",
-          open && isTop && "text-foreground/90",
+            ? "text-sm font-medium opacity-90 transition-opacity hover:opacity-100"
+            : "w-full justify-between px-2 py-1.5 text-sm rounded hover:bg-current/10",
+          open && !isTop && "bg-current/10",
+          open && isTop && "opacity-100",
         )}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -167,7 +175,7 @@ function NavItem({
         role="menuitem"
       >
         <span className="truncate">{item.label}</span>
-        <Chevron className="h-3 w-3 opacity-60 shrink-0" />
+        <Chevron className="h-3.5 w-3.5 opacity-70 shrink-0" />
       </button>
 
       <div
@@ -183,7 +191,14 @@ function NavItem({
             : "opacity-0 -translate-y-1 pointer-events-none",
         )}
       >
-        <div className="rounded-md border bg-popover shadow-md p-2 space-y-0.5">
+        {/* `bg-brand-bg` + `text-brand-text` chain through `--theme-*`,
+            which the parent HeaderMain rebinds (via data-color-scheme OR
+            an inline override for the NEXVO dark default). That keeps the
+            dropdown panel visually coherent with the header across every
+            scheme/custom-color combination: dark header → dark dropdown,
+            light header → light dropdown, custom red header → red dropdown.
+            `border-current/10` ditto for the panel border. */}
+        <div className="rounded-md border border-current/10 bg-brand-bg text-brand-text shadow-md p-2 space-y-0.5">
           {item.children.map((child) => (
             <NavItem key={child.id} item={child} depth={depth + 1} />
           ))}

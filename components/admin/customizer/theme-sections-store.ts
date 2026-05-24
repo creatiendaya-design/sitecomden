@@ -59,8 +59,30 @@ interface Store {
   /** Replace a single group's drafts with the persisted rows returned by
    *  `saveThemeSectionGroup`. Maps tmp-ids → real ids by position so the
    *  current `selected` target survives the swap when the persisted row
-   *  occupies the same slot. Drops the group's dirty flag. */
+   *  occupies the same slot. Drops the group's dirty flag.
+   *
+   *  WARNING: blows away any edits the admin made WHILE the save was in
+   *  flight. Used only by initial hydration paths; the autosave loop
+   *  uses `mergeSavedIds` instead (see below). */
   replaceGroup: (group: ThemeSectionGroup, rows: ThemeSectionRow[]) => void
+
+  /** Non-destructive post-save reconciliation. Walks the snapshot we
+   *  sent to the server alongside the persisted rows that came back,
+   *  and updates ONLY the ids of sections/blocks that were created with
+   *  tmp-ids — every other field (content, position, enabled) stays as
+   *  the admin currently sees it in the store.
+   *
+   *  This is the fix for the bug where typing through the autosave
+   *  window (~250ms debounce + 300-800ms server roundtrip) would see
+   *  the latest edits reverted when the save resolved. The server
+   *  response is the canonical SAVED state but the in-memory store is
+   *  the canonical CURRENT state — we merge ids only and trust the
+   *  store for everything else. */
+  mergeSavedIds: (
+    group: ThemeSectionGroup,
+    sent: SectionDraft[],
+    saved: ThemeSectionRow[],
+  ) => void
 
   select: (target: SidebarTarget) => void
 
@@ -212,6 +234,89 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
       return group === "HEADER"
         ? { header: fresh, headerDirty: false, selected: nextSelected }
         : { footer: fresh, footerDirty: false, selected: nextSelected }
+    })
+  },
+
+  mergeSavedIds(group, sent, saved) {
+    set((s) => {
+      // Build sent.id → saved.id lookups (sections + nested blocks). We
+      // align by position rather than id because sent[i].id is a tmp-id
+      // and saved[i].id is the just-persisted real id — there's no way
+      // to correlate the two except by their position in the array we
+      // sent (the server preserves order).
+      const sectionIdMap = new Map<string, string>()
+      const blockIdMap = new Map<string, string>()
+      for (let i = 0; i < sent.length; i++) {
+        const sentSec = sent[i]
+        const savedSec = saved[i]
+        if (!savedSec) continue
+        if (sentSec.id !== savedSec.id) {
+          sectionIdMap.set(sentSec.id, savedSec.id)
+        }
+        for (let j = 0; j < sentSec.blocks.length; j++) {
+          const sentBlock = sentSec.blocks[j]
+          const savedBlock = savedSec.blocks[j]
+          if (!savedBlock) continue
+          if (sentBlock.id !== savedBlock.id) {
+            blockIdMap.set(sentBlock.id, savedBlock.id)
+          }
+        }
+      }
+
+      // Nothing to remap (no new sections/blocks were saved) → just drop
+      // the dirty flag.
+      if (sectionIdMap.size === 0 && blockIdMap.size === 0) {
+        return group === "HEADER"
+          ? { headerDirty: false }
+          : { footerDirty: false }
+      }
+
+      const patchList = (list: SectionDraft[]): SectionDraft[] =>
+        list.map((sec) => {
+          const newSecId = sectionIdMap.get(sec.id) ?? sec.id
+          // If the section was just persisted, also drop its `isNew`
+          // flag so future renders don't treat it as a pending insert.
+          const isNew = sectionIdMap.has(sec.id) ? false : sec.isNew
+          const blocks = sec.blocks.map((b) => {
+            const realId = blockIdMap.get(b.id)
+            if (!realId && newSecId === sec.id) return b
+            return {
+              ...b,
+              id: realId ?? b.id,
+              sectionId: newSecId,
+              isNew: realId ? false : b.isNew,
+            }
+          })
+          return { ...sec, id: newSecId, isNew, blocks }
+        })
+
+      // Remap selected if it pointed at a tmp-id that was just renamed.
+      const remapSelected = (sel: SidebarTarget): SidebarTarget => {
+        if (!sel) return null
+        const newSectionId =
+          sectionIdMap.get(sel.sectionId) ?? sel.sectionId
+        if (sel.kind === "section") {
+          return { kind: "section", sectionId: newSectionId }
+        }
+        const newBlockId = blockIdMap.get(sel.blockId) ?? sel.blockId
+        return {
+          kind: "section-block",
+          sectionId: newSectionId,
+          blockId: newBlockId,
+        }
+      }
+
+      return group === "HEADER"
+        ? {
+            header: patchList(s.header),
+            headerDirty: false,
+            selected: remapSelected(s.selected),
+          }
+        : {
+            footer: patchList(s.footer),
+            footerDirty: false,
+            selected: remapSelected(s.selected),
+          }
     })
   },
 

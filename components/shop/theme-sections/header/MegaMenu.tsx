@@ -23,6 +23,7 @@ export function MegaMenu({ section }: Props) {
       className={`hidden md:flex border-t justify-center gap-8 ${className}`}
       style={style}
       data-color-scheme={dataColorScheme}
+      data-preview-target={`section:${section.id}`}
     >
       {section.blocks.map((block) => {
         const panel = block.content as MegaMenuPanelContent

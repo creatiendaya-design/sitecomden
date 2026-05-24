@@ -21,6 +21,7 @@ export function FooterRichText({ section }: Props) {
       className={`container mx-auto px-4 py-6 prose max-w-none ${className}`}
       style={style}
       data-color-scheme={dataColorScheme}
+      data-preview-target={`section:${section.id}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

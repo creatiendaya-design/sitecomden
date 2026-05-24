@@ -4,7 +4,6 @@ import { useBuilderStore } from "../../store"
 import type { BlockStyle, DeviceValue } from "@/lib/blocks/types"
 import { resolveStyleSupport } from "@/lib/blocks/types"
 import { getBlockDefinition } from "@/lib/blocks/registry"
-import { ColorControl } from "../controls/ColorControl"
 import { PaddingControl } from "../controls/PaddingControl"
 import { PaddingTopBottomControl } from "../controls/PaddingTopBottomControl"
 import { TypographyControl } from "../controls/TypographyControl"
@@ -16,7 +15,7 @@ import { BorderControl } from "../controls/BorderControl"
 import { ShadowControl } from "../controls/ShadowControl"
 import { VisibilityControl } from "../controls/VisibilityControl"
 import { ImageControl } from "../controls/ImageControl"
-import { ColorSchemeControl } from "../controls/ColorSchemeControl"
+import { ColorsModeSection } from "../controls/ColorsModeSection"
 
 export function StyleTab() {
   const selectedBlockId = useBuilderStore((s) => s.selectedBlockId)
@@ -37,6 +36,20 @@ export function StyleTab() {
       ...content,
       style: { ...style, [key]: value } as BlockStyle,
     })
+  }
+
+  // Multi-key patch with delete-on-undefined semantics. Used by the
+  // unified Colors section, which clears the inactive mode's keys
+  // (colorSchemeId vs backgroundColor/textColor) when the admin toggles
+  // between Esquema and Personalizado.
+  function patchStyleMulti(patch: Partial<BlockStyle>) {
+    const next: BlockStyle = { ...style, ...patch }
+    for (const key of Object.keys(patch) as (keyof BlockStyle)[]) {
+      if (patch[key] === undefined) {
+        delete next[key]
+      }
+    }
+    updateBlockContent(block!.id, { ...content, style: next })
   }
 
   // First admin interaction with the new top/bottom controls drops the legacy
@@ -80,33 +93,26 @@ export function StyleTab() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Plan 13.1 — color scheme picker. Hides itself when there are
-          fewer than 2 schemes available (e.g. brand-new theme or builder
-          rendered outside the customizer). */}
-      <ColorSchemeControl
-        value={style.colorSchemeId}
-        onChange={(v) => patchStyle("colorSchemeId", v)}
+    // `key={block.id}` mirrors ContentTab — remounts every control when
+    // the admin switches blocks so the debounced color inputs flush any
+    // pending value to the correct (old) block on unmount.
+    <div key={block.id} className="space-y-6">
+      {/* Unified Colores section: when the theme has 2+ schemes AND the
+          block supports custom bg/text, the user gets a Shopify-style
+          toggle (Esquema del tema / Personalizado). Choosing one mode
+          clears the other's keys so the two never visually compete. */}
+      <ColorsModeSection
+        colorMode={style.colorMode}
+        colorSchemeId={style.colorSchemeId}
+        backgroundColor={style.backgroundColor as DeviceValue<string> | undefined}
+        textColor={style.textColor as DeviceValue<string> | undefined}
+        supportsBackground={support.backgroundColor}
+        supportsText={support.textColor}
+        drawerBgColor={style.drawerBgColor as DeviceValue<string> | undefined}
+        drawerTextColor={style.drawerTextColor as DeviceValue<string> | undefined}
+        supportsDrawerColors={support.drawerColors}
+        onPatchStyle={patchStyleMulti}
       />
-
-      {showColors && (
-        <Section title="Colores">
-          {support.backgroundColor && (
-            <ColorControl
-              label="Fondo"
-              value={style.backgroundColor as DeviceValue<string> | undefined}
-              onChange={(v) => patchStyle("backgroundColor", v)}
-            />
-          )}
-          {support.textColor && (
-            <ColorControl
-              label="Texto"
-              value={style.textColor as DeviceValue<string> | undefined}
-              onChange={(v) => patchStyle("textColor", v)}
-            />
-          )}
-        </Section>
-      )}
 
       {support.gradient && (
         <Section title="Gradiente">

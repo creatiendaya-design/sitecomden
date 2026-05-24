@@ -28,6 +28,14 @@ export interface ThemeTokens {
     muted?: string
     /** Border color used by cards/dividers. */
     border?: string
+    /** Background for drawers and modals (cart drawer, dialogs). */
+    drawerBg?: string
+    /** Text inside drawers and modals. */
+    drawerText?: string
+    /** Background for cards (product cards, surface tiles). */
+    cardBg?: string
+    /** Text inside cards. */
+    cardText?: string
   }
   fonts?: {
     /** Headings font stack. */
@@ -62,6 +70,10 @@ export const DEFAULT_THEME_TOKENS: Required<{
     text: "#0f172a", // slate-900
     muted: "#64748b", // slate-500
     border: "#e2e8f0", // slate-200
+    drawerBg: "#ffffff",
+    drawerText: "#0f172a",
+    cardBg: "#ffffff",
+    cardText: "#0f172a",
   },
   fonts: {
     heading: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
