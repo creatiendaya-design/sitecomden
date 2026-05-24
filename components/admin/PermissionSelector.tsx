@@ -1,58 +1,14 @@
 // components/admin/PermissionSelector.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
-
-// Nombres amigables de módulos
-const MODULE_NAMES: Record<string, { name: string; icon: string }> = {
-  products: { name: "Productos", icon: "📦" },
-  categories: { name: "Categorías", icon: "📂" },
-  orders: { name: "Órdenes", icon: "🛒" },
-  customers: { name: "Clientes", icon: "👥" },
-  coupons: { name: "Cupones", icon: "🎟️" },
-  loyalty: { name: "Lealtad", icon: "⭐" },
-  payments: { name: "Pagos", icon: "💳" },
-  newsletter: { name: "Newsletter", icon: "📧" },
-  settings: { name: "Configuración", icon: "⚙️" },
-  users: { name: "Usuarios", icon: "👤" },
-  reports: { name: "Reportes", icon: "📊" },
-  complaints: { name: "Reclamaciones", icon: "📝" },
-};
-
-// Nombres amigables de acciones
-const ACTION_NAMES: Record<string, string> = {
-  view: "Ver",
-  create: "Crear",
-  edit: "Editar",
-  delete: "Eliminar",
-  manage: "Gestionar",
-  manage_inventory: "Gestionar Inventario",
-  manage_points: "Gestionar Puntos",
-  manage_rewards: "Gestionar Recompensas",
-  configure: "Configurar",
-  verify: "Verificar",
-  reject: "Rechazar",
-  export: "Exportar",
-  cancel: "Cancelar",
-  refund: "Reembolsar",
-  update_status: "Actualizar Estado",
-  view_sensitive: "Ver Datos Sensibles",
-  edit_general: "Editar General",
-  edit_payments: "Editar Pagos",
-  edit_emails: "Editar Emails",
-  edit_shipping: "Editar Envíos",
-  manage_roles: "Gestionar Roles",
-  manage_permissions: "Gestionar Permisos",
-  view_sales: "Ver Ventas",
-  view_inventory: "Ver Inventario",
-  view_customers: "Ver Clientes",
-  respond: "Responder",
-};
+import { Input } from "@/components/ui/input";
+import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
+import { getActionLabel, getModuleInfo } from "@/lib/permissions-display";
 
 interface PermissionSelectorProps {
   permissionsGrouped: Record<
@@ -81,11 +37,45 @@ export default function PermissionSelector({
   const [expandedModules, setExpandedModules] = useState<Set<string>>(
     new Set()
   );
+  const [search, setSearch] = useState("");
 
   // Sincronizar cuando cambian las props
   useEffect(() => {
     setSelected(new Set(selectedPermissionIds));
   }, [selectedPermissionIds]);
+
+  // Filtro por búsqueda: matchea contra módulo (es-PE), acción (es-PE),
+  // key cruda y descripción. Si hay query, expandimos automáticamente
+  // los módulos con resultados.
+  const filteredEntries = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const entries = Object.entries(permissionsGrouped);
+    if (!q) return entries;
+    return entries
+      .map(([module, perms]) => {
+        const moduleInfo = getModuleInfo(module);
+        const moduleMatches = moduleInfo.name.toLowerCase().includes(q);
+        const filtered = perms.filter((p) => {
+          if (moduleMatches) return true;
+          const actionLabel = getActionLabel(p.action).toLowerCase();
+          return (
+            actionLabel.includes(q) ||
+            p.key.toLowerCase().includes(q) ||
+            (p.description?.toLowerCase().includes(q) ?? false) ||
+            p.name.toLowerCase().includes(q)
+          );
+        });
+        return [module, filtered] as const;
+      })
+      .filter(([, perms]) => perms.length > 0);
+  }, [permissionsGrouped, search]);
+
+  // Auto-expand modules that match the search query.
+  useEffect(() => {
+    if (search.trim()) {
+      setExpandedModules(new Set(filteredEntries.map(([m]) => m)));
+    }
+  }, [search, filteredEntries]);
 
   const handleToggle = (permissionId: string) => {
     const newSelected = new Set(selected);
@@ -153,13 +143,51 @@ export default function PermissionSelector({
     0
   );
 
+  const visibleEntries = filteredEntries;
+  const visiblePermissionCount = visibleEntries.reduce(
+    (sum, [, perms]) => sum + perms.length,
+    0
+  );
+  const hasSearch = search.trim().length > 0;
+
   return (
     <div className="space-y-3 sm:space-y-4">
+      {/* Search — first row, full width */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Buscar permiso (ej: editar productos, themes:update…)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-8 pr-8"
+        />
+        {hasSearch && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setSearch("")}
+            className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+            aria-label="Limpiar búsqueda"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+
       {/* Top actions — stack on mobile */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Badge variant="secondary" className="self-start text-xs sm:text-sm w-fit">
-          {selected.size} / {totalPermissions} seleccionados
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="text-xs sm:text-sm">
+            {selected.size} / {totalPermissions} seleccionados
+          </Badge>
+          {hasSearch && (
+            <Badge variant="outline" className="text-xs">
+              {visiblePermissionCount} coincidencias
+            </Badge>
+          )}
+        </div>
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
           <Button
             type="button"
@@ -203,18 +231,27 @@ export default function PermissionSelector({
         </div>
       </div>
 
+      {/* Empty state when search returns nothing */}
+      {hasSearch && visibleEntries.length === 0 && (
+        <div className="rounded-lg border border-dashed bg-muted/20 py-8 text-center text-sm text-muted-foreground">
+          Sin resultados para "{search}"
+        </div>
+      )}
+
       {/* Módulos accordion */}
       <div className="space-y-2 sm:grid sm:gap-3 sm:grid-cols-2 sm:space-y-0">
-        {moduleEntries.map(([module, permissions]) => {
-          const moduleInfo = MODULE_NAMES[module] || {
-            name: module,
-            icon: "📌",
-          };
-          const modulePermissionIds = permissions.map((p) => p.id);
-          const selectedCount = modulePermissionIds.filter((id) =>
+        {visibleEntries.map(([module, permissions]) => {
+          const moduleInfo = getModuleInfo(module);
+          // Stats sobre el módulo COMPLETO (no solo lo filtrado), para que
+          // los contadores no engañen cuando hay búsqueda activa.
+          const fullModulePermissions = permissionsGrouped[module] ?? [];
+          const fullModulePermissionIds = fullModulePermissions.map((p) => p.id);
+          const selectedCount = fullModulePermissionIds.filter((id) =>
             selected.has(id)
           ).length;
-          const allSelected = selectedCount === modulePermissionIds.length;
+          const allSelected =
+            fullModulePermissionIds.length > 0 &&
+            selectedCount === fullModulePermissionIds.length;
           const someSelected = selectedCount > 0 && !allSelected;
           const isExpanded = expandedModules.has(module);
 
@@ -249,7 +286,10 @@ export default function PermissionSelector({
                       {moduleInfo.name}
                     </p>
                     <p className="text-[11px] text-muted-foreground tabular-nums">
-                      {selectedCount} / {permissions.length} permisos
+                      {selectedCount} / {fullModulePermissions.length} permisos
+                      {hasSearch && permissions.length !== fullModulePermissions.length && (
+                        <span> · {permissions.length} visibles</span>
+                      )}
                     </p>
                   </div>
                 </button>
@@ -263,7 +303,7 @@ export default function PermissionSelector({
                   }
                   className="text-[10px] sm:text-xs h-5 px-1.5 tabular-nums shrink-0"
                 >
-                  {selectedCount}/{permissions.length}
+                  {selectedCount}/{fullModulePermissions.length}
                 </Badge>
                 <Button
                   type="button"
@@ -299,8 +339,13 @@ export default function PermissionSelector({
                         htmlFor={permission.id}
                         className="flex-1 cursor-pointer text-sm font-normal leading-tight min-w-0"
                       >
-                        <span className="block">
-                          {ACTION_NAMES[permission.action] || permission.action}
+                        <span className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="font-medium">
+                            {getActionLabel(permission.action)}
+                          </span>
+                          <code className="text-[10px] text-muted-foreground bg-muted px-1 py-0.5 rounded">
+                            {permission.key}
+                          </code>
                         </span>
                         {permission.description && (
                           <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">

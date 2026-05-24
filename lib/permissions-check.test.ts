@@ -109,10 +109,8 @@ describe("checkPermission - per-user DENY override", () => {
   });
 
   it("DENY beats GRANT (defense-in-depth — explicit revocation wins)", () => {
-    // This case shouldn't occur with the upsert pattern, but if both
-    // entries somehow coexist, the .find() returns the first match.
-    // We assert the *first* matching entry decides; the test pins behavior
-    // even if data ends up inconsistent.
+    // The upsert pattern shouldn't allow both, but if both entries coexist
+    // (or arrive via different alias names), DENY wins regardless of order.
     const user = makeUser({
       roleLevel: 3,
       customPermissions: [
@@ -129,5 +127,73 @@ describe("checkPermission - per-user DENY override", () => {
       customPermissions: [{ key: "x", type: "DENY" }],
     });
     expect(checkPermission(superDeny, "x")).toBe(true);
+  });
+});
+
+describe("checkPermission - alias normalization", () => {
+  it("accepts dot-form when role has colon-form (themes.update ≡ themes:update)", () => {
+    const editor = makeUser({
+      roleLevel: 3,
+      rolePermissions: ["themes:update"],
+    });
+    expect(checkPermission(editor, "themes.update")).toBe(true);
+  });
+
+  it("treats products:update and products:edit as equivalent", () => {
+    const legacyAdmin = makeUser({
+      roleLevel: 80,
+      rolePermissions: ["products:edit"],
+    });
+    expect(checkPermission(legacyAdmin, "products:update")).toBe(true);
+
+    const modernAdmin = makeUser({
+      roleLevel: 80,
+      rolePermissions: ["products:update"],
+    });
+    expect(checkPermission(modernAdmin, "products:edit")).toBe(true);
+  });
+
+  it("treats orders/categories/coupons/customers edit↔update as equivalent", () => {
+    const role = makeUser({
+      roleLevel: 80,
+      rolePermissions: [
+        "orders:edit",
+        "categories:edit",
+        "coupons:edit",
+        "customers:edit",
+      ],
+    });
+    expect(checkPermission(role, "orders:update")).toBe(true);
+    expect(checkPermission(role, "categories:update")).toBe(true);
+    expect(checkPermission(role, "coupons:update")).toBe(true);
+    expect(checkPermission(role, "customers:update")).toBe(true);
+  });
+
+  it("any granular settings:edit_* satisfies settings:update / settings:edit", () => {
+    const role = makeUser({
+      roleLevel: 80,
+      rolePermissions: ["settings:edit_general"],
+    });
+    expect(checkPermission(role, "settings:update")).toBe(true);
+    expect(checkPermission(role, "settings:edit")).toBe(true);
+  });
+
+  it("DENY on an alias blocks the canonical key too", () => {
+    const role = makeUser({
+      roleLevel: 80,
+      rolePermissions: ["products:edit"],
+      customPermissions: [{ key: "products:update", type: "DENY" }],
+    });
+    expect(checkPermission(role, "products:edit")).toBe(false);
+    expect(checkPermission(role, "products:update")).toBe(false);
+  });
+
+  it("GRANT on an alias grants the canonical key", () => {
+    const role = makeUser({
+      roleLevel: 1,
+      rolePermissions: [],
+      customPermissions: [{ key: "products:edit", type: "GRANT" }],
+    });
+    expect(checkPermission(role, "products:update")).toBe(true);
   });
 });

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Check, X, Search } from "lucide-react";
 import { assignCustomPermission, removeCustomPermission, getUserById } from "@/actions/users";
 import { toast } from "sonner";
+import { getActionLabel, getModuleInfo } from "@/lib/permissions-display";
 
 interface CustomPermissionsManagerProps {
   userId: string;
@@ -14,41 +16,6 @@ interface CustomPermissionsManagerProps {
   customPermissions: any[];
   allPermissions: any[];
 }
-
-// Nombres amigables para módulos
-const MODULE_NAMES: Record<string, string> = {
-  products: "Productos",
-  categories: "Categorías",
-  orders: "Órdenes",
-  customers: "Clientes",
-  coupons: "Cupones",
-  loyalty: "Programa de Lealtad",
-  payments: "Pagos",
-  newsletter: "Newsletter",
-  settings: "Configuración",
-  users: "Usuarios",
-  reports: "Reportes",
-  complaints: "Libro de Reclamaciones",
-};
-
-// Nombres amigables para acciones
-const ACTION_NAMES: Record<string, string> = {
-  view: "Ver",
-  create: "Crear",
-  edit: "Editar",
-  delete: "Eliminar",
-  manage: "Gestionar",
-  configure: "Configurar",
-  verify: "Verificar",
-  reject: "Rechazar",
-  export: "Exportar",
-  cancel: "Cancelar",
-  refund: "Reembolsar",
-  update_status: "Actualizar Estado",
-  manage_roles: "Gestionar Roles",
-  manage_permissions: "Gestionar Permisos",
-  view_sensitive: "Ver Información Sensible",
-};
 
 export default function CustomPermissionsManager({
   userId,
@@ -58,15 +25,49 @@ export default function CustomPermissionsManager({
 }: CustomPermissionsManagerProps) {
   const [localCustomPermissions, setLocalCustomPermissions] = useState(customPermissions);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
   // Agrupar permisos por módulo
-  const permissionsGrouped = allPermissions.reduce((acc, perm) => {
-    if (!acc[perm.module]) {
-      acc[perm.module] = [];
+  const permissionsGrouped = useMemo(
+    () =>
+      allPermissions.reduce((acc, perm) => {
+        if (!acc[perm.module]) {
+          acc[perm.module] = [];
+        }
+        acc[perm.module].push(perm);
+        return acc;
+      }, {} as Record<string, any[]>),
+    [allPermissions],
+  );
+
+  // Filtrado por búsqueda (módulo es-PE, acción es-PE, key cruda, descripción).
+  const filteredGrouped = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return permissionsGrouped;
+    const out: Record<string, any[]> = {};
+    for (const [module, perms] of Object.entries(permissionsGrouped) as [
+      string,
+      any[],
+    ][]) {
+      const moduleLabel = getModuleInfo(module).name.toLowerCase();
+      const moduleMatches = moduleLabel.includes(q);
+      const matched = perms.filter((p: any) => {
+        if (moduleMatches) return true;
+        const action = getActionLabel(p.action).toLowerCase();
+        return (
+          action.includes(q) ||
+          p.key.toLowerCase().includes(q) ||
+          (p.description?.toLowerCase().includes(q) ?? false) ||
+          (p.name?.toLowerCase().includes(q) ?? false)
+        );
+      });
+      if (matched.length > 0) out[module] = matched;
     }
-    acc[perm.module].push(perm);
-    return acc;
-  }, {} as Record<string, any[]>);
+    return out;
+  }, [permissionsGrouped, search]);
+
+  const hasSearch = search.trim().length > 0;
+  const visibleGroupedEntries = Object.entries(filteredGrouped);
 
   // Obtener permisos del rol
   const rolePermissions = currentRole?.permissions?.map((rp: any) => rp.permission.id) || [];
@@ -139,11 +140,13 @@ export default function CustomPermissionsManager({
     }
   };
 
-  // Formatear nombre de permiso
+  // Formatear nombre de permiso (acción es-PE)
   const formatPermissionName = (permission: any) => {
-    const actionName = ACTION_NAMES[permission.action] || permission.action;
-    return `${actionName}`;
+    return getActionLabel(permission.action);
   };
+
+  // Etiqueta de módulo (es-PE)
+  const moduleLabel = (moduleKey: string) => getModuleInfo(moduleKey).name;
 
   return (
     <div className="space-y-6">
@@ -161,7 +164,7 @@ export default function CustomPermissionsManager({
             <div className="flex flex-wrap gap-2">
               {(currentRole.permissions ?? []).map((rp: any) => (
                 <Badge key={rp.permission.id} variant="secondary">
-                  {MODULE_NAMES[rp.permission.module] || rp.permission.module}:{" "}
+                  {moduleLabel(rp.permission.module)}:{" "}
                   {formatPermissionName(rp.permission)}
                 </Badge>
               ))}
@@ -188,7 +191,7 @@ export default function CustomPermissionsManager({
                   className="cursor-pointer hover:opacity-80"
                   onClick={() => handleTogglePermission(cp.permissionId, cp.type)}
                 >
-                  {MODULE_NAMES[cp.permission.module] || cp.permission.module}:{" "}
+                  {moduleLabel(cp.permission.module)}:{" "}
                   {formatPermissionName(cp.permission)} ({cp.type})
                   <span className="ml-1">×</span>
                 </Badge>
@@ -204,77 +207,116 @@ export default function CustomPermissionsManager({
           <CardTitle>Asignar Permisos Personalizados</CardTitle>
           <CardDescription>
             Click en ✓ para GRANT (otorgar), ✗ para DENY (bloquear). Los permisos del
-            rol aparecen en gris.
+            rol aparecen marcados como "Del rol".
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {Object.entries(permissionsGrouped).map(([module, permissions]) => (
-              <Card key={module}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">
-                    {MODULE_NAMES[module] || module}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {(permissions as any[]).map((permission: any) => {
-                    const customPerm = getCustomPermission(permission.id);
-                    const inRole = hasRolePermission(permission.id);
+        <CardContent className="space-y-3">
+          {/* Buscador */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar permiso (ej: temas, products:update, eliminar…)"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 pr-8"
+            />
+            {hasSearch && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearch("")}
+                className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
 
-                    return (
-                      <div key={permission.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">
-                            {formatPermissionName(permission)}
-                          </span>
-                          {inRole && !customPerm && (
-                            <Badge variant="secondary" className="text-xs">
-                              Del rol
-                            </Badge>
-                          )}
+          {hasSearch && visibleGroupedEntries.length === 0 && (
+            <div className="rounded-lg border border-dashed bg-muted/20 py-8 text-center text-sm text-muted-foreground">
+              Sin resultados para "{search}"
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {visibleGroupedEntries.map(([module, permissions]) => {
+              const info = getModuleInfo(module);
+              return (
+                <Card key={module}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <span>{info.icon}</span>
+                      <span>{info.name}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {(permissions as any[]).map((permission: any) => {
+                      const customPerm = getCustomPermission(permission.id);
+                      const inRole = hasRolePermission(permission.id);
+
+                      return (
+                        <div key={permission.id} className="flex items-center justify-between gap-2">
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-medium">
+                                {formatPermissionName(permission)}
+                              </span>
+                              {inRole && !customPerm && (
+                                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                                  Del rol
+                                </Badge>
+                              )}
+                            </div>
+                            <code className="text-[10px] text-muted-foreground truncate">
+                              {permission.key}
+                            </code>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <Button
+                              variant={customPerm?.type === "GRANT" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                if (customPerm?.type === "GRANT") {
+                                  handleTogglePermission(permission.id, "GRANT");
+                                } else if (customPerm?.type === "DENY") {
+                                  handleChangePermissionType(permission.id, "GRANT");
+                                } else {
+                                  handleTogglePermission(permission.id);
+                                }
+                              }}
+                              disabled={loading}
+                              title="GRANT - Otorgar permiso"
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant={customPerm?.type === "DENY" ? "destructive" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                if (customPerm?.type === "DENY") {
+                                  handleTogglePermission(permission.id, "DENY");
+                                } else if (customPerm?.type === "GRANT") {
+                                  handleChangePermissionType(permission.id, "DENY");
+                                } else {
+                                  handleChangePermissionType(permission.id, "DENY");
+                                }
+                              }}
+                              disabled={loading}
+                              title="DENY - Bloquear permiso"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant={customPerm?.type === "GRANT" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => {
-                              if (customPerm?.type === "GRANT") {
-                                handleTogglePermission(permission.id, "GRANT");
-                              } else if (customPerm?.type === "DENY") {
-                                handleChangePermissionType(permission.id, "GRANT");
-                              } else {
-                                handleTogglePermission(permission.id);
-                              }
-                            }}
-                            disabled={loading}
-                            title="GRANT - Otorgar permiso"
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant={customPerm?.type === "DENY" ? "destructive" : "outline"}
-                            size="sm"
-                            onClick={() => {
-                              if (customPerm?.type === "DENY") {
-                                handleTogglePermission(permission.id, "DENY");
-                              } else if (customPerm?.type === "GRANT") {
-                                handleChangePermissionType(permission.id, "DENY");
-                              } else {
-                                handleChangePermissionType(permission.id, "DENY");
-                              }
-                            }}
-                            disabled={loading}
-                            title="DENY - Bloquear permiso"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            ))}
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

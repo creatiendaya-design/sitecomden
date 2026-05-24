@@ -33,7 +33,10 @@ export type RoleFormData = {
 
 export async function getRoles() {
   try {
-    await protectRoute("users:manage_roles");
+    // `users:view` es suficiente: tanto la lista de usuarios como los forms
+    // de crear/editar usuario necesitan resolver roles para el dropdown.
+    // `users:manage_roles` solo se exige para crear/editar/eliminar roles.
+    await protectRoute("users:view");
     const roles = await prisma.role.findMany({
       include: {
         permissions: {
@@ -65,6 +68,7 @@ export async function getRoles() {
 
 export async function getRoleById(roleId: string) {
   try {
+    await protectRoute("users:view");
     const role = await prisma.role.findUnique({
       where: { id: roleId },
       include: {
@@ -98,6 +102,9 @@ export async function getRoleById(roleId: string) {
 
 export async function getAllPermissions() {
   try {
+    // El catálogo de permisos se usa tanto en el editor de roles como en la
+    // tab "Permisos" del usuario; `users:view` es la barrera mínima común.
+    await protectRoute("users:view");
     const permissions = await prisma.permission.findMany({
       orderBy: [
         { module: "asc" },
