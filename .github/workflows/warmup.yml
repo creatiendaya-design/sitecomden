@@ -1,0 +1,51 @@
+name: Neon warmup
+
+# Pings /api/internal/warmup periodically so the Neon serverless branch
+# doesn't suspend (Neon suspends a free-tier compute after ~5 min idle).
+# Replaces the Vercel Cron that was removed from vercel.json because the
+# Hobby plan now restricts crons to once-per-day. GitHub Actions cron
+# has ~5-15 min real-world latency, so requests aren't guaranteed at
+# exactly 10-minute marks, but it keeps Neon warm enough to avoid the
+# P1001 cold-start spikes that broke the customizer.
+#
+# Requires two pieces of configuration in this repo's GitHub settings:
+#   - Secret  CRON_SECRET     — same value as the CRON_SECRET env var
+#                               set in Vercel. Used as Bearer token.
+#   - Variable PRODUCTION_URL — production base URL (e.g.
+#                               https://shop.example.com). Optional;
+#                               defaults to https://nuejoy.online when
+#                               unset.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: neon-warmup
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Ping warmup endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Hit /api/internal/warmup
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          BASE_URL="${PRODUCTION_URL:-https://nuejoy.online}"
+          AUTH_HEADER=()
+          if [ -n "$CRON_SECRET" ]; then
+            AUTH_HEADER=(-H "Authorization: Bearer $CRON_SECRET")
+          else
+            echo "::warning::CRON_SECRET is not set. Calling the endpoint unauthenticated; configure it in repo Secrets to match the Vercel env var."
+          fi
+          echo "Pinging $BASE_URL/api/internal/warmup"
+          curl --fail --silent --show-error \
+            --max-time 30 \
+            "${AUTH_HEADER[@]}" \
+            -w "\nHTTP %{http_code} | total %{time_total}s | dns %{time_namelookup}s | connect %{time_connect}s\n" \
+            "$BASE_URL/api/internal/warmup"
