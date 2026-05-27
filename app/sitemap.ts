@@ -1,6 +1,11 @@
 import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db'
 
+// Read products/categories from DB on every request instead of prerendering
+// at build time. Avoids DB calls during `next build` (CI has no DATABASE_URL
+// reachable) and reflects new products without waiting for a rebuild.
+export const dynamic = 'force-dynamic'
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Obtener configuración del sitio
   const siteSettings = await prisma.setting.findUnique({
