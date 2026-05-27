@@ -36,7 +36,7 @@ jobs:
           PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          BASE_URL="${PRODUCTION_URL:-https://nuejoy.online}"
+          BASE_URL="${PRODUCTION_URL:-https://www.nuejoy.online}"
           AUTH_HEADER=()
           if [ -n "$CRON_SECRET" ]; then
             AUTH_HEADER=(-H "Authorization: Bearer $CRON_SECRET")
@@ -44,7 +44,9 @@ jobs:
             echo "::warning::CRON_SECRET is not set. Calling the endpoint unauthenticated; configure it in repo Secrets to match the Vercel env var."
           fi
           echo "Pinging $BASE_URL/api/internal/warmup"
-          curl --fail --silent --show-error \
+          # --location: follow 3xx redirects so apex->www (or future
+          # canonical-host changes) don't quietly turn into no-op pings.
+          curl --fail --silent --show-error --location \
             --max-time 30 \
             "${AUTH_HEADER[@]}" \
             -w "\nHTTP %{http_code} | total %{time_total}s | dns %{time_namelookup}s | connect %{time_connect}s\n" \
