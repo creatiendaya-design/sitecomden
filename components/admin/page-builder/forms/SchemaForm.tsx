@@ -4,6 +4,7 @@ import type { FormField, FormSchema } from "@/lib/blocks/schema/types"
 import { TextField } from "@/lib/blocks/schema/primitives/TextField"
 import { SwitchField } from "@/lib/blocks/schema/primitives/SwitchField"
 import { NumberField } from "@/lib/blocks/schema/primitives/NumberField"
+import { RangeField } from "@/lib/blocks/schema/primitives/RangeField"
 import { ColorField } from "@/lib/blocks/schema/primitives/ColorField"
 import { ImageField } from "@/lib/blocks/schema/primitives/ImageField"
 import { SelectField } from "@/lib/blocks/schema/primitives/SelectField"
@@ -62,6 +63,8 @@ function FieldRenderer({
       return <SwitchField field={field} value={fieldValue} onChange={onChangeField} />
     case "number":
       return <NumberField field={field} value={fieldValue} onChange={onChangeField} />
+    case "range":
+      return <RangeField field={field} value={fieldValue} onChange={onChangeField} />
     case "color":
       return <ColorField field={field} value={fieldValue} onChange={onChangeField} />
     case "image":

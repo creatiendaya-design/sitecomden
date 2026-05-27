@@ -29,6 +29,7 @@ export type KnownLandingBlockType =
   | "RICH_TEXT"
   | "FAQ"
   | "IMAGE_TEXT"
+  | "ICON_TEXT"
   | "RELATED_PRODUCTS"
   | "PRODUCT_GRID"
   | "COMPARISON";
@@ -50,6 +51,7 @@ export const KNOWN_BLOCK_TYPES: ReadonlySet<KnownLandingBlockType> = new Set<Kno
   "RICH_TEXT",
   "FAQ",
   "IMAGE_TEXT",
+  "ICON_TEXT",
   "RELATED_PRODUCTS",
   "PRODUCT_GRID",
   "COMPARISON",
@@ -229,6 +231,39 @@ export interface ImageTextBlockContent {
   ratioImageToText?: "40-60" | "50-50" | "60-40";
 }
 
+export interface IconTextCard {
+  id: string;
+  /** Image URL (single, not device-split). Width is controlled per-device
+   *  via `imageWidthDesktop` / `imageWidthMobile`. */
+  image?: string;
+  /** Alt text for accessibility. */
+  imageAlt?: string;
+  /** Rich text (sanitized HTML) rendered below the image. */
+  html?: string;
+  /** Per-card background color (overrides the section's color scheme card surface). */
+  bgColor?: string;
+  /** Per-card text color (inherits when omitted). */
+  textColor?: string;
+  /** Image width in px on desktop (≥768px). */
+  imageWidthDesktop?: number;
+  /** Image width in px on mobile (<768px). */
+  imageWidthMobile?: number;
+}
+
+export interface IconTextBlockContent {
+  cards: IconTextCard[];
+  columnsDesktop: 2 | 3 | 4 | 5;
+  columnsMobile: 1 | 2;
+  cardPadding: "sm" | "md" | "lg";
+  cardCornerRadius: "none" | "sm" | "md" | "lg" | "xl";
+  cardGap: "sm" | "md" | "lg";
+  /** Default per-card background applied when a card has no `bgColor` of its own.
+   *  Lets admins recolor every card at once without editing each one. */
+  defaultCardBgColor?: string;
+  /** Default per-card text color (same logic as defaultCardBgColor). */
+  defaultCardTextColor?: string;
+}
+
 export interface RelatedProductsBlockContent {
   title?: string;
   mode: "manual" | "auto";
@@ -301,6 +336,7 @@ export type BlockContent =
   | RichTextBlockContent
   | FaqBlockContent
   | ImageTextBlockContent
+  | IconTextBlockContent
   | RelatedProductsBlockContent
   | ProductGridBlockContent
   | ComparisonBlockContent;
@@ -333,6 +369,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   RICH_TEXT: "Texto con formato",
   FAQ: "Preguntas frecuentes",
   IMAGE_TEXT: "Imagen + Texto",
+  ICON_TEXT: "Icono + Texto (cards)",
   RELATED_PRODUCTS: "Productos relacionados",
   PRODUCT_GRID: "Grid de productos",
   COMPARISON: "Tabla comparativa",
@@ -357,6 +394,14 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
   RICH_TEXT: { html: "" },
   FAQ: { items: [] },
   IMAGE_TEXT: { description: "", imagePosition: "left", imageAlt: "" },
+  ICON_TEXT: {
+    cards: [],
+    columnsDesktop: 4,
+    columnsMobile: 2,
+    cardPadding: "md",
+    cardCornerRadius: "lg",
+    cardGap: "md",
+  },
   RELATED_PRODUCTS: {
     mode: "auto",
     displayType: "carousel",

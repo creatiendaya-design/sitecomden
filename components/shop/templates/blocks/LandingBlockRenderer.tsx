@@ -9,6 +9,7 @@ import TrustBadgesBlock from "./TrustBadgesBlock";
 import RichTextBlock from "./RichTextBlock";
 import FaqBlock from "./FaqBlock";
 import ImageTextBlock from "./ImageTextBlock";
+import IconTextBlock from "./IconTextBlock";
 import RelatedProductsBlockEditorWrapper from "./RelatedProductsBlockEditorWrapper";
 import ProductGridBlock from "./ProductGridBlock";
 import ComparisonBlock from "./ComparisonBlock";
@@ -139,6 +140,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             break;
           case "IMAGE_TEXT":
             inner = <ImageTextBlock content={c} onCtaClick={onCtaClick} />;
+            break;
+          case "ICON_TEXT":
+            inner = <IconTextBlock content={c} />;
             break;
           case "RELATED_PRODUCTS":
             inner = <RelatedProductsBlockEditorWrapper content={c} currentProductId={currentProductId} />;

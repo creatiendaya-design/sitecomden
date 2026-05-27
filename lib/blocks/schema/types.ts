@@ -19,6 +19,7 @@ export type FormField =
   | SelectFieldDef
   | SwitchFieldDef
   | NumberFieldDef
+  | RangeFieldDef
   | ArrayFieldDef
   | IconFieldDef
   | ProductPickerFieldDef
@@ -100,6 +101,26 @@ export interface NumberFieldDef extends BaseFieldDef {
   max?: number
   step?: number
   placeholder?: string
+}
+
+/**
+ * Shopify-style range slider. Renders an `<input type="range">` with the
+ * current value shown beside the label (e.g. "96 px"). Used for any numeric
+ * value the admin nudges visually instead of typing — image widths, padding
+ * amounts, opacity, etc.
+ *
+ * `min`, `max`, and `step` are required (unlike `number` where they're
+ * optional) because a slider with no bounds is unusable.
+ */
+export interface RangeFieldDef extends BaseFieldDef {
+  type: "range"
+  min: number
+  max: number
+  step: number
+  /** Suffix shown next to the current value (e.g. "px", "%", "rem"). */
+  unit?: string
+  /** Default value when the stored value is missing/invalid. */
+  defaultValue?: number
 }
 
 export interface ArrayFieldDef extends BaseFieldDef {

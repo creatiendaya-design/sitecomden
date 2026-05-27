@@ -144,6 +144,54 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
     },
   },
 
+  ICON_TEXT: {
+    data: {
+      cards: [
+        {
+          id: crypto.randomUUID(),
+          image: "",
+          imageAlt: "",
+          html: "<p><strong>Sinergia</strong> de 4 módulos clínicamente probados para máxima efectividad.</p>",
+          imageWidthDesktop: 96,
+          imageWidthMobile: 72,
+        },
+        {
+          id: crypto.randomUUID(),
+          image: "",
+          imageAlt: "",
+          html: "<p><strong>Rápido y eficiente</strong> — tratamientos de 15 minutos o menos.</p>",
+          imageWidthDesktop: 96,
+          imageWidthMobile: 72,
+        },
+        {
+          id: crypto.randomUUID(),
+          image: "",
+          imageAlt: "",
+          html: "<p><strong>Conveniente</strong> — disfrútalo desde la comodidad de tu hogar.</p>",
+          imageWidthDesktop: 96,
+          imageWidthMobile: 72,
+        },
+        {
+          id: crypto.randomUUID(),
+          image: "",
+          imageAlt: "",
+          html: "<p><strong>Ahorra dinero</strong> reemplazando tratamientos clínicos con resultados similares o mejores.</p>",
+          imageWidthDesktop: 96,
+          imageWidthMobile: 72,
+        },
+      ],
+      columnsDesktop: 4,
+      columnsMobile: 2,
+      cardPadding: "md",
+      cardCornerRadius: "lg",
+      cardGap: "md",
+      defaultCardBgColor: "#f5f5f5",
+      defaultCardTextColor: "",
+    },
+    style: { ...DEFAULT_STYLE, alignment: "center" },
+    media: {},
+  },
+
   RELATED_PRODUCTS: {
     data: {
       title: "También te puede gustar",

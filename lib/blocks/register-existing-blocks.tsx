@@ -17,6 +17,7 @@ const TrustBadgesBlock = dynamic(() => import("@/components/shop/templates/block
 const RichTextBlock = dynamic(() => import("@/components/shop/templates/blocks/RichTextBlock"))
 const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlock"))
 const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/ImageTextBlock"))
+const IconTextBlock = dynamic(() => import("@/components/shop/templates/blocks/IconTextBlock"))
 const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
 const ProductGridBlockEditor = dynamic(() => import("@/components/shop/templates/blocks/ProductGridBlockEditor"))
 const ComparisonBlock = dynamic(() => import("@/components/shop/templates/blocks/ComparisonBlock"))
@@ -587,6 +588,151 @@ const existing: BlockDefinition[] = [
         key: "ctaUrl",
         label: "URL del botón (opcional)",
         component: LinkUrlField,
+      },
+    ],
+    styleSupport: { gradient: true },
+  },
+  {
+    type: "ICON_TEXT",
+    label: "Icono + Texto (cards)",
+    icon: "Sparkles",
+    emoji: "✨",
+    description:
+      "Grid de tarjetas con ícono/imagen y texto enriquecido — ideal para listas de beneficios",
+    scope: "universal",
+    category: "content",
+    defaultContent: DEFAULT_CONTENT_V2.ICON_TEXT,
+    renderer: IconTextBlock as any,
+    contentSchema: [
+      {
+        type: "select",
+        key: "columnsDesktop",
+        label: "Columnas desktop",
+        options: [
+          { value: 2, label: "2" },
+          { value: 3, label: "3" },
+          { value: 4, label: "4" },
+          { value: 5, label: "5" },
+        ],
+      },
+      {
+        type: "select",
+        key: "columnsMobile",
+        label: "Columnas mobile",
+        options: [
+          { value: 1, label: "1" },
+          { value: 2, label: "2" },
+        ],
+      },
+      {
+        type: "select",
+        key: "cardGap",
+        label: "Separación entre cards",
+        options: [
+          { value: "sm", label: "Pequeña" },
+          { value: "md", label: "Mediana" },
+          { value: "lg", label: "Grande" },
+        ],
+      },
+      {
+        type: "select",
+        key: "cardPadding",
+        label: "Padding interno de cada card",
+        options: [
+          { value: "sm", label: "Pequeño" },
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+        ],
+      },
+      {
+        type: "select",
+        key: "cardCornerRadius",
+        label: "Bordes redondeados de cards",
+        options: [
+          { value: "none", label: "Sin redondear" },
+          { value: "sm", label: "Pequeño" },
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+        ],
+      },
+      {
+        type: "color",
+        key: "defaultCardBgColor",
+        label: "Fondo de cards (por defecto)",
+        showInStyleTab: true,
+        helpText:
+          "Se aplica a todas las cards que no tengan un fondo propio. Si lo dejas vacío, las cards heredan el fondo de la sección.",
+      },
+      {
+        type: "color",
+        key: "defaultCardTextColor",
+        label: "Texto de cards (por defecto)",
+        showInStyleTab: true,
+        helpText: "Color de texto compartido por las cards sin color propio.",
+      },
+      {
+        type: "array",
+        key: "cards",
+        label: "Cards",
+        addButtonText: "+ Agregar card",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          image: "",
+          imageAlt: "",
+          html: "<p><strong>Nuevo beneficio</strong> descrito en una frase.</p>",
+          bgColor: "",
+          textColor: "",
+          imageWidthDesktop: 96,
+          imageWidthMobile: 72,
+        }),
+        itemLabel: (it, i) => {
+          const html = (it.html as string) || "";
+          const text = html.replace(/<[^>]*>/g, "").trim();
+          return text ? text.slice(0, 32) : `Card ${i + 1}`;
+        },
+        itemSchema: [
+          {
+            type: "image",
+            key: "image",
+            label: "Imagen / ícono",
+            deviceOverride: false,
+          },
+          { type: "text", key: "imageAlt", label: "Texto alternativo (alt)" },
+          {
+            type: "range",
+            key: "imageWidthDesktop",
+            label: "Ancho imagen desktop",
+            min: 24,
+            max: 320,
+            step: 4,
+            unit: "px",
+            defaultValue: 96,
+          },
+          {
+            type: "range",
+            key: "imageWidthMobile",
+            label: "Ancho imagen mobile",
+            min: 24,
+            max: 240,
+            step: 4,
+            unit: "px",
+            defaultValue: 72,
+          },
+          { type: "richtext", key: "html", label: "Texto" },
+          {
+            type: "color",
+            key: "bgColor",
+            label: "Fondo de esta card",
+            helpText: "Opcional. Si lo dejas vacío usa el color por defecto del bloque.",
+          },
+          {
+            type: "color",
+            key: "textColor",
+            label: "Color de texto",
+            helpText: "Opcional. Sobrescribe el color por defecto del bloque para esta card.",
+          },
+        ],
       },
     ],
     styleSupport: { gradient: true },

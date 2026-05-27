@@ -45,7 +45,7 @@ import {
 const BLOCK_ICONS: Record<LandingBlockType, string> = {
   HERO: "🖼", GALLERY: "🖼️",
   TESTIMONIALS: "💬", VIDEO: "▶️", COLORS: "🎨", TICKER: "📢", TRUST_BADGES: "🛡️", RICH_TEXT: "📝", FAQ: "❓",
-  IMAGE_TEXT: "🖼️", RELATED_PRODUCTS: "🛒", PRODUCT_GRID: "🛍️", COMPARISON: "📊",
+  IMAGE_TEXT: "🖼️", ICON_TEXT: "✨", RELATED_PRODUCTS: "🛒", PRODUCT_GRID: "🛍️", COMPARISON: "📊",
 };
 
 const BLOCK_COLORS: Record<LandingBlockType, string> = {
@@ -56,6 +56,7 @@ const BLOCK_COLORS: Record<LandingBlockType, string> = {
   RICH_TEXT: "border-l-indigo-500",
   FAQ: "border-l-sky-500",
   IMAGE_TEXT: "border-l-fuchsia-500",
+  ICON_TEXT: "border-l-cyan-500",
   RELATED_PRODUCTS: "border-l-orange-500",
   PRODUCT_GRID: "border-l-emerald-500",
   COMPARISON: "border-l-rose-500",

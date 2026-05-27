@@ -21,6 +21,7 @@ const BLOCK_ICONS: Record<LandingBlockType, string> = {
   RICH_TEXT: "📝",
   FAQ: "❓",
   IMAGE_TEXT: "🖼️",
+  ICON_TEXT: "✨",
   RELATED_PRODUCTS: "🛒",
   PRODUCT_GRID: "🛍️",
   COMPARISON: "📊",
