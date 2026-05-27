@@ -34,7 +34,7 @@ export type KnownLandingBlockType =
   | "PRODUCT_GRID"
   | "COMPARISON";
 
-// eslint-disable-next-line @typescript-eslint/ban-types
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type LandingBlockType = KnownLandingBlockType | (string & {});
 
 /** Server-safe set of allowed block type ids — replaces the dropped
