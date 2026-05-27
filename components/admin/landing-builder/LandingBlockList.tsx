@@ -42,12 +42,6 @@ import {
   type BlockContent,
 } from "@/lib/types/landing-blocks";
 
-const BLOCK_ICONS: Record<LandingBlockType, string> = {
-  HERO: "🖼", GALLERY: "🖼️",
-  TESTIMONIALS: "💬", VIDEO: "▶️", COLORS: "🎨", TICKER: "📢", TRUST_BADGES: "🛡️", RICH_TEXT: "📝", FAQ: "❓",
-  IMAGE_TEXT: "🖼️", ICON_TEXT: "✨", RELATED_PRODUCTS: "🛒", PRODUCT_GRID: "🛍️", COMPARISON: "📊",
-};
-
 const BLOCK_COLORS: Record<LandingBlockType, string> = {
   HERO: "border-l-purple-500",
   GALLERY: "border-l-blue-500", TESTIMONIALS: "border-l-blue-400",
@@ -60,6 +54,9 @@ const BLOCK_COLORS: Record<LandingBlockType, string> = {
   RELATED_PRODUCTS: "border-l-orange-500",
   PRODUCT_GRID: "border-l-emerald-500",
   COMPARISON: "border-l-rose-500",
+  FRIENDLY: "border-l-red-600",
+  CAROUSEL: "border-l-pink-500",
+  BANNER_TOP_TEXT: "border-l-violet-500",
 };
 
 interface SortableBlockItemProps {
@@ -118,7 +115,6 @@ function SortableBlockItem({
           </Button>
         </div>
 
-        <span className="text-lg">{BLOCK_ICONS[block.type]}</span>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium">{BLOCK_TYPE_LABELS[block.type]}</div>
         </div>
@@ -229,8 +225,8 @@ export default function LandingBlockList({ productId, initialBlocks }: LandingBl
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <p className="text-sm font-medium">Secciones de la Landing</p>
-          <p className="text-xs text-muted-foreground hidden sm:block">Arrastra para reordenar • Haz clic en ✏️ para editar</p>
-          <p className="text-xs text-muted-foreground sm:hidden">Usa ↑↓ para reordenar • Haz clic en ✏️ para editar</p>
+          <p className="text-xs text-muted-foreground hidden sm:block">Arrastra para reordenar. Haz clic en el lápiz para editar.</p>
+          <p className="text-xs text-muted-foreground sm:hidden">Usa las flechas para reordenar. Haz clic en el lápiz para editar.</p>
         </div>
         <AddBlockMenu onAdd={handleAdd} disabled={isPending} />
       </div>

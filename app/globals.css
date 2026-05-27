@@ -371,6 +371,37 @@
   animation: marquee var(--marquee-speed, 20s) linear infinite;
 }
 
+/* Vertical marquee — used by BANNER_TOP_TEXT to scroll a list of phrases
+   bottom-to-top (or top-to-bottom) in an infinite loop. Each track holds
+   the items twice so the second copy seamlessly continues where the first
+   ends, then jumps back to 0 once translated by -50%. */
+@keyframes marquee-vertical-up {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(0, -50%, 0); }
+}
+@keyframes marquee-vertical-down {
+  from { transform: translate3d(0, -50%, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+.animate-marquee-vertical-up {
+  animation: marquee-vertical-up var(--marquee-vertical-speed, 18s) linear infinite;
+  will-change: transform;
+}
+.animate-marquee-vertical-down {
+  animation: marquee-vertical-down var(--marquee-vertical-speed, 18s) linear infinite;
+  will-change: transform;
+}
+.marquee-vertical-paused:hover .animate-marquee-vertical-up,
+.marquee-vertical-paused:hover .animate-marquee-vertical-down {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-vertical-up,
+  .animate-marquee-vertical-down {
+    animation: none;
+  }
+}
+
 .landing-cta-btn {
   /* Plan 11: chain through --theme-primary so themed pages inherit the
      brand color when no per-block override is set. The hex fallback wins

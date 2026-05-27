@@ -21,7 +21,12 @@ export default function TestimonialsBlock({ content: rawContent }: TestimonialsB
       <div className="container mx-auto px-4">
         <div className="grid gap-6 grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-3">
           {items.map((item, i) => (
-            <div key={i} className="flex flex-col gap-3 rounded-2xl border bg-white p-6 shadow-sm">
+            <div
+              key={i}
+              data-content-array="items"
+              data-content-index={i}
+              className="flex flex-col gap-3 rounded-2xl border bg-white p-6 shadow-sm"
+            >
               {/* Stars */}
               <div className="flex gap-0.5">
                 {Array.from({ length: 5 }).map((_, j) => (
@@ -32,7 +37,9 @@ export default function TestimonialsBlock({ content: rawContent }: TestimonialsB
                 ))}
               </div>
 
-              <p className="text-sm text-muted-foreground leading-relaxed flex-1">&ldquo;{item.text}&rdquo;</p>
+              <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                &ldquo;<span data-content-field="text">{item.text}</span>&rdquo;
+              </p>
 
               <div className="flex items-center gap-3 pt-2 border-t">
                 {item.photo ? (
@@ -44,7 +51,7 @@ export default function TestimonialsBlock({ content: rawContent }: TestimonialsB
                     {item.name.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <span className="font-medium text-sm">{item.name}</span>
+                <span data-content-field="name" className="font-medium text-sm">{item.name}</span>
               </div>
             </div>
           ))}

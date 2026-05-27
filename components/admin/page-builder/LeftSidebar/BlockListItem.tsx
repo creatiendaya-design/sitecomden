@@ -108,8 +108,6 @@ export function BlockListItem({ block }: BlockListItemProps) {
         <GripVertical className="h-4 w-4" />
       </button>
 
-      <span className="text-base">{def?.emoji ?? "◻"}</span>
-
       <span className={cn("flex-1 min-w-0 truncate", isHidden && "line-through")}>
         {def?.label ?? block.type}
       </span>

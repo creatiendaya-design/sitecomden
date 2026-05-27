@@ -13,11 +13,11 @@ interface AddBlockPanelProps {
 }
 
 const CATEGORY_LABELS: Record<BlockCategory, string> = {
-  content: "📝 Contenido",
-  media: "🖼 Media",
-  "social-proof": "💬 Prueba social",
-  visual: "🎨 Visuales",
-  commerce: "🛒 Comercio",
+  content: "Contenido",
+  media: "Media",
+  "social-proof": "Prueba social",
+  visual: "Visuales",
+  commerce: "Comercio",
 }
 
 export function AddBlockPanel({ scope, onAdd }: AddBlockPanelProps) {
@@ -63,7 +63,6 @@ export function AddBlockPanel({ scope, onAdd }: AddBlockPanelProps) {
                   onClick={() => onAdd(def.type)}
                   className="w-full flex items-start gap-2 px-3 py-1.5 text-left hover:bg-muted"
                 >
-                  <span className="text-base leading-none mt-0.5">{def.emoji ?? "◻"}</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium">{def.label}</div>
                     <div className="text-xs text-muted-foreground truncate">{def.description}</div>

@@ -46,7 +46,7 @@ export default function TickerBlockForm({ content, onChange }: TickerBlockFormPr
             <Input
               value={content.scrollingText ?? ""}
               onChange={(e) => update("scrollingText", e.target.value)}
-              placeholder="🔥 Oferta del día • Envío gratis •"
+              placeholder="Oferta del día • Envío gratis •"
             />
           </div>
           <div>

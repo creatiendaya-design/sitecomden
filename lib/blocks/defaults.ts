@@ -92,7 +92,7 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
     data: {
       mode: "scrolling",
       sticky: false,
-      scrollingText: "🔥 Oferta especial • Envío gratis •",
+      scrollingText: "Oferta especial • Envío gratis •",
       speed: 30,
       bgColor: "#dc2626",
       textColor: "#ffffff",
@@ -116,15 +116,24 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
 
   FAQ: {
     data: {
-      title: "Preguntas frecuentes",
+      caption: "FAQ",
+      title: "Frequently Asked Questions",
+      description: "",
+      headingSize: "lg",
       items: [
         { id: crypto.randomUUID(), question: "¿Cuánto demora el envío?", answer: "<p>Entre 24 y 72 horas en Lima Metropolitana.</p>" },
         { id: crypto.randomUUID(), question: "¿Puedo devolver el producto?", answer: "<p>Sí, tienes 30 días calendario para devoluciones.</p>" },
       ],
       allowMultipleOpen: false,
-      defaultOpenFirst: false,
+      defaultOpenFirst: true,
+      itemBgColor: "#dc2626",
+      itemOpenBgColor: "",
+      itemTextColor: "#ffffff",
+      chevronColor: "",
+      itemRadius: "full",
+      itemGap: "normal",
     },
-    style: { ...DEFAULT_STYLE, alignment: "left" },
+    style: { ...DEFAULT_STYLE, alignment: "center", paddingY: "xl" },
     media: {},
   },
 
@@ -259,5 +268,151 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
     },
     style: { ...DEFAULT_STYLE, paddingY: "xl", alignment: "left" },
     media: {},
+  },
+
+  CAROUSEL: {
+    data: {
+      caption: "",
+      heading: "Trusted By Experts",
+      description: "",
+      slides: [
+        {
+          id: crypto.randomUUID(),
+          type: "image",
+          imageUrl: "",
+          alt: "Slide 1",
+        },
+        {
+          id: crypto.randomUUID(),
+          type: "image",
+          imageUrl: "",
+          alt: "Slide 2",
+        },
+        {
+          id: crypto.randomUUID(),
+          type: "image",
+          imageUrl: "",
+          alt: "Slide 3",
+        },
+        {
+          id: crypto.randomUUID(),
+          type: "image",
+          imageUrl: "",
+          alt: "Slide 4",
+        },
+        {
+          id: crypto.randomUUID(),
+          type: "image",
+          imageUrl: "",
+          alt: "Slide 5",
+        },
+      ],
+      slidesPerViewDesktop: 5,
+      slidesPerViewTablet: 3,
+      slidesPerViewMobile: 2,
+      autoplayMs: 0,
+      pauseOnHover: true,
+      loop: true,
+      transition: "slide",
+      showArrows: true,
+      arrowStyle: "circle",
+      dotStyle: "dots",
+      aspectRatio: "square",
+      gap: 12,
+      slideRadius: "lg",
+      textOverlayEnabled: false,
+      arrowBgColor: "#dc2626",
+      arrowColor: "#ffffff",
+      dotActiveColor: "#6b7280",
+      dotInactiveColor: "#d1d5db",
+    },
+    style: { ...DEFAULT_STYLE, paddingY: "lg", alignment: "center" },
+    media: {},
+  },
+
+  FRIENDLY: {
+    data: {
+      caption: "",
+      heading: "",
+      description: "",
+      features: [
+        {
+          id: crypto.randomUUID(),
+          title: "Increase blood flow",
+          description:
+            "Mejora la circulación de tu cuerpo de forma natural y promueve un flujo sanguíneo más saludable.",
+        },
+        {
+          id: crypto.randomUUID(),
+          title: "Release toxins",
+          description:
+            "Libera toxinas acumuladas con facilidad y siente cómo tu cuerpo se regenera día a día.",
+        },
+        {
+          id: crypto.randomUUID(),
+          title: "Prevent injuries",
+          description:
+            "Reduce la inflamación y protege tu salud con un paso proactivo en la prevención de lesiones.",
+        },
+        {
+          id: crypto.randomUUID(),
+          title: "Easy to use",
+          description:
+            "Compacto, intuitivo y diseñado para acompañarte a donde vayas, sin complicaciones.",
+        },
+      ],
+      imagePosition: "right",
+      imageAlt: "Beneficios del producto",
+      columnsDesktop: 2,
+      iconBgColor: "#dc2626",
+      iconColor: "#ffffff",
+      featureTitleColor: "",
+      featureDescriptionColor: "",
+    },
+    style: { ...DEFAULT_STYLE, paddingY: "xl", alignment: "left" },
+    media: {
+      image: { desktop: "", mobile: "" },
+    },
+  },
+
+  BANNER_TOP_TEXT: {
+    data: {
+      caption: "",
+      heading: "Sooo many benefits",
+      description:
+        "Experimenta el diseño y los beneficios sin igual con un único pago — sin suscripciones ni costos ocultos.",
+      ctaLabel: "I want it now!",
+      ctaHref: "",
+      ctaVariant: "solid",
+      mediaType: "image",
+      mediaAlt: "Banner",
+      videoAutoplay: true,
+      mediaPosition: "left",
+      height: "lg",
+      cornerRadius: "none",
+      overlayStyle: "gradient-bottom",
+      overlayColor: "#000000",
+      overlayOpacity: 35,
+      scrollItems: [
+        { id: crypto.randomUUID(), text: "High quality" },
+        { id: crypto.randomUUID(), text: "Self application" },
+        { id: crypto.randomUUID(), text: "Knot & pain relief" },
+        { id: crypto.randomUUID(), text: "30 day guarantee" },
+        { id: crypto.randomUUID(), text: "Improved circulation" },
+      ],
+      scrollDirection: "up",
+      scrollDurationSec: 18,
+      pauseOnHover: true,
+      scrollBgColor: "#dc2626",
+      scrollTextColor: "#ffffff",
+      scrollGhostTextColor: "rgba(255,255,255,0.35)",
+      scrollGhostOutline: false,
+      scrollItalic: true,
+      scrollUppercase: true,
+    },
+    style: { ...DEFAULT_STYLE, paddingY: "none", alignment: "left" },
+    media: {
+      image: { desktop: "", mobile: "" },
+    },
   },
 }

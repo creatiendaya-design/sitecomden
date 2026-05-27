@@ -56,7 +56,6 @@ export function RightSidebar({ context }: RightSidebarProps) {
   return (
     <aside className="w-[340px] shrink-0 border-l bg-background flex flex-col overflow-hidden">
       <div className="p-3 border-b flex items-center gap-2 shrink-0">
-        <span className="text-base">{def?.emoji ?? "◻"}</span>
         <span className="text-sm font-medium truncate flex-1">{def?.label ?? block.type}</span>
         <Button
           variant="ghost"

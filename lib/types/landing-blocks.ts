@@ -32,7 +32,10 @@ export type KnownLandingBlockType =
   | "ICON_TEXT"
   | "RELATED_PRODUCTS"
   | "PRODUCT_GRID"
-  | "COMPARISON";
+  | "COMPARISON"
+  | "FRIENDLY"
+  | "CAROUSEL"
+  | "BANNER_TOP_TEXT";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type LandingBlockType = KnownLandingBlockType | (string & {});
@@ -55,6 +58,9 @@ export const KNOWN_BLOCK_TYPES: ReadonlySet<KnownLandingBlockType> = new Set<Kno
   "RELATED_PRODUCTS",
   "PRODUCT_GRID",
   "COMPARISON",
+  "FRIENDLY",
+  "CAROUSEL",
+  "BANNER_TOP_TEXT",
 ]);
 
 export function isKnownBlockType(type: string): type is KnownLandingBlockType {
@@ -214,11 +220,33 @@ export interface RichTextBlockContent {
   maxWidth?: "prose";
 }
 
+export type FaqItemRadius = "md" | "lg" | "xl" | "2xl" | "full";
+export type FaqItemGap = "tight" | "normal" | "relaxed";
+export type FaqHeadingSize = "md" | "lg" | "xl";
+
 export interface FaqBlockContent {
+  /** Eyebrow / small label above the heading. Optional. */
+  caption?: string;
   title?: string;
+  /** Optional description rendered under the title (plain text). */
+  description?: string;
+  /** Size preset for the heading. */
+  headingSize?: FaqHeadingSize;
   items: { id: string; question: string; answer: string }[];
   allowMultipleOpen?: boolean;
   defaultOpenFirst?: boolean;
+  /** Background color of each FAQ pill (open + closed). */
+  itemBgColor?: string;
+  /** Background color when the item is OPEN (defaults to itemBgColor). */
+  itemOpenBgColor?: string;
+  /** Text color for question and answer. */
+  itemTextColor?: string;
+  /** Color of the chevron icon. Defaults to itemTextColor. */
+  chevronColor?: string;
+  /** Corner radius of each pill. `full` produces a stadium when closed. */
+  itemRadius?: FaqItemRadius;
+  /** Vertical spacing between pills. */
+  itemGap?: FaqItemGap;
 }
 
 export interface ImageTextBlockContent {
@@ -325,6 +353,192 @@ export interface ComparisonBlockContent {
   crossColor?: string;
 }
 
+export interface FriendlyFeature {
+  id: string;
+  /** Title shown next to the check icon. */
+  title: string;
+  /** Supporting copy displayed below the title. */
+  description: string;
+}
+
+export type FriendlyImagePosition = "left" | "right";
+
+export type CarouselSlideType = "image" | "video";
+export type CarouselVideoProvider = "youtube" | "vimeo" | "upload";
+export type CarouselAspectRatio = "square" | "video" | "portrait" | "wide" | "auto";
+export type CarouselSlidesPerView = 1 | 2 | 3 | 4 | 5;
+export type CarouselTransition = "slide" | "fade";
+export type CarouselArrowStyle = "circle" | "square" | "minimal";
+export type CarouselDotStyle = "dots" | "bars" | "none";
+
+export interface CarouselSlide {
+  id: string;
+  type: CarouselSlideType;
+  /** Image URL (when type === "image"). */
+  imageUrl?: string;
+  /** Mobile-specific image URL (when type === "image"). Falls back to imageUrl. */
+  imageUrlMobile?: string;
+  /** Video URL or embed source (when type === "video"). */
+  videoUrl?: string;
+  /** Video provider — controls whether to render <video> or an iframe. */
+  videoProvider?: CarouselVideoProvider;
+  /** Poster image for self-hosted videos. */
+  videoPoster?: string;
+  /** Alt text for images / video accessibility label. */
+  alt?: string;
+  /** Optional caption shown over the slide. */
+  caption?: string;
+  /** Optional title shown over the slide. */
+  title?: string;
+  /** Optional CTA label. Hidden if empty. */
+  ctaLabel?: string;
+  /** Optional CTA URL. */
+  ctaHref?: string;
+}
+
+export interface CarouselBlockContent {
+  /** Section title displayed above the carousel. Optional. */
+  heading?: string;
+  /** Eyebrow / small heading above the title. Optional. */
+  caption?: string;
+  /** Short description below the title. Optional. */
+  description?: string;
+  /** Ordered slides. */
+  slides: CarouselSlide[];
+  /** Slides visible per "page" on desktop (≥1024px). */
+  slidesPerViewDesktop: CarouselSlidesPerView;
+  /** Slides visible per "page" on tablet (640–1023px). */
+  slidesPerViewTablet: 1 | 2 | 3;
+  /** Slides visible per "page" on mobile (<640px). */
+  slidesPerViewMobile: 1 | 2 | 3;
+  /** Auto-advance to next slide every N ms. 0 disables autoplay. */
+  autoplayMs: number;
+  /** Pause autoplay when the user hovers the carousel. */
+  pauseOnHover: boolean;
+  /** Loop infinitely instead of stopping at the last slide. */
+  loop: boolean;
+  /** Transition effect between slides. */
+  transition: CarouselTransition;
+  /** Show prev/next arrows. */
+  showArrows: boolean;
+  /** Visual style of the arrows. */
+  arrowStyle: CarouselArrowStyle;
+  /** Pagination indicators style. */
+  dotStyle: CarouselDotStyle;
+  /** Aspect ratio of each slide. */
+  aspectRatio: CarouselAspectRatio;
+  /** Gap between slides in pixels. */
+  gap: number;
+  /** Corner radius of each slide (Tailwind preset). */
+  slideRadius: "none" | "sm" | "md" | "lg" | "xl" | "2xl";
+  /** Render a subtle bottom-to-top gradient over each slide so text stays
+   *  legible. Ignored when there is no overlay text. */
+  textOverlayEnabled: boolean;
+  /** Optional override: arrow background color. */
+  arrowBgColor?: string;
+  /** Optional override: arrow icon / text color. */
+  arrowColor?: string;
+  /** Optional override: active dot color. */
+  dotActiveColor?: string;
+  /** Optional override: inactive dot color. */
+  dotInactiveColor?: string;
+}
+
+export type BannerTopTextMediaType = "image" | "video";
+export type BannerTopTextMediaPosition = "left" | "right";
+export type BannerTopTextScrollDirection = "up" | "down";
+export type BannerTopTextHeight = "sm" | "md" | "lg" | "xl";
+export type BannerTopTextCornerRadius = "none" | "sm" | "md" | "lg" | "xl" | "2xl";
+export type BannerTopTextOverlayStyle = "none" | "solid" | "gradient-bottom" | "gradient-top";
+export type BannerTopTextCtaVariant = "solid" | "outline" | "glass";
+
+export interface BannerTopTextScrollItem {
+  id: string;
+  text: string;
+}
+
+export interface BannerTopTextBlockContent {
+  /** Eyebrow / small heading above the main heading. Optional. */
+  caption?: string;
+  /** Main heading shown above the description. Optional. */
+  heading?: string;
+  /** Short paragraph below the heading. Optional. */
+  description?: string;
+  /** CTA label. Hidden if empty. */
+  ctaLabel?: string;
+  /** CTA target URL. Hidden if empty. */
+  ctaHref?: string;
+  /** Visual style of the CTA button. */
+  ctaVariant?: BannerTopTextCtaVariant;
+  /** Type of media for the left column. */
+  mediaType?: BannerTopTextMediaType;
+  /** Image alt / accessibility label for the media. */
+  mediaAlt?: string;
+  /** Self-hosted MP4 video URL when mediaType === "video". */
+  videoUrl?: string;
+  /** Optional poster shown before the video starts. */
+  videoPoster?: string;
+  /** Loop the video silently in the background. */
+  videoAutoplay?: boolean;
+  /** Position of the media column on desktop. Mobile stacks. */
+  mediaPosition?: BannerTopTextMediaPosition;
+  /** Height preset for the banner (mobile + desktop share the preset). */
+  height?: BannerTopTextHeight;
+  /** Corner radius of the whole banner wrapper. */
+  cornerRadius?: BannerTopTextCornerRadius;
+  /** Overlay style applied over the media to keep text legible. */
+  overlayStyle?: BannerTopTextOverlayStyle;
+  /** Overlay color (hex/CSS). */
+  overlayColor?: string;
+  /** Overlay opacity 0-100. */
+  overlayOpacity?: number;
+  /** Items rendered in the vertical infinite scroll on the right column. */
+  scrollItems: BannerTopTextScrollItem[];
+  /** Direction of the scroll loop. */
+  scrollDirection?: BannerTopTextScrollDirection;
+  /** Total seconds for one full loop. Lower = faster. */
+  scrollDurationSec?: number;
+  /** Pause the scroll on hover. */
+  pauseOnHover?: boolean;
+  /** Background color of the scroll column (independent of media). */
+  scrollBgColor?: string;
+  /** Color of the visible (fully opaque) text in the scroll column. */
+  scrollTextColor?: string;
+  /** Color of the dimmed / outlined text above and below. */
+  scrollGhostTextColor?: string;
+  /** Render dimmed items as outlined (stroke-only). */
+  scrollGhostOutline?: boolean;
+  /** Apply italic styling to scroll items (matches the reference design). */
+  scrollItalic?: boolean;
+  /** Apply uppercase styling to scroll items. */
+  scrollUppercase?: boolean;
+}
+
+export interface FriendlyBlockContent {
+  /** Eyebrow / small heading above the feature list. Optional. */
+  caption?: string;
+  /** Main heading shown above the features. Optional. */
+  heading?: string;
+  /** Short paragraph below the heading. Optional. */
+  description?: string;
+  /** 2–6 feature items, each with a red check icon. */
+  features: FriendlyFeature[];
+  /** Image position on desktop. Mobile always stacks image below the text. */
+  imagePosition: FriendlyImagePosition;
+  /** Alt text for the side image. */
+  imageAlt?: string;
+  /** Number of columns the features take on desktop. */
+  columnsDesktop: 1 | 2;
+  /** Hex/CSS color for the circular check icon background. */
+  iconBgColor?: string;
+  /** Hex/CSS color for the check glyph inside the circle. */
+  iconColor?: string;
+  /** Hex/CSS color for each feature title. Inherits text when empty. */
+  featureTitleColor?: string;
+  /** Hex/CSS color for each feature description. Inherits text when empty. */
+  featureDescriptionColor?: string;
+}
+
 export type BlockContent =
   | HeroBlockContent
   | GalleryBlockContent
@@ -339,7 +553,10 @@ export type BlockContent =
   | IconTextBlockContent
   | RelatedProductsBlockContent
   | ProductGridBlockContent
-  | ComparisonBlockContent;
+  | ComparisonBlockContent
+  | FriendlyBlockContent
+  | CarouselBlockContent
+  | BannerTopTextBlockContent;
 
 export interface LandingBlock {
   id: string;
@@ -373,6 +590,9 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   RELATED_PRODUCTS: "Productos relacionados",
   PRODUCT_GRID: "Grid de productos",
   COMPARISON: "Tabla comparativa",
+  FRIENDLY: "Friendly (beneficios + imagen)",
+  CAROUSEL: "Carrusel (imagen / video)",
+  BANNER_TOP_TEXT: "Banner + Texto vertical (loop)",
 };
 
 /**
@@ -389,7 +609,7 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
   TESTIMONIALS: { items: [{ name: "Cliente", text: "Excelente producto", rating: 5 }] },
   VIDEO: { displayType: "slider", videos: [], showBuyButton: false },
   COLORS: { primary: "#3b82f6", background: "#ffffff", cta: "#dc2626", text: "#111827" },
-  TICKER: { mode: "scrolling", sticky: false, scrollingText: "🔥 Oferta especial • Envío gratis •", speed: 30, bgColor: "#dc2626", textColor: "#ffffff" },
+  TICKER: { mode: "scrolling", sticky: false, scrollingText: "Oferta especial • Envío gratis •", speed: 30, bgColor: "#dc2626", textColor: "#ffffff" },
   TRUST_BADGES: { badges: [], layout: "horizontal", columns: 4, iconSize: "md", iconStyle: "outline" },
   RICH_TEXT: { html: "" },
   FAQ: { items: [] },
@@ -431,5 +651,47 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
     ],
     accentColor: "#dc2626",
     accentTextColor: "#ffffff",
+  },
+  FRIENDLY: {
+    features: [
+      { id: "f1", title: "Increase blood flow", description: "Mejora la circulación de tu cuerpo de forma natural." },
+      { id: "f2", title: "Release toxins", description: "Libera toxinas acumuladas con facilidad." },
+      { id: "f3", title: "Prevent injuries", description: "Reduce inflamación y previene lesiones." },
+      { id: "f4", title: "Easy to use", description: "Compacto y fácil de usar en cualquier lugar." },
+    ],
+    imagePosition: "right",
+    imageAlt: "",
+    columnsDesktop: 2,
+    iconBgColor: "#dc2626",
+    iconColor: "#ffffff",
+  },
+  CAROUSEL: {
+    slides: [],
+    slidesPerViewDesktop: 5,
+    slidesPerViewTablet: 3,
+    slidesPerViewMobile: 2,
+    autoplayMs: 0,
+    pauseOnHover: true,
+    loop: true,
+    transition: "slide",
+    showArrows: true,
+    arrowStyle: "circle",
+    dotStyle: "dots",
+    aspectRatio: "square",
+    gap: 12,
+    slideRadius: "lg",
+    textOverlayEnabled: false,
+  },
+  BANNER_TOP_TEXT: {
+    scrollItems: [],
+    mediaType: "image",
+    mediaPosition: "left",
+    height: "lg",
+    cornerRadius: "none",
+    scrollDirection: "up",
+    scrollDurationSec: 18,
+    pauseOnHover: true,
+    scrollItalic: true,
+    scrollUppercase: true,
   },
 };

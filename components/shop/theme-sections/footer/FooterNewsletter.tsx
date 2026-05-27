@@ -51,7 +51,7 @@ export function FooterNewsletter({ section }: Props) {
       data-preview-target={`section:${section.id}`}
     >
       {data.title && (
-        <h3 className="text-xl font-semibold mb-2">{data.title}</h3>
+        <h3 data-content-field="title" className="text-xl font-semibold mb-2">{data.title}</h3>
       )}
       {data.description && (
         <div

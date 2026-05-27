@@ -40,7 +40,7 @@ export function BlockRenderer({ block, context: _context }: BlockRendererProps) 
     return (
       <BlockWrapper block={block}>
         <div className="p-6 bg-muted/60 text-center text-xs text-muted-foreground border-dashed border-2 border-muted opacity-70">
-          👁‍🗨 {hiddenLabel}
+          {hiddenLabel}
           <div className="text-[10px] mt-1 opacity-80">
             {def.label} — click para seleccionar y cambiar visibilidad
           </div>

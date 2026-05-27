@@ -28,9 +28,13 @@ export function MegaMenu({ section }: Props) {
       {section.blocks.map((block) => {
         const panel = block.content as MegaMenuPanelContent
         return (
-          <div key={block.id} className="group relative py-3">
+          <div
+            key={block.id}
+            className="group relative py-3"
+            data-preview-target={`subblock:${block.id}`}
+          >
             <button className="text-sm font-medium hover:text-primary">
-              {panel.trigger ?? "Menú"}
+              <span data-content-field="trigger">{panel.trigger ?? "Menú"}</span>
             </button>
             <div className="absolute left-0 top-full hidden group-hover:flex gap-6 bg-background border shadow-lg p-6 min-w-[400px] z-50">
               {panel.featuredImage && (
@@ -49,14 +53,18 @@ export function MegaMenu({ section }: Props) {
               )}
               <ul className="space-y-2 text-sm">
                 {(panel.links ?? []).map((link, i) => (
-                  <li key={i}>
+                  <li
+                    key={i}
+                    data-content-array="links"
+                    data-content-index={i}
+                  >
                     <Link
                       href={link.href}
                       target={link.openInNewTab ? "_blank" : undefined}
                       rel={link.openInNewTab ? "noopener noreferrer" : undefined}
                       className="hover:text-primary"
                     >
-                      {link.label}
+                      <span data-content-field="label">{link.label}</span>
                     </Link>
                   </li>
                 ))}

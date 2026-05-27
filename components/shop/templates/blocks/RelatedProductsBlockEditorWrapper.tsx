@@ -119,9 +119,14 @@ export default function RelatedProductsBlockEditorWrapper({ content, currentProd
       style={inlineStyle}
     >
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl @md:text-3xl font-bold mb-6 text-center">
-          {data.title ?? "También te puede gustar"}
-        </h2>
+        {data.title && (
+          <h2
+            data-content-field="title"
+            className="text-2xl @md:text-3xl font-bold mb-6 text-center"
+          >
+            {data.title}
+          </h2>
+        )}
         <div className={cn("grid gap-4 @md:gap-6", mobileColsClass, desktopColsClass)}>
           {list.map((p, i) =>
             p ? (

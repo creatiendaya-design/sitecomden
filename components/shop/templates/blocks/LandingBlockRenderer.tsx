@@ -13,6 +13,9 @@ import IconTextBlock from "./IconTextBlock";
 import RelatedProductsBlockEditorWrapper from "./RelatedProductsBlockEditorWrapper";
 import ProductGridBlock from "./ProductGridBlock";
 import ComparisonBlock from "./ComparisonBlock";
+import FriendlyBlock from "./FriendlyBlock";
+import CarouselBlock from "./CarouselBlock";
+import BannerTopTextBlock from "./BannerTopTextBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -98,7 +101,13 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
           {stickyTickers.map((block) => {
             const className = getVisibilityClass(getVisibility(block));
             return (
-              <div key={block.id} id={anchorIdOf(block) || undefined} className={className || undefined}>
+              <div
+                key={block.id}
+                id={anchorIdOf(block) || undefined}
+                className={className || undefined}
+                data-color-scheme={colorSchemeIdOf(block)}
+                data-preview-target={`block:${block.id}`}
+              >
                 <TickerBlock content={block.content as TickerBlockContent} sticky />
               </div>
             );
@@ -152,6 +161,15 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             break;
           case "COMPARISON":
             inner = <ComparisonBlock content={c} />;
+            break;
+          case "FRIENDLY":
+            inner = <FriendlyBlock content={c} />;
+            break;
+          case "CAROUSEL":
+            inner = <CarouselBlock content={c} />;
+            break;
+          case "BANNER_TOP_TEXT":
+            inner = <BannerTopTextBlock content={c} />;
             break;
           default:
             return null;

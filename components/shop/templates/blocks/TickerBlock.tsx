@@ -42,7 +42,7 @@ export default function TickerBlock({ content: rawContent, sticky }: TickerBlock
               {[0, 1].map((half) => (
                 <div key={half} className="flex shrink-0" aria-hidden={half === 1 ? true : undefined}>
                   {Array(8).fill(scrollingText).map((text, i) => (
-                    <span key={i} className="whitespace-nowrap px-6">{text}</span>
+                    <span key={i} data-content-field="scrollingText" className="whitespace-nowrap px-6">{text}</span>
                   ))}
                 </div>
               ))}
@@ -71,7 +71,7 @@ function Countdown({ endsAt, label }: { endsAt: string; label?: string }) {
 
   return (
     <div className="flex items-center gap-2 shrink-0">
-      {label && <span className="opacity-90">{label}</span>}
+      {label && <span data-content-field="countdownLabel" className="opacity-90">{label}</span>}
       <div className="flex items-center gap-1 font-mono">
         {days > 0 && <Seg value={days} unit="d" />}
         <Seg value={hours} unit="h" />

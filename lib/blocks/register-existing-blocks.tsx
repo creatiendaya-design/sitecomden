@@ -21,6 +21,9 @@ const IconTextBlock = dynamic(() => import("@/components/shop/templates/blocks/I
 const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
 const ProductGridBlockEditor = dynamic(() => import("@/components/shop/templates/blocks/ProductGridBlockEditor"))
 const ComparisonBlock = dynamic(() => import("@/components/shop/templates/blocks/ComparisonBlock"))
+const FriendlyBlock = dynamic(() => import("@/components/shop/templates/blocks/FriendlyBlock"))
+const CarouselBlock = dynamic(() => import("@/components/shop/templates/blocks/CarouselBlock"))
+const BannerTopTextBlock = dynamic(() => import("@/components/shop/templates/blocks/BannerTopTextBlock"))
 
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
@@ -31,7 +34,6 @@ const existing: BlockDefinition[] = [
     type: "HERO",
     label: "Hero / Cabecera",
     icon: "Megaphone",
-    emoji: "🖼",
     description: "Imagen grande con título y CTA para abrir la landing",
     scope: "universal",
     category: "content",
@@ -194,7 +196,6 @@ const existing: BlockDefinition[] = [
     type: "GALLERY",
     label: "Galería",
     icon: "Image",
-    emoji: "🖼️",
     description: "Slider o stack de imágenes del producto",
     scope: "universal",
     category: "media",
@@ -230,7 +231,6 @@ const existing: BlockDefinition[] = [
     type: "TESTIMONIALS",
     label: "Testimonios",
     icon: "MessageSquare",
-    emoji: "💬",
     description: "Reseñas con nombre, foto y calificación",
     scope: "universal",
     category: "social-proof",
@@ -273,7 +273,6 @@ const existing: BlockDefinition[] = [
     type: "VIDEO",
     label: "Video",
     icon: "PlayCircle",
-    emoji: "▶️",
     description: "Video de YouTube, Vimeo o subido",
     scope: "universal",
     category: "media",
@@ -324,7 +323,6 @@ const existing: BlockDefinition[] = [
     type: "TICKER",
     label: "Ticker / Contador",
     icon: "Megaphone",
-    emoji: "📢",
     description: "Mensaje animado o countdown para ofertas",
     scope: "universal",
     category: "visual",
@@ -342,7 +340,7 @@ const existing: BlockDefinition[] = [
         ],
       },
       { type: "switch", key: "sticky", label: "Sticky (fijo arriba)" },
-      { type: "text", key: "scrollingText", label: "Texto scrolling", placeholder: "🔥 Oferta • Envío gratis •" },
+      { type: "text", key: "scrollingText", label: "Texto scrolling", placeholder: "Oferta • Envío gratis •" },
       { type: "number", key: "speed", label: "Velocidad (px/s)", min: 10, max: 100 },
       { type: "text", key: "countdownLabel", label: "Etiqueta del contador" },
       { type: "text", key: "endsAt", label: "Fecha fin (ISO datetime)", placeholder: "2026-12-31T23:59:59" },
@@ -363,7 +361,6 @@ const existing: BlockDefinition[] = [
     type: "TRUST_BADGES",
     label: "Badges de confianza",
     icon: "ShieldCheck",
-    emoji: "🛡️",
     description: "Íconos con señales de confianza (pago seguro, envío gratis, etc.)",
     scope: "universal",
     category: "social-proof",
@@ -433,7 +430,6 @@ const existing: BlockDefinition[] = [
     type: "RICH_TEXT",
     label: "Texto con formato",
     icon: "Type",
-    emoji: "📝",
     description: "Sección con caption, título, texto y hasta dos botones — al estilo Shopify Dawn",
     scope: "universal",
     category: "content",
@@ -515,16 +511,99 @@ const existing: BlockDefinition[] = [
     type: "FAQ",
     label: "Preguntas frecuentes",
     icon: "HelpCircle",
-    emoji: "❓",
-    description: "Acordeón de preguntas y respuestas con SEO structured data",
+    description: "Acordeón de preguntas y respuestas con SEO structured data (FAQPage schema.org)",
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.FAQ,
     renderer: FaqBlock as any,
     contentSchema: [
-      { type: "text", key: "title", label: "Título (opcional)" },
+      // ─── Encabezado ──────────────────────────────────────────────────
+      {
+        type: "text",
+        key: "caption",
+        label: "Caption (opcional)",
+        placeholder: "FAQ",
+        helpText: "Etiqueta corta en mayúsculas sobre el título.",
+      },
+      {
+        type: "text",
+        key: "title",
+        label: "Título",
+        placeholder: "Frequently Asked Questions",
+      },
+      {
+        type: "textarea",
+        key: "description",
+        label: "Descripción (opcional)",
+        rows: 2,
+        placeholder: "Texto corto bajo el título",
+      },
+      {
+        type: "select",
+        key: "headingSize",
+        label: "Tamaño del título",
+        options: [
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+        ],
+      },
+
+      // ─── Comportamiento ──────────────────────────────────────────────
       { type: "switch", key: "allowMultipleOpen", label: "Permitir varias abiertas" },
       { type: "switch", key: "defaultOpenFirst", label: "Abrir la primera por defecto" },
+
+      // ─── Estilo de las cards ────────────────────────────────────────
+      {
+        type: "select",
+        key: "itemRadius",
+        label: "Bordes de las cards",
+        options: [
+          { value: "md", label: "Pequeño" },
+          { value: "lg", label: "Mediano" },
+          { value: "xl", label: "Grande" },
+          { value: "2xl", label: "Extra grande" },
+          { value: "full", label: "Píldora (estadio)" },
+        ],
+      },
+      {
+        type: "select",
+        key: "itemGap",
+        label: "Separación entre cards",
+        options: [
+          { value: "tight", label: "Ajustada" },
+          { value: "normal", label: "Normal" },
+          { value: "relaxed", label: "Amplia" },
+        ],
+      },
+      {
+        type: "color",
+        key: "itemBgColor",
+        label: "Color de fondo (cerrada)",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "itemOpenBgColor",
+        label: "Color de fondo (abierta)",
+        showInStyleTab: true,
+        helpText: "Opcional. Si lo dejas vacío usa el mismo color que cerrada.",
+      },
+      {
+        type: "color",
+        key: "itemTextColor",
+        label: "Color del texto",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "chevronColor",
+        label: "Color del chevron (flecha)",
+        showInStyleTab: true,
+        helpText: "Opcional. Hereda el color del texto si lo dejas vacío.",
+      },
+
+      // ─── Preguntas ──────────────────────────────────────────────────
       {
         type: "array",
         key: "items",
@@ -542,12 +621,20 @@ const existing: BlockDefinition[] = [
         ],
       },
     ],
+    styleSupport: {
+      gradient: true,
+    },
+    liveContentVars: {
+      itemBgColor: "--faq-item-bg",
+      itemOpenBgColor: "--faq-item-bg-open",
+      itemTextColor: "--faq-item-text",
+      chevronColor: "--faq-chevron",
+    },
   },
   {
     type: "IMAGE_TEXT",
     label: "Imagen + Texto",
     icon: "Image",
-    emoji: "🖼️",
     description: "Imagen y texto lado a lado (o apilados en mobile)",
     scope: "universal",
     category: "content",
@@ -596,7 +683,6 @@ const existing: BlockDefinition[] = [
     type: "ICON_TEXT",
     label: "Icono + Texto (cards)",
     icon: "Sparkles",
-    emoji: "✨",
     description:
       "Grid de tarjetas con ícono/imagen y texto enriquecido — ideal para listas de beneficios",
     scope: "universal",
@@ -741,7 +827,6 @@ const existing: BlockDefinition[] = [
     type: "RELATED_PRODUCTS",
     label: "Productos relacionados",
     icon: "Package",
-    emoji: "🛒",
     description: "Cross-sell y up-sell basado en categorías o manual",
     scope: "product",
     category: "commerce",
@@ -806,7 +891,6 @@ const existing: BlockDefinition[] = [
     type: "COMPARISON",
     label: "Tabla comparativa",
     icon: "Columns3",
-    emoji: "📊",
     description: "Compara tu producto frente a la competencia con checks y X",
     scope: "universal",
     category: "social-proof",
@@ -903,10 +987,595 @@ const existing: BlockDefinition[] = [
     },
   },
   {
+    type: "FRIENDLY",
+    label: "Friendly (beneficios + imagen)",
+    icon: "BadgeCheck",
+    description:
+      "Lista de beneficios con check rojo a la izquierda e imagen del producto a la derecha",
+    scope: "universal",
+    category: "content",
+    defaultContent: DEFAULT_CONTENT_V2.FRIENDLY,
+    renderer: FriendlyBlock as any,
+    contentSchema: [
+      {
+        type: "text",
+        key: "caption",
+        label: "Caption (opcional)",
+        placeholder: "Texto breve sobre el título",
+      },
+      {
+        type: "text",
+        key: "heading",
+        label: "Título (opcional)",
+        placeholder: "Beneficios de nuestro producto",
+      },
+      {
+        type: "textarea",
+        key: "description",
+        label: "Descripción (opcional)",
+        rows: 3,
+        placeholder: "Texto corto bajo el título",
+      },
+      {
+        type: "custom",
+        key: "__imageMedia",
+        label: "Imagen",
+        component: ImageTextMediaField,
+      },
+      { type: "text", key: "imageAlt", label: "Alt text de la imagen" },
+      {
+        type: "select",
+        key: "imagePosition",
+        label: "Posición imagen (desktop)",
+        options: [
+          { value: "left", label: "Izquierda" },
+          { value: "right", label: "Derecha" },
+        ],
+      },
+      {
+        type: "select",
+        key: "columnsDesktop",
+        label: "Columnas de beneficios (desktop)",
+        options: [
+          { value: 1, label: "1 columna" },
+          { value: 2, label: "2 columnas" },
+        ],
+      },
+      {
+        type: "color",
+        key: "iconBgColor",
+        label: "Fondo del check (círculo)",
+        showInStyleTab: true,
+        helpText: "Color del círculo que envuelve el ícono ✓.",
+      },
+      {
+        type: "color",
+        key: "iconColor",
+        label: "Color del ✓",
+        showInStyleTab: true,
+        helpText: "Color del ícono dentro del círculo.",
+      },
+      {
+        type: "color",
+        key: "featureTitleColor",
+        label: "Color título de beneficio",
+        showInStyleTab: true,
+        helpText: "Opcional. Si está vacío hereda el color de texto del bloque.",
+      },
+      {
+        type: "color",
+        key: "featureDescriptionColor",
+        label: "Color descripción de beneficio",
+        showInStyleTab: true,
+        helpText: "Opcional. Si está vacío hereda el color de texto del bloque.",
+      },
+      {
+        type: "array",
+        key: "features",
+        label: "Beneficios",
+        addButtonText: "+ Agregar beneficio",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          title: "Nuevo beneficio",
+          description: "Describe este beneficio en una o dos frases.",
+        }),
+        itemLabel: (it, i) => (it.title as string) || `Beneficio ${i + 1}`,
+        itemSchema: [
+          { type: "text", key: "title", label: "Título" },
+          { type: "textarea", key: "description", label: "Descripción", rows: 3 },
+        ],
+      },
+    ],
+    styleSupport: {
+      bgImage: true,
+      gradient: true,
+    },
+    liveContentVars: {
+      iconBgColor: "--block-icon-bg",
+      iconColor: "--block-icon-color",
+      featureTitleColor: "--block-feature-title",
+      featureDescriptionColor: "--block-feature-desc",
+    },
+  },
+  {
+    type: "CAROUSEL",
+    label: "Carrusel (imagen / video)",
+    icon: "GalleryHorizontalEnd",
+    description:
+      "Carrusel responsive con autoplay, soporte para imagen y video (YouTube/Vimeo/subido).",
+    scope: "universal",
+    category: "media",
+    defaultContent: DEFAULT_CONTENT_V2.CAROUSEL,
+    renderer: CarouselBlock as any,
+    contentSchema: [
+      {
+        type: "text",
+        key: "caption",
+        label: "Caption (opcional)",
+        placeholder: "Texto breve sobre el título",
+      },
+      {
+        type: "text",
+        key: "heading",
+        label: "Título (opcional)",
+        placeholder: "Trusted By Experts",
+      },
+      {
+        type: "textarea",
+        key: "description",
+        label: "Descripción (opcional)",
+        rows: 2,
+        placeholder: "Texto corto bajo el título",
+      },
+      {
+        type: "array",
+        key: "slides",
+        label: "Slides",
+        addButtonText: "+ Agregar slide",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          type: "image",
+          imageUrl: "",
+          imageUrlMobile: "",
+          alt: "",
+          title: "",
+          caption: "",
+          ctaLabel: "",
+          ctaHref: "",
+        }),
+        itemLabel: (it, i) =>
+          (it.title as string) || (it.alt as string) || `Slide ${i + 1}`,
+        itemSchema: [
+          {
+            type: "select",
+            key: "type",
+            label: "Tipo",
+            options: [
+              { value: "image", label: "Imagen" },
+              { value: "video", label: "Video" },
+            ],
+          },
+          {
+            type: "image",
+            key: "imageUrl",
+            label: "Imagen (desktop)",
+            deviceOverride: false,
+            showWhen: { field: "type", equals: "image" },
+          },
+          {
+            type: "image",
+            key: "imageUrlMobile",
+            label: "Imagen (mobile, opcional)",
+            deviceOverride: false,
+            helpText: "Si la dejas vacía, se usa la imagen desktop también en mobile.",
+            showWhen: { field: "type", equals: "image" },
+          },
+          {
+            type: "select",
+            key: "videoProvider",
+            label: "Proveedor de video",
+            options: [
+              { value: "youtube", label: "YouTube" },
+              { value: "vimeo", label: "Vimeo" },
+              { value: "upload", label: "Subido (MP4)" },
+            ],
+            showWhen: { field: "type", equals: "video" },
+          },
+          {
+            type: "text",
+            key: "videoUrl",
+            label: "URL del video",
+            placeholder: "https://www.youtube.com/watch?v=...",
+            showWhen: { field: "type", equals: "video" },
+          },
+          {
+            type: "image",
+            key: "videoPoster",
+            label: "Poster del video (opcional)",
+            deviceOverride: false,
+            helpText: "Imagen mostrada antes de que se reproduzca el video subido.",
+            showWhen: { field: "type", equals: "video" },
+          },
+          { type: "text", key: "alt", label: "Texto alternativo (accesibilidad)" },
+          { type: "text", key: "title", label: "Título sobre el slide (opcional)" },
+          { type: "text", key: "caption", label: "Caption sobre el slide (opcional)" },
+          { type: "text", key: "ctaLabel", label: "Texto del botón (opcional)" },
+          {
+            type: "custom",
+            key: "ctaHref",
+            label: "Enlace del botón / slide",
+            component: LinkUrlField,
+            helpText:
+              "Si lo defines y no hay texto de botón, todo el slide queda enlazado.",
+          },
+        ],
+      },
+      {
+        type: "select",
+        key: "aspectRatio",
+        label: "Proporción del slide",
+        options: [
+          { value: "square", label: "Cuadrado (1:1)" },
+          { value: "video", label: "Video (16:9)" },
+          { value: "portrait", label: "Retrato (3:4)" },
+          { value: "wide", label: "Panorámica (21:9)" },
+          { value: "auto", label: "Automático" },
+        ],
+      },
+      {
+        type: "select",
+        key: "slidesPerViewMobile",
+        label: "Slides visibles mobile",
+        options: [
+          { value: 1, label: "1" },
+          { value: 2, label: "2" },
+          { value: 3, label: "3" },
+        ],
+        helpText:
+          "En desktop se muestran siempre hasta 5 slides (o todos los que tengas si son menos).",
+      },
+      {
+        type: "range",
+        key: "gap",
+        label: "Espacio entre slides",
+        min: 0,
+        max: 48,
+        step: 2,
+        unit: "px",
+        defaultValue: 16,
+      },
+      {
+        type: "select",
+        key: "slideRadius",
+        label: "Bordes redondeados",
+        options: [
+          { value: "none", label: "Sin redondear" },
+          { value: "sm", label: "Pequeño" },
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+          { value: "2xl", label: "Máximo" },
+        ],
+      },
+      {
+        type: "select",
+        key: "transition",
+        label: "Transición",
+        options: [
+          { value: "slide", label: "Deslizar" },
+          { value: "fade", label: "Fundido (solo con 1 slide visible)" },
+        ],
+      },
+      {
+        type: "range",
+        key: "autoplayMs",
+        label: "Autoplay",
+        min: 0,
+        max: 12000,
+        step: 500,
+        unit: "ms",
+        defaultValue: 5000,
+        helpText: "0 = desactivar autoplay.",
+      },
+      { type: "switch", key: "pauseOnHover", label: "Pausar autoplay al pasar el cursor" },
+      { type: "switch", key: "loop", label: "Bucle infinito" },
+      { type: "switch", key: "showArrows", label: "Mostrar flechas" },
+      {
+        type: "select",
+        key: "arrowStyle",
+        label: "Estilo de las flechas",
+        options: [
+          { value: "circle", label: "Círculo" },
+          { value: "square", label: "Cuadrado" },
+          { value: "minimal", label: "Minimal (solo icono)" },
+        ],
+      },
+      {
+        type: "select",
+        key: "dotStyle",
+        label: "Indicadores",
+        options: [
+          { value: "dots", label: "Puntos" },
+          { value: "bars", label: "Barras" },
+          { value: "none", label: "Ocultos" },
+        ],
+      },
+      { type: "switch", key: "textOverlayEnabled", label: "Overlay para texto sobre el slide" },
+      {
+        type: "color",
+        key: "arrowBgColor",
+        label: "Fondo de las flechas",
+        showInStyleTab: true,
+        helpText: "Opcional. Por defecto un negro semi-transparente.",
+      },
+      {
+        type: "color",
+        key: "arrowColor",
+        label: "Color del ícono de flecha",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "dotActiveColor",
+        label: "Color del indicador activo",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "dotInactiveColor",
+        label: "Color del indicador inactivo",
+        showInStyleTab: true,
+      },
+    ],
+    styleSupport: {
+      gradient: true,
+      textColor: false,
+    },
+    liveContentVars: {
+      arrowBgColor: "--carousel-arrow-bg",
+      arrowColor: "--carousel-arrow-color",
+      dotActiveColor: "--carousel-dot-active",
+      dotInactiveColor: "--carousel-dot-inactive",
+    },
+  },
+  {
+    type: "BANNER_TOP_TEXT",
+    label: "Banner + Texto vertical (loop)",
+    icon: "GalleryVerticalEnd",
+    description:
+      "Banner dividido en dos: imagen/video con CTA a la izquierda y frases en scroll vertical infinito a la derecha.",
+    scope: "universal",
+    category: "visual",
+    defaultContent: DEFAULT_CONTENT_V2.BANNER_TOP_TEXT,
+    renderer: BannerTopTextBlock as any,
+    contentSchema: [
+      // ─── Texto del banner ────────────────────────────────────────────
+      {
+        type: "text",
+        key: "caption",
+        label: "Caption (opcional)",
+        placeholder: "Texto breve sobre el título",
+      },
+      {
+        type: "text",
+        key: "heading",
+        label: "Título",
+        placeholder: "Sooo many benefits",
+      },
+      {
+        type: "textarea",
+        key: "description",
+        label: "Descripción",
+        rows: 3,
+        placeholder: "Texto corto bajo el título",
+      },
+      { type: "text", key: "ctaLabel", label: "Texto del botón (opcional)" },
+      {
+        type: "custom",
+        key: "ctaHref",
+        label: "Enlace del botón",
+        component: LinkUrlField,
+      },
+      {
+        type: "select",
+        key: "ctaVariant",
+        label: "Estilo del botón",
+        options: [
+          { value: "solid", label: "Sólido (blanco)" },
+          { value: "outline", label: "Contorno" },
+          { value: "glass", label: "Cristal (glassmorphism)" },
+        ],
+      },
+
+      // ─── Media (imagen / video) ──────────────────────────────────────
+      {
+        type: "select",
+        key: "mediaType",
+        label: "Tipo de media",
+        options: [
+          { value: "image", label: "Imagen" },
+          { value: "video", label: "Video (MP4 directo)" },
+        ],
+      },
+      {
+        type: "custom",
+        key: "__imageMedia",
+        label: "Imagen del banner",
+        component: ImageTextMediaField,
+        showWhen: { field: "mediaType", equals: "image" },
+        helpText: "Imagen para desktop y mobile (puedes definir una por dispositivo).",
+      },
+      {
+        type: "text",
+        key: "videoUrl",
+        label: "URL del video (MP4)",
+        placeholder: "https://...mp4",
+        showWhen: { field: "mediaType", equals: "video" },
+      },
+      {
+        type: "image",
+        key: "videoPoster",
+        label: "Poster del video (opcional)",
+        deviceOverride: false,
+        showWhen: { field: "mediaType", equals: "video" },
+      },
+      {
+        type: "switch",
+        key: "videoAutoplay",
+        label: "Reproducir automáticamente (sin sonido)",
+        showWhen: { field: "mediaType", equals: "video" },
+      },
+      { type: "text", key: "mediaAlt", label: "Texto alternativo (accesibilidad)" },
+
+      // ─── Layout del banner ───────────────────────────────────────────
+      {
+        type: "select",
+        key: "mediaPosition",
+        label: "Posición del media (desktop)",
+        options: [
+          { value: "left", label: "Izquierda" },
+          { value: "right", label: "Derecha" },
+        ],
+      },
+      {
+        type: "select",
+        key: "height",
+        label: "Altura del banner",
+        options: [
+          { value: "sm", label: "Pequeña" },
+          { value: "md", label: "Mediana" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+        ],
+      },
+      {
+        type: "select",
+        key: "cornerRadius",
+        label: "Bordes redondeados",
+        options: [
+          { value: "none", label: "Sin redondear" },
+          { value: "sm", label: "Pequeño" },
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+          { value: "2xl", label: "Máximo" },
+        ],
+      },
+
+      // ─── Overlay sobre el media ──────────────────────────────────────
+      {
+        type: "select",
+        key: "overlayStyle",
+        label: "Overlay del media",
+        options: [
+          { value: "none", label: "Sin overlay" },
+          { value: "solid", label: "Color sólido" },
+          { value: "gradient-bottom", label: "Degradado (abajo)" },
+          { value: "gradient-top", label: "Degradado (arriba)" },
+        ],
+      },
+      {
+        type: "color",
+        key: "overlayColor",
+        label: "Color del overlay",
+        showInStyleTab: true,
+        helpText: "Se ignora si el overlay está en «Sin overlay».",
+      },
+      {
+        type: "range",
+        key: "overlayOpacity",
+        label: "Opacidad overlay (%)",
+        min: 0,
+        max: 100,
+        step: 5,
+        defaultValue: 35,
+        helpText: "Se ignora si el overlay está en «Sin overlay».",
+      },
+
+      // ─── Scroll vertical ─────────────────────────────────────────────
+      {
+        type: "array",
+        key: "scrollItems",
+        label: "Frases (scroll vertical)",
+        addButtonText: "+ Agregar frase",
+        newItem: () => ({ id: crypto.randomUUID(), text: "Nueva frase" }),
+        itemLabel: (it, i) => (it.text as string) || `Frase ${i + 1}`,
+        itemSchema: [{ type: "text", key: "text", label: "Texto" }],
+      },
+      {
+        type: "select",
+        key: "scrollDirection",
+        label: "Dirección del scroll",
+        options: [
+          { value: "up", label: "De abajo hacia arriba" },
+          { value: "down", label: "De arriba hacia abajo" },
+        ],
+      },
+      {
+        type: "range",
+        key: "scrollDurationSec",
+        label: "Duración por loop (s)",
+        min: 4,
+        max: 120,
+        step: 1,
+        unit: "s",
+        defaultValue: 18,
+        helpText: "Tiempo total que tarda un ciclo completo. Menor = más rápido.",
+      },
+      { type: "switch", key: "pauseOnHover", label: "Pausar al pasar el cursor" },
+      { type: "switch", key: "scrollItalic", label: "Texto en cursiva" },
+      { type: "switch", key: "scrollUppercase", label: "Texto en mayúsculas" },
+      {
+        type: "switch",
+        key: "scrollGhostOutline",
+        label: "Texto contorneado (outline)",
+        helpText: "Renderiza el texto como contorno en lugar de relleno.",
+      },
+
+      // ─── Colores del scroll (estilo) ─────────────────────────────────
+      {
+        type: "color",
+        key: "scrollBgColor",
+        label: "Fondo columna de scroll",
+        showInStyleTab: true,
+        helpText:
+          "Opcional. Si lo dejas vacío usa el fondo del bloque o el esquema de color.",
+      },
+      {
+        type: "color",
+        key: "scrollTextColor",
+        label: "Color del texto principal",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "scrollGhostTextColor",
+        label: "Color del texto difuminado (extremos)",
+        showInStyleTab: true,
+        helpText:
+          "Color que se aplica a las frases que asoman arriba y abajo (efecto fade).",
+      },
+    ],
+    styleSupport: {
+      gradient: true,
+      // The scroll column owns its own bg/text via dedicated fields, and
+      // the banner stretches edge-to-edge, so the section-level alignment
+      // and text-color controls would conflict with the design.
+      textColor: false,
+      alignment: false,
+      containerWidth: false,
+    },
+    liveContentVars: {
+      scrollBgColor: "--btt-scroll-bg",
+      scrollTextColor: "--btt-scroll-text",
+      scrollGhostTextColor: "--btt-scroll-ghost",
+      overlayColor: "--btt-overlay-color",
+    },
+  },
+  {
     type: "PRODUCT_GRID",
     label: "Grid de productos",
     icon: "LayoutGrid",
-    emoji: "🛍️",
     description:
       "Listado de productos de la categoría — reemplaza el grid auto-generado",
     scope: "category",

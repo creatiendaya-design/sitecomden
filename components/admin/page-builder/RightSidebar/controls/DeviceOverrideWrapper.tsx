@@ -60,7 +60,7 @@ export function DeviceOverrideWrapper<T>({
             title="Override por dispositivo"
           >
             <Plus className="h-3 w-3" />
-            Override 📱
+            Override mobile
           </Button>
         </div>
         {render(value as T | undefined, (v) => onChange(v))}

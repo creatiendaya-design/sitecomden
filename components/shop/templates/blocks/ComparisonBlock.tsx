@@ -61,11 +61,17 @@ export default function ComparisonBlock({ content: rawContent }: ComparisonBlock
         <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-8 @md:gap-10 @3xl:gap-16 items-center">
           {/* ─── Left column: heading + copy ─────────────────────────── */}
           <div className="text-center @3xl:text-left">
-            <h2 className="text-3xl @md:text-4xl @3xl:text-5xl font-extrabold tracking-tight uppercase leading-tight">
+            <h2
+              data-content-field="title"
+              className="text-3xl @md:text-4xl @3xl:text-5xl font-extrabold tracking-tight uppercase leading-tight"
+            >
               {content.title}
             </h2>
             {content.description && (
-              <p className="mt-4 @md:mt-6 text-sm @md:text-base text-muted-foreground max-w-md mx-auto @3xl:mx-0">
+              <p
+                data-content-field="description"
+                className="mt-4 @md:mt-6 text-sm @md:text-base text-muted-foreground max-w-md mx-auto @3xl:mx-0"
+              >
                 {content.description}
               </p>
             )}
@@ -122,6 +128,7 @@ function ComparisonTable({
             own var so the admin can tint just this string without
             touching the rest of the accent-column text color. */}
         <div
+          data-content-field="yoursLabel"
           className="flex items-center justify-center text-[11px] @md:text-xs font-bold uppercase tracking-wider px-2 py-3"
           style={{
             backgroundColor: "var(--block-accent, #dc2626)",
@@ -132,6 +139,7 @@ function ComparisonTable({
           {yoursLabel}
         </div>
         <div
+          data-content-field="othersLabel"
           className="flex items-center justify-center text-[11px] @md:text-xs font-bold uppercase tracking-wider px-2 py-3"
           style={{
             backgroundColor: "var(--block-others-bg, white)",

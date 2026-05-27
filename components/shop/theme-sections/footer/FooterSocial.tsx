@@ -44,7 +44,7 @@ export async function FooterSocial({ section }: Props) {
       data-preview-target={`section:${section.id}`}
     >
       {data.title && (
-        <h3 className="text-sm font-semibold mb-3 text-center">{data.title}</h3>
+        <h3 data-content-field="title" className="text-sm font-semibold mb-3 text-center">{data.title}</h3>
       )}
       <div className="flex justify-center gap-4">
         {links.map(({ href, Icon, label }) => (

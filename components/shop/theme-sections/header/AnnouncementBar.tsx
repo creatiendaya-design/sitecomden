@@ -34,7 +34,7 @@ export function AnnouncementBar({ section }: Props) {
   // We deliberately use `bg-brand-bg` (not `bg-brand-primary`) so the
   // bar tracks the scheme's first / dominant color — the "bg" dot the
   // admin sees in the scheme picker — instead of the brand accent.
-  const inner = <span>{data.message}</span>
+  const inner = <span data-content-field="message">{data.message}</span>
 
   return (
     <div

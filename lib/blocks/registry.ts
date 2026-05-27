@@ -9,7 +9,6 @@ export interface BlockDefinition {
   type: LandingBlockType
   label: string                      // User-facing label (Spanish)
   icon: string                        // lucide-react icon name
-  emoji?: string                      // Optional emoji fallback
   description: string                 // Short description for the Add panel
   scope: BlockScope                   // "universal" | "product"
   category: BlockCategory

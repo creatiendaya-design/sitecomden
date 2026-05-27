@@ -111,6 +111,7 @@ function GallerySlider({
           <div className="flex justify-center mt-6">
             <button
               onClick={onBuyClick}
+              data-content-field="buyButtonText"
               className="landing-cta-btn rounded-full px-8 py-3 font-semibold shadow-md hover:scale-105 transition-transform active:scale-95"
             >
               {buttonLabel}
@@ -170,6 +171,7 @@ function GalleryStacked({
               {showBuyButton && (
                 <button
                   onClick={onBuyClick}
+                  data-content-field="buyButtonText"
                   className="landing-cta-btn w-full mt-2 rounded-full py-2 font-semibold text-sm hover:scale-105 transition-transform active:scale-95"
                 >
                   {buttonLabel}

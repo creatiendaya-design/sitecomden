@@ -10,23 +10,6 @@ import {
 import { Plus } from "lucide-react";
 import { BLOCK_TYPE_LABELS, type LandingBlockType } from "@/lib/types/landing-blocks";
 
-const BLOCK_ICONS: Record<LandingBlockType, string> = {
-  HERO: "🖼",
-  GALLERY: "🖼️",
-  TESTIMONIALS: "💬",
-  VIDEO: "▶️",
-  COLORS: "🎨",
-  TICKER: "📢",
-  TRUST_BADGES: "🛡️",
-  RICH_TEXT: "📝",
-  FAQ: "❓",
-  IMAGE_TEXT: "🖼️",
-  ICON_TEXT: "✨",
-  RELATED_PRODUCTS: "🛒",
-  PRODUCT_GRID: "🛍️",
-  COMPARISON: "📊",
-};
-
 interface AddBlockMenuProps {
   onAdd: (type: LandingBlockType) => void;
   disabled?: boolean;
@@ -48,7 +31,6 @@ export default function AddBlockMenu({ onAdd, disabled }: AddBlockMenuProps) {
       <DropdownMenuContent align="end" className="w-52">
         {BLOCK_TYPES.map((type) => (
           <DropdownMenuItem key={type} onClick={() => onAdd(type)}>
-            <span className="mr-2">{BLOCK_ICONS[type]}</span>
             {BLOCK_TYPE_LABELS[type]}
           </DropdownMenuItem>
         ))}

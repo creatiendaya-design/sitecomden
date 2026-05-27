@@ -53,14 +53,14 @@ export default function TrustBadgesBlock({ content: rawContent }: TrustBadgesBlo
       <div className="container mx-auto px-4">
         {layout === "horizontal" ? (
           <div className={cn("grid gap-4 @md:gap-6", HORIZONTAL_COLS[columns])}>
-            {badges.map((b) => (
-              <HorizontalBadge key={b.id} badge={b} iconSize={iconSize} />
+            {badges.map((b, i) => (
+              <HorizontalBadge key={b.id} badge={b} iconSize={iconSize} index={i} />
             ))}
           </div>
         ) : (
           <div className="space-y-4">
-            {badges.map((b) => (
-              <VerticalBadge key={b.id} badge={b} iconSize={iconSize} />
+            {badges.map((b, i) => (
+              <VerticalBadge key={b.id} badge={b} iconSize={iconSize} index={i} />
             ))}
           </div>
         )}
@@ -76,25 +76,33 @@ function ResolveIcon({ name, className }: { name: string; className?: string }) 
   return <Comp className={className} />;
 }
 
-function HorizontalBadge({ badge, iconSize }: { badge: TrustBadge; iconSize: "sm" | "md" | "lg" }) {
+function HorizontalBadge({ badge, iconSize, index }: { badge: TrustBadge; iconSize: "sm" | "md" | "lg"; index: number }) {
   return (
-    <div className="flex flex-col items-center text-center gap-2 p-3 rounded-lg">
+    <div
+      data-content-array="badges"
+      data-content-index={index}
+      className="flex flex-col items-center text-center gap-2 p-3 rounded-lg"
+    >
       <ResolveIcon name={badge.icon} className={cn(ICON_SIZE_CLASS[iconSize], "text-primary")} />
       <div>
-        <div className="font-semibold text-sm @md:text-base">{badge.title}</div>
-        {badge.subtitle && <div className="text-xs text-muted-foreground">{badge.subtitle}</div>}
+        <div data-content-field="title" className="font-semibold text-sm @md:text-base">{badge.title}</div>
+        {badge.subtitle && <div data-content-field="subtitle" className="text-xs text-muted-foreground">{badge.subtitle}</div>}
       </div>
     </div>
   );
 }
 
-function VerticalBadge({ badge, iconSize }: { badge: TrustBadge; iconSize: "sm" | "md" | "lg" }) {
+function VerticalBadge({ badge, iconSize, index }: { badge: TrustBadge; iconSize: "sm" | "md" | "lg"; index: number }) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg border bg-white">
+    <div
+      data-content-array="badges"
+      data-content-index={index}
+      className="flex items-center gap-3 p-3 rounded-lg border bg-white"
+    >
       <ResolveIcon name={badge.icon} className={cn(ICON_SIZE_CLASS[iconSize], "text-primary shrink-0")} />
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm">{badge.title}</div>
-        {badge.subtitle && <div className="text-xs text-muted-foreground">{badge.subtitle}</div>}
+        <div data-content-field="title" className="font-semibold text-sm">{badge.title}</div>
+        {badge.subtitle && <div data-content-field="subtitle" className="text-xs text-muted-foreground">{badge.subtitle}</div>}
       </div>
     </div>
   );

@@ -133,6 +133,7 @@ function VideoSlider({
           <div className="flex justify-center mt-8">
             <button
               onClick={onBuyClick}
+              data-content-field="buyButtonText"
               className="landing-cta-btn rounded-full px-8 py-3 font-semibold shadow-md hover:scale-105 transition-transform active:scale-95"
             >
               {buttonLabel}
@@ -169,6 +170,7 @@ function VideoStacked({
             {showBuyButton && (
               <button
                 onClick={onBuyClick}
+                data-content-field="buyButtonText"
                 className="landing-cta-btn w-full rounded-full py-3 font-semibold hover:scale-[1.02] transition-transform active:scale-[0.98]"
               >
                 {buttonLabel}

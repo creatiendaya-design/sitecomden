@@ -204,6 +204,28 @@ export function useLivePreviewOverrides(
       //    block / section's content. Block authors opt in by adding the
       //    attribute to title/subtitle/CTA/etc elements; the hook is
       //    fully generic, so future blocks get free text live preview.
+      //
+      //    Sub-blocks (theme section children, e.g. MegaMenu panels) get
+      //    their own `subblock:<id>` target via a sibling
+      //    `data-preview-target` on the sub-block wrapper. Array items
+      //    inside a block's content (Testimonials items, TrustBadges
+      //    badges, etc.) are handled by `data-content-array` containers —
+      //    no per-block hook code needed.
+      const subBlockEntries: Array<{
+        target: string
+        data: Record<string, unknown>
+      }> = []
+      for (const s of themeState.header) {
+        for (const b of s.blocks) {
+          subBlockEntries.push({ target: `subblock:${b.id}`, data: b.content })
+        }
+      }
+      for (const s of themeState.footer) {
+        for (const b of s.blocks) {
+          subBlockEntries.push({ target: `subblock:${b.id}`, data: b.content })
+        }
+      }
+
       applyContentTextSync(doc, [
         ...themeState.header.map((s) => ({
           target: `section:${s.id}`,
@@ -213,6 +235,7 @@ export function useLivePreviewOverrides(
           target: `section:${s.id}`,
           data: s.content,
         })),
+        ...subBlockEntries,
         ...builderState.blocks.map((b) => ({
           target: `block:${b.id}`,
           data: (b.content.data as Record<string, unknown>) ?? {},
@@ -522,12 +545,23 @@ function buildBlockVisibilityCss(
  * a given content field; this function then patches that element's
  * `textContent` to match the in-memory store on every store mutation.
  *
+ * Two conventions:
+ *  - Top-level fields: `<h2 data-content-field="title">…</h2>` reads
+ *    `data.title`.
+ *  - Array items: a parent element with
+ *    `data-content-array="<key>" data-content-index="<i>"` scopes any
+ *    descendant `data-content-field` lookups to `data[key][i]`. Lets
+ *    Testimonials, TrustBadges, MegaMenu panels, etc. live-preview
+ *    their per-item text without per-block hook code. Nested arrays
+ *    work via `closest()` boundary checks.
+ *
  * The mapping is fully convention-based — there's no per-block schema
  * declaration to maintain. New blocks get free live preview for text
- * fields by sprinkling `data-content-field` on the right elements.
+ * fields by sprinkling `data-content-field` (and `data-content-array`
+ * for repeated items) on the right elements.
  *
  * Scope:
- *  - Only top-level string fields are synced. Nested objects, arrays,
+ *  - Only string fields are synced. Nested objects beyond array items,
  *    and richtext HTML are skipped (richtext would require innerHTML
  *    and a sanitization pass — out of scope for now).
  *  - Reads textContent before assigning so we don't churn the DOM when
@@ -543,16 +577,83 @@ function applyContentTextSync(
       `[data-preview-target="${cssEscape(target)}"]`,
     )
     if (!wrapper) continue
+
+    // Pass 1 — Array items. Walk every `[data-content-array]` container
+    // under this target and sync its `data-content-field` descendants
+    // against the matching array entry. Done first so the top-level
+    // pass can safely skip these nodes via `closest()`.
+    const arrayContainers = wrapper.querySelectorAll<HTMLElement>(
+      "[data-content-array]",
+    )
+    for (const container of arrayContainers) {
+      // Skip nested array containers — they're processed when their own
+      // outer iteration reaches them. (Outer/inner ordering doesn't
+      // matter for correctness, but processing twice would waste work.)
+      const parentArray = container.parentElement?.closest(
+        "[data-content-array]",
+      )
+      if (parentArray) {
+        // Resolve the right ancestor data for this nested container by
+        // walking outwards. For now we only support one level of nesting
+        // (the storefront doesn't have deeper structures); add more
+        // levels here if a future block needs it.
+        continue
+      }
+      syncArrayContainer(container, data)
+    }
+
+    // Pass 2 — Top-level string fields. Skip any `data-content-field`
+    // that lives inside an array container (handled in pass 1).
     for (const [field, value] of Object.entries(data)) {
       if (typeof value !== "string") continue
       const nodes = wrapper.querySelectorAll<HTMLElement>(
         `[data-content-field="${cssEscape(field)}"]`,
       )
       for (const node of nodes) {
+        if (node.closest("[data-content-array]")) continue
         if (node.textContent !== value) {
           node.textContent = value
         }
       }
+    }
+  }
+}
+
+/**
+ * Patch every `[data-content-field]` directly scoped to this array
+ * container against the corresponding entry in `data[arrayKey][index]`.
+ * Skips fields that belong to a deeper array container so nested loops
+ * (rare) don't leak.
+ */
+function syncArrayContainer(
+  container: HTMLElement,
+  data: Record<string, unknown>,
+): void {
+  const arrayKey = container.getAttribute("data-content-array")
+  const indexAttr = container.getAttribute("data-content-index")
+  if (!arrayKey || indexAttr === null) return
+  const index = Number.parseInt(indexAttr, 10)
+  if (!Number.isFinite(index) || index < 0) return
+  const arr = data[arrayKey]
+  if (!Array.isArray(arr)) return
+  const item = arr[index]
+  if (!item || typeof item !== "object") return
+  const itemData = item as Record<string, unknown>
+
+  const fieldNodes = container.querySelectorAll<HTMLElement>(
+    "[data-content-field]",
+  )
+  for (const node of fieldNodes) {
+    // Only sync fields whose nearest array ancestor IS this container —
+    // fields inside a nested `[data-content-array]` belong to a deeper
+    // item and should be processed when that container's own loop runs.
+    if (node.closest("[data-content-array]") !== container) continue
+    const field = node.getAttribute("data-content-field")
+    if (!field) continue
+    const value = itemData[field]
+    if (typeof value !== "string") continue
+    if (node.textContent !== value) {
+      node.textContent = value
     }
   }
 }

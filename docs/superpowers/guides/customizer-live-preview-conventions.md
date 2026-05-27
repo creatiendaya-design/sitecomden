@@ -8,6 +8,20 @@ The general rule: **most things already work, you only need to opt in for a few 
 
 ---
 
+## Use the helpers (recommended default)
+
+[components/shop/theme-sections/_helpers.tsx](../../../components/shop/theme-sections/_helpers.tsx) exports three thin wrappers that bake in the conventions below so you don't have to remember the `data-*` attributes. Reach for these first in any new theme section / sub-block / array renderer:
+
+- **`<SectionWrapper section={section} as="div">`** — emits `data-preview-target`, `data-color-scheme`, and the resolved style class/style. Replaces the manual `<div className={...} style={...} data-preview-target={`section:${section.id}`}>` boilerplate.
+- **`<SubBlockWrapper block={block}>`** — emits `data-preview-target={`subblock:${block.id}`}` for sub-blocks of a section (e.g. MegaMenu panels).
+- **`<ArrayItem array="items" index={i}>`** — emits `data-content-array` + `data-content-index` for items inside a repeatable field.
+
+`data-content-field="<key>"` on the text-rendering element is the only convention you still apply by hand — keep it as `<h2 data-content-field="title">{title}</h2>` style.
+
+Manual `data-*` attributes still work if a renderer needs structural control the wrappers don't expose, but new code should default to the helpers.
+
+---
+
 ## What works automatically (no opt-in)
 
 If your section/block uses standard `BlockStyle` fields and the wrapper has `data-preview-target`, everything below repaints instantly on edit with zero extra code:
@@ -23,10 +37,17 @@ If your section/block uses standard `BlockStyle` fields and the wrapper has `dat
 
 ### Requirement: `data-preview-target` on the wrapper
 
-Every renderer's outermost element needs the attribute:
+Every renderer's outermost element needs the attribute. Prefer the helper — it handles it for you:
 
 ```tsx
-// Theme sections:
+// Theme sections — use SectionWrapper:
+import { SectionWrapper } from "@/components/shop/theme-sections/_helpers"
+
+<SectionWrapper section={section} as="nav" className="...">
+  ...
+</SectionWrapper>
+
+// Or manually (only if you need structural control SectionWrapper can't provide):
 <div data-preview-target={`section:${section.id}`}> ... </div>
 
 // Page-builder blocks: handled centrally by LandingBlockRenderer,
@@ -56,7 +77,62 @@ Every renderer's outermost element needs the attribute:
 - **Only for plain text.** Rich text (HTML) is NOT synced (would require `innerHTML` + sanitization).
 - **Avoid when the field has a render-time fallback** like `data.title ?? "Default text"` or `value || "Default"`. The hook would force `textContent=""` when the admin clears the field, hiding the fallback. If you really need a fallback for empty state, move it into the store (set the default in `defaultContent`) instead of using `??` in JSX.
 - **Conditional elements work.** `{title && <h2 data-content-field="title">{title}</h2>}` is fine — the element appears once the field has a value, and from then on it's synced.
-- **Array items are NOT supported yet.** A future iteration of the hook would need to handle indexed selectors like `data-content-field="cards[0].title"`.
+- **Array items use the array convention** (see Pattern 1b).
+
+### Pattern 1b — Array item text live preview
+
+**Use when:** Your block / section renders a list of items (testimonials, badges, links, etc.) and each item has editable text fields.
+
+**How:** Use the `<ArrayItem>` helper. Inside, the same `data-content-field="<fieldKey>"` convention works — but the hook resolves the field against `data[arrayKey][i]` instead of the top-level data.
+
+```tsx
+import { ArrayItem } from "@/components/shop/theme-sections/_helpers"
+
+{items.map((item, i) => (
+  <ArrayItem key={item.id} array="items" index={i}>
+    <p data-content-field="text">{item.text}</p>
+    <span data-content-field="name">{item.name}</span>
+  </ArrayItem>
+))}
+```
+
+Equivalent manual form (if you need an `<article>` or some other tag the helper doesn't cover):
+
+```tsx
+<div data-content-array="items" data-content-index={i}>...</div>
+```
+
+The arrayKey is whatever the field is called on the block's `content.data` (or the section's `content`). For nested arrays inside an item (rare), declare another `data-content-array` on the inner container — the hook scopes lookups to the nearest ancestor.
+
+### Pattern 1c — Sub-block text live preview (theme sections)
+
+**Use when:** Your theme section has sub-blocks (e.g. MegaMenu panels, FooterColumns link columns) and each sub-block has its own editable text.
+
+**How:** Use the `<SubBlockWrapper>` helper. Inside, both Pattern 1 (top-level fields) and Pattern 1b (array items) work — but resolved against the sub-block's `content`, not the parent section's.
+
+```tsx
+import { SubBlockWrapper, ArrayItem } from "@/components/shop/theme-sections/_helpers"
+
+{section.blocks.map((block) => {
+  const panel = block.content as PanelContent
+  return (
+    <SubBlockWrapper key={block.id} block={block}>
+      <button>
+        <span data-content-field="trigger">{panel.trigger}</span>
+      </button>
+      <ul>
+        {(panel.links ?? []).map((link, i) => (
+          <ArrayItem key={i} array="links" index={i} as="li">
+            <a href={link.href}>
+              <span data-content-field="label">{link.label}</span>
+            </a>
+          </ArrayItem>
+        ))}
+      </ul>
+    </SubBlockWrapper>
+  )
+})}
+```
 
 ---
 
