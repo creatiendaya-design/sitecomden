@@ -24,6 +24,9 @@ export interface DraftItem {
   targetId: string | null
   externalUrl: string | null
   openInNewTab: boolean
+  /** Plan 18 — optimistic-locking version. Undefined for newly-created
+   *  items (tmp- ids) that haven't been persisted yet. */
+  version?: number
 }
 
 interface PageOption {

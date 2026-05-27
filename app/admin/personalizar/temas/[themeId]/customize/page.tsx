@@ -108,6 +108,7 @@ export default async function CustomizeThemePage({
         type: b.type as LandingBlockTypeUnion,
         position: b.position,
         content: b.content as unknown as BlockContentV2,
+        version: b.version,
       }))
     }
   } else if (targetKey.startsWith("category:")) {
@@ -127,6 +128,7 @@ export default async function CustomizeThemePage({
         type: b.type as LandingBlockTypeUnion,
         position: b.position,
         content: b.content as unknown as BlockContentV2,
+        version: b.version,
       }))
     }
   }

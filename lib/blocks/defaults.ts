@@ -51,13 +51,6 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
       bgImage: { desktop: "", mobile: "" },
     },
   },
-  BENEFITS: {
-    data: {
-      cards: [{ icon: "✅", title: "Beneficio", description: "Descripción del beneficio" }],
-    },
-    style: { ...DEFAULT_STYLE },
-    media: {},
-  },
   GALLERY: {
     data: {
       displayType: "slider",
@@ -109,10 +102,15 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
   },
   RICH_TEXT: {
     data: {
-      html: "<p>Escribe aquí tu contenido con formato libre.</p>",
+      caption: "",
+      heading: "Habla sobre tu marca",
+      headingSize: "medium",
+      html: "<p>Comparte detalles sobre tu marca con tus clientes. Describe un producto, anuncia una promoción o cuenta tu historia.</p>",
+      button1: { label: "", href: "", style: "primary" },
+      button2: { label: "", href: "", style: "secondary" },
       maxWidth: "prose",
     },
-    style: { ...DEFAULT_STYLE, alignment: "left" },
+    style: { ...DEFAULT_STYLE, alignment: "center" },
     media: {},
   },
 
@@ -192,6 +190,26 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
       sort: "manual",
     },
     style: { ...DEFAULT_STYLE, paddingY: "md" },
+    media: {},
+  },
+
+  COMPARISON: {
+    data: {
+      title: "BENEFICIOS INIGUALABLES",
+      description:
+        "Un método probado, pero ahora actualizado: mejor experiencia, mayor garantía y mejor precio que la competencia.",
+      yoursLabel: "",
+      othersLabel: "Otros",
+      rows: [
+        { id: crypto.randomUUID(), label: "Auto aplicación", yours: true, theirs: false },
+        { id: crypto.randomUUID(), label: "1 año de garantía", yours: true, theirs: false },
+        { id: crypto.randomUUID(), label: "Rápido y eficiente", yours: true, theirs: false },
+        { id: crypto.randomUUID(), label: "Costo $$$", yours: false, theirs: true },
+      ],
+      accentColor: "#dc2626",
+      accentTextColor: "#ffffff",
+    },
+    style: { ...DEFAULT_STYLE, paddingY: "xl", alignment: "left" },
     media: {},
   },
 }

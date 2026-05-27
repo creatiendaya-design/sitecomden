@@ -7,7 +7,8 @@ import type {
   ThemeSectionBlockRow,
 } from "@/actions/theme-sections"
 
-export interface SectionDraft extends Omit<ThemeSectionRow, "blocks" | "content"> {
+export interface SectionDraft
+  extends Omit<ThemeSectionRow, "blocks" | "content" | "version"> {
   /** Top-level content stored as a generic record so the store doesn't need to
    *  know each section type's content shape. The customizer's RightSidebar
    *  reads + writes through SchemaForm, which already accepts/produces this. */
@@ -17,12 +18,17 @@ export interface SectionDraft extends Omit<ThemeSectionRow, "blocks" | "content"
   isNew: boolean
   /** True when the draft differs from what's persisted (or it's new). */
   dirty: boolean
+  /** Plan 18 — optimistic-locking version. Undefined for `isNew` drafts (they
+   *  don't have a server version until the first save creates them). */
+  version?: number
 }
 
-export interface BlockDraft extends Omit<ThemeSectionBlockRow, "content"> {
+export interface BlockDraft extends Omit<ThemeSectionBlockRow, "content" | "version"> {
   content: Record<string, unknown>
   isNew: boolean
   dirty: boolean
+  /** Plan 18 — see SectionDraft.version. */
+  version?: number
 }
 
 export type SidebarTarget =
@@ -176,6 +182,7 @@ function rowToDraft(row: ThemeSectionRow): SectionDraft {
     position: row.position,
     enabled: row.enabled,
     content: (row.content ?? {}) as Record<string, unknown>,
+    version: row.version,
     blocks: row.blocks.map<BlockDraft>((b) => ({
       id: b.id,
       sectionId: b.sectionId,
@@ -183,6 +190,7 @@ function rowToDraft(row: ThemeSectionRow): SectionDraft {
       position: b.position,
       enabled: b.enabled,
       content: (b.content ?? {}) as Record<string, unknown>,
+      version: b.version,
       isNew: false,
       dirty: false,
     })),
@@ -244,8 +252,15 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
       // and saved[i].id is the just-persisted real id — there's no way
       // to correlate the two except by their position in the array we
       // sent (the server preserves order).
+      //
+      // Plan 18: also build sent.id → saved.version maps so the local
+      // drafts adopt the freshly-bumped versions returned by the server.
+      // Without this, the next autosave would send the same `version`
+      // we sent before and immediately conflict against the DB.
       const sectionIdMap = new Map<string, string>()
       const blockIdMap = new Map<string, string>()
+      const sectionVersionMap = new Map<string, number>()
+      const blockVersionMap = new Map<string, number>()
       for (let i = 0; i < sent.length; i++) {
         const sentSec = sent[i]
         const savedSec = saved[i]
@@ -253,6 +268,7 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
         if (sentSec.id !== savedSec.id) {
           sectionIdMap.set(sentSec.id, savedSec.id)
         }
+        sectionVersionMap.set(sentSec.id, savedSec.version)
         for (let j = 0; j < sentSec.blocks.length; j++) {
           const sentBlock = sentSec.blocks[j]
           const savedBlock = savedSec.blocks[j]
@@ -260,15 +276,8 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
           if (sentBlock.id !== savedBlock.id) {
             blockIdMap.set(sentBlock.id, savedBlock.id)
           }
+          blockVersionMap.set(sentBlock.id, savedBlock.version)
         }
-      }
-
-      // Nothing to remap (no new sections/blocks were saved) → just drop
-      // the dirty flag.
-      if (sectionIdMap.size === 0 && blockIdMap.size === 0) {
-        return group === "HEADER"
-          ? { headerDirty: false }
-          : { footerDirty: false }
       }
 
       const patchList = (list: SectionDraft[]): SectionDraft[] =>
@@ -277,17 +286,27 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
           // If the section was just persisted, also drop its `isNew`
           // flag so future renders don't treat it as a pending insert.
           const isNew = sectionIdMap.has(sec.id) ? false : sec.isNew
+          const newVersion = sectionVersionMap.get(sec.id) ?? sec.version
           const blocks = sec.blocks.map((b) => {
             const realId = blockIdMap.get(b.id)
-            if (!realId && newSecId === sec.id) return b
+            const newBlockVersion = blockVersionMap.get(b.id) ?? b.version
+            if (!realId && newSecId === sec.id && newBlockVersion === b.version)
+              return b
             return {
               ...b,
               id: realId ?? b.id,
               sectionId: newSecId,
               isNew: realId ? false : b.isNew,
+              version: newBlockVersion,
             }
           })
-          return { ...sec, id: newSecId, isNew, blocks }
+          return {
+            ...sec,
+            id: newSecId,
+            isNew,
+            blocks,
+            version: newVersion,
+          }
         })
 
       // Remap selected if it pointed at a tmp-id that was just renamed.

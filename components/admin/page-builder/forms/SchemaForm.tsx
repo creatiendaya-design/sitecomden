@@ -92,7 +92,14 @@ function FieldRenderer({
       return <MultiSelectField field={field} value={fieldValue} onChange={onChangeField} />
     case "custom": {
       const Comp = field.component
-      return <Comp value={fieldValue} onChange={onChangeField} />
+      return (
+        <Comp
+          value={fieldValue}
+          onChange={onChangeField}
+          label={field.label}
+          helpText={field.helpText}
+        />
+      )
     }
     default: {
       const _exhaustive: never = field

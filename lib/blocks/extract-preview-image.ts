@@ -1,4 +1,4 @@
-import type { LandingBlockType } from "@prisma/client"
+import type { LandingBlockType } from "@/lib/types/landing-blocks"
 
 interface BlockLike {
   type: LandingBlockType | string

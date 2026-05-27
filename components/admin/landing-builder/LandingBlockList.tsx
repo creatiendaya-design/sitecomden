@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import AddBlockMenu from "./AddBlockMenu";
 import HeroBlockForm from "./block-forms/HeroBlockForm";
-import BenefitsBlockForm from "./block-forms/BenefitsBlockForm";
 import GalleryBlockForm from "./block-forms/GalleryBlockForm";
 import TestimonialsBlockForm from "./block-forms/TestimonialsBlockForm";
 import VideoBlockForm from "./block-forms/VideoBlockForm";
@@ -44,13 +43,13 @@ import {
 } from "@/lib/types/landing-blocks";
 
 const BLOCK_ICONS: Record<LandingBlockType, string> = {
-  HERO: "🖼", BENEFITS: "✅", GALLERY: "🖼️",
+  HERO: "🖼", GALLERY: "🖼️",
   TESTIMONIALS: "💬", VIDEO: "▶️", COLORS: "🎨", TICKER: "📢", TRUST_BADGES: "🛡️", RICH_TEXT: "📝", FAQ: "❓",
-  IMAGE_TEXT: "🖼️", RELATED_PRODUCTS: "🛒", PRODUCT_GRID: "🛍️",
+  IMAGE_TEXT: "🖼️", RELATED_PRODUCTS: "🛒", PRODUCT_GRID: "🛍️", COMPARISON: "📊",
 };
 
 const BLOCK_COLORS: Record<LandingBlockType, string> = {
-  HERO: "border-l-purple-500", BENEFITS: "border-l-green-500",
+  HERO: "border-l-purple-500",
   GALLERY: "border-l-blue-500", TESTIMONIALS: "border-l-blue-400",
   VIDEO: "border-l-red-500", COLORS: "border-l-yellow-500", TICKER: "border-l-amber-500",
   TRUST_BADGES: "border-l-teal-500",
@@ -59,6 +58,7 @@ const BLOCK_COLORS: Record<LandingBlockType, string> = {
   IMAGE_TEXT: "border-l-fuchsia-500",
   RELATED_PRODUCTS: "border-l-orange-500",
   PRODUCT_GRID: "border-l-emerald-500",
+  COMPARISON: "border-l-rose-500",
 };
 
 interface SortableBlockItemProps {
@@ -88,7 +88,6 @@ function SortableBlockItem({
     const c = block.content as any;
     switch (block.type) {
       case "HERO":         return <HeroBlockForm content={c} onChange={onContentChange} />;
-      case "BENEFITS":     return <BenefitsBlockForm content={c} onChange={onContentChange} />;
       case "GALLERY":      return <GalleryBlockForm content={c} onChange={onContentChange} />;
       case "TESTIMONIALS": return <TestimonialsBlockForm content={c} onChange={onContentChange} />;
       case "VIDEO":        return <VideoBlockForm content={c} onChange={onContentChange} />;

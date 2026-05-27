@@ -4,11 +4,24 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
+import { getCurrentUserIdOrNull } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
 import type { ThemeSectionGroup } from "@prisma/client"
 import {
   getThemeSectionDefinition,
   getSectionBlockDefinition,
 } from "@/lib/theme-sections/registry"
+import {
+  BatchRaceError,
+  batchConflict,
+  batchErrored,
+  batchOk,
+  batchUnauthorized,
+  isBatchRaceError,
+  precheckBatchConflicts,
+  type BatchConflictEntry,
+  type BatchSaveResult,
+} from "@/lib/concurrency/batch"
 
 /**
  * Plan 16 perf: tag-based invalidation. Section CRUD/save no longer calls
@@ -44,6 +57,8 @@ export interface ThemeSectionRow {
   enabled: boolean
   content: unknown
   blocks: ThemeSectionBlockRow[]
+  /** Plan 18 — optimistic-locking version of this section row. */
+  version: number
 }
 
 export interface ThemeSectionBlockRow {
@@ -53,6 +68,8 @@ export interface ThemeSectionBlockRow {
   position: number
   enabled: boolean
   content: unknown
+  /** Plan 18 — optimistic-locking version of this block row. */
+  version: number
 }
 
 // ---------- Add section ----------
@@ -127,6 +144,7 @@ export async function addThemeSection(
     position: created.position,
     enabled: created.enabled,
     content: created.content,
+    version: created.version,
     blocks: created.blocks.map((b) => ({
       id: b.id,
       sectionId: b.sectionId,
@@ -134,6 +152,7 @@ export async function addThemeSection(
       position: b.position,
       enabled: b.enabled,
       content: b.content,
+      version: b.version,
     })),
   }
 }
@@ -281,6 +300,7 @@ export async function addThemeSectionBlock(
     position: created.position,
     enabled: created.enabled,
     content: created.content,
+    version: created.version,
   }
 }
 
@@ -368,6 +388,33 @@ const saveGroupSchema = z.object({
   themeId: z.string().min(1),
   group: z.enum(["HEADER", "FOOTER"]),
   sections: z.array(batchSectionSchema),
+})
+
+// Plan 18 — versioned variant of the batch schema. Each existing row
+// carries its own `version`; new rows ("tmp-…" ids) omit it.
+const batchSectionBlockSchemaVersioned = z.object({
+  id: z.string().min(1),
+  type: z.string().min(1),
+  position: z.number().int().nonnegative(),
+  content: z.record(z.string(), z.unknown()),
+  enabled: z.boolean(),
+  version: z.number().int().nonnegative().optional(),
+})
+
+const batchSectionSchemaVersioned = z.object({
+  id: z.string().min(1),
+  type: z.string().min(1),
+  position: z.number().int().nonnegative(),
+  content: z.record(z.string(), z.unknown()),
+  enabled: z.boolean(),
+  version: z.number().int().nonnegative().optional(),
+  blocks: z.array(batchSectionBlockSchemaVersioned),
+})
+
+const saveGroupSchemaVersioned = z.object({
+  themeId: z.string().min(1),
+  group: z.enum(["HEADER", "FOOTER"]),
+  sections: z.array(batchSectionSchemaVersioned),
 })
 
 /**
@@ -497,6 +544,7 @@ export async function saveThemeSectionGroup(
       position: r.position,
       enabled: r.enabled,
       content: r.content,
+      version: r.version,
       blocks: r.blocks.map((b) => ({
         id: b.id,
         sectionId: b.sectionId,
@@ -504,6 +552,7 @@ export async function saveThemeSectionGroup(
         position: b.position,
         enabled: b.enabled,
         content: b.content,
+        version: b.version,
       })),
     })),
   }
@@ -565,6 +614,7 @@ export async function listThemeSections(
     position: r.position,
     enabled: r.enabled,
     content: r.content,
+    version: r.version,
     blocks: r.blocks.map((b) => ({
       id: b.id,
       sectionId: b.sectionId,
@@ -572,6 +622,338 @@ export async function listThemeSections(
       position: b.position,
       enabled: b.enabled,
       content: b.content,
+      version: b.version,
     })),
   }))
+}
+
+// ---------- Versioned batch save (Plan 18) ----------
+
+/**
+ * Plan 18 — version-aware variant of `saveThemeSectionGroup`.
+ *
+ * For every existing section AND existing block, the client sends its
+ * `version` (as last fetched). The server pre-checks all versions in a
+ * single read, then writes inside a transaction with conditional updates.
+ *
+ * All-or-nothing: if ANY existing row's version disagrees, the whole batch
+ * is rejected and `conflicts[]` lists every diverged row. The UI surfaces
+ * a `BatchConflictDialog` so the user picks *Recargar* or *Forzar
+ * guardado* once for the whole batch.
+ *
+ * On the success path, the function still returns the freshly-persisted
+ * snapshot (with new `version` values) so the customizer's Zustand store
+ * can adopt them without a second round-trip.
+ */
+export async function saveThemeSectionGroupVersioned(
+  themeId: string,
+  group: ThemeSectionGroup,
+  sections: z.infer<typeof batchSectionSchemaVersioned>[],
+): Promise<BatchSaveResult<{ sections: ThemeSectionRow[] }, ThemeSectionRow>> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return batchUnauthorized()
+  const allowed = await hasPermission(userId, "themes:update")
+  if (!allowed) return batchUnauthorized()
+
+  const input = saveGroupSchemaVersioned.parse({ themeId, group, sections })
+
+  // Pre-check section versions in a single read. Sub-blocks are checked the
+  // same way, but in a separate query for clarity (and to keep TS happy).
+  const sectionConflicts = await precheckBatchConflicts({
+    model: prisma.themeSection,
+    rows: input.sections.map((s) => ({ id: s.id, version: s.version })),
+    refetchForConflict: async (id) => {
+      const fresh = await prisma.themeSection.findUnique({
+        where: { id },
+        include: { blocks: { orderBy: { position: "asc" } } },
+      })
+      if (!fresh) return null
+      return {
+        id: fresh.id,
+        themeId: fresh.themeId,
+        group: fresh.group,
+        type: fresh.type,
+        position: fresh.position,
+        enabled: fresh.enabled,
+        content: fresh.content,
+        version: fresh.version,
+        blocks: fresh.blocks.map((b) => ({
+          id: b.id,
+          sectionId: b.sectionId,
+          type: b.type,
+          position: b.position,
+          enabled: b.enabled,
+          content: b.content,
+          version: b.version,
+        })),
+      } satisfies ThemeSectionRow
+    },
+  })
+
+  // Flatten existing block rows for the pre-check.
+  const allBlockRows = input.sections.flatMap((s) =>
+    s.blocks.map((b) => ({ id: b.id, version: b.version })),
+  )
+  const blockConflictsRaw = await precheckBatchConflicts({
+    model: prisma.themeSectionBlock,
+    rows: allBlockRows,
+    refetchForConflict: async (id) => {
+      const fresh = await prisma.themeSectionBlock.findUnique({
+        where: { id },
+        include: {
+          section: {
+            include: { blocks: { orderBy: { position: "asc" } } },
+          },
+        },
+      })
+      if (!fresh) return null
+      // Promote the parent section as the displayed "current" so the UI can
+      // show the user which section owns the conflicted block.
+      const s = fresh.section
+      return {
+        id: s.id,
+        themeId: s.themeId,
+        group: s.group,
+        type: s.type,
+        position: s.position,
+        enabled: s.enabled,
+        content: s.content,
+        version: s.version,
+        blocks: s.blocks.map((b) => ({
+          id: b.id,
+          sectionId: b.sectionId,
+          type: b.type,
+          position: b.position,
+          enabled: b.enabled,
+          content: b.content,
+          version: b.version,
+        })),
+      } satisfies ThemeSectionRow
+    },
+  })
+
+  const allConflicts: BatchConflictEntry<ThemeSectionRow>[] = [
+    ...sectionConflicts,
+    ...blockConflictsRaw,
+  ]
+  if (allConflicts.length > 0) {
+    return batchConflict(allConflicts)
+  }
+
+  try {
+    const persisted = await prisma.$transaction(async (tx) => {
+      const existing = await tx.themeSection.findMany({
+        where: { themeId: input.themeId, group: input.group },
+        select: { id: true, blocks: { select: { id: true } } },
+      })
+      const existingSectionIds = new Set(existing.map((s) => s.id))
+      const incomingSectionIds = new Set(input.sections.map((s) => s.id))
+
+      const sectionsToDelete = [...existingSectionIds].filter(
+        (id) => !incomingSectionIds.has(id),
+      )
+      if (sectionsToDelete.length > 0) {
+        await tx.themeSection.deleteMany({
+          where: { id: { in: sectionsToDelete } },
+        })
+      }
+
+      for (const section of input.sections) {
+        const isNew =
+          section.id.startsWith("tmp-") || !existingSectionIds.has(section.id)
+
+        if (isNew) {
+          const created = await tx.themeSection.create({
+            data: {
+              themeId: input.themeId,
+              group: input.group,
+              type: section.type,
+              position: section.position,
+              content: section.content as object,
+              enabled: section.enabled,
+            },
+          })
+          for (const block of section.blocks) {
+            await tx.themeSectionBlock.create({
+              data: {
+                sectionId: created.id,
+                type: block.type,
+                position: block.position,
+                content: block.content as object,
+                enabled: block.enabled,
+              },
+            })
+          }
+        } else {
+          // Versioned conditional update. version must be present for
+          // existing rows; reject otherwise.
+          if (typeof section.version !== "number") {
+            throw new BatchRaceError(section.id)
+          }
+          const upd = await tx.themeSection.updateMany({
+            where: { id: section.id, version: section.version },
+            data: {
+              type: section.type,
+              position: section.position,
+              content: section.content as object,
+              enabled: section.enabled,
+              version: { increment: 1 },
+            },
+          })
+          if (upd.count === 0) throw new BatchRaceError(section.id)
+
+          const existingBlockIds = new Set(
+            existing.find((s) => s.id === section.id)?.blocks.map((b) => b.id) ?? [],
+          )
+          const incomingBlockIds = new Set(section.blocks.map((b) => b.id))
+          const blocksToDelete = [...existingBlockIds].filter(
+            (id) => !incomingBlockIds.has(id),
+          )
+          if (blocksToDelete.length > 0) {
+            await tx.themeSectionBlock.deleteMany({
+              where: { id: { in: blocksToDelete } },
+            })
+          }
+          for (const block of section.blocks) {
+            const blockIsNew =
+              block.id.startsWith("tmp-") || !existingBlockIds.has(block.id)
+            if (blockIsNew) {
+              await tx.themeSectionBlock.create({
+                data: {
+                  sectionId: section.id,
+                  type: block.type,
+                  position: block.position,
+                  content: block.content as object,
+                  enabled: block.enabled,
+                },
+              })
+            } else {
+              if (typeof block.version !== "number") {
+                throw new BatchRaceError(block.id)
+              }
+              const bUpd = await tx.themeSectionBlock.updateMany({
+                where: { id: block.id, version: block.version },
+                data: {
+                  type: block.type,
+                  position: block.position,
+                  content: block.content as object,
+                  enabled: block.enabled,
+                  version: { increment: 1 },
+                },
+              })
+              if (bUpd.count === 0) throw new BatchRaceError(block.id)
+            }
+          }
+        }
+      }
+
+      return tx.themeSection.findMany({
+        where: { themeId: input.themeId, group: input.group },
+        orderBy: { position: "asc" },
+        include: { blocks: { orderBy: { position: "asc" } } },
+      })
+    })
+
+    invalidateSectionGroup(input.themeId, input.group)
+
+    return batchOk<{ sections: ThemeSectionRow[] }, ThemeSectionRow>({
+      sections: persisted.map((r) => ({
+        id: r.id,
+        themeId: r.themeId,
+        group: r.group,
+        type: r.type,
+        position: r.position,
+        enabled: r.enabled,
+        content: r.content,
+        version: r.version,
+        blocks: r.blocks.map((b) => ({
+          id: b.id,
+          sectionId: b.sectionId,
+          type: b.type,
+          position: b.position,
+          enabled: b.enabled,
+          content: b.content,
+          version: b.version,
+        })),
+      })),
+    })
+  } catch (err) {
+    if (isBatchRaceError(err)) {
+      // Race detected during the txn — fetch fresh state for the conflicting
+      // row so the dialog has something concrete to show. The txn rolled
+      // back already; this is a read-only refetch.
+      const racingId = err.rowId
+      const sectionFresh = await prisma.themeSection.findUnique({
+        where: { id: racingId },
+        include: { blocks: { orderBy: { position: "asc" } } },
+      })
+      if (sectionFresh) {
+        return batchConflict<ThemeSectionRow>([
+          {
+            rowId: racingId,
+            current: {
+              id: sectionFresh.id,
+              themeId: sectionFresh.themeId,
+              group: sectionFresh.group,
+              type: sectionFresh.type,
+              position: sectionFresh.position,
+              enabled: sectionFresh.enabled,
+              content: sectionFresh.content,
+              version: sectionFresh.version,
+              blocks: sectionFresh.blocks.map((b) => ({
+                id: b.id,
+                sectionId: b.sectionId,
+                type: b.type,
+                position: b.position,
+                enabled: b.enabled,
+                content: b.content,
+                version: b.version,
+              })),
+            },
+            serverVersion: sectionFresh.version,
+          },
+        ])
+      }
+      const blockFresh = await prisma.themeSectionBlock.findUnique({
+        where: { id: racingId },
+        include: {
+          section: { include: { blocks: { orderBy: { position: "asc" } } } },
+        },
+      })
+      if (blockFresh) {
+        const s = blockFresh.section
+        return batchConflict<ThemeSectionRow>([
+          {
+            rowId: racingId,
+            current: {
+              id: s.id,
+              themeId: s.themeId,
+              group: s.group,
+              type: s.type,
+              position: s.position,
+              enabled: s.enabled,
+              content: s.content,
+              version: s.version,
+              blocks: s.blocks.map((b) => ({
+                id: b.id,
+                sectionId: b.sectionId,
+                type: b.type,
+                position: b.position,
+                enabled: b.enabled,
+                content: b.content,
+                version: b.version,
+              })),
+            },
+            serverVersion: blockFresh.version,
+          },
+        ])
+      }
+      return batchConflict<ThemeSectionRow>([
+        { rowId: racingId, current: null, serverVersion: null },
+      ])
+    }
+    return batchErrored(
+      err instanceof Error ? err.message : "Error al guardar secciones",
+    )
+  }
 }

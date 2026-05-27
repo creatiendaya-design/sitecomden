@@ -12,7 +12,8 @@
  *   - Transactional: processes blocks in batches of 100 within a transaction.
  *   - Safe: dry-run prints a summary without touching the DB.
  */
-import { PrismaClient, type LandingBlockType } from "@prisma/client"
+import { PrismaClient } from "@prisma/client"
+import type { LandingBlockType } from "../lib/types/landing-blocks"
 import { DEFAULT_STYLE } from "../lib/blocks/defaults"
 import type { BlockContentV2 } from "../lib/blocks/types"
 
@@ -53,14 +54,6 @@ function transformV1toV2(type: LandingBlockType, v1: V1Content): BlockContentV2 
           bgImage: bgImageUrl ? { desktop: bgImageUrl, mobile: bgImageUrl } : undefined,
           bgOverlay: { desktop: overlayColor, mobile: overlayColor },
         },
-      }
-    }
-    case "BENEFITS": {
-      const cards = (v1.cards as unknown[]) ?? []
-      return {
-        data: { cards },
-        style: { ...DEFAULT_STYLE },
-        media: {},
       }
     }
     case "GALLERY": {

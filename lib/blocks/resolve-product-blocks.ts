@@ -20,6 +20,11 @@ export interface ResolvedProductBlock {
    *  when it's served directly from a TemplateBlock. The admin can only
    *  edit blocks where this is true. */
   hasLandingBlockRow: boolean
+  /** Plan 18 — version of the underlying LandingBlock row, present when
+   *  `hasLandingBlockRow` is true. For template-only blocks (no row yet)
+   *  this is undefined; on first edit a new LandingBlock is created and
+   *  inherits version 0. */
+  version?: number
 }
 
 interface ProductWithRelations {
@@ -32,6 +37,9 @@ interface ProductWithRelations {
     content: unknown
     sourceTemplateBlockId: string | null
     detached: boolean
+    /** Plan 18 — optional so older callers that don't select `version`
+     *  still typecheck. Defaults to undefined when missing. */
+    version?: number
   }[]
 }
 
@@ -63,6 +71,7 @@ export async function resolveProductBlocks(productId: string): Promise<ResolvedP
           content: true,
           sourceTemplateBlockId: true,
           detached: true,
+          version: true,
         },
       },
     },
@@ -97,6 +106,7 @@ async function resolveFromProduct(product: ProductWithRelations): Promise<Resolv
         content: b.content as BlockContentV2,
         sourceTemplateBlockId: null,
         hasLandingBlockRow: true,
+        version: b.version,
       }))
     }
 
@@ -146,6 +156,7 @@ async function resolveFromProduct(product: ProductWithRelations): Promise<Resolv
         content: override.content as BlockContentV2,
         sourceTemplateBlockId: tb.id,
         hasLandingBlockRow: true,
+        version: override.version,
       }
     }
     return {
@@ -169,6 +180,7 @@ async function resolveFromProduct(product: ProductWithRelations): Promise<Resolv
       content: b.content as BlockContentV2,
       sourceTemplateBlockId: null,
       hasLandingBlockRow: true,
+      version: b.version,
     }))
 
   // Interleave: append pure-locals AFTER the template walk, sorted by position.

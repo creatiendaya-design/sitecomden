@@ -17,13 +17,20 @@ import {
   type ThemeRow,
 } from "@/actions/themes"
 import type { TemplateRow } from "@/actions/landing-templates"
-import { savePageBlocks, type PageRow } from "@/actions/pages"
-import { saveCategoryBlocks } from "@/actions/categories-blocks"
+import { type PageRow } from "@/actions/pages"
 import {
-  saveThemeSectionGroup,
+  saveThemeSectionGroupVersioned,
   type ThemeSectionRow,
 } from "@/actions/theme-sections"
-import type { BlockInstance } from "@/lib/blocks/types"
+import { savePageBlocksVersioned } from "@/actions/pages"
+import { saveCategoryBlocksVersioned } from "@/actions/categories-blocks"
+import { BatchConflictDialog } from "@/components/admin/concurrency/BatchConflictDialog"
+import type { BatchConflictEntry } from "@/lib/concurrency/batch"
+import type { SaveBlocksResult } from "@/components/admin/customizer/EmbeddedBlocksEditor"
+import type {
+  BlockInstance,
+  LandingBlockType as LandingBlockTypeUnion,
+} from "@/lib/blocks/types"
 import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
 import {
   CustomizerToolbar,
@@ -124,40 +131,151 @@ export function CustomizerShell({
   // Plan 14 — editor key + save callback for the embedded blocks editor.
   // Differs by surface kind: pages persist via savePageBlocks, categories
   // via saveCategoryBlocks. The editor itself is surface-agnostic.
+  //
+  // Plan 18 — blocks conflict state. When the page/category batch save
+  // reports per-row conflicts, surface a BatchConflictDialog so the user
+  // picks Recargar / Forzar guardado for the whole batch.
+  const [blocksConflict, setBlocksConflict] = useState<{
+    sent: EditorBlock[]
+    conflicts: {
+      rowId: string
+      serverVersion: number | null
+      label: string
+    }[]
+  } | null>(null)
+
+  // Plan 18 — bump on Recargar so EmbeddedBlocksEditor's `editorKey`
+  // changes, which retriggers the store-hydration effect with the
+  // freshly-fetched `initialBlocks`. Without this the Zustand store
+  // would keep the conflicted local draft after refresh.
+  const [blocksReloadGen, setBlocksReloadGen] = useState(0)
+
   const editorKey = editableSurface
-    ? `${editableSurface.kind}-${editableSurface.id}`
+    ? `${editableSurface.kind}-${editableSurface.id}-${blocksReloadGen}`
     : null
   const saveBlocks = useCallback(
-    async (next: EditorBlock[]) => {
-      if (!editableSurface) return
+    async (next: EditorBlock[]): Promise<SaveBlocksResult> => {
+      if (!editableSurface)
+        return { ok: false, reason: "error", message: "Sin superficie editable" }
+
       if (editableSurface.kind === "page") {
-        await savePageBlocks(
+        const result = await savePageBlocksVersioned(
           editableSurface.id,
           next.map((b) => ({
             id: b.id,
             type: b.type as Parameters<
-              typeof savePageBlocks
+              typeof savePageBlocksVersioned
             >[1][number]["type"],
             position: b.position,
             content: b.content,
+            version: b.version,
           })),
         )
-      } else {
-        await saveCategoryBlocks(
-          editableSurface.id,
-          next.map((b) => ({
+        if (result.ok) {
+          return {
+            ok: true,
+            persisted: result.data.blocks.map((b) => ({
+              id: b.id,
+              type: b.type as LandingBlockTypeUnion,
+              position: b.position,
+              content: b.content,
+              version: b.version,
+            })),
+          }
+        }
+        if (result.reason === "conflict") {
+          const conflicts = result.conflicts.map((c) => ({
+            rowId: c.rowId,
+            serverVersion: c.serverVersion,
+            label: c.current
+              ? `${c.current.type} (#${c.current.position + 1})`
+              : `Bloque eliminado (${c.rowId.slice(-6)})`,
+          }))
+          setBlocksConflict({ sent: next, conflicts })
+          return { ok: false, reason: "conflict", sent: next, conflicts }
+        }
+        return {
+          ok: false,
+          reason: "error",
+          message:
+            "message" in result
+              ? result.message
+              : result.reason === "unauthorized"
+                ? "Sesión expirada"
+                : "El recurso ya no existe",
+        }
+      }
+
+      // Category surface
+      const result = await saveCategoryBlocksVersioned(
+        editableSurface.id,
+        next.map((b) => ({
+          id: b.id,
+          type: b.type as Parameters<
+            typeof saveCategoryBlocksVersioned
+          >[1][number]["type"],
+          position: b.position,
+          content: b.content,
+          version: b.version,
+        })),
+      )
+      if (result.ok) {
+        return {
+          ok: true,
+          persisted: result.data.blocks.map((b) => ({
             id: b.id,
-            type: b.type as Parameters<
-              typeof saveCategoryBlocks
-            >[1][number]["type"],
+            type: b.type as LandingBlockTypeUnion,
             position: b.position,
             content: b.content,
+            version: b.version,
           })),
-        )
+        }
+      }
+      if (result.reason === "conflict") {
+        const conflicts = result.conflicts.map((c) => ({
+          rowId: c.rowId,
+          serverVersion: c.serverVersion,
+          label: c.current
+            ? `${c.current.type} (#${c.current.position + 1})`
+            : `Bloque eliminado (${c.rowId.slice(-6)})`,
+        }))
+        setBlocksConflict({ sent: next, conflicts })
+        return { ok: false, reason: "conflict", sent: next, conflicts }
+      }
+      return {
+        ok: false,
+        reason: "error",
+        message:
+          "message" in result
+            ? result.message
+            : result.reason === "unauthorized"
+              ? "Sesión expirada"
+              : "El recurso ya no existe",
       }
     },
     [editableSurface],
   )
+
+  const handleBlocksReload = useCallback(() => {
+    setBlocksConflict(null)
+    useBuilderStore.getState().setSaveStatus({ status: "idle" })
+    setBlocksReloadGen((g) => g + 1)
+    router.refresh()
+  }, [router])
+
+  const handleBlocksForce = useCallback(async () => {
+    if (!blocksConflict || !editableSurface) return
+    const versionMap = new Map<string, number>()
+    for (const c of blocksConflict.conflicts) {
+      if (c.serverVersion !== null) versionMap.set(c.rowId, c.serverVersion)
+    }
+    const forced = blocksConflict.sent.map((b) => ({
+      ...b,
+      version: versionMap.get(b.id) ?? b.version,
+    }))
+    setBlocksConflict(null)
+    await saveBlocks(forced)
+  }, [blocksConflict, editableSurface, saveBlocks])
 
   // ---------- Page-type selector ----------
   const targets = useMemo(
@@ -246,6 +364,31 @@ export function CustomizerShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme.id, hydrateThemeSections])
 
+  // Plan 18 — re-hydration on Recargar. handleSectionsReload sets the
+  // ref + state and calls router.refresh(). When the parent's
+  // server-fetched headerSections / footerSections arrive (different
+  // reference), the effect below detects the flag + ref change and
+  // rehydrates the store with the freshly-fetched server state. Without
+  // this, clicking Recargar cleared the dialog but the in-memory drafts
+  // (the conflicted edits) survived — the canvas kept showing local
+  // state and the next autosave conflicted again immediately.
+  //
+  // The `reloadPending` state is passed to `useDebouncedSaveGroup` to
+  // keep autosaves frozen during the (async) refresh window. Without
+  // freezing, the debounced autosave fires in the gap between conflict
+  // clearance and props-arrival, immediately re-conflicting against the
+  // newly advanced server version.
+  const reloadExpectedRef = useRef(false)
+  const [reloadPending, setReloadPending] = useState(false)
+  useEffect(() => {
+    if (!reloadExpectedRef.current) return
+    reloadExpectedRef.current = false
+    hydrateThemeSections(theme.id, headerSections, footerSections)
+    selectThemeSection(null)
+    setReloadPending(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headerSections, footerSections])
+
   const headerDrafts = useThemeSectionsStore((s) => s.header)
   const footerDrafts = useThemeSectionsStore((s) => s.footer)
   const headerDirty = useThemeSectionsStore((s) => s.headerDirty)
@@ -270,6 +413,100 @@ export function CustomizerShell({
   }, [themeSectionsSelected, selectBuilderBlock])
 
   const mergeSavedIds = useThemeSectionsStore((s) => s.mergeSavedIds)
+
+  // Plan 18 — Batch conflict state for theme-sections autosave. When the
+  // server reports a conflict, freeze autosave (so we don't keep firing
+  // requests that will keep failing) and show the BatchConflictDialog.
+  const [sectionsConflict, setSectionsConflict] = useState<{
+    group: "HEADER" | "FOOTER"
+    sent: SectionDraft[]
+    conflicts: BatchConflictEntry<ThemeSectionRow>[]
+  } | null>(null)
+
+  const handleSectionsConflict = useCallback(
+    (
+      group: "HEADER" | "FOOTER",
+      sent: SectionDraft[],
+      conflicts: BatchConflictEntry<ThemeSectionRow>[],
+    ) => {
+      setSectionsConflict({ group, sent, conflicts })
+    },
+    [],
+  )
+
+  const handleSectionsReload = useCallback(() => {
+    setSectionsConflict(null)
+    // Flag the next prop refresh as a reload-driven rehydration. The
+    // effect that watches headerSections / footerSections refs will pick
+    // it up once router.refresh delivers the new RSC payload — that's
+    // when we discard the local drafts and rehydrate from the server.
+    reloadExpectedRef.current = true
+    // Freeze autosave during the async refresh window so the debounced
+    // save doesn't fire with the conflicted local drafts before
+    // hydration replaces them.
+    setReloadPending(true)
+    router.refresh()
+  }, [router])
+
+  const handleSectionsForce = useCallback(async () => {
+    if (!sectionsConflict) return
+    // Build a fresh payload: for each row that conflicted, bump its
+    // `version` to the server's current value so the conditional update
+    // matches and our local edits overwrite the other admin's writes.
+    const versionMap = new Map<string, number>()
+    for (const c of sectionsConflict.conflicts) {
+      if (c.serverVersion !== null) versionMap.set(c.rowId, c.serverVersion)
+    }
+    const forced = sectionsConflict.sent.map((s) => ({
+      ...s,
+      version: versionMap.get(s.id) ?? s.version,
+      blocks: s.blocks.map((b) => ({
+        ...b,
+        version: versionMap.get(b.id) ?? b.version,
+      })),
+    }))
+    setSectionsConflict(null)
+    try {
+      const result = await saveThemeSectionGroupVersioned(
+        theme.id,
+        sectionsConflict.group,
+        forced.map((s) => ({
+          id: s.id,
+          type: s.type,
+          position: s.position,
+          content: s.content,
+          enabled: s.enabled,
+          version: s.version,
+          blocks: s.blocks.map((b) => ({
+            id: b.id,
+            type: b.type,
+            position: b.position,
+            content: b.content,
+            enabled: b.enabled,
+            version: b.version,
+          })),
+        })),
+      )
+      if (result.ok) {
+        mergeSavedIds(sectionsConflict.group, forced, result.data.sections)
+        handleAnySaved()
+      } else if (result.reason === "conflict") {
+        // Another admin slipped a second write in between. Surface again.
+        setSectionsConflict({
+          group: sectionsConflict.group,
+          sent: forced,
+          conflicts: result.conflicts,
+        })
+      } else {
+        const message =
+          "message" in result ? result.message : "Error al forzar guardado"
+        toast.error(message)
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al forzar guardado")
+    }
+  }, [sectionsConflict, theme.id, mergeSavedIds, handleAnySaved])
+
   useDebouncedSaveGroup(
     theme.id,
     "HEADER",
@@ -277,6 +514,8 @@ export function CustomizerShell({
     headerDirty,
     mergeSavedIds,
     handleAnySaved,
+    handleSectionsConflict,
+    sectionsConflict !== null || reloadPending,
   )
   useDebouncedSaveGroup(
     theme.id,
@@ -285,6 +524,8 @@ export function CustomizerShell({
     footerDirty,
     mergeSavedIds,
     handleAnySaved,
+    handleSectionsConflict,
+    sectionsConflict !== null || reloadPending,
   )
 
   const handleExit = useCallback(() => {
@@ -436,6 +677,48 @@ export function CustomizerShell({
             </ColorSchemesProvider>
           ) : null)}
       </div>
+
+      <BatchConflictDialog
+        open={sectionsConflict !== null}
+        onOpenChange={(next) => {
+          if (!next) setSectionsConflict(null)
+        }}
+        conflicts={sectionsConflict?.conflicts ?? []}
+        onReload={handleSectionsReload}
+        onForce={handleSectionsForce}
+        resourceLabel={
+          sectionsConflict?.group === "HEADER"
+            ? "el header del tema"
+            : "el footer del tema"
+        }
+        formatLabel={(c) => {
+          if (!c.current) return `Sección eliminada (${c.rowId.slice(-6)})`
+          return `${c.current.type} (#${c.current.position + 1})`
+        }}
+      />
+
+      <BatchConflictDialog
+        open={blocksConflict !== null}
+        onOpenChange={(next) => {
+          if (!next) setBlocksConflict(null)
+        }}
+        conflicts={
+          // Adapt our shape to the dialog's expected entry shape.
+          blocksConflict?.conflicts.map((c) => ({
+            rowId: c.rowId,
+            current: { label: c.label } as { label: string },
+            serverVersion: c.serverVersion,
+          })) ?? []
+        }
+        onReload={handleBlocksReload}
+        onForce={handleBlocksForce}
+        resourceLabel={
+          editableSurface?.kind === "category"
+            ? "esta categoría"
+            : "esta página"
+        }
+        formatLabel={(c) => c.current?.label ?? c.rowId}
+      />
     </div>
   )
 }
@@ -462,6 +745,15 @@ export function CustomizerShell({
  *     Without this, two concurrent saves could race and reorder writes
  *     against the server.
  */
+/**
+ * Plan 18 — versioned variant. The autosave debounce stays as before; the
+ * only changes are:
+ *   1. We call `saveThemeSectionGroupVersioned` and send each row's
+ *      `version` so the server can reject stale writes.
+ *   2. On `{ ok: false, reason: "conflict" }` we hand the conflicts off to
+ *      the parent via `onConflict`, which surfaces the BatchConflictDialog
+ *      and freezes autosave until the user resolves.
+ */
 function useDebouncedSaveGroup(
   themeId: string,
   group: "HEADER" | "FOOTER",
@@ -473,30 +765,36 @@ function useDebouncedSaveGroup(
     saved: ThemeSectionRow[],
   ) => void,
   onSaved: () => void,
+  onConflict: (
+    group: "HEADER" | "FOOTER",
+    sent: SectionDraft[],
+    conflicts: BatchConflictEntry<ThemeSectionRow>[],
+  ) => void,
+  /** When the parent is showing a conflict dialog, freeze autosaves until
+   *  the user clicks Recargar (which refetches + resets) or Forzar (which
+   *  retries via the parent). */
+  frozen: boolean,
 ) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savingRef = useRef(false)
-  // Latest props captured in refs so the timer callback always sees the
-  // freshest state — without re-creating the timer on every keystroke
-  // (which would prevent debouncing entirely).
   const draftsRef = useRef(drafts)
   const dirtyRef = useRef(groupDirty)
+  const frozenRef = useRef(frozen)
   draftsRef.current = drafts
   dirtyRef.current = groupDirty
+  frozenRef.current = frozen
 
   useEffect(() => {
     if (!groupDirty) return
-    if (savingRef.current) return // a save is already in flight; it'll re-check on completion
+    if (frozen) return
+    if (savingRef.current) return
     if (timer.current) clearTimeout(timer.current)
 
     const fire = async () => {
       savingRef.current = true
-      // Snapshot at fire time — used both as the request body AND as the
-      // sent-side input to mergeSavedIds (so id remapping aligns by
-      // position with what the server actually saw).
       const sent = draftsRef.current
       try {
-        const result = await saveThemeSectionGroup(
+        const result = await saveThemeSectionGroupVersioned(
           themeId,
           group,
           sent.map((s) => ({
@@ -505,24 +803,38 @@ function useDebouncedSaveGroup(
             position: s.position,
             content: s.content,
             enabled: s.enabled,
+            version: s.version,
             blocks: s.blocks.map((b) => ({
               id: b.id,
               type: b.type,
               position: b.position,
               content: b.content,
               enabled: b.enabled,
+              version: b.version,
             })),
           })),
         )
-        mergeSavedIds(group, sent, result.sections)
-        onSaved()
+        if (result.ok) {
+          mergeSavedIds(group, sent, result.data.sections)
+          onSaved()
+        } else if (result.reason === "conflict") {
+          onConflict(group, sent, result.conflicts)
+        } else {
+          const message =
+            "message" in result
+              ? result.message
+              : result.reason === "unauthorized"
+                ? "Sesión expirada"
+                : result.reason === "not_found"
+                  ? "El recurso ya no existe"
+                  : "Error al guardar"
+          toast.error(message)
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Error al guardar")
       } finally {
         savingRef.current = false
-        // If the admin kept editing while we were saving, the group is
-        // still dirty — schedule another save to catch up.
-        if (dirtyRef.current) {
+        if (dirtyRef.current && !frozenRef.current) {
           if (timer.current) clearTimeout(timer.current)
           timer.current = setTimeout(fire, 250)
         }
@@ -533,7 +845,7 @@ function useDebouncedSaveGroup(
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [themeId, group, groupDirty, mergeSavedIds, onSaved])
+  }, [themeId, group, groupDirty, frozen, mergeSavedIds, onSaved, onConflict])
 }
 
 function CustomizerHeaderRow({

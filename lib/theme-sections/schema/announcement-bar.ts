@@ -1,5 +1,6 @@
 import { Megaphone } from "lucide-react"
 import type { ThemeSectionDefinition } from "../types"
+import { LinkUrlField } from "@/components/admin/page-builder/forms/custom/LinkUrlField"
 
 export const announcementBarDefinition: ThemeSectionDefinition = {
   type: "ANNOUNCEMENT_BAR",
@@ -11,9 +12,10 @@ export const announcementBarDefinition: ThemeSectionDefinition = {
   fields: [
     { type: "text", key: "message", label: "Mensaje" },
     {
-      type: "text",
+      type: "custom",
       key: "linkHref",
       label: "Enlace (opcional)",
+      component: LinkUrlField,
       helpText: "Si está presente, toda la barra se vuelve un link.",
     },
     { type: "switch", key: "openInNewTab", label: "Abrir en nueva pestaña" },

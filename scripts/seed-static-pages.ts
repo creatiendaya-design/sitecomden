@@ -8,7 +8,8 @@
 //
 // Run after the main schema is in place:
 //   npx tsx scripts/seed-static-pages.ts
-import { PrismaClient, type LandingBlockType } from "@prisma/client"
+import { PrismaClient } from "@prisma/client"
+import type { LandingBlockType } from "../lib/types/landing-blocks"
 import { randomUUID } from "node:crypto"
 
 const prisma = new PrismaClient()

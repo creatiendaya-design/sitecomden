@@ -23,6 +23,15 @@ export interface BlockDefinition {
   /** Declares which style-tab sections apply to this block type. Unset
    *  fields default per resolveStyleSupport() (all true except `bgImage`). */
   styleSupport?: Partial<BlockStyleSupport>
+  /** Maps `content.data.<key>` fields to CSS custom properties set on the
+   *  block's preview wrapper. The customizer live-preview hook emits these
+   *  rules instantly on every store mutation, so renderers that read the
+   *  vars (`var(--block-accent)`) repaint without the autosave round-trip.
+   *
+   *  SSR responsibility: the renderer must also set the same CSS vars on
+   *  its outermost element from the data values, so the first paint and
+   *  any non-customizer render look correct. */
+  liveContentVars?: Record<string, string>
 }
 
 /**

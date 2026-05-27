@@ -3,11 +3,23 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
-import type { LandingBlockType } from "@prisma/client"
+import { getCurrentUserIdOrNull } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
+import { assertKnownBlockType, type LandingBlockType } from "@/lib/types/landing-blocks"
 import { isReservedSlug } from "@/lib/pages/reserved-slugs"
 import { z } from "zod"
 import { createPageSchema } from "@/lib/validations/admin"
 import { logAudit } from "@/lib/audit-log"
+import {
+  BatchRaceError,
+  batchConflict,
+  batchErrored,
+  batchOk,
+  batchUnauthorized,
+  isBatchRaceError,
+  precheckBatchConflicts,
+  type BatchSaveResult,
+} from "@/lib/concurrency/batch"
 
 function flattenZodError(err: z.ZodError): string {
   return err.issues.map((i) => i.message).join("; ")
@@ -32,7 +44,14 @@ export interface PageRow {
 }
 
 export interface PageWithBlocks extends PageRow {
-  pageBlocks: { id: string; type: string; position: number; content: unknown }[]
+  pageBlocks: {
+    id: string
+    type: string
+    position: number
+    content: unknown
+    /** Plan 18 — per-block optimistic-locking version. */
+    version: number
+  }[]
 }
 
 export async function listPages(): Promise<PageRow[]> {
@@ -134,6 +153,7 @@ export async function getPage(id: string): Promise<PageWithBlocks | null> {
       type: b.type,
       position: b.position,
       content: b.content,
+      version: b.version,
     })),
   }
 }
@@ -286,6 +306,7 @@ export async function savePageBlocks(
   incomingBlocks: IncomingBlock[],
 ): Promise<{ success: true }> {
   await protectRoute("pages:update")
+  for (const b of incomingBlocks) assertKnownBlockType(b.type)
 
   const page = await prisma.page.findUnique({
     where: { id: pageId },
@@ -341,6 +362,159 @@ export async function savePageBlocks(
   updateTag(`page-blocks:${pageId}`)
   revalidatePath(`/admin/paginas/${pageId}`)
   return { success: true }
+}
+
+/**
+ * Plan 18 — version-aware variant of `savePageBlocks`. Each existing
+ * block carries its `version`; new blocks ("tmp-…" ids) omit it.
+ * All-or-nothing on conflict.
+ */
+interface IncomingBlockVersioned extends IncomingBlock {
+  version?: number
+}
+
+export interface PageBlockConflictRow {
+  id: string
+  type: string
+  position: number
+  content: unknown
+  version: number
+}
+
+export async function savePageBlocksVersioned(
+  pageId: string,
+  incomingBlocks: IncomingBlockVersioned[],
+): Promise<
+  BatchSaveResult<
+    { blocks: PageBlockConflictRow[] },
+    PageBlockConflictRow
+  >
+> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return batchUnauthorized()
+  const allowed = await hasPermission(userId, "pages:update")
+  if (!allowed) return batchUnauthorized()
+
+  for (const b of incomingBlocks) assertKnownBlockType(b.type)
+
+  const page = await prisma.page.findUnique({
+    where: { id: pageId },
+    select: { slug: true },
+  })
+  if (!page) return { ok: false, reason: "not_found" }
+
+  // Pre-check
+  const conflicts = await precheckBatchConflicts({
+    model: prisma.pageBlock,
+    rows: incomingBlocks.map((b) => ({ id: b.id, version: b.version })),
+    refetchForConflict: async (id) => {
+      const fresh = await prisma.pageBlock.findUnique({ where: { id } })
+      if (!fresh) return null
+      return {
+        id: fresh.id,
+        type: fresh.type,
+        position: fresh.position,
+        content: fresh.content,
+        version: fresh.version,
+      } satisfies PageBlockConflictRow
+    },
+  })
+  if (conflicts.length > 0) return batchConflict(conflicts)
+
+  try {
+    const persisted = await prisma.$transaction(async (tx) => {
+      const existing = await tx.pageBlock.findMany({
+        where: { pageId },
+        select: { id: true },
+      })
+      const existingIds = new Set(existing.map((b) => b.id))
+      const incomingIds = new Set(incomingBlocks.map((b) => b.id))
+
+      const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+      if (toDelete.length > 0) {
+        await tx.pageBlock.deleteMany({ where: { id: { in: toDelete } } })
+      }
+
+      for (const b of incomingBlocks) {
+        const isNew = b.id.startsWith("tmp-") || !existingIds.has(b.id)
+        if (isNew) {
+          await tx.pageBlock.create({
+            data: {
+              pageId,
+              type: b.type,
+              position: b.position,
+              content: b.content as object,
+            },
+          })
+        } else {
+          if (typeof b.version !== "number") {
+            throw new BatchRaceError(b.id)
+          }
+          const upd = await tx.pageBlock.updateMany({
+            where: { id: b.id, version: b.version },
+            data: {
+              type: b.type,
+              position: b.position,
+              content: b.content as object,
+              version: { increment: 1 },
+            },
+          })
+          if (upd.count === 0) throw new BatchRaceError(b.id)
+        }
+      }
+
+      await tx.page.update({
+        where: { id: pageId },
+        data: { updatedAt: new Date() },
+      })
+
+      return tx.pageBlock.findMany({
+        where: { pageId },
+        orderBy: { position: "asc" },
+      })
+    })
+
+    updateTag(`page:${page.slug}`)
+    updateTag(`page-blocks:${pageId}`)
+    revalidatePath(`/admin/paginas/${pageId}`)
+
+    return batchOk<
+      { blocks: PageBlockConflictRow[] },
+      PageBlockConflictRow
+    >({
+      blocks: persisted.map((b) => ({
+        id: b.id,
+        type: b.type,
+        position: b.position,
+        content: b.content,
+        version: b.version,
+      })),
+    })
+  } catch (err) {
+    if (isBatchRaceError(err)) {
+      const fresh = await prisma.pageBlock.findUnique({
+        where: { id: err.rowId },
+      })
+      return batchConflict<PageBlockConflictRow>([
+        {
+          rowId: err.rowId,
+          current: fresh
+            ? {
+                id: fresh.id,
+                type: fresh.type,
+                position: fresh.position,
+                content: fresh.content,
+                version: fresh.version,
+              }
+            : null,
+          serverVersion: fresh?.version ?? null,
+        },
+      ])
+    }
+    return batchErrored(
+      err instanceof Error ? err.message : "Error al guardar bloques",
+    )
+  }
 }
 
 export async function deletePage(id: string): Promise<void> {

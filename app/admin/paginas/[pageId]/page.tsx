@@ -26,6 +26,7 @@ export default async function PageEditorPage({
     type: b.type as LandingBlockType,
     position: b.position,
     content: b.content as BlockContentV2,
+    version: b.version,
   }))
 
   return (

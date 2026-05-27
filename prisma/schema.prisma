@@ -56,11 +56,18 @@ model CategoryBlock {
   id         String           @id @default(cuid())
   categoryId String
   category   Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  type       LandingBlockType
+  /// Block type id from lib/blocks/registry.ts (e.g. "HERO", "GALLERY").
+  /// String — not enum — so adding a block type does not require migration.
+  /// Validated in runtime by the server actions via getBlockDefinition().
+  type       String
   position   Int
   content    Json             @default("{}")
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
+  /// Optimistic-locking version. Incremented on every update via
+  /// `updateMany` with `where: { id, version }`. See
+  /// docs/superpowers/guides/concurrency-and-locking.md (Plan 18).
+  version    Int              @default(0)
 
   @@index([categoryId, position])
 }
@@ -137,6 +144,10 @@ model Product {
   promotionTargets    PromotionProduct[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  /// Optimistic-locking version (Plan 18). Applies to content edits
+  /// (name, description, SEO, images, template bindings). Stock changes
+  /// use atomic `{ increment }` / `{ decrement }` and do NOT bump this.
+  version            Int                 @default(0)
   /// Soft-delete tombstone. Null = live row. Non-null = the admin removed
   /// the product but its history (OrderItem snapshots, audit trail) must
   /// remain intact. Storefront queries must filter `deletedAt: null`.
@@ -156,13 +167,16 @@ model LandingBlock {
   id                    String           @id @default(cuid())
   productId             String
   product               Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  type                  LandingBlockType
+  /// See CategoryBlock.type — string, validated against the registry.
+  type                  String
   position              Int
   content               Json             @default("{}")
   sourceTemplateBlockId String?
   detached              Boolean          @default(false)
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
+  /// Optimistic-locking version (Plan 18).
+  version               Int              @default(0)
 
   @@index([productId, position])
   @@index([sourceTemplateBlockId])
@@ -175,24 +189,11 @@ enum ProductTemplate {
   GALLERY
 }
 
-enum LandingBlockType {
-  HERO
-  BENEFITS
-  GALLERY
-  TESTIMONIALS
-  VIDEO
-  COLORS
-  TICKER
-  // v2 additions (Plan 2 will implement renderers/forms; Plan 1 only adds enum values)
-  RICH_TEXT
-  FAQ
-  IMAGE_TEXT
-  RELATED_PRODUCTS
-  TRUST_BADGES
-  // Plan 7.1 — configurable product grid for category builders. When
-  // present in a category's blocks, replaces the auto-generated grid.
-  PRODUCT_GRID
-}
+// Note: the `LandingBlockType` enum was dropped on 2026-05-27. Block
+// types are now plain strings validated in runtime by the server actions
+// against `lib/blocks/registry.ts`. This mirrors how ThemeSection.type
+// works (Plan 16) and means adding a new block type only requires
+// registering it in the registry — no Prisma migration.
 
 model ProductCategory {
   productId  String
@@ -252,6 +253,10 @@ model ProductVariant {
   cartItems          CartItem[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  /// Optimistic-locking version (Plan 18). Covers content fields
+  /// (price, SKU, options, image, active). Stock uses atomic
+  /// `{ increment }` / `{ decrement }` and does NOT bump this.
+  version            Int                 @default(0)
 
   @@index([productId])
   @@index([sku])
@@ -313,6 +318,10 @@ model Order {
   cancelledAt        DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  /// Optimistic-locking version (Plan 18). Two admins updating the same
+  /// order status concurrently — for example one marking it PAID while the
+  /// other CANCELS it — should produce a conflict, not silent loss.
+  version            Int                 @default(0)
 
   @@index([orderNumber])
   @@index([status])
@@ -489,12 +498,18 @@ model Coupon {
   maxDiscount       Decimal?   @db.Decimal(10, 2)
   usageLimit        Int?
   usageLimitPerUser Int?
+  /// Counter incremented atomically at checkout via `{ increment: 1 }`.
+  /// NOT covered by optimistic locking — always-correct accumulation.
   usageCount        Int        @default(0)
   startsAt          DateTime?
   expiresAt         DateTime?
   active            Boolean    @default(true)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
+  /// Optimistic-locking version (Plan 18). Covers admin edits to the
+  /// coupon definition (value, limits, dates). `usageCount` bumps
+  /// separately via atomic increment.
+  version           Int        @default(0)
   /// Soft-delete tombstone. Coupons can be referenced from past Orders via
   /// snapshot fields; tombstoning preserves that lookup chain.
   deletedAt         DateTime?
@@ -684,6 +699,9 @@ model Role {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  /// Optimistic-locking version (Plan 18). Two super-admins editing
+  /// the same role's permissions concurrently must collide cleanly.
+  version   Int      @default(0)
 
   @@index([slug])
   @@index([level])
@@ -781,6 +799,10 @@ model Setting {
   description String?
   category    String?
   updatedAt   DateTime @updatedAt
+  /// Optimistic-locking version (Plan 18). Settings are frequently
+  /// touched by multiple admins (Culqi keys, SUNAT config, email
+  /// templates) — silent overwrites here can break payments.
+  version     Int      @default(0)
 
   @@index([key])
   @@index([category])
@@ -1194,6 +1216,8 @@ model LandingTemplate {
   createdBy      String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  /// Optimistic-locking version (Plan 18).
+  version        Int             @default(0)
   templateBlocks TemplateBlock[]
   products       Product[]
   /** Themes that use this landing template as their default product page. */
@@ -1278,6 +1302,9 @@ model Page {
   createdBy      String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+  /// Optimistic-locking version (Plan 18). Covers metadata, SEO, slug.
+  /// Block-list reorders bump each touched PageBlock.version separately.
+  version        Int         @default(0)
   pageBlocks     PageBlock[]
   /** Themes that point to this page as their storefront home. */
   themesUsingAsHome Theme[] @relation("ThemeHomePage")
@@ -1304,6 +1331,9 @@ model Menu {
   createdBy   String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  /// Optimistic-locking version (Plan 18). Covers menu metadata.
+  /// Item reorders bump each touched MenuItem.version separately.
+  version     Int        @default(0)
 
   @@index([slug, active])
 }
@@ -1338,6 +1368,8 @@ model MenuItem {
   openInNewTab  Boolean    @default(false)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+  /// Optimistic-locking version (Plan 18).
+  version       Int        @default(0)
 
   @@index([menuId, parentId, position])
 }
@@ -1346,11 +1378,14 @@ model PageBlock {
   id        String           @id @default(cuid())
   pageId    String
   page      Page             @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  type      LandingBlockType
+  /// See CategoryBlock.type — string, validated against the registry.
+  type      String
   position  Int
   content   Json             @default("{}")
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+  /// Optimistic-locking version (Plan 18).
+  version   Int              @default(0)
 
   @@index([pageId, position])
 }
@@ -1385,6 +1420,10 @@ model Policy {
   createdBy      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  /// Optimistic-locking version (Plan 18). Policies are long-form Tiptap
+  /// rich text — two admins editing the same policy simultaneously is the
+  /// canonical lost-update scenario.
+  version        Int      @default(0)
 
   @@index([slug, active])
   @@index([policyType])
@@ -1442,6 +1481,10 @@ model Theme {
   createdBy                       String?
   createdAt                       DateTime @default(now())
   updatedAt                       DateTime @updatedAt
+  /// Optimistic-locking version (Plan 18). Highest collision risk in the
+  /// app: the customizer auto-saves on every keystroke / click, and a
+  /// theme is the singleton most likely to be edited by multiple admins.
+  version                         Int      @default(0)
 
   @@index([active])
 }
@@ -1450,11 +1493,14 @@ model TemplateBlock {
   id         String           @id @default(cuid())
   templateId String
   template   LandingTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  type       LandingBlockType
+  /// See CategoryBlock.type — string, validated against the registry.
+  type       String
   position   Int
   content    Json             @default("{}")
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
+  /// Optimistic-locking version (Plan 18).
+  version    Int              @default(0)
 
   @@index([templateId, position])
 }
@@ -1478,6 +1524,8 @@ model ThemeSection {
   blocks    ThemeSectionBlock[]
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
+  /// Optimistic-locking version (Plan 18).
+  version   Int                 @default(0)
 
   @@index([themeId, group, position])
 }
@@ -1495,6 +1543,8 @@ model ThemeSectionBlock {
   enabled   Boolean      @default(true)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+  /// Optimistic-locking version (Plan 18).
+  version   Int          @default(0)
 
   @@index([sectionId, position])
 }

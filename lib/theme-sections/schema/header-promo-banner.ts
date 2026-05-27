@@ -1,5 +1,6 @@
 import { Image as ImageIcon } from "lucide-react"
 import type { ThemeSectionDefinition } from "../types"
+import { LinkUrlField } from "@/components/admin/page-builder/forms/custom/LinkUrlField"
 
 export const headerPromoBannerDefinition: ThemeSectionDefinition = {
   type: "HEADER_PROMO_BANNER",
@@ -10,7 +11,12 @@ export const headerPromoBannerDefinition: ThemeSectionDefinition = {
   maxPerGroup: 2,
   fields: [
     { type: "image", key: "image", label: "Imagen", deviceOverride: false },
-    { type: "text", key: "linkHref", label: "Enlace (opcional)" },
+    {
+      type: "custom",
+      key: "linkHref",
+      label: "Enlace (opcional)",
+      component: LinkUrlField,
+    },
     { type: "text", key: "altText", label: "Texto alternativo" },
   ],
   defaultContent: { image: "", linkHref: "", altText: "" },

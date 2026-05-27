@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
@@ -20,10 +20,12 @@ import {
 } from "@/components/ui/select"
 import RichTextEditor from "@/components/admin/RichTextEditor"
 import {
-  updatePolicy,
+  updatePolicyVersioned,
   type PolicyFull,
   type PolicyType,
 } from "@/actions/policies"
+import { useVersionAwareSave } from "@/components/admin/concurrency/use-version-aware-save"
+import { ConflictDialog } from "@/components/admin/concurrency/ConflictDialog"
 
 interface Props {
   policy: PolicyFull
@@ -55,7 +57,30 @@ export function PolicyEditor({ policy }: Props) {
   const [seoImage, setSeoImage] = useState<string | null>(policy.seoImage ?? null)
   const [noIndex, setNoIndex] = useState(policy.noIndex)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [pending, startTransition] = useTransition()
+
+  const {
+    state: saveState,
+    save,
+    acceptServerCopy,
+    forceOverwrite,
+    dismissConflict,
+    setVersion,
+  } = useVersionAwareSave({
+    action: (expectedVersion, input: Parameters<typeof updatePolicyVersioned>[2]) =>
+      updatePolicyVersioned(policy.id, expectedVersion, input),
+    initialVersion: policy.version,
+    onSuccess: () => {
+      toast.success("Política guardada")
+    },
+    onReload: () => router.refresh(),
+    onError: (message) => toast.error(message),
+  })
+  const pending = saveState.saving
+
+  // Re-hydrate when the parent passes a fresh policy prop (after refresh).
+  useEffect(() => {
+    setVersion(policy.version)
+  }, [policy.version, setVersion])
 
   async function handleImageUpload(file: File): Promise<void> {
     setUploadingImage(true)
@@ -78,28 +103,19 @@ export function PolicyEditor({ policy }: Props) {
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !slug.trim() || pending) return
-
-    startTransition(async () => {
-      try {
-        await updatePolicy(policy.id, {
-          slug: slug.trim(),
-          title: title.trim(),
-          body,
-          policyType: policyType === NONE ? null : (policyType as PolicyType),
-          seoTitle: seoTitle.trim() || null,
-          seoDescription: seoDescription.trim() || null,
-          seoImage: seoImage || null,
-          noIndex,
-          active,
-        })
-        toast.success("Política guardada")
-        router.refresh()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al guardar")
-      }
+    await save({
+      slug: slug.trim(),
+      title: title.trim(),
+      body,
+      policyType: policyType === NONE ? null : (policyType as PolicyType),
+      seoTitle: seoTitle.trim() || null,
+      seoDescription: seoDescription.trim() || null,
+      seoImage: seoImage || null,
+      noIndex,
+      active,
     })
   }
 
@@ -307,6 +323,16 @@ export function PolicyEditor({ policy }: Props) {
           </Button>
         </div>
       </form>
+
+      <ConflictDialog
+        open={saveState.hasConflict}
+        onOpenChange={(next) => {
+          if (!next) dismissConflict()
+        }}
+        onReload={acceptServerCopy}
+        onForce={forceOverwrite}
+        resourceLabel="esta política"
+      />
     </div>
   )
 }

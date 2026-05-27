@@ -4,6 +4,7 @@ import { Layout, LayoutTemplate, Footprints } from "lucide-react"
 import {
   EmbeddedBlocksEditor,
   type EditorBlock,
+  type SaveBlocksResult,
 } from "./EmbeddedBlocksEditor"
 import { ThemeSectionGroupEditor } from "./ThemeSectionGroupEditor"
 import type { BlockInstance } from "@/lib/blocks/types"
@@ -18,8 +19,11 @@ interface Props {
   editorKey: string | null
   initialBlocks: BlockInstance[]
   /** Customizer-supplied save fn for the Plantilla zone — wires either
-   *  savePageBlocks or saveCategoryBlocks depending on the target type. */
-  saveBlocks: (blocks: EditorBlock[]) => Promise<void>
+   *  savePageBlocksVersioned or saveCategoryBlocksVersioned depending on
+   *  the target type. Returns a Plan 18 SaveBlocksResult so EmbeddedBlocks-
+   *  Editor can adopt the persisted snapshot (fresh versions) or surface
+   *  a batch conflict. */
+  saveBlocks: (blocks: EditorBlock[]) => Promise<SaveBlocksResult>
   targetLabel: string
   onBlocksSaved?: () => void
   /** Plan 16 — per-theme catalog (allowed section types per group). */

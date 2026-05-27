@@ -30,6 +30,16 @@ export function ContentTab() {
   }
 
   const data = (block.content.data as Record<string, unknown>) ?? {}
+  // Fields flagged `showInStyleTab` are rendered by the Estilo tab instead,
+  // grouped under "Colores del bloque". They still live at content.data.<key>.
+  const contentOnlySchema = def.contentSchema.filter((f) => !f.showInStyleTab)
+  if (contentOnlySchema.length === 0) {
+    return (
+      <div className="p-4 text-xs text-muted-foreground">
+        Todos los campos de este bloque están en la pestaña Estilo.
+      </div>
+    )
+  }
   // `key={block.id}` forces the form (and every debounced input under it)
   // to remount when the admin selects a different block. Unmount fires
   // each input's flush hook, which commits any half-typed value to the
@@ -38,7 +48,7 @@ export function ContentTab() {
   return (
     <SchemaForm
       key={block.id}
-      schema={def.contentSchema}
+      schema={contentOnlySchema}
       value={data}
       onChange={(nextData) =>
         updateBlockContent(block.id, {

@@ -10,7 +10,7 @@ const prisma = new PrismaClient()
 
 interface SeedBlock {
   type:
-    | "HERO" | "BENEFITS" | "GALLERY" | "TESTIMONIALS" | "VIDEO" | "TICKER"
+    | "HERO" | "GALLERY" | "TESTIMONIALS" | "VIDEO" | "TICKER"
     | "TRUST_BADGES" | "RICH_TEXT" | "FAQ" | "IMAGE_TEXT" | "RELATED_PRODUCTS"
   content: Record<string, unknown>
 }
@@ -42,17 +42,6 @@ function hero(title: string, subtitle: string, ctaText = "Comprar ahora"): SeedB
         bgImage: { desktop: "", mobile: "" },
         bgOverlay: { desktop: "rgba(0,0,0,0.3)", mobile: "rgba(0,0,0,0.3)" },
       },
-    },
-  }
-}
-
-function benefits(cards: { icon: string; title: string; description: string }[]): SeedBlock {
-  return {
-    type: "BENEFITS",
-    content: {
-      data: { cards: cards.map((c) => ({ id: randomUUID(), ...c })) },
-      style: { ...DEFAULT_STYLE },
-      media: {},
     },
   }
 }
@@ -150,15 +139,10 @@ function richText(html: string): SeedBlock {
 const TEMPLATES: SeedTemplate[] = [
   {
     name: "Electrónica genérica",
-    description: "Plantilla para productos electrónicos: hero, beneficios, galería, badges y FAQ.",
+    description: "Plantilla para productos electrónicos: hero, galería, badges y FAQ.",
     category: "electronica",
     blocks: [
       hero("Tecnología que mejora tu día", "Descubre por qué este producto es la opción favorita de miles de clientes."),
-      benefits([
-        { icon: "✅", title: "Calidad premium", description: "Materiales y componentes de primer nivel." },
-        { icon: "⚡", title: "Alto rendimiento", description: "Diseñado para responder en cualquier escenario." },
-        { icon: "🔒", title: "Garantía oficial", description: "12 meses contra defectos de fábrica." },
-      ]),
       gallery(),
       trustBadges(),
       faq([

@@ -12,7 +12,6 @@ import { BLOCK_TYPE_LABELS, type LandingBlockType } from "@/lib/types/landing-bl
 
 const BLOCK_ICONS: Record<LandingBlockType, string> = {
   HERO: "🖼",
-  BENEFITS: "✅",
   GALLERY: "🖼️",
   TESTIMONIALS: "💬",
   VIDEO: "▶️",
@@ -24,6 +23,7 @@ const BLOCK_ICONS: Record<LandingBlockType, string> = {
   IMAGE_TEXT: "🖼️",
   RELATED_PRODUCTS: "🛒",
   PRODUCT_GRID: "🛍️",
+  COMPARISON: "📊",
 };
 
 interface AddBlockMenuProps {
@@ -32,7 +32,7 @@ interface AddBlockMenuProps {
 }
 
 const BLOCK_TYPES: LandingBlockType[] = [
-  "HERO", "BENEFITS", "GALLERY", "TESTIMONIALS", "VIDEO", "COLORS", "TICKER", "TRUST_BADGES", "RICH_TEXT", "FAQ", "IMAGE_TEXT", "RELATED_PRODUCTS",
+  "HERO", "GALLERY", "TESTIMONIALS", "VIDEO", "COLORS", "TICKER", "TRUST_BADGES", "RICH_TEXT", "FAQ", "IMAGE_TEXT", "RELATED_PRODUCTS", "COMPARISON",
 ];
 
 export default function AddBlockMenu({ onAdd, disabled }: AddBlockMenuProps) {

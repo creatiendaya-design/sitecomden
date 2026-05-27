@@ -1,4 +1,4 @@
-import type { LandingBlockType } from "@prisma/client"
+import type { LandingBlockType } from "@/lib/types/landing-blocks"
 
 /**
  * A value that may be either a single shared value, or a split value with
@@ -135,6 +135,9 @@ export interface BlockInstance {
    *   - "local":   pure-local LandingBlock (not tied to any template)
    *  Set by the resolver in resolve-product-blocks.ts. Defaults to "local". */
   origin?: "template" | "detached" | "local"
+  /** Plan 18 — optimistic-locking version. Undefined for blocks created
+   *  in this session (tmp- ids) that haven't been persisted yet. */
+  version?: number
 }
 
 /**

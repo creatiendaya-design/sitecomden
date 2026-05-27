@@ -105,6 +105,5 @@ The project uses Tailwind v4 which ships container queries natively via the `@co
 
 ## Reference implementations
 
-- `components/shop/templates/blocks/BenefitsBlock.tsx` — first block migrated to container queries in Plan 1
-- `components/shop/templates/blocks/HeroBlock.tsx` (and the other 5 existing blocks) — migrated in Plan 2 Tasks 1-2
+- `components/shop/templates/blocks/HeroBlock.tsx` (and the other existing blocks) — migrated in Plan 2 Tasks 1-2
 - The 5 new blocks in Plan 2 Tasks 13-17 (`TrustBadgesBlock`, `RichTextBlock`, `FaqBlock`, `ImageTextBlock`, `RelatedProductsBlock`) — all written against this convention from day one

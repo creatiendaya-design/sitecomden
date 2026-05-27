@@ -15,6 +15,7 @@ import {
 import type { PortalOverrideMapping } from "@/lib/theme-sections/types"
 import { deriveHeroLiveStyles } from "@/lib/blocks/hero-vars"
 import type { HeroBlockContent } from "@/lib/types/landing-blocks"
+import { getBlockDefinition } from "@/lib/blocks/registry"
 import { useThemeSectionsStore } from "./theme-sections-store"
 import { useBuilderStore } from "@/components/admin/page-builder/store"
 
@@ -31,6 +32,10 @@ const managedSchemeProps = new WeakMap<HTMLElement, Set<string>>()
 /** Tracks the data-* attributes we set per HERO wrapper so we can clean
  *  them up when the admin clears a value. Mirrors managedSchemeProps. */
 const managedHeroAttrs = new WeakMap<HTMLElement, Set<string>>()
+
+/** Tracks CSS custom properties set by liveContentVars per element so we
+ *  can drop them cleanly when the admin clears a field. */
+const managedContentVars = new WeakMap<HTMLElement, Set<string>>()
 
 /**
  * Live-preview bridge: pushes BlockStyle changes from the customizer's
@@ -168,6 +173,29 @@ export function useLivePreviewOverrides(
             : wrapper
         const data = (block.content.data ?? {}) as Partial<HeroBlockContent>
         applyHeroDataLivePreview(heroEl, data)
+      }
+
+      // 6b. Generic data-driven CSS variables. Each block definition can
+      //     declare `liveContentVars: { fieldKey: "--css-var" }` in the
+      //     registry; this loop reads the value from the in-memory store
+      //     and sets the matching CSS custom property on the block's
+      //     section element. Renderers reference these vars via
+      //     `var(--block-accent)` so changes repaint instantly. No
+      //     per-block special-casing here — adding a new live-preview
+      //     content color is a registry-only change.
+      for (const block of builderState.blocks) {
+        const def = getBlockDefinition(block.type)
+        if (!def?.liveContentVars) continue
+        const wrapper = doc.querySelector<HTMLElement>(
+          `[data-preview-target="block:${cssEscape(block.id)}"]`,
+        )
+        if (!wrapper) continue
+        const targetEl =
+          wrapper.firstElementChild instanceof HTMLElement
+            ? wrapper.firstElementChild
+            : wrapper
+        const data = (block.content.data as Record<string, unknown>) ?? {}
+        applyContentVars(targetEl, def.liveContentVars, data)
       }
 
       // 5. Text content sync — for any element inside a preview target
@@ -385,6 +413,43 @@ function applyHeroDataLivePreview(
     }
   }
   managedHeroAttrs.set(el, next)
+}
+
+/**
+ * Set CSS custom properties on a block's painted element based on the
+ * registry's `liveContentVars` mapping and the current store data.
+ * Removes properties whose source field is empty / missing so descendants
+ * fall back to whatever the renderer set inline via `var(--x, default)`.
+ *
+ * Tracks via WeakMap so removing a field (admin clears the picker) drops
+ * the corresponding CSS custom property too.
+ */
+function applyContentVars(
+  el: HTMLElement,
+  mapping: Record<string, string>,
+  data: Record<string, unknown>,
+): void {
+  const prev = managedContentVars.get(el)
+  const next = new Set<string>()
+
+  for (const [fieldKey, cssVar] of Object.entries(mapping)) {
+    const raw = data[fieldKey]
+    if (typeof raw === "string" && raw.length > 0) {
+      el.style.setProperty(cssVar, raw)
+      next.add(cssVar)
+    } else {
+      el.style.removeProperty(cssVar)
+    }
+  }
+
+  // Clear any vars we set previously that are not in this update — covers
+  // the case where a registry change removes a mapping mid-session.
+  if (prev) {
+    for (const cssVar of prev) {
+      if (!next.has(cssVar)) el.style.removeProperty(cssVar)
+    }
+  }
+  managedContentVars.set(el, next)
 }
 
 /**

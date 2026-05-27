@@ -18,7 +18,26 @@ export interface EditorBlock {
   type: LandingBlockType
   position: number
   content: unknown
+  /** Plan 18 — version known to the client. Undefined for newly-created
+   *  blocks that haven't been persisted yet. The save action uses this for
+   *  per-row conditional updates. */
+  version?: number
 }
+
+/** Plan 18 — return type from `saveBlocks`. Either a successful save with
+ *  the persisted snapshot (fresh versions), or a conflict report from the
+ *  server that the customizer surfaces via BatchConflictDialog. */
+export type SaveBlocksResult =
+  | { ok: true; persisted: EditorBlock[] }
+  | {
+      ok: false
+      reason: "conflict"
+      conflicts: { rowId: string; serverVersion: number | null; label: string }[]
+      /** The exact payload the editor sent — used by the customizer to build
+       *  the force-overwrite retry payload. */
+      sent: EditorBlock[]
+    }
+  | { ok: false; reason: "error"; message: string }
 
 interface Props {
   /** Stable identifier for the current editing surface — when this
@@ -29,7 +48,7 @@ interface Props {
   /** Called after each debounced edit. The customizer wires this to the
    *  appropriate server action (savePageBlocks for home/cart/page,
    *  saveCategoryBlocks for category targets). */
-  saveBlocks: (blocks: EditorBlock[]) => Promise<void>
+  saveBlocks: (blocks: EditorBlock[]) => Promise<SaveBlocksResult>
   /** Scope passed to the page-builder LeftSidebar — drives which block
    *  types are offered in the Add panel. Defaults to "page". */
   scope?: BuilderScope
@@ -74,26 +93,60 @@ export function EmbeddedBlocksEditor({
     hydratedKeyRef.current = editorKey
     selectBlock(null)
     setBlocks(initialBlocks)
+    // Seed the dedup ref so the very first blocks-change useEffect (which
+    // fires because setBlocks just mutated the store) doesn't trigger a
+    // no-op autosave.
+    lastSerializedRef.current = JSON.stringify(initialBlocks)
   }, [editorKey, initialBlocks, setBlocks, selectBlock])
 
-  // Debounced autosave on block changes. Only fires after the first
-  // hydration has settled — otherwise the initial setBlocks would
-  // re-persist the same blocks.
+  const replaceBlocksFromServer = useBuilderStore(
+    (s) => s.replaceBlocksFromServer,
+  )
+
+  // Plan 18 — serialize saves to prevent self-conflicts. See
+  // PageBuilderShell for the rationale. The drain loop reads from the
+  // store each iteration so the latest `version` (post-replace) is used.
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const handleBlocksChange = useCallback(
-    (next: BlockInstance[]) => {
-      if (hydratedKeyRef.current !== editorKey) return
-      if (timerRef.current) clearTimeout(timerRef.current)
-      timerRef.current = setTimeout(async () => {
+  const inFlightRef = useRef(false)
+  const pendingRef = useRef(false)
+  const hadConflictRef = useRef(false)
+  // Dedup ref — skip autosaves when nothing actually changed. CRITICAL
+  // because the blocks-watcher useEffect fires on initial hydration too,
+  // and without this we'd fire a no-op save on mount. That no-op save is
+  // dangerous: in the 600ms debounce window another admin might bump the
+  // version, so our "echo back the same state" save races into a
+  // CONFLICT against the freshly-advanced server version.
+  const lastSerializedRef = useRef<string | null>(null)
+
+  const performSave = useCallback(async () => {
+    if (inFlightRef.current) {
+      pendingRef.current = true
+      return
+    }
+    inFlightRef.current = true
+    try {
+      do {
+        pendingRef.current = false
+        // Read latest store state so `version` reflects the previous
+        // iteration's `replaceBlocksFromServer`.
+        const currentBlocks = useBuilderStore.getState().blocks
         setSaveStatus({ status: "saving" })
-        try {
-          await saveBlocks(
-            next.map((b) => ({
-              id: b.id,
-              type: b.type as LandingBlockType,
-              position: b.position,
-              content: b.content as unknown,
-            })),
+        const result = await saveBlocks(
+          currentBlocks.map((b) => ({
+            id: b.id,
+            type: b.type as LandingBlockType,
+            position: b.position,
+            content: b.content as unknown,
+            version: b.version,
+          })),
+        )
+        if (result.ok) {
+          replaceBlocksFromServer(result.persisted)
+          // Re-seed the dedup ref so the blocks-watcher useEffect that
+          // fires from replaceBlocksFromServer (new ids/versions) doesn't
+          // immediately schedule another no-op save.
+          lastSerializedRef.current = JSON.stringify(
+            useBuilderStore.getState().blocks,
           )
           setSaveStatus({ status: "saved", at: Date.now() })
           setTimeout(() => {
@@ -103,15 +156,54 @@ export function EmbeddedBlocksEditor({
             }
           }, 2000)
           onSaved?.()
-        } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "Error al guardar"
-          setSaveStatus({ status: "error", message })
-          toast.error(`Error al guardar: ${message}`)
+          continue
         }
+        if (result.reason === "conflict") {
+          // Conflict surfaces via the parent's BatchConflictDialog.
+          // Stop draining — the user needs to resolve before we save again.
+          setSaveStatus({
+            status: "error",
+            message: `${result.conflicts.length} bloque(s) modificados por otro admin`,
+          })
+          hadConflictRef.current = true
+          pendingRef.current = false
+          return
+        }
+        setSaveStatus({ status: "error", message: result.message })
+        toast.error(`Error al guardar: ${result.message}`)
+        pendingRef.current = false
+        return
+      } while (pendingRef.current)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al guardar"
+      setSaveStatus({ status: "error", message })
+      toast.error(`Error al guardar: ${message}`)
+    } finally {
+      inFlightRef.current = false
+    }
+  }, [setSaveStatus, onSaved, saveBlocks, replaceBlocksFromServer])
+
+  const handleBlocksChange = useCallback(
+    (next: BlockInstance[]) => {
+      if (hydratedKeyRef.current !== editorKey) return
+      // While a conflict is on screen, freeze autosave — the parent's
+      // BatchConflictDialog is the gate. The reload/force flow will reset
+      // `hadConflictRef` indirectly via remount (editorKey change).
+      if (hadConflictRef.current) return
+      // Plan 18 — only autosave on user edits. The watcher also fires on
+      // setBlocks (hydration) and replaceBlocksFromServer (post-save), and
+      // those should NOT trigger another save.
+      if (!useBuilderStore.getState().isDirty) return
+      // Dedup: skip if nothing actually changed since the last save.
+      const serialized = JSON.stringify(next)
+      if (serialized === lastSerializedRef.current) return
+      lastSerializedRef.current = serialized
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => {
+        void performSave()
       }, AUTOSAVE_DEBOUNCE_MS)
     },
-    [editorKey, setSaveStatus, onSaved, saveBlocks],
+    [editorKey, performSave],
   )
 
   // Bubble store changes up through the autosave handler. We watch the

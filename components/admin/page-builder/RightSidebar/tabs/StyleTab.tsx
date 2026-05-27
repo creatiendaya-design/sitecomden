@@ -16,6 +16,7 @@ import { ShadowControl } from "../controls/ShadowControl"
 import { VisibilityControl } from "../controls/VisibilityControl"
 import { ImageControl } from "../controls/ImageControl"
 import { ColorsModeSection } from "../controls/ColorsModeSection"
+import { SchemaForm } from "@/components/admin/page-builder/forms/SchemaForm"
 
 export function StyleTab() {
   const selectedBlockId = useBuilderStore((s) => s.selectedBlockId)
@@ -30,6 +31,13 @@ export function StyleTab() {
 
   const content = block.content
   const style = content.style ?? {}
+  const data = (content.data as Record<string, unknown>) ?? {}
+
+  // Block-specific semantic colors live in contentSchema but are visually
+  // pulled into this tab when flagged. The value still goes to content.data.
+  const blockColorFields = (def?.contentSchema ?? []).filter(
+    (f) => f.showInStyleTab,
+  )
 
   function patchStyle<K extends keyof BlockStyle>(key: K, value: BlockStyle[K] | undefined) {
     updateBlockContent(block!.id, {
@@ -83,7 +91,8 @@ export function StyleTab() {
     support.visibility ||
     support.bgImage ||
     support.typography ||
-    support.gradient
+    support.gradient ||
+    blockColorFields.length > 0
   if (!anything) {
     return (
       <div className="p-4 text-xs text-muted-foreground">
@@ -113,6 +122,18 @@ export function StyleTab() {
         supportsDrawerColors={support.drawerColors}
         onPatchStyle={patchStyleMulti}
       />
+
+      {blockColorFields.length > 0 && (
+        <Section title="Colores del bloque">
+          <SchemaForm
+            schema={blockColorFields}
+            value={data}
+            onChange={(nextData) =>
+              updateBlockContent(block.id, { ...content, data: nextData })
+            }
+          />
+        </Section>
+      )}
 
       {support.gradient && (
         <Section title="Gradiente">

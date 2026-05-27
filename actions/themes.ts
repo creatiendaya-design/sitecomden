@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
+import { getCurrentUserIdOrNull } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
 import type { ThemeTokens } from "@/lib/themes/tokens"
 import {
   resolveColorSchemes,
@@ -12,6 +14,16 @@ import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
 import { z } from "zod"
 import { createThemeSchema } from "@/lib/validations/admin"
 import { logAudit } from "@/lib/audit-log"
+import { updateWithVersionAndRefetch } from "@/lib/concurrency/with-version"
+import {
+  conflict,
+  errored,
+  notFound,
+  ok,
+  unauthorized,
+  validation,
+  type SaveResult,
+} from "@/lib/concurrency/types"
 
 function flattenZodError(err: z.ZodError): string {
   return err.issues.map((i) => i.message).join("; ")
@@ -47,6 +59,9 @@ export interface ThemeRow {
    *  `{}` means permissive (all registry types available). */
   sectionCatalog: ThemeSectionCatalog
   updatedAt: Date
+  /** Plan 18 — optimistic-locking version. Pass back as `expectedVersion`
+   *  on every versioned save so we can detect concurrent edits. */
+  version: number
 }
 
 const themeIncludes = {
@@ -70,6 +85,7 @@ type ThemeWithJoins = {
   colorSchemes: unknown
   sectionCatalog: unknown
   updatedAt: Date
+  version: number
 }
 
 function toThemeRow(t: ThemeWithJoins): ThemeRow {
@@ -93,6 +109,7 @@ function toThemeRow(t: ThemeWithJoins): ThemeRow {
     ),
     sectionCatalog: (t.sectionCatalog as ThemeSectionCatalog | null) ?? {},
     updatedAt: t.updatedAt,
+    version: t.version,
   }
 }
 
@@ -238,6 +255,136 @@ export async function updateThemeMetadata(
   }
   revalidatePath("/admin/personalizar")
   revalidatePath(`/admin/personalizar/temas/${id}/editar`)
+}
+
+/**
+ * Plan 18 — version-aware variant of `updateThemeMetadata`.
+ *
+ * Returns a `SaveResult<ThemeRow>` instead of throwing:
+ *   - `ok: true`  → save applied, new `version` returned for the next call.
+ *   - `reason: "conflict"` → another admin updated the theme since the
+ *     caller's fetch; `current` is the fresh server row for the conflict UI.
+ *   - `reason: "validation"` → linked page is missing/inactive.
+ *   - `reason: "unauthorized"` / `"not_found"` → self-explanatory.
+ *
+ * The customizer's auto-save path uses this. Other callers (admin theme
+ * edit form) can keep using `updateThemeMetadata` for last-write-wins until
+ * they migrate.
+ */
+export async function updateThemeMetadataVersioned(
+  id: string,
+  expectedVersion: number,
+  input: {
+    name?: string
+    description?: string | null
+    defaultProductLandingTemplateId?: string | null
+    homePageId?: string | null
+    cartPageId?: string | null
+    tokens?: ThemeTokens
+    colorSchemes?: ColorSchemeArray
+    sectionCatalog?: ThemeSectionCatalog
+  },
+): Promise<SaveResult<ThemeRow>> {
+  // Auth check without redirect — auto-save needs a JSON result, not a 302.
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return unauthorized()
+  const allowed = await hasPermission(userId, "themes:update")
+  if (!allowed) return unauthorized()
+
+  // Validate the new home page exists + is active.
+  if (input.homePageId) {
+    const page = await prisma.page.findUnique({
+      where: { id: input.homePageId },
+      select: { active: true },
+    })
+    if (!page) return validation("La página seleccionada no existe.")
+    if (!page.active) {
+      return validation(
+        "La página seleccionada está oculta. Activala antes de asignarla como home.",
+      )
+    }
+  }
+
+  if (input.cartPageId) {
+    const page = await prisma.page.findUnique({
+      where: { id: input.cartPageId },
+      select: { active: true },
+    })
+    if (!page) return validation("La página seleccionada no existe.")
+    if (!page.active) {
+      return validation(
+        "La página seleccionada está oculta. Activala antes de asignarla al carrito.",
+      )
+    }
+  }
+
+  const data: Record<string, unknown> = {}
+  if (input.name !== undefined) data.name = input.name.trim()
+  if (input.description !== undefined)
+    data.description = input.description?.trim() || null
+  if (input.defaultProductLandingTemplateId !== undefined)
+    data.defaultProductLandingTemplateId = input.defaultProductLandingTemplateId
+  if (input.homePageId !== undefined) data.homePageId = input.homePageId
+  if (input.cartPageId !== undefined) data.cartPageId = input.cartPageId
+  if (input.tokens !== undefined) data.tokens = input.tokens as object
+  if (input.colorSchemes !== undefined)
+    data.colorSchemes = input.colorSchemes as unknown as object
+  if (input.sectionCatalog !== undefined)
+    data.sectionCatalog = input.sectionCatalog as unknown as object
+
+  // Fast path: empty update should not bump version or hit DB.
+  if (Object.keys(data).length === 0) {
+    const fresh = await prisma.theme.findUnique({
+      where: { id },
+      include: themeIncludes,
+    })
+    if (!fresh) return notFound()
+    return ok(toThemeRow(fresh), fresh.version)
+  }
+
+  try {
+    const result = await updateWithVersionAndRefetch<
+      { version: number },
+      ThemeWithJoins
+    >({
+      model: prisma.theme,
+      id,
+      expectedVersion,
+      data,
+      refetch: (rowId) =>
+        prisma.theme.findUnique({
+          where: { id: rowId },
+          include: themeIncludes,
+        }) as Promise<ThemeWithJoins | null>,
+    })
+
+    if (!result.ok) {
+      if (result.reason === "conflict") {
+        const current = result.current ? toThemeRow(result.current) : null
+        return conflict(current, result.serverVersion)
+      }
+      return result
+    }
+
+    const row = toThemeRow(result.data)
+
+    updateTag(`theme:${id}`)
+    if (row.active) {
+      updateTag("active-theme")
+      updateTag("active-theme-home")
+      updateTag("active-theme-cart")
+      updateTag("active-theme-menus")
+      updateTag("active-theme-tokens")
+      revalidatePath("/")
+      revalidatePath("/carrito")
+    }
+    revalidatePath("/admin/personalizar")
+    revalidatePath(`/admin/personalizar/temas/${id}/editar`)
+
+    return ok(row, row.version)
+  } catch (err) {
+    return errored(err instanceof Error ? err.message : "Error al guardar tema")
+  }
 }
 
 export async function setActiveTheme(id: string): Promise<void> {

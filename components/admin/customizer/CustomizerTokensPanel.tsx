@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useTransition } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -26,7 +26,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { updateThemeMetadata, type ThemeRow } from "@/actions/themes"
+import {
+  updateThemeMetadataVersioned,
+  type ThemeRow,
+} from "@/actions/themes"
+import { useVersionAwareSave } from "@/components/admin/concurrency/use-version-aware-save"
+import { ConflictDialog } from "@/components/admin/concurrency/ConflictDialog"
+import type { SaveResult } from "@/lib/concurrency/types"
 import {
   DEFAULT_THEME_TOKENS,
   resolveTokens,
@@ -48,6 +54,18 @@ interface Props {
   onSaved?: () => void
 }
 
+/**
+ * Payload shape for `updateThemeMetadataVersioned`. Hoisted to a type so
+ * children can declare their `save` prop without re-deriving it.
+ */
+type ThemeMetadataPayload = Parameters<typeof updateThemeMetadataVersioned>[2]
+
+/**
+ * Save callback shape passed down to each editor. Returns the SaveResult so
+ * children can branch on `ok` for post-save side effects (toast, navigation).
+ */
+type ThemeSave = (payload: ThemeMetadataPayload) => Promise<SaveResult<ThemeRow>>
+
 type View =
   | { kind: "schemes" }
   | { kind: "scheme"; schemeId: string }
@@ -67,6 +85,37 @@ type View =
  */
 export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
   const [view, setView] = useState<View>({ kind: "schemes" })
+  const router = useRouter()
+
+  // Plan 18 — version-aware save shared across all three editor views. One
+  // hook instance + one <ConflictDialog> mount at the panel level keeps a
+  // single source of truth for the current `version` and avoids racing
+  // saves between sibling editors.
+  const {
+    state: saveState,
+    save,
+    acceptServerCopy,
+    forceOverwrite,
+    dismissConflict,
+    setVersion,
+  } = useVersionAwareSave({
+    action: (expectedVersion, input: ThemeMetadataPayload) =>
+      updateThemeMetadataVersioned(theme.id, expectedVersion, input),
+    initialVersion: theme.version,
+    onSuccess: () => {
+      onSaved?.()
+    },
+    onReload: () => router.refresh(),
+    onError: (message) => toast.error(message),
+  })
+
+  // Re-hydrate the tracked version whenever the parent passes a fresh theme
+  // prop (e.g. after `router.refresh()` from acceptServerCopy or an external
+  // edit). Without this, the hook would keep its initial version forever
+  // and the next save would falsely conflict.
+  useEffect(() => {
+    setVersion(theme.version)
+  }, [theme.version, setVersion])
 
   return (
     <div className="flex flex-col h-full">
@@ -102,7 +151,8 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
             onPickScheme={(id) => setView({ kind: "scheme", schemeId: id })}
             onPickTypography={() => setView({ kind: "typography" })}
             onPickCatalog={() => setView({ kind: "catalog" })}
-            onSaved={onSaved}
+            save={save}
+            saving={saveState.saving}
           />
         )}
         {view.kind === "scheme" && (
@@ -110,11 +160,16 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
             theme={theme}
             schemeId={view.schemeId}
             onBack={() => setView({ kind: "schemes" })}
-            onSaved={onSaved}
+            save={save}
+            saving={saveState.saving}
           />
         )}
         {view.kind === "typography" && (
-          <TypographyEditor theme={theme} onSaved={onSaved} />
+          <TypographyEditor
+            theme={theme}
+            save={save}
+            saving={saveState.saving}
+          />
         )}
         {view.kind === "catalog" && (
           <ThemeCatalogPanel
@@ -126,6 +181,16 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
           />
         )}
       </div>
+
+      <ConflictDialog
+        open={saveState.hasConflict}
+        onOpenChange={(next) => {
+          if (!next) dismissConflict()
+        }}
+        onReload={acceptServerCopy}
+        onForce={forceOverwrite}
+        resourceLabel="este tema"
+      />
     </div>
   )
 }
@@ -159,7 +224,8 @@ interface SchemesIndexProps {
   onPickScheme: (schemeId: string) => void
   onPickTypography: () => void
   onPickCatalog: () => void
-  onSaved?: () => void
+  save: ThemeSave
+  saving: boolean
 }
 
 function SchemesIndex({
@@ -167,36 +233,32 @@ function SchemesIndex({
   onPickScheme,
   onPickTypography,
   onPickCatalog,
-  onSaved,
+  save,
+  saving,
 }: SchemesIndexProps) {
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
   const schemes = theme.colorSchemes
+  const pending = saving
 
-  const handleAddScheme = () => {
-    if (pending) return
-    startTransition(async () => {
-      try {
-        const nextNumber = getNextSchemeNumber(schemes)
-        const id = generateSchemeId(`scheme ${nextNumber}`, schemes)
-        const next: ColorSchemeArray = [
-          ...schemes,
-          {
-            id,
-            name: `Esquema ${nextNumber}`,
-            colors: { ...DEFAULT_THEME_TOKENS.colors },
-          },
-        ]
-        await updateThemeMetadata(theme.id, { colorSchemes: next })
-        toast.success("Esquema agregado")
-        router.refresh()
-        onSaved?.()
-        // Auto-open the new scheme so the admin starts customizing it.
-        onPickScheme(id)
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al agregar")
-      }
-    })
+  const handleAddScheme = async () => {
+    if (saving) return
+    const nextNumber = getNextSchemeNumber(schemes)
+    const id = generateSchemeId(`scheme ${nextNumber}`, schemes)
+    const next: ColorSchemeArray = [
+      ...schemes,
+      {
+        id,
+        name: `Esquema ${nextNumber}`,
+        colors: { ...DEFAULT_THEME_TOKENS.colors },
+      },
+    ]
+    const result = await save({ colorSchemes: next })
+    if (result.ok) {
+      toast.success("Esquema agregado")
+      // Auto-open the new scheme so the admin starts customizing it.
+      onPickScheme(id)
+    }
+    // Conflict / error cases are handled by the parent's hook + dialog;
+    // we just skip the success toast and the auto-open.
   }
 
   return (
@@ -306,18 +368,24 @@ interface SchemeEditorProps {
   theme: ThemeRow
   schemeId: string
   onBack: () => void
-  onSaved?: () => void
+  save: ThemeSave
+  saving: boolean
 }
 
-function SchemeEditor({ theme, schemeId, onBack, onSaved }: SchemeEditorProps) {
-  const router = useRouter()
+function SchemeEditor({
+  theme,
+  schemeId,
+  onBack,
+  save,
+  saving,
+}: SchemeEditorProps) {
   const initialScheme =
     theme.colorSchemes.find((s) => s.id === schemeId) ??
     theme.colorSchemes[0]
   const [name, setName] = useState(initialScheme.name)
   const [colors, setColors] = useState(initialScheme.colors)
-  const [pending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const pending = saving
 
   // Re-hydrate when the scheme id changes (admin clicked a different card).
   const lastIdRef = useRef(schemeId)
@@ -332,37 +400,23 @@ function SchemeEditor({ theme, schemeId, onBack, onSaved }: SchemeEditorProps) {
   const isDefault = theme.colorSchemes[0]?.id === schemeId
   const canDelete = !isDefault && theme.colorSchemes.length > 1
 
-  const handleSave = () => {
-    if (pending) return
+  const handleSave = async () => {
+    if (saving) return
     const next: ColorSchemeArray = theme.colorSchemes.map((s) =>
       s.id === schemeId ? { ...s, name: name.trim() || s.name, colors } : s,
     )
-    startTransition(async () => {
-      try {
-        await updateThemeMetadata(theme.id, { colorSchemes: next })
-        toast.success("Esquema guardado")
-        router.refresh()
-        onSaved?.()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al guardar")
-      }
-    })
+    const result = await save({ colorSchemes: next })
+    if (result.ok) toast.success("Esquema guardado")
   }
 
-  const handleDelete = () => {
-    if (pending || !canDelete) return
+  const handleDelete = async () => {
+    if (saving || !canDelete) return
     const next = theme.colorSchemes.filter((s) => s.id !== schemeId)
-    startTransition(async () => {
-      try {
-        await updateThemeMetadata(theme.id, { colorSchemes: next })
-        toast.success("Esquema eliminado")
-        router.refresh()
-        onSaved?.()
-        onBack()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar")
-      }
-    })
+    const result = await save({ colorSchemes: next })
+    if (result.ok) {
+      toast.success("Esquema eliminado")
+      onBack()
+    }
   }
 
   return (
@@ -532,18 +586,18 @@ function SchemeEditor({ theme, schemeId, onBack, onSaved }: SchemeEditorProps) {
 
 interface TypographyEditorProps {
   theme: ThemeRow
-  onSaved?: () => void
+  save: ThemeSave
+  saving: boolean
 }
 
-function TypographyEditor({ theme, onSaved }: TypographyEditorProps) {
-  const router = useRouter()
+function TypographyEditor({ theme, save, saving }: TypographyEditorProps) {
   const initial = resolveTokens(theme.tokens)
   const [fonts, setFonts] = useState(initial.fonts)
   const [scale, setScale] = useState(initial.scale)
-  const [pending, startTransition] = useTransition()
+  const pending = saving
 
-  const handleSave = () => {
-    if (pending) return
+  const handleSave = async () => {
+    if (saving) return
     const minimal: ThemeTokens = {
       // Preserve the legacy tokens.colors so `colorSchemeFromTokens`
       // still works for older blocks that don't reference a scheme.
@@ -561,16 +615,8 @@ function TypographyEditor({ theme, onSaved }: TypographyEditorProps) {
         minimal.scale![k] = scale[k]
       }
     }
-    startTransition(async () => {
-      try {
-        await updateThemeMetadata(theme.id, { tokens: minimal })
-        toast.success("Tipografía guardada")
-        router.refresh()
-        onSaved?.()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al guardar")
-      }
-    })
+    const result = await save({ tokens: minimal })
+    if (result.ok) toast.success("Tipografía guardada")
   }
 
   return (

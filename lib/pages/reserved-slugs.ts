@@ -44,5 +44,12 @@ export const RESERVED_PAGE_SLUGS = new Set<string>([
 ])
 
 export function isReservedSlug(slug: string): boolean {
-  return RESERVED_PAGE_SLUGS.has(slug.toLowerCase().trim())
+  const normalized = slug.toLowerCase().trim()
+  // Slugs containing a dot are filenames (manifest.json, sitemap.xml, asset
+  // requests that escaped the middleware matcher, etc.) — never treat them
+  // as Page candidates so they fall straight through to a 404 instead of
+  // mounting the shop layout (which previously triggered a 500 when Clerk
+  // tried to mount mid-stream).
+  if (normalized.includes(".")) return true
+  return RESERVED_PAGE_SLUGS.has(normalized)
 }

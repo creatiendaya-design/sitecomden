@@ -3,8 +3,20 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
-import type { LandingBlockType, Prisma } from "@prisma/client"
+import { getCurrentUserIdOrNull } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
+import type { Prisma } from "@prisma/client"
+import { assertKnownBlockType, type LandingBlockType } from "@/lib/types/landing-blocks"
 import { extractPreviewImage } from "@/lib/blocks/extract-preview-image"
+import { updateWithVersion } from "@/lib/concurrency/with-version"
+import {
+  conflict,
+  errored,
+  notFound,
+  ok,
+  unauthorized,
+  type SaveResult,
+} from "@/lib/concurrency/types"
 
 export interface TemplateRow {
   id: string
@@ -22,6 +34,8 @@ export interface TemplateRow {
   blockCount: number
   productCount: number
   updatedAt: Date
+  /** Plan 18 — optimistic-locking version. */
+  version: number
 }
 
 export interface TemplateWithBlocks extends TemplateRow {
@@ -61,6 +75,7 @@ export async function listLandingTemplates(filters?: ListFilters): Promise<Templ
       thumbnail: true,
       active: true,
       updatedAt: true,
+      version: true,
       _count: {
         select: { templateBlocks: true, products: true },
       },
@@ -87,6 +102,7 @@ export async function listLandingTemplates(filters?: ListFilters): Promise<Templ
     blockCount: r._count.templateBlocks,
     productCount: r._count.products,
     updatedAt: r.updatedAt,
+    version: r.version,
   }))
 }
 
@@ -111,6 +127,7 @@ export async function getLandingTemplate(id: string): Promise<TemplateWithBlocks
     previewImage: extractPreviewImage(t.templateBlocks),
     active: t.active,
     updatedAt: t.updatedAt,
+    version: t.version,
     blockCount: t._count.templateBlocks,
     productCount: t._count.products,
     templateBlocks: t.templateBlocks.map((b) => ({
@@ -164,6 +181,64 @@ export async function updateLandingTemplateMetadata(
 
   updateTag(`template:${id}`)
   revalidatePath("/admin/landing-plantillas")
+}
+
+/**
+ * Plan 18 — version-aware variant of `updateLandingTemplateMetadata`.
+ */
+export async function updateLandingTemplateMetadataVersioned(
+  id: string,
+  expectedVersion: number,
+  input: {
+    name?: string
+    description?: string | null
+    category?: string | null
+    thumbnail?: string | null
+  },
+): Promise<SaveResult<{ id: string; version: number }>> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return unauthorized()
+  const allowed = await hasPermission(userId, "landing_templates:update")
+  if (!allowed) return unauthorized()
+
+  const data: Record<string, unknown> = {}
+  if (input.name !== undefined) data.name = input.name.trim()
+  if (input.description !== undefined)
+    data.description = input.description?.trim() || null
+  if (input.category !== undefined)
+    data.category = input.category?.trim() || null
+  if (input.thumbnail !== undefined) data.thumbnail = input.thumbnail
+
+  if (Object.keys(data).length === 0) {
+    const fresh = await prisma.landingTemplate.findUnique({
+      where: { id },
+      select: { id: true, version: true },
+    })
+    if (!fresh) return notFound()
+    return ok(fresh, fresh.version)
+  }
+
+  try {
+    const result = await updateWithVersion<{ id: string; version: number }>({
+      model: prisma.landingTemplate,
+      id,
+      expectedVersion,
+      data,
+    })
+
+    if (!result.ok) {
+      if (result.reason === "conflict") {
+        return conflict(result.current, result.serverVersion)
+      }
+      return result
+    }
+
+    updateTag(`template:${id}`)
+    revalidatePath("/admin/landing-plantillas")
+    return ok({ id: result.data.id, version: result.data.version }, result.data.version)
+  } catch (err) {
+    return errored(err instanceof Error ? err.message : "Error al guardar plantilla")
+  }
 }
 
 export async function toggleLandingTemplateActive(id: string): Promise<void> {
@@ -247,6 +322,7 @@ export async function saveTemplateBlocks(
   incomingBlocks: IncomingBlock[],
 ): Promise<{ success: true }> {
   await protectRoute("landing_templates:update")
+  for (const b of incomingBlocks) assertKnownBlockType(b.type)
 
   await prisma.$transaction(async (tx) => {
     const existing = await tx.templateBlock.findMany({

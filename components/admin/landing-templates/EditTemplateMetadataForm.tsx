@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -16,9 +16,11 @@ import {
 } from "@/components/ui/select"
 import { Upload, X } from "lucide-react"
 import { toast } from "sonner"
-import { updateLandingTemplateMetadata } from "@/actions/landing-templates"
+import { updateLandingTemplateMetadataVersioned } from "@/actions/landing-templates"
 import type { TemplateWithBlocks } from "@/actions/landing-templates"
 import { TEMPLATE_CATEGORIES } from "@/lib/template-categories"
+import { useVersionAwareSave } from "@/components/admin/concurrency/use-version-aware-save"
+import { ConflictDialog } from "@/components/admin/concurrency/ConflictDialog"
 
 interface EditTemplateMetadataFormProps {
   template: TemplateWithBlocks
@@ -26,13 +28,36 @@ interface EditTemplateMetadataFormProps {
 
 export function EditTemplateMetadataForm({ template }: EditTemplateMetadataFormProps) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
   const [isUploading, setIsUploading] = useState(false)
 
   const [name, setName] = useState(template.name)
   const [description, setDescription] = useState(template.description || "")
   const [category, setCategory] = useState(template.category || "")
   const [thumbnail, setThumbnail] = useState(template.thumbnail || "")
+
+  const {
+    state: saveState,
+    save,
+    acceptServerCopy,
+    forceOverwrite,
+    dismissConflict,
+    setVersion,
+  } = useVersionAwareSave({
+    action: (expectedVersion, input: Parameters<typeof updateLandingTemplateMetadataVersioned>[2]) =>
+      updateLandingTemplateMetadataVersioned(template.id, expectedVersion, input),
+    initialVersion: template.version,
+    onSuccess: () => {
+      toast.success("Metadata actualizada")
+      router.push("/admin/landing-plantillas")
+    },
+    onReload: () => router.refresh(),
+    onError: (message) => toast.error(message),
+  })
+  const isPending = saveState.saving
+
+  useEffect(() => {
+    setVersion(template.version)
+  }, [template.version, setVersion])
 
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -54,7 +79,7 @@ export function EditTemplateMetadataForm({ template }: EditTemplateMetadataFormP
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!name.trim()) {
@@ -62,24 +87,17 @@ export function EditTemplateMetadataForm({ template }: EditTemplateMetadataFormP
       return
     }
 
-    startTransition(async () => {
-      try {
-        await updateLandingTemplateMetadata(template.id, {
-          name: name.trim(),
-          description: description.trim() || null,
-          category: category.trim() || null,
-          thumbnail: thumbnail || null,
-        })
-        toast.success("Metadata actualizada")
-        router.push("/admin/landing-plantillas")
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al actualizar")
-      }
+    await save({
+      name: name.trim(),
+      description: description.trim() || null,
+      category: category.trim() || null,
+      thumbnail: thumbnail || null,
     })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-6">
       {/* Name */}
       <div>
         <Label htmlFor="name" className="text-sm font-medium">
@@ -184,5 +202,16 @@ export function EditTemplateMetadataForm({ template }: EditTemplateMetadataFormP
         </Button>
       </div>
     </form>
+
+    <ConflictDialog
+      open={saveState.hasConflict}
+      onOpenChange={(next) => {
+        if (!next) dismissConflict()
+      }}
+      onReload={acceptServerCopy}
+      onForce={forceOverwrite}
+      resourceLabel="esta plantilla"
+    />
+    </>
   )
 }

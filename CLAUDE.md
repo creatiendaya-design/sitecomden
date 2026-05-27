@@ -200,7 +200,7 @@ The "themes" feature is the bulk of recent work. It implements a Shopify-style c
 | Policies | `Policy` | Long-form Tiptap rich text at `/politicas/<slug>` (separate from page builder). |
 | Product landings | `LandingTemplate` + `TemplateBlock` → `Product.landingTemplateId` → `LandingBlock` (with `sourceTemplateBlockId` + `detached` flag) | Templates with sync; per-product overrides become "detached". |
 | Category landings | `CategoryBlock` + `Category.hideProductGrid` | Custom blocks above (or replacing) the auto-generated grid. `PRODUCT_GRID` block type allows reordering grid placement. |
-| Block types | enum `LandingBlockType` | HERO, BENEFITS, GALLERY, TESTIMONIALS, VIDEO, COLORS, TICKER, RICH_TEXT, FAQ, IMAGE_TEXT, RELATED_PRODUCTS, TRUST_BADGES, PRODUCT_GRID. |
+| Block types | enum `LandingBlockType` | HERO, GALLERY, TESTIMONIALS, VIDEO, COLORS, TICKER, RICH_TEXT, FAQ, IMAGE_TEXT, RELATED_PRODUCTS, TRUST_BADGES, PRODUCT_GRID, COMPARISON. |
 | Block schemas | [lib/blocks/schema/](lib/blocks/) + [lib/blocks/registry.ts](lib/blocks/registry.ts) | Schema-driven forms (`FormField` types: text, image, color, product picker, custom). |
 | Style application | [lib/blocks/apply-style.ts](lib/blocks/apply-style.ts) | Maps `BlockStyle` JSON → Tailwind classes + inline CSS. Includes responsive device overrides via [lib/blocks/resolve.ts](lib/blocks/resolve.ts). |
 
@@ -278,6 +278,7 @@ Uploads → Vercel Blob via `/api/upload`. [next.config.ts](next.config.ts) whit
 - **JSON columns**: `Theme.tokens` / `Theme.colorSchemes`, `*.content` (block content), `Order.billingAddress` / `shippingAddress` / `paymentDetails`, `Setting.value`, `ComplaintFormField.options`, etc. Cast through typed helpers (e.g. `BlockContentV2`) rather than passing raw `Json`.
 - **Permissions**: dot format on the wire (`products.create`), colon format internally (`products:create`).
 - **Auto-save**: customizer + page-builder write through Server Actions on each change; UI shows save status, never a manual Save button.
+- **Concurrency (Plan 18)**: editable models have a `version Int @default(0)` column. Versioned Server Actions (`*Versioned`) use `updateMany` with `where: { id, version }` via [lib/concurrency/with-version.ts](lib/concurrency/with-version.ts) and return `SaveResult` from [lib/concurrency/types.ts](lib/concurrency/types.ts). UI consumers wrap them with [useVersionAwareSave](components/admin/concurrency/use-version-aware-save.ts) which surfaces conflicts via [ConflictDialog](components/admin/concurrency/ConflictDialog.tsx). Atomic counters (`stock`, `points`, `usageCount`, `totalSpent`, `referralCount`) use Prisma's `{ increment }` / `{ decrement }` — never `select → modify → update`. Full guide: [docs/superpowers/guides/concurrency-and-locking.md](docs/superpowers/guides/concurrency-and-locking.md).
 - **Validation**: Zod at every system boundary (server actions, API routes). Prefer `unknown` + narrow over `any`.
 - **Immutability**: spread for object updates; never mutate Prisma rows in place.
 - **Styling**: Tailwind classes; per-block style overrides flow through `apply-style.ts` (which emits both classes and inline CSS).

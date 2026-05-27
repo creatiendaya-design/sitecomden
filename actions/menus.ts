@@ -3,10 +3,32 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
+import { getCurrentUserIdOrNull } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
 import { z } from "zod"
 import { MAX_MENU_DEPTH } from "@/lib/menus/constants"
 import { menuFormSchema } from "@/lib/validations/admin"
 import { logAudit } from "@/lib/audit-log"
+import { updateWithVersion } from "@/lib/concurrency/with-version"
+import {
+  conflict,
+  errored,
+  notFound,
+  ok,
+  unauthorized,
+  validation,
+  type SaveResult,
+} from "@/lib/concurrency/types"
+import {
+  BatchRaceError,
+  batchConflict,
+  batchErrored,
+  batchOk,
+  batchUnauthorized,
+  isBatchRaceError,
+  precheckBatchConflicts,
+  type BatchSaveResult,
+} from "@/lib/concurrency/batch"
 
 function flattenZodError(err: z.ZodError): string {
   return err.issues.map((i) => i.message).join("; ")
@@ -20,6 +42,8 @@ export interface MenuRow {
   active: boolean
   itemCount: number
   updatedAt: Date
+  /** Plan 18 — optimistic-locking version. */
+  version: number
 }
 
 export interface MenuItemRow {
@@ -31,6 +55,8 @@ export interface MenuItemRow {
   targetId: string | null
   externalUrl: string | null
   openInNewTab: boolean
+  /** Plan 18 — per-item optimistic-locking version. */
+  version: number
 }
 
 export interface MenuWithItems extends MenuRow {
@@ -48,6 +74,7 @@ export async function listMenus(): Promise<MenuRow[]> {
       description: true,
       active: true,
       updatedAt: true,
+      version: true,
       _count: { select: { items: true } },
     },
   })
@@ -59,6 +86,7 @@ export async function listMenus(): Promise<MenuRow[]> {
     active: r.active,
     itemCount: r._count.items,
     updatedAt: r.updatedAt,
+    version: r.version,
   }))
 }
 
@@ -80,6 +108,7 @@ export async function getMenu(id: string): Promise<MenuWithItems | null> {
     active: m.active,
     itemCount: m._count.items,
     updatedAt: m.updatedAt,
+    version: m.version,
     items: m.items.map((it) => ({
       id: it.id,
       parentId: it.parentId,
@@ -89,6 +118,7 @@ export async function getMenu(id: string): Promise<MenuWithItems | null> {
       targetId: it.targetId,
       externalUrl: it.externalUrl,
       openInNewTab: it.openInNewTab,
+      version: it.version,
     })),
   }
 }
@@ -193,6 +223,146 @@ export async function updateMenuMetadata(
   updateTag("active-theme-menus")
   revalidatePath("/admin/menus")
   revalidatePath(`/admin/menus/${id}`)
+}
+
+/**
+ * Plan 18 — version-aware variant of `updateMenuMetadata`. Wires through
+ * the menu edit form so two admins renaming the same menu collide cleanly.
+ */
+export async function updateMenuMetadataVersioned(
+  id: string,
+  expectedVersion: number,
+  input: {
+    slug?: string
+    title?: string
+    description?: string | null
+    active?: boolean
+  },
+): Promise<SaveResult<MenuRow>> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return unauthorized()
+  const allowed = await hasPermission(userId, "menus:update")
+  if (!allowed) return unauthorized()
+
+  let nextSlug: string | undefined
+  if (input.slug !== undefined) {
+    nextSlug = normalizeSlug(input.slug)
+    if (!nextSlug) return validation("El slug es obligatorio")
+    const existing = await prisma.menu.findUnique({
+      where: { slug: nextSlug },
+      select: { id: true },
+    })
+    if (existing && existing.id !== id) {
+      return validation(`Ya existe otro menú con el slug "${nextSlug}".`)
+    }
+  }
+
+  const previous = await prisma.menu.findUnique({
+    where: { id },
+    select: { slug: true },
+  })
+  if (!previous) return notFound()
+
+  const data: Record<string, unknown> = {}
+  if (nextSlug !== undefined) data.slug = nextSlug
+  if (input.title !== undefined) data.title = input.title.trim()
+  if (input.description !== undefined)
+    data.description = input.description?.trim() || null
+  if (input.active !== undefined) data.active = input.active
+
+  if (Object.keys(data).length === 0) {
+    const fresh = await prisma.menu.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        active: true,
+        updatedAt: true,
+        version: true,
+        _count: { select: { items: true } },
+      },
+    })
+    if (!fresh) return notFound()
+    return ok(
+      {
+        id: fresh.id,
+        slug: fresh.slug,
+        title: fresh.title,
+        description: fresh.description,
+        active: fresh.active,
+        itemCount: fresh._count.items,
+        updatedAt: fresh.updatedAt,
+        version: fresh.version,
+      },
+      fresh.version,
+    )
+  }
+
+  try {
+    const result = await updateWithVersion<{
+      id: string
+      slug: string
+      title: string
+      description: string | null
+      active: boolean
+      updatedAt: Date
+      version: number
+    }>({
+      model: prisma.menu,
+      id,
+      expectedVersion,
+      data,
+    })
+
+    if (!result.ok) {
+      if (result.reason === "conflict") {
+        if (!result.current) return conflict(null, result.serverVersion)
+        const counts = await prisma.menu.findUnique({
+          where: { id },
+          select: { _count: { select: { items: true } } },
+        })
+        const row: MenuRow = {
+          id: result.current.id,
+          slug: result.current.slug,
+          title: result.current.title,
+          description: result.current.description,
+          active: result.current.active,
+          itemCount: counts?._count.items ?? 0,
+          updatedAt: result.current.updatedAt,
+          version: result.current.version,
+        }
+        return conflict(row, result.serverVersion)
+      }
+      return result
+    }
+
+    if (previous.slug) updateTag(`menu:${previous.slug}`)
+    if (nextSlug && nextSlug !== previous.slug) updateTag(`menu:${nextSlug}`)
+    updateTag(`menu-id:${id}`)
+    updateTag("active-theme-menus")
+    revalidatePath("/admin/menus")
+    revalidatePath(`/admin/menus/${id}`)
+
+    const counts = await prisma.menu.findUnique({
+      where: { id },
+      select: { _count: { select: { items: true } } },
+    })
+    const row: MenuRow = {
+      id: result.data.id,
+      slug: result.data.slug,
+      title: result.data.title,
+      description: result.data.description,
+      active: result.data.active,
+      itemCount: counts?._count.items ?? 0,
+      updatedAt: result.data.updatedAt,
+      version: result.data.version,
+    }
+    return ok(row, result.data.version)
+  } catch (err) {
+    return errored(err instanceof Error ? err.message : "Error al guardar menú")
+  }
 }
 
 interface IncomingItem {
@@ -425,6 +595,213 @@ export async function saveMenuItems(
   updateTag("active-theme-menus")
   revalidatePath(`/admin/menus/${menuId}`)
   return { success: true }
+}
+
+/**
+ * Plan 18 — version-aware variant of `saveMenuItems`. Each existing item
+ * carries its `version`; new "tmp-…" items omit it. All-or-nothing.
+ *
+ * Same topological-insert logic as `saveMenuItems` but each existing
+ * row's update goes through `updateMany where: { id, version }`.
+ */
+interface IncomingItemVersioned extends IncomingItem {
+  version?: number
+}
+
+const incomingItemVersionedSchema = incomingItemSchema.extend({
+  version: z.number().int().nonnegative().optional(),
+})
+
+const incomingItemsVersionedSchema = z.array(incomingItemVersionedSchema)
+
+export async function saveMenuItemsVersioned(
+  menuId: string,
+  incoming: IncomingItemVersioned[],
+): Promise<
+  BatchSaveResult<
+    { items: MenuItemRow[]; tmpToReal: Record<string, string> },
+    MenuItemRow
+  >
+> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return batchUnauthorized()
+  const allowed = await hasPermission(userId, "menus:update")
+  if (!allowed) return batchUnauthorized()
+
+  const items = incomingItemsVersionedSchema.parse(incoming)
+  try {
+    assertDepthAndAcyclic(items)
+    await assertParentsBelongToMenu(menuId, items)
+  } catch (err) {
+    return batchErrored(err instanceof Error ? err.message : "Validation error")
+  }
+
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId },
+    select: { slug: true },
+  })
+  if (!menu) return { ok: false, reason: "not_found" }
+
+  const conflicts = await precheckBatchConflicts({
+    model: prisma.menuItem,
+    rows: items.map((it) => ({ id: it.id, version: it.version })),
+    refetchForConflict: async (id) => {
+      const fresh = await prisma.menuItem.findUnique({ where: { id } })
+      if (!fresh) return null
+      return {
+        id: fresh.id,
+        parentId: fresh.parentId,
+        position: fresh.position,
+        label: fresh.label,
+        linkType: fresh.linkType,
+        targetId: fresh.targetId,
+        externalUrl: fresh.externalUrl,
+        openInNewTab: fresh.openInNewTab,
+        version: fresh.version,
+      } satisfies MenuItemRow
+    },
+  })
+  if (conflicts.length > 0) return batchConflict(conflicts)
+
+  const tmpToReal = new Map<string, string>()
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.menuItem.findMany({
+        where: { menuId },
+        select: { id: true },
+      })
+      const existingIds = new Set(existing.map((b) => b.id))
+      const incomingIds = new Set(items.map((b) => b.id))
+
+      const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+      if (toDelete.length > 0) {
+        await tx.menuItem.deleteMany({ where: { id: { in: toDelete } } })
+      }
+
+      let pending: typeof items = [...items]
+      let lastSize = -1
+
+      while (pending.length > 0 && pending.length !== lastSize) {
+        lastSize = pending.length
+        const next: typeof items = []
+
+        for (const it of pending) {
+          const parentResolved =
+            it.parentId === null ||
+            tmpToReal.has(it.parentId) ||
+            existingIds.has(it.parentId)
+
+          if (!parentResolved) {
+            next.push(it)
+            continue
+          }
+
+          const realParentId =
+            it.parentId === null
+              ? null
+              : tmpToReal.get(it.parentId) ?? it.parentId
+
+          const data = {
+            menuId,
+            parentId: realParentId,
+            position: it.position,
+            label: it.label,
+            linkType: it.linkType,
+            targetId: it.targetId,
+            externalUrl: it.externalUrl,
+            openInNewTab: it.openInNewTab,
+          }
+
+          const isNew = it.id.startsWith("tmp-") || !existingIds.has(it.id)
+          if (isNew) {
+            const created = await tx.menuItem.create({
+              data,
+              select: { id: true },
+            })
+            tmpToReal.set(it.id, created.id)
+          } else {
+            if (typeof it.version !== "number") {
+              throw new BatchRaceError(it.id)
+            }
+            const upd = await tx.menuItem.updateMany({
+              where: { id: it.id, version: it.version },
+              data: { ...data, version: { increment: 1 } },
+            })
+            if (upd.count === 0) throw new BatchRaceError(it.id)
+            tmpToReal.set(it.id, it.id)
+          }
+        }
+
+        pending = next
+      }
+
+      if (pending.length > 0) {
+        throw new Error("No se pudo guardar el menú: referencia inválida en parentId")
+      }
+
+      await tx.menu.update({
+        where: { id: menuId },
+        data: { updatedAt: new Date() },
+      })
+    })
+
+    const persisted = await prisma.menuItem.findMany({
+      where: { menuId },
+      orderBy: [{ parentId: "asc" }, { position: "asc" }],
+    })
+
+    updateTag(`menu:${menu.slug}`)
+    updateTag(`menu-id:${menuId}`)
+    updateTag("active-theme-menus")
+    revalidatePath(`/admin/menus/${menuId}`)
+
+    return batchOk<
+      { items: MenuItemRow[]; tmpToReal: Record<string, string> },
+      MenuItemRow
+    >({
+      items: persisted.map((it) => ({
+        id: it.id,
+        parentId: it.parentId,
+        position: it.position,
+        label: it.label,
+        linkType: it.linkType,
+        targetId: it.targetId,
+        externalUrl: it.externalUrl,
+        openInNewTab: it.openInNewTab,
+        version: it.version,
+      })),
+      tmpToReal: Object.fromEntries(tmpToReal),
+    })
+  } catch (err) {
+    if (isBatchRaceError(err)) {
+      const fresh = await prisma.menuItem.findUnique({
+        where: { id: err.rowId },
+      })
+      return batchConflict<MenuItemRow>([
+        {
+          rowId: err.rowId,
+          current: fresh
+            ? {
+                id: fresh.id,
+                parentId: fresh.parentId,
+                position: fresh.position,
+                label: fresh.label,
+                linkType: fresh.linkType,
+                targetId: fresh.targetId,
+                externalUrl: fresh.externalUrl,
+                openInNewTab: fresh.openInNewTab,
+                version: fresh.version,
+              }
+            : null,
+          serverVersion: fresh?.version ?? null,
+        },
+      ])
+    }
+    return batchErrored(
+      err instanceof Error ? err.message : "Error al guardar items",
+    )
+  }
 }
 
 export async function deleteMenu(id: string): Promise<void> {

@@ -7,7 +7,6 @@ import { prisma } from "@/lib/db"
 import CartCounter from "@/components/shop/CartCounter"
 import MobileMenu from "@/components/shop/MobileMenu"
 import SearchPill from "@/components/shop/SearchPill"
-import MobileSearch from "@/components/shop/MobileSearch"
 import { HeaderAuth } from "@/components/shop/HeaderAuth"
 import { HeaderNavMenu } from "@/components/shop/HeaderNavMenu"
 import { getSiteSettings } from "@/lib/site-settings"
@@ -160,11 +159,6 @@ export async function HeaderMain({ section }: Props) {
           )}
 
           <div className="ml-auto flex items-center gap-1 md:gap-2">
-            {showSearch && (
-              <div className="md:hidden">
-                <MobileSearch />
-              </div>
-            )}
             {showAuth && (
               <div className="hidden sm:block">
                 <HeaderAuth />

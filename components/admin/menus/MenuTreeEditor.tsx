@@ -40,9 +40,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
-import { saveMenuItems, type MenuItemRow } from "@/actions/menus"
+import { saveMenuItemsVersioned, type MenuItemRow } from "@/actions/menus"
 import { MenuItemSheet, type DraftItem } from "./MenuItemSheet"
 import { MAX_MENU_DEPTH } from "@/lib/menus/constants"
+import { BatchConflictDialog } from "@/components/admin/concurrency/BatchConflictDialog"
 
 interface PageOption {
   id: string
@@ -215,30 +216,99 @@ export function MenuTreeEditor({
     ])
   }
 
+  // Plan 18 — batch conflict state for menu items.
+  const [conflict, setConflict] = useState<{
+    sent: typeof items
+    conflicts: {
+      rowId: string
+      serverVersion: number | null
+      label: string
+    }[]
+  } | null>(null)
+
+  const performSave = async (sent: typeof items) => {
+    const result = await saveMenuItemsVersioned(
+      menu.id,
+      sent.map((i) => ({
+        id: i.id,
+        parentId: i.parentId,
+        position: i.position,
+        label: i.label,
+        linkType: i.linkType,
+        targetId: i.targetId,
+        externalUrl: i.externalUrl,
+        openInNewTab: i.openInNewTab,
+        version: i.version,
+      })),
+    )
+    if (result.ok) {
+      toast.success("Menú guardado")
+      // Adopt the freshly-persisted snapshot — real ids for tmp- items
+      // + new versions for existing items. Without this the next save
+      // would either fail (stale version) or duplicate (tmp id).
+      const remapped = sent.map((local) => {
+        const persisted = result.data.items.find(
+          (p) =>
+            p.label === local.label &&
+            p.parentId === local.parentId &&
+            p.position === local.position &&
+            p.linkType === local.linkType,
+        )
+        if (!persisted) return local
+        return { ...local, id: persisted.id, version: persisted.version }
+      })
+      setItems(remapped)
+      originalRef.current = JSON.stringify(remapped)
+      router.refresh()
+      return
+    }
+    if (result.reason === "conflict") {
+      setConflict({
+        sent,
+        conflicts: result.conflicts.map((c) => ({
+          rowId: c.rowId,
+          serverVersion: c.serverVersion,
+          label: c.current
+            ? `${c.current.label} (${c.current.linkType})`
+            : `Item eliminado (${c.rowId.slice(-6)})`,
+        })),
+      })
+      return
+    }
+    const message =
+      "message" in result
+        ? result.message
+        : result.reason === "unauthorized"
+          ? "Sesión expirada"
+          : "El recurso ya no existe"
+    toast.error(message)
+  }
+
   const handleSave = () => {
     if (!dirty || pending) return
     startTransition(async () => {
-      try {
-        await saveMenuItems(
-          menu.id,
-          items.map((i) => ({
-            id: i.id,
-            parentId: i.parentId,
-            position: i.position,
-            label: i.label,
-            linkType: i.linkType,
-            targetId: i.targetId,
-            externalUrl: i.externalUrl,
-            openInNewTab: i.openInNewTab,
-          })),
-        )
-        toast.success("Menú guardado")
-        // Reset dirty tracking by replacing the original snapshot.
-        originalRef.current = JSON.stringify(items)
-        router.refresh()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al guardar")
-      }
+      await performSave(items)
+    })
+  }
+
+  const handleConflictReload = () => {
+    setConflict(null)
+    router.refresh()
+  }
+
+  const handleConflictForce = async () => {
+    if (!conflict) return
+    const versionMap = new Map<string, number>()
+    for (const c of conflict.conflicts) {
+      if (c.serverVersion !== null) versionMap.set(c.rowId, c.serverVersion)
+    }
+    const forced = conflict.sent.map((i) => ({
+      ...i,
+      version: versionMap.get(i.id) ?? i.version,
+    }))
+    setConflict(null)
+    startTransition(async () => {
+      await performSave(forced)
     })
   }
 
@@ -403,6 +473,24 @@ export function MenuTreeEditor({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <BatchConflictDialog
+        open={conflict !== null}
+        onOpenChange={(next) => {
+          if (!next) setConflict(null)
+        }}
+        conflicts={
+          conflict?.conflicts.map((c) => ({
+            rowId: c.rowId,
+            current: { label: c.label } as { label: string },
+            serverVersion: c.serverVersion,
+          })) ?? []
+        }
+        onReload={handleConflictReload}
+        onForce={handleConflictForce}
+        resourceLabel="este menú"
+        formatLabel={(c) => c.current?.label ?? c.rowId}
+      />
     </div>
   )
 }

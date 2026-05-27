@@ -1,5 +1,6 @@
 import { LayoutDashboard, ImagePlus } from "lucide-react"
 import type { ThemeSectionDefinition, ThemeSectionBlockDefinition } from "../types"
+import { LinkUrlField } from "@/components/admin/page-builder/forms/custom/LinkUrlField"
 
 const megaMenuPanelDefinition: ThemeSectionBlockDefinition = {
   type: "MEGA_MENU_PANEL",
@@ -14,7 +15,12 @@ const megaMenuPanelDefinition: ThemeSectionBlockDefinition = {
       label: "Imagen destacada",
       deviceOverride: false,
     },
-    { type: "text", key: "featuredImageHref", label: "Link de la imagen" },
+    {
+      type: "custom",
+      key: "featuredImageHref",
+      label: "Link de la imagen",
+      component: LinkUrlField,
+    },
     { type: "menu-item-list", key: "links", label: "Enlaces", maxLinks: 12 },
   ],
   defaultContent: {

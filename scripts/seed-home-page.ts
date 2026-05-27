@@ -4,7 +4,8 @@
 //
 // Run after seed-themes.ts:
 //   npx tsx scripts/seed-home-page.ts
-import { PrismaClient, type LandingBlockType } from "@prisma/client"
+import { PrismaClient } from "@prisma/client"
+import type { LandingBlockType } from "../lib/types/landing-blocks"
 import { randomUUID } from "node:crypto"
 
 const prisma = new PrismaClient()

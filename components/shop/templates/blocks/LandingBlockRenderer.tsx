@@ -1,6 +1,5 @@
 import type { LandingBlock, TickerBlockContent } from "@/lib/types/landing-blocks";
 import HeroBlock from "./HeroBlock";
-import BenefitsBlock from "./BenefitsBlock";
 import GalleryBlock from "./GalleryBlock";
 import TestimonialsBlock from "./TestimonialsBlock";
 import VideoBlock from "./VideoBlock";
@@ -12,6 +11,7 @@ import FaqBlock from "./FaqBlock";
 import ImageTextBlock from "./ImageTextBlock";
 import RelatedProductsBlockEditorWrapper from "./RelatedProductsBlockEditorWrapper";
 import ProductGridBlock from "./ProductGridBlock";
+import ComparisonBlock from "./ComparisonBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -113,9 +113,6 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
           case "HERO":
             inner = <HeroBlock content={c} onCtaClick={onCtaClick} />;
             break;
-          case "BENEFITS":
-            inner = <BenefitsBlock content={c} />;
-            break;
           case "GALLERY":
             inner = <GalleryBlock content={c} onBuyClick={onCtaClick} />;
             break;
@@ -148,6 +145,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             break;
           case "PRODUCT_GRID":
             inner = <ProductGridBlock content={c} categoryId={currentCategoryId ?? null} />;
+            break;
+          case "COMPARISON":
+            inner = <ComparisonBlock content={c} />;
             break;
           default:
             return null;

@@ -3,7 +3,30 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { protectRoute } from "@/lib/protect-route";
-import type { LandingBlockType, BlockContent } from "@/lib/types/landing-blocks";
+import { getCurrentUserIdOrNull } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
+import { assertKnownBlockType, type LandingBlockType, type BlockContent } from "@/lib/types/landing-blocks";
+import {
+  BatchRaceError,
+  batchConflict,
+  batchErrored,
+  batchOk,
+  batchUnauthorized,
+  isBatchRaceError,
+  precheckBatchConflicts,
+  type BatchSaveResult,
+} from "@/lib/concurrency/batch";
+
+export interface LandingBlockRow {
+  id: string
+  type: LandingBlockType
+  position: number
+  content: unknown
+  sourceTemplateBlockId: string | null
+  detached: boolean
+  /** Plan 18 — per-block optimistic-locking version. */
+  version: number
+}
 
 export async function createLandingBlock(
   productId: string,
@@ -11,6 +34,7 @@ export async function createLandingBlock(
   content: BlockContent
 ) {
   await protectRoute("products:update");
+  assertKnownBlockType(type);
 
   const maxPosition = await prisma.landingBlock.findFirst({
     where: { productId },
@@ -91,6 +115,7 @@ export async function syncProductLandingBlocks(
   }>
 ) {
   await protectRoute("products:update");
+  for (const b of desired) assertKnownBlockType(b.type);
 
   const existing = await prisma.landingBlock.findMany({
     where: { productId },
@@ -155,4 +180,163 @@ export async function syncProductLandingBlocks(
   });
 
   return { success: true, tmpToReal };
+}
+
+/**
+ * Plan 18 — version-aware variant of `syncProductLandingBlocks`. Each
+ * existing block carries its `version`; new "tmp-…" blocks omit it.
+ * All-or-nothing on conflict.
+ */
+export async function syncProductLandingBlocksVersioned(
+  productId: string,
+  desired: Array<{
+    id: string
+    type: LandingBlockType
+    position: number
+    content: unknown
+    sourceTemplateBlockId?: string | null
+    detached?: boolean
+    version?: number
+  }>,
+): Promise<
+  BatchSaveResult<
+    {
+      blocks: LandingBlockRow[]
+      tmpToReal: Record<string, string>
+    },
+    LandingBlockRow
+  >
+> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return batchUnauthorized()
+  const allowed = await hasPermission(userId, "products:update")
+  if (!allowed) return batchUnauthorized()
+
+  for (const b of desired) assertKnownBlockType(b.type)
+
+  const conflicts = await precheckBatchConflicts({
+    model: prisma.landingBlock,
+    rows: desired.map((b) => ({ id: b.id, version: b.version })),
+    refetchForConflict: async (id) => {
+      const fresh = await prisma.landingBlock.findUnique({ where: { id } })
+      if (!fresh) return null
+      return {
+        id: fresh.id,
+        type: fresh.type,
+        position: fresh.position,
+        content: fresh.content,
+        sourceTemplateBlockId: fresh.sourceTemplateBlockId,
+        detached: fresh.detached,
+        version: fresh.version,
+      } satisfies LandingBlockRow
+    },
+  })
+  if (conflicts.length > 0) return batchConflict(conflicts)
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.landingBlock.findMany({
+        where: { productId },
+        select: { id: true },
+      })
+      const existingIds = new Set(existing.map((r) => r.id))
+      const desiredPersistentIds = new Set(
+        desired.filter((b) => !b.id.startsWith("tmp-")).map((b) => b.id),
+      )
+
+      const toDelete = [...existingIds].filter(
+        (id) => !desiredPersistentIds.has(id),
+      )
+      if (toDelete.length > 0) {
+        await tx.landingBlock.deleteMany({ where: { id: { in: toDelete } } })
+      }
+
+      const tmpToReal: Record<string, string> = {}
+
+      for (const b of desired) {
+        const isNew = b.id.startsWith("tmp-") || !existingIds.has(b.id)
+        if (isNew) {
+          const created = await tx.landingBlock.create({
+            data: {
+              productId,
+              type: b.type,
+              position: b.position,
+              content: b.content as object,
+              sourceTemplateBlockId: b.sourceTemplateBlockId ?? null,
+              detached: b.detached ?? false,
+            },
+          })
+          if (b.id.startsWith("tmp-")) tmpToReal[b.id] = created.id
+        } else {
+          if (typeof b.version !== "number") {
+            throw new BatchRaceError(b.id)
+          }
+          const upd = await tx.landingBlock.updateMany({
+            where: { id: b.id, version: b.version },
+            data: {
+              type: b.type,
+              position: b.position,
+              content: b.content as object,
+              sourceTemplateBlockId: b.sourceTemplateBlockId ?? null,
+              detached: b.detached ?? false,
+              version: { increment: 1 },
+            },
+          })
+          if (upd.count === 0) throw new BatchRaceError(b.id)
+        }
+      }
+
+      const persisted = await tx.landingBlock.findMany({
+        where: { productId },
+        orderBy: { position: "asc" },
+      })
+
+      return { tmpToReal, persisted }
+    })
+
+    revalidatePath(`/admin/productos/${productId}`)
+    revalidatePath(`/admin/productos`)
+
+    return batchOk<
+      { blocks: LandingBlockRow[]; tmpToReal: Record<string, string> },
+      LandingBlockRow
+    >({
+      blocks: result.persisted.map((b) => ({
+        id: b.id,
+        type: b.type,
+        position: b.position,
+        content: b.content,
+        sourceTemplateBlockId: b.sourceTemplateBlockId,
+        detached: b.detached,
+        version: b.version,
+      })),
+      tmpToReal: result.tmpToReal,
+    })
+  } catch (err) {
+    if (isBatchRaceError(err)) {
+      const fresh = await prisma.landingBlock.findUnique({
+        where: { id: err.rowId },
+      })
+      return batchConflict<LandingBlockRow>([
+        {
+          rowId: err.rowId,
+          current: fresh
+            ? {
+                id: fresh.id,
+                type: fresh.type,
+                position: fresh.position,
+                content: fresh.content,
+                sourceTemplateBlockId: fresh.sourceTemplateBlockId,
+                detached: fresh.detached,
+                version: fresh.version,
+              }
+            : null,
+          serverVersion: fresh?.version ?? null,
+        },
+      ])
+    }
+    return batchErrored(
+      err instanceof Error ? err.message : "Error al guardar bloques",
+    )
+  }
 }

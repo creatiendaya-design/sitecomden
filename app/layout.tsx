@@ -81,7 +81,6 @@ export async function generateMetadata(): Promise<Metadata> {
         { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
       ],
     },
-    manifest: "/manifest.json",
   };
 }
 

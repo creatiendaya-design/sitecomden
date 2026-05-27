@@ -72,6 +72,7 @@ export default async function EditProductPage({ params, searchParams }: EditProd
         content: b.content,
         sourceTemplateBlockId: b.sourceTemplateBlockId,
         detached: b.detached,
+        version: b.version,
       })),
     })
 
@@ -83,6 +84,7 @@ export default async function EditProductPage({ params, searchParams }: EditProd
       sourceTemplateBlockId: r.sourceTemplateBlockId,
       detached: r.origin === "detached",
       origin: r.origin,
+      version: r.version,
     }))
 
     return (
@@ -108,6 +110,7 @@ export default async function EditProductPage({ params, searchParams }: EditProd
       content: b.content,
       sourceTemplateBlockId: b.sourceTemplateBlockId,
       detached: b.detached,
+      version: b.version,
     })),
   })
   const resolvedBlockTypes = resolved.map((r) => r.type as string)

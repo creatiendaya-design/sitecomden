@@ -87,7 +87,6 @@ interface EditProductFormProps {
 
 const BLOCK_TYPE_LABELS: Record<string, string> = {
   HERO: "Hero",
-  BENEFITS: "Beneficios",
   GALLERY: "Galería",
   TESTIMONIALS: "Testimonios",
   VIDEO: "Video",

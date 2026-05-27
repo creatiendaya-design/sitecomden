@@ -34,7 +34,7 @@ export default function HeroBlock({
   const { className: styleClass, style: inlineStyle } =
     applyBlockStyle(blockStyle);
 
-  const { title, subtitle, ctaText, ctaHref } = content;
+  const { title, subtitle, ctaText, ctaHref, sectionHref } = content;
   const live = deriveHeroLiveStyles(content);
 
   // ─── Background image (per-viewport via <picture>) ────────────────────
@@ -96,6 +96,20 @@ export default function HeroBlock({
         />
       )}
 
+      {/* Section-wide link — when `sectionHref` is set, the entire hero
+          becomes clickable. The CTA wrapper below uses `z-30` to stay
+          independently clickable above this overlay. */}
+      {sectionHref && (
+        <a
+          href={sectionHref}
+          aria-label={title}
+          className="hero-section-link absolute inset-0 z-20"
+          tabIndex={-1}
+        >
+          <span className="sr-only">{title}</span>
+        </a>
+      )}
+
       <div
         className="hero-content relative z-10 mx-auto flex w-full flex-col gap-4 px-5 py-10 text-white @md:px-8 @md:py-20 @md:gap-6"
         style={{ maxWidth: "var(--landing-container, 72rem)" }}
@@ -127,7 +141,7 @@ export default function HeroBlock({
         )}
 
         {ctaText && (
-          <div className="hero-anim-in hero-anim-delay-2 pt-1 @md:pt-2">
+          <div className="hero-anim-in hero-anim-delay-2 relative z-30 pt-1 @md:pt-2">
             {renderCta({
               text: ctaText,
               href: ctaHref,

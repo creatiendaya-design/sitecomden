@@ -3,6 +3,18 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
+import { getCurrentUserIdOrNull } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
+import { updateWithVersion } from "@/lib/concurrency/with-version"
+import {
+  conflict,
+  errored,
+  notFound,
+  ok,
+  unauthorized,
+  validation,
+  type SaveResult,
+} from "@/lib/concurrency/types"
 
 /** Discriminator stored on Policy.policyType. Lets the system auto-link
  * "the privacy policy" from checkout/footer regardless of slug. */
@@ -40,6 +52,8 @@ export interface PolicyFull {
   noIndex: boolean
   policyType: PolicyType | null
   updatedAt: Date
+  /** Plan 18 — optimistic-locking version. */
+  version: number
 }
 
 function normalizeSlug(input: string): string {
@@ -89,10 +103,20 @@ export async function listPolicies(): Promise<PolicyRow[]> {
   }))
 }
 
-export async function getPolicy(id: string): Promise<PolicyFull | null> {
-  await protectRoute("policies:view")
-  const p = await prisma.policy.findUnique({ where: { id } })
-  if (!p) return null
+function toPolicyFull(p: {
+  id: string
+  slug: string
+  title: string
+  body: string
+  active: boolean
+  seoTitle: string | null
+  seoDescription: string | null
+  seoImage: string | null
+  noIndex: boolean
+  policyType: string | null
+  updatedAt: Date
+  version: number
+}): PolicyFull {
   return {
     id: p.id,
     slug: p.slug,
@@ -105,7 +129,15 @@ export async function getPolicy(id: string): Promise<PolicyFull | null> {
     noIndex: p.noIndex,
     policyType: asPolicyType(p.policyType),
     updatedAt: p.updatedAt,
+    version: p.version,
   }
+}
+
+export async function getPolicy(id: string): Promise<PolicyFull | null> {
+  await protectRoute("policies:view")
+  const p = await prisma.policy.findUnique({ where: { id } })
+  if (!p) return null
+  return toPolicyFull(p)
 }
 
 export async function createPolicy(input: {
@@ -210,6 +242,112 @@ export async function updatePolicy(
   if (nextSlug && nextSlug !== previous.slug) updateTag(`policy:${nextSlug}`)
   revalidatePath("/admin/politicas")
   revalidatePath(`/admin/politicas/${id}`)
+}
+
+/**
+ * Plan 18 — version-aware variant of `updatePolicy`. Use this from the
+ * Tiptap policy editor — two admins editing the same policy body is the
+ * canonical lost-update scenario.
+ */
+export async function updatePolicyVersioned(
+  id: string,
+  expectedVersion: number,
+  input: {
+    slug?: string
+    title?: string
+    body?: string
+    policyType?: PolicyType | null
+    seoTitle?: string | null
+    seoDescription?: string | null
+    seoImage?: string | null
+    noIndex?: boolean
+    active?: boolean
+  },
+): Promise<SaveResult<PolicyFull>> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return unauthorized()
+  const allowed = await hasPermission(userId, "policies:update")
+  if (!allowed) return unauthorized()
+
+  let nextSlug: string | undefined
+  if (input.slug !== undefined) {
+    nextSlug = normalizeSlug(input.slug)
+    if (!nextSlug) return validation("El slug es obligatorio")
+    const existing = await prisma.policy.findUnique({
+      where: { slug: nextSlug },
+      select: { id: true },
+    })
+    if (existing && existing.id !== id) {
+      return validation(`Ya existe otra política con el slug "${nextSlug}".`)
+    }
+  }
+
+  const previous = await prisma.policy.findUnique({
+    where: { id },
+    select: { slug: true },
+  })
+  if (!previous) return notFound()
+
+  const data: Record<string, unknown> = {}
+  if (nextSlug !== undefined) data.slug = nextSlug
+  if (input.title !== undefined) data.title = input.title.trim()
+  if (input.body !== undefined) data.body = input.body
+  if (input.policyType !== undefined) data.policyType = input.policyType
+  if (input.seoTitle !== undefined)
+    data.seoTitle = input.seoTitle?.trim() || null
+  if (input.seoDescription !== undefined)
+    data.seoDescription = input.seoDescription?.trim() || null
+  if (input.seoImage !== undefined)
+    data.seoImage = input.seoImage?.trim() || null
+  if (input.noIndex !== undefined) data.noIndex = input.noIndex
+  if (input.active !== undefined) data.active = input.active
+
+  if (Object.keys(data).length === 0) {
+    const fresh = await prisma.policy.findUnique({ where: { id } })
+    if (!fresh) return notFound()
+    return ok(toPolicyFull(fresh), fresh.version)
+  }
+
+  try {
+    const result = await updateWithVersion<{
+      id: string
+      slug: string
+      title: string
+      body: string
+      active: boolean
+      seoTitle: string | null
+      seoDescription: string | null
+      seoImage: string | null
+      noIndex: boolean
+      policyType: string | null
+      updatedAt: Date
+      version: number
+    }>({
+      model: prisma.policy,
+      id,
+      expectedVersion,
+      data,
+    })
+
+    if (!result.ok) {
+      if (result.reason === "conflict") {
+        return conflict(
+          result.current ? toPolicyFull(result.current) : null,
+          result.serverVersion,
+        )
+      }
+      return result
+    }
+
+    updateTag(`policy:${previous.slug}`)
+    if (nextSlug && nextSlug !== previous.slug) updateTag(`policy:${nextSlug}`)
+    revalidatePath("/admin/politicas")
+    revalidatePath(`/admin/politicas/${id}`)
+
+    return ok(toPolicyFull(result.data), result.data.version)
+  } catch (err) {
+    return errored(err instanceof Error ? err.message : "Error al guardar política")
+  }
 }
 
 export async function togglePolicyActive(id: string): Promise<void> {

@@ -384,6 +384,20 @@
   color: var(--landing-text, inherit);
 }
 
+/* Plan 13.1: any element opted into a color scheme via data-color-scheme
+   paints with --theme-bg / --theme-text. Covers:
+   - LandingBlockRenderer wrapper (page-builder blocks: RICH_TEXT, FAQ,
+     IMAGE_TEXT, etc.) — the wrapper paints; its inner
+     transparent .landing-section lets the wrapper bg show through.
+   - FooterRichText and other theme sections that emit data-color-scheme
+     directly on their root element.
+   Inline backgroundColor/color set by applyBlockStyle on the SAME element
+   still win (inline > class), so custom-mode colors keep working. */
+[data-color-scheme] {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}
+
 body.is-landing-page header,
 body.is-landing-page footer {
   display: none !important;

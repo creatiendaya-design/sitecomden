@@ -8,7 +8,6 @@ import type { BlockDefinition } from "./registry"
 // v1 or v2 content via the bilingual reader added in Task 7.
 
 const HeroBlock = dynamic(() => import("@/components/shop/templates/blocks/HeroBlock"))
-const BenefitsBlock = dynamic(() => import("@/components/shop/templates/blocks/BenefitsBlock"))
 const GalleryBlock = dynamic(() => import("@/components/shop/templates/blocks/GalleryBlock"))
 const TestimonialsBlock = dynamic(() => import("@/components/shop/templates/blocks/TestimonialsBlock"))
 const VideoBlock = dynamic(() => import("@/components/shop/templates/blocks/VideoBlock"))
@@ -20,9 +19,11 @@ const FaqBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqBlo
 const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/ImageTextBlock"))
 const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
 const ProductGridBlockEditor = dynamic(() => import("@/components/shop/templates/blocks/ProductGridBlockEditor"))
+const ComparisonBlock = dynamic(() => import("@/components/shop/templates/blocks/ComparisonBlock"))
 
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
+import { LinkUrlField } from "@/components/admin/page-builder/forms/custom/LinkUrlField"
 
 const existing: BlockDefinition[] = [
   {
@@ -38,12 +39,20 @@ const existing: BlockDefinition[] = [
     contentSchema: [
       { type: "text", key: "title", label: "Título" },
       { type: "text", key: "subtitle", label: "Subtítulo" },
+      {
+        type: "custom",
+        key: "sectionHref",
+        label: "Enlace de toda la sección",
+        component: LinkUrlField,
+        helpText:
+          "Opcional. Si lo defines, hacer clic en cualquier parte del hero (fondo, título, subtítulo) redirige a esta URL. El botón CTA mantiene su propio enlace.",
+      },
       { type: "text", key: "ctaText", label: "Texto del botón" },
       {
-        type: "text",
+        type: "custom",
         key: "ctaHref",
         label: "Enlace del botón",
-        placeholder: "/productos o https://...",
+        component: LinkUrlField,
         helpText:
           "Opcional. Si lo dejas vacío y el bloque vive en una landing de producto, el CTA abre el flujo normal.",
       },
@@ -106,6 +115,7 @@ const existing: BlockDefinition[] = [
         key: "overlayColor",
         label: "Color del overlay",
         showWhen: { field: "overlayEnabled", equals: true },
+        showInStyleTab: true,
       },
       {
         type: "number",
@@ -178,37 +188,6 @@ const existing: BlockDefinition[] = [
       textColor: false,
       alignment: false,
     },
-  },
-  {
-    type: "BENEFITS",
-    label: "Beneficios",
-    icon: "CheckCircle",
-    emoji: "✅",
-    description: "Grid de tarjetas con íconos y descripciones",
-    scope: "universal",
-    category: "visual",
-    defaultContent: DEFAULT_CONTENT_V2.BENEFITS,
-    renderer: BenefitsBlock as any,
-    contentSchema: [
-      {
-        type: "array",
-        key: "cards",
-        label: "Tarjetas",
-        addButtonText: "+ Agregar tarjeta",
-        newItem: () => ({
-          id: crypto.randomUUID(),
-          icon: "✅",
-          title: "Beneficio",
-          description: "Descripción",
-        }),
-        itemLabel: (it) => (it.title as string) || "Sin título",
-        itemSchema: [
-          { type: "text", key: "icon", label: "Ícono (emoji o nombre)" },
-          { type: "text", key: "title", label: "Título" },
-          { type: "textarea", key: "description", label: "Descripción", rows: 2 },
-        ],
-      },
-    ],
   },
   {
     type: "GALLERY",
@@ -366,8 +345,8 @@ const existing: BlockDefinition[] = [
       { type: "number", key: "speed", label: "Velocidad (px/s)", min: 10, max: 100 },
       { type: "text", key: "countdownLabel", label: "Etiqueta del contador" },
       { type: "text", key: "endsAt", label: "Fecha fin (ISO datetime)", placeholder: "2026-12-31T23:59:59" },
-      { type: "color", key: "bgColor", label: "Color de fondo" },
-      { type: "color", key: "textColor", label: "Color de texto" },
+      { type: "color", key: "bgColor", label: "Color de fondo", showInStyleTab: true },
+      { type: "color", key: "textColor", label: "Color de texto", showInStyleTab: true },
     ],
     styleSupport: {
       backgroundColor: false,
@@ -454,17 +433,80 @@ const existing: BlockDefinition[] = [
     label: "Texto con formato",
     icon: "Type",
     emoji: "📝",
-    description: "Texto libre con formato (títulos, negritas, listas, enlaces)",
+    description: "Sección con caption, título, texto y hasta dos botones — al estilo Shopify Dawn",
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.RICH_TEXT,
     renderer: RichTextBlock as any,
     contentSchema: [
       {
+        type: "text",
+        key: "caption",
+        label: "Caption (opcional)",
+        placeholder: "Texto breve sobre el título",
+        helpText: "Etiqueta corta en mayúsculas que aparece sobre el título.",
+      },
+      {
+        type: "text",
+        key: "heading",
+        label: "Título",
+        placeholder: "Habla sobre tu marca",
+      },
+      {
+        type: "select",
+        key: "headingSize",
+        label: "Tamaño del título",
+        options: [
+          { value: "small", label: "Pequeño" },
+          { value: "medium", label: "Mediano" },
+          { value: "large", label: "Grande" },
+        ],
+      },
+      {
         type: "richtext",
         key: "html",
-        label: "Contenido",
-        placeholder: "Escribe el contenido aquí...",
+        label: "Texto",
+        placeholder: "Comparte detalles de tu marca con tus clientes.",
+      },
+      {
+        type: "group",
+        key: "button1",
+        label: "Botón 1",
+        collapsible: true,
+        defaultOpen: false,
+        schema: [
+          { type: "text", key: "label", label: "Texto del botón", placeholder: "Comprar ahora" },
+          { type: "custom", key: "href", label: "Enlace", component: LinkUrlField },
+          {
+            type: "select",
+            key: "style",
+            label: "Estilo",
+            options: [
+              { value: "primary", label: "Primario (sólido)" },
+              { value: "secondary", label: "Secundario (contorno)" },
+            ],
+          },
+        ],
+      },
+      {
+        type: "group",
+        key: "button2",
+        label: "Botón 2",
+        collapsible: true,
+        defaultOpen: false,
+        schema: [
+          { type: "text", key: "label", label: "Texto del botón" },
+          { type: "custom", key: "href", label: "Enlace", component: LinkUrlField },
+          {
+            type: "select",
+            key: "style",
+            label: "Estilo",
+            options: [
+              { value: "primary", label: "Primario (sólido)" },
+              { value: "secondary", label: "Secundario (contorno)" },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -540,7 +582,12 @@ const existing: BlockDefinition[] = [
       },
       { type: "text", key: "imageAlt", label: "Alt text", placeholder: "Descripción para lectores" },
       { type: "text", key: "ctaText", label: "Texto del botón (opcional)" },
-      { type: "text", key: "ctaUrl", label: "URL del botón (opcional)" },
+      {
+        type: "custom",
+        key: "ctaUrl",
+        label: "URL del botón (opcional)",
+        component: LinkUrlField,
+      },
     ],
     styleSupport: { gradient: true },
   },
@@ -608,6 +655,106 @@ const existing: BlockDefinition[] = [
       { type: "switch", key: "showPrice", label: "Mostrar precio" },
     ],
     styleSupport: { textColor: false, alignment: false },
+  },
+  {
+    type: "COMPARISON",
+    label: "Tabla comparativa",
+    icon: "Columns3",
+    emoji: "📊",
+    description: "Compara tu producto frente a la competencia con checks y X",
+    scope: "universal",
+    category: "social-proof",
+    defaultContent: DEFAULT_CONTENT_V2.COMPARISON,
+    renderer: ComparisonBlock as any,
+    contentSchema: [
+      { type: "text", key: "title", label: "Título", placeholder: "BENEFICIOS INIGUALABLES" },
+      {
+        type: "textarea",
+        key: "description",
+        label: "Descripción",
+        rows: 3,
+        placeholder: "Texto corto bajo el título",
+      },
+      {
+        type: "text",
+        key: "yoursLabel",
+        label: "Etiqueta columna propia (opcional)",
+        placeholder: "Tu marca",
+        helpText: "Déjalo vacío para mostrar solo la columna de color sin texto en el encabezado.",
+      },
+      {
+        type: "text",
+        key: "othersLabel",
+        label: "Etiqueta columna competencia",
+        placeholder: "Otros",
+      },
+      { type: "color", key: "accentColor", label: "Color de acento", showInStyleTab: true },
+      { type: "color", key: "accentTextColor", label: "Color de texto en acento", showInStyleTab: true },
+      {
+        type: "color",
+        key: "yoursLabelColor",
+        label: "Color del texto «Tu marca»",
+        showInStyleTab: true,
+        helpText: "Solo afecta el texto del header superior. Para pintar toda la columna usa «Color de acento».",
+      },
+      {
+        type: "color",
+        key: "othersBackgroundColor",
+        label: "Fondo columna competencia",
+        showInStyleTab: true,
+        helpText: "Por defecto blanco.",
+      },
+      {
+        type: "color",
+        key: "othersTextColor",
+        label: "Texto columna competencia",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "checkColor",
+        label: "Color del check (✓)",
+        showInStyleTab: true,
+        helpText: "Aplica a ambas columnas. Por defecto verde con buen contraste por columna.",
+      },
+      {
+        type: "color",
+        key: "crossColor",
+        label: "Color de la X (✗)",
+        showInStyleTab: true,
+        helpText: "Solo aplica al ✗ sobre fondo claro. El ✗ sobre acento hereda el color de texto.",
+      },
+      {
+        type: "array",
+        key: "rows",
+        label: "Filas de comparación",
+        addButtonText: "+ Agregar fila",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          label: "Nueva característica",
+          yours: true,
+          theirs: false,
+        }),
+        itemLabel: (it) => (it.label as string) || "Sin etiqueta",
+        itemSchema: [
+          { type: "text", key: "label", label: "Característica" },
+          { type: "switch", key: "yours", label: "Tu producto: ✓" },
+          { type: "switch", key: "theirs", label: "Competencia: ✓" },
+        ],
+      },
+    ],
+    styleSupport: {
+      alignment: false,
+    },
+    liveContentVars: {
+      accentColor: "--block-accent",
+      accentTextColor: "--block-accent-text",
+      yoursLabelColor: "--block-yours-label",
+      othersBackgroundColor: "--block-others-bg",
+      othersTextColor: "--block-others-text",
+      checkColor: "--block-check",
+      crossColor: "--block-cross",
+    },
   },
   {
     type: "PRODUCT_GRID",

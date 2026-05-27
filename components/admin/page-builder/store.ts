@@ -20,6 +20,15 @@ interface BuilderState {
 
   // Setters
   setBlocks: (blocks: BlockInstance[]) => void
+  /**
+   * Plan 18 — Replace the block list with the server's freshly-persisted
+   * snapshot after an autosave. Unlike `setBlocks` (which clears the
+   * dirty flag for hydration), this preserves dirty state if the user
+   * edited *during* the in-flight save. The point is to adopt the new
+   * `version` numbers + real ids without throwing away simultaneous local
+   * edits.
+   */
+  replaceBlocksFromServer: (blocks: { id: string; version?: number }[]) => void
   selectBlock: (id: string | null) => void
   setDevice: (device: Device) => void
   setSaveStatus: (status: SaveStatus) => void
@@ -80,6 +89,26 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         blocks,
       ),
     })
+  },
+  replaceBlocksFromServer: (persisted) => {
+    // Align by position: persisted[i] corresponds to the i-th block we
+    // sent. Update version + id without disturbing in-progress local edits.
+    const current = get().blocks
+    const next = current.map((b, i) => {
+      const p = persisted[i]
+      if (!p) return b
+      return {
+        ...b,
+        // Adopt the real id (tmp- → cuid) if the server replaced it.
+        id: p.id,
+        version: p.version,
+      }
+    })
+    // Plan 18 — also clear `isDirty`. Without this, the parent's blocks
+    // watcher would see the (post-save) blocks as still-dirty user edits
+    // and immediately fire another autosave just because the version
+    // numbers bumped, creating a save loop after every successful save.
+    set({ blocks: next, isDirty: false })
   },
   selectBlock: (id) => set({ selectedBlockId: id }),
   setDevice: (device) => set({ device }),

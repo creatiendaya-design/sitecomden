@@ -43,6 +43,13 @@ interface BaseFieldDef {
    *  against the group's sub-object — NOT the top-level block data. Cross-group
    *  conditional visibility is not supported. */
   showWhen?: { field: string; equals: unknown }
+  /** Move this field from the Contenido tab into a "Colores del bloque"
+   *  section at the top of the Estilo tab. The value is still stored at
+   *  `content.data.<key>` — renderers don't change. Use for block-specific
+   *  semantic colors (e.g. accent, overlay) so admins don't have to hunt
+   *  for them across two tabs. Top-level fields only — ignored inside
+   *  group/array. */
+  showInStyleTab?: boolean
 }
 
 export interface TextFieldDef extends BaseFieldDef {
@@ -135,10 +142,14 @@ export interface GroupFieldDef extends BaseFieldDef {
 export interface CustomFieldDef extends BaseFieldDef {
   type: "custom"
   /** Escape hatch: a React component that receives { value, onChange } for
-   *  this field's value. Use only when no primitive fits. */
+   *  this field's value, plus the field's `label` and `helpText` from the
+   *  schema so it can render its own header/footer. Use only when no
+   *  primitive fits. Existing components are free to ignore label/helpText. */
   component: ComponentType<{
     value: unknown
     onChange: (v: unknown) => void
+    label?: string
+    helpText?: string
   }>
 }
 
