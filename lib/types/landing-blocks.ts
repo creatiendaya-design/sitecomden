@@ -36,7 +36,8 @@ export type KnownLandingBlockType =
   | "FRIENDLY"
   | "CAROUSEL"
   | "BANNER_TOP_TEXT"
-  | "PORCENTAJE_UNO";
+  | "PORCENTAJE_UNO"
+  | "FAQ_TWO";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type LandingBlockType = KnownLandingBlockType | (string & {});
@@ -63,6 +64,7 @@ export const KNOWN_BLOCK_TYPES: ReadonlySet<KnownLandingBlockType> = new Set<Kno
   "CAROUSEL",
   "BANNER_TOP_TEXT",
   "PORCENTAJE_UNO",
+  "FAQ_TWO",
 ]);
 
 export function isKnownBlockType(type: string): type is KnownLandingBlockType {
@@ -579,6 +581,68 @@ export interface BannerTopTextBlockContent {
   scrollUppercase?: boolean;
 }
 
+export type FaqTwoCurveStrength = "none" | "subtle" | "normal" | "strong";
+export type FaqTwoHeadingSize = "md" | "lg" | "xl";
+export type FaqTwoItemGap = "tight" | "normal" | "relaxed";
+
+export interface FaqTwoExpert {
+  id: string;
+  /** Avatar image URL. */
+  imageUrl?: string;
+  /** Alt text / accessible label for the avatar. */
+  alt?: string;
+  /** Show a small blue "verified" badge on the avatar. */
+  verified?: boolean;
+}
+
+export interface FaqTwoItem {
+  id: string;
+  question: string;
+  /** Plain-text answer (rendered as paragraphs). */
+  answer: string;
+}
+
+export interface FaqTwoBlockContent {
+  /** Eyebrow / small label above the title. Optional. */
+  caption?: string;
+  /** Main heading. */
+  title?: string;
+  /** Size preset for the heading. */
+  headingSize?: FaqTwoHeadingSize;
+  /** Short paragraph below the title. Optional. */
+  description?: string;
+  /** Top line of the expert badge — slightly lighter weight. */
+  expertsLabelTop?: string;
+  /** Bottom line of the expert badge — bold. */
+  expertsLabelBottom?: string;
+  /** Avatars shown inside the expert badge pill. */
+  experts: FaqTwoExpert[];
+  /** FAQ rows. */
+  items: FaqTwoItem[];
+  allowMultipleOpen?: boolean;
+  defaultOpenFirst?: boolean;
+  /** Curvature of the section's top/bottom edges (oval radius). */
+  curveStrength?: FaqTwoCurveStrength;
+  /** Vertical spacing between FAQ rows. */
+  itemGap?: FaqTwoItemGap;
+  /** Background color of the whole section pill. */
+  sectionBgColor?: string;
+  /** Color of the section heading. Falls back to the block text color. */
+  titleColor?: string;
+  /** Color of the supporting copy + expert badge text. */
+  textColor?: string;
+  /** Background of the expert badge pill (white in the reference). */
+  expertsBadgeBgColor?: string;
+  /** Color of the small verified checkmark on each avatar. */
+  verifiedBadgeColor?: string;
+  /** Color of the FAQ question / answer text. */
+  itemTextColor?: string;
+  /** Color of the divider between FAQ rows. */
+  dividerColor?: string;
+  /** Color of the +/− toggle icon. */
+  iconColor?: string;
+}
+
 export interface FriendlyBlockContent {
   /** Eyebrow / small heading above the feature list. Optional. */
   caption?: string;
@@ -622,7 +686,8 @@ export type BlockContent =
   | FriendlyBlockContent
   | CarouselBlockContent
   | BannerTopTextBlockContent
-  | PorcentajeUnoBlockContent;
+  | PorcentajeUnoBlockContent
+  | FaqTwoBlockContent;
 
 export interface LandingBlock {
   id: string;
@@ -660,6 +725,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   CAROUSEL: "Carrusel (imagen / video)",
   BANNER_TOP_TEXT: "Banner + Texto vertical (loop)",
   PORCENTAJE_UNO: "Porcentaje uno (stats + imagen)",
+  FAQ_TWO: "Pregunta frecuente dos",
 };
 
 /**
@@ -768,5 +834,13 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
     curveStrength: "normal",
     countDurationMs: 1800,
     numberWeight: "bold",
+  },
+  FAQ_TWO: {
+    experts: [],
+    items: [],
+    allowMultipleOpen: false,
+    defaultOpenFirst: false,
+    curveStrength: "normal",
+    itemGap: "normal",
   },
 };

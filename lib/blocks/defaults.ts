@@ -488,4 +488,61 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
       image: { desktop: "", mobile: "" },
     },
   },
+
+  FAQ_TWO: {
+    data: {
+      caption: "",
+      title: "We are serious about nutrition, ask away",
+      headingSize: "lg",
+      description:
+        "Transparency is the foundation of longevity. We have compiled the most common inquiries regarding the science of Urolith-X™ and the biological mechanics of the CORE protocol.",
+      expertsLabelTop: "Formulated by our expert in-house",
+      expertsLabelBottom: "Biologists & Clinical Researchers",
+      experts: [
+        { id: crypto.randomUUID(), imageUrl: "", alt: "Researcher 1", verified: true },
+        { id: crypto.randomUUID(), imageUrl: "", alt: "Researcher 2", verified: true },
+        { id: crypto.randomUUID(), imageUrl: "", alt: "Researcher 3", verified: true },
+      ],
+      items: [
+        {
+          id: crypto.randomUUID(),
+          question: "What exactly is Urolith-X™?",
+          answer:
+            "Urolith-X™ is our proprietary, clinically formulated compound designed to support cellular performance and longevity at the molecular level.",
+        },
+        {
+          id: crypto.randomUUID(),
+          question: "How soon will I notice the effects of the CORE?",
+          answer:
+            "Most users report measurable improvements in energy and recovery within the first 14 to 30 days of consistent use.",
+        },
+        {
+          id: crypto.randomUUID(),
+          question: "Do I need to exercise for Aeon Lift to work?",
+          answer:
+            "While Aeon Lift is highly effective on its own, regular movement and balanced nutrition amplify its long-term benefits.",
+        },
+        {
+          id: crypto.randomUUID(),
+          question: "Is there a \"loading phase\" required?",
+          answer:
+            "No loading phase is required. A single daily dose is enough to maintain optimal plasma concentration of the active compound.",
+        },
+      ],
+      allowMultipleOpen: false,
+      defaultOpenFirst: false,
+      curveStrength: "normal",
+      itemGap: "normal",
+      sectionBgColor: "#f1f1f0",
+      titleColor: "#1f1f1f",
+      textColor: "#3a3a3a",
+      expertsBadgeBgColor: "#ffffff",
+      verifiedBadgeColor: "#3b82f6",
+      itemTextColor: "#1f1f1f",
+      dividerColor: "rgba(0,0,0,0.12)",
+      iconColor: "#1f1f1f",
+    },
+    style: { ...DEFAULT_STYLE, paddingY: "none", alignment: "left" },
+    media: {},
+  },
 }

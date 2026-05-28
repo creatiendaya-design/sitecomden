@@ -25,6 +25,7 @@ const FriendlyBlock = dynamic(() => import("@/components/shop/templates/blocks/F
 const CarouselBlock = dynamic(() => import("@/components/shop/templates/blocks/CarouselBlock"))
 const BannerTopTextBlock = dynamic(() => import("@/components/shop/templates/blocks/BannerTopTextBlock"))
 const PorcentajeUnoBlock = dynamic(() => import("@/components/shop/templates/blocks/PorcentajeUnoBlock"))
+const FaqTwoBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqTwoBlock"))
 
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
@@ -1791,6 +1792,195 @@ const existing: BlockDefinition[] = [
       scrollTextColor: "--btt-scroll-text",
       scrollGhostTextColor: "--btt-scroll-ghost",
       overlayColor: "--btt-overlay-color",
+    },
+  },
+  {
+    type: "FAQ_TWO",
+    label: "Pregunta frecuente dos",
+    icon: "HelpCircle",
+    description:
+      "FAQ a 2 columnas con título, badge de expertos y lista con divisores (FAQPage schema.org).",
+    scope: "universal",
+    category: "content",
+    defaultContent: DEFAULT_CONTENT_V2.FAQ_TWO,
+    renderer: FaqTwoBlock as any,
+    contentSchema: [
+      // ─── Encabezado ──────────────────────────────────────────────────
+      {
+        type: "text",
+        key: "caption",
+        label: "Caption (opcional)",
+        placeholder: "FAQ",
+        helpText: "Etiqueta corta en mayúsculas sobre el título.",
+      },
+      {
+        type: "text",
+        key: "title",
+        label: "Título",
+        placeholder: "We are serious about nutrition, ask away",
+      },
+      {
+        type: "select",
+        key: "headingSize",
+        label: "Tamaño del título",
+        options: [
+          { value: "md", label: "Mediano" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+        ],
+      },
+      {
+        type: "textarea",
+        key: "description",
+        label: "Descripción",
+        rows: 3,
+        placeholder: "Texto corto bajo el título",
+      },
+
+      // ─── Badge de expertos ───────────────────────────────────────────
+      {
+        type: "text",
+        key: "expertsLabelTop",
+        label: "Badge: texto superior",
+        placeholder: "Formulated by our expert in-house",
+        helpText: "Línea pequeña con peso normal (junto a los avatares).",
+      },
+      {
+        type: "text",
+        key: "expertsLabelBottom",
+        label: "Badge: texto inferior (negrita)",
+        placeholder: "Biologists & Clinical Researchers",
+      },
+      {
+        type: "array",
+        key: "experts",
+        label: "Avatares de expertos",
+        addButtonText: "+ Agregar experto",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          imageUrl: "",
+          alt: "",
+          verified: true,
+        }),
+        itemLabel: (it, i) => (it.alt as string) || `Experto ${i + 1}`,
+        itemSchema: [
+          { type: "image", key: "imageUrl", label: "Foto", deviceOverride: false },
+          { type: "text", key: "alt", label: "Nombre / alt text" },
+          { type: "switch", key: "verified", label: "Mostrar check azul (verified)" },
+        ],
+      },
+
+      // ─── Comportamiento ──────────────────────────────────────────────
+      { type: "switch", key: "allowMultipleOpen", label: "Permitir varias abiertas" },
+      { type: "switch", key: "defaultOpenFirst", label: "Abrir la primera por defecto" },
+
+      // ─── Estilo de la sección ────────────────────────────────────────
+      {
+        type: "select",
+        key: "curveStrength",
+        label: "Curvatura ovalada (arriba/abajo)",
+        options: [
+          { value: "none", label: "Sin curvatura" },
+          { value: "subtle", label: "Sutil" },
+          { value: "normal", label: "Normal" },
+          { value: "strong", label: "Pronunciada" },
+        ],
+      },
+      {
+        type: "select",
+        key: "itemGap",
+        label: "Separación entre preguntas",
+        options: [
+          { value: "tight", label: "Ajustada" },
+          { value: "normal", label: "Normal" },
+          { value: "relaxed", label: "Amplia" },
+        ],
+      },
+      {
+        type: "color",
+        key: "sectionBgColor",
+        label: "Color de fondo de la sección",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "titleColor",
+        label: "Color del título",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "textColor",
+        label: "Color del texto general",
+        showInStyleTab: true,
+        helpText: "Color de la descripción y el badge de expertos.",
+      },
+      {
+        type: "color",
+        key: "expertsBadgeBgColor",
+        label: "Fondo del badge de expertos",
+        showInStyleTab: true,
+        helpText: "Color de la píldora blanca con los avatares.",
+      },
+      {
+        type: "color",
+        key: "verifiedBadgeColor",
+        label: "Color del check (verified)",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "itemTextColor",
+        label: "Color de preguntas y respuestas",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "dividerColor",
+        label: "Color de los divisores",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "iconColor",
+        label: "Color del ícono +",
+        showInStyleTab: true,
+      },
+
+      // ─── Preguntas ───────────────────────────────────────────────────
+      {
+        type: "array",
+        key: "items",
+        label: "Preguntas",
+        addButtonText: "+ Agregar pregunta",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          question: "Nueva pregunta",
+          answer: "",
+        }),
+        itemLabel: (it) => (it.question as string) || "Sin pregunta",
+        itemSchema: [
+          { type: "text", key: "question", label: "Pregunta" },
+          { type: "textarea", key: "answer", label: "Respuesta", rows: 4 },
+        ],
+      },
+    ],
+    styleSupport: {
+      gradient: true,
+      // The section owns its own bg via sectionBgColor and stretches edge-to-edge.
+      containerWidth: false,
+      alignment: false,
+      textColor: false,
+    },
+    liveContentVars: {
+      sectionBgColor: "--faq2-bg",
+      titleColor: "--faq2-title",
+      textColor: "--faq2-text",
+      expertsBadgeBgColor: "--faq2-badge-bg",
+      verifiedBadgeColor: "--faq2-verified",
+      itemTextColor: "--faq2-item-text",
+      dividerColor: "--faq2-divider",
+      iconColor: "--faq2-icon",
     },
   },
   {

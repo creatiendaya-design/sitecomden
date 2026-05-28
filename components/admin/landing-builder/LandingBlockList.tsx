@@ -58,6 +58,7 @@ const BLOCK_COLORS: Record<LandingBlockType, string> = {
   CAROUSEL: "border-l-pink-500",
   BANNER_TOP_TEXT: "border-l-violet-500",
   PORCENTAJE_UNO: "border-l-slate-500",
+  FAQ_TWO: "border-l-sky-600",
 };
 
 interface SortableBlockItemProps {

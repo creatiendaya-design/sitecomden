@@ -17,6 +17,7 @@ import FriendlyBlock from "./FriendlyBlock";
 import CarouselBlock from "./CarouselBlock";
 import BannerTopTextBlock from "./BannerTopTextBlock";
 import PorcentajeUnoBlock from "./PorcentajeUnoBlock";
+import FaqTwoBlock from "./FaqTwoBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -174,6 +175,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             break;
           case "PORCENTAJE_UNO":
             inner = <PorcentajeUnoBlock content={c} />;
+            break;
+          case "FAQ_TWO":
+            inner = <FaqTwoBlock content={c} />;
             break;
           default:
             return null;
