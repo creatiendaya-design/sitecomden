@@ -274,7 +274,7 @@ export const productMainDefinition: ThemeSectionDefinition = {
   groups: ["PRODUCT"],
   label: "Información principal del producto",
   description:
-    "Galería + título + precio + variantes + comprar. Sección obligatoria; los sub-bloques se pueden reordenar.",
+    "Sección obligatoria que agrupa la galería y la información del producto. Acá controlás el layout general (posición de la galería, anchos de columna, etc.). Para editar textos, precios o el botón de compra seleccioná uno de los sub-bloques listados abajo.",
   icon: Package,
   maxPerGroup: 1,
   acceptedBlockTypes: [
@@ -287,8 +287,50 @@ export const productMainDefinition: ThemeSectionDefinition = {
     productMetaDefinition,
     productRichTextSubBlockDefinition,
   ],
-  fields: [],
-  defaultContent: {},
+  fields: [
+    {
+      type: "select",
+      key: "galleryPosition",
+      label: "Posición de la galería (escritorio)",
+      helpText: "En móvil siempre va arriba.",
+      options: [
+        { value: "left", label: "Izquierda" },
+        { value: "right", label: "Derecha" },
+      ],
+    },
+    {
+      type: "select",
+      key: "columnRatio",
+      label: "Proporción de columnas",
+      helpText:
+        "Ancho de la galería frente a la columna de información en escritorio.",
+      options: [
+        { value: "50_50", label: "50 / 50" },
+        { value: "60_40", label: "60 / 40 (galería más ancha)" },
+        { value: "40_60", label: "40 / 60 (información más ancha)" },
+      ],
+    },
+    {
+      type: "switch",
+      key: "infoSticky",
+      label: "Información fija al hacer scroll",
+      helpText:
+        "En escritorio, la columna de información se mantiene visible mientras el usuario scrollea la galería.",
+    },
+    {
+      type: "switch",
+      key: "fullWidth",
+      label: "Ancho completo",
+      helpText:
+        "Quita el contenedor con margen y ocupa todo el ancho de la pantalla.",
+    },
+  ],
+  defaultContent: {
+    galleryPosition: "left",
+    columnRatio: "50_50",
+    infoSticky: false,
+    fullWidth: false,
+  },
   defaultBlocks: [
     { type: "PRODUCT_GALLERY", content: productGalleryDefinition.defaultContent },
     { type: "PRODUCT_TITLE", content: productTitleDefinition.defaultContent },
