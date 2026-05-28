@@ -296,13 +296,17 @@ export default async function ProductDetailPage({
   // top-level spread carries nested relations (variants, customizableTemplate)
   // that still hold Decimal instances, so we override them with already-
   // serialized versions before passing to Client Components.
+  //
+  // Date fields come back as Date objects on cache MISS and as ISO strings
+  // on cache HIT (unstable_cache serializes through JSON). Wrap in `new Date(...)`
+  // so both paths produce the same ISO string output.
   const serializedProductFull = {
     ...product,
     basePrice: Number(product.basePrice),
     compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
     weight: product.weight ? Number(product.weight) : null,
-    createdAt: product.createdAt.toISOString(),
-    updatedAt: product.updatedAt.toISOString(),
+    createdAt: new Date(product.createdAt).toISOString(),
+    updatedAt: new Date(product.updatedAt).toISOString(),
     variants: serializedVariants,
     customizableTemplate: product.customizableTemplate
       ? {
@@ -314,8 +318,8 @@ export default async function ProductDetailPage({
       : null,
     landingBlocks: renderableLandingBlocks.map((b) => ({
       ...b,
-      createdAt: b.createdAt.toISOString(),
-      updatedAt: b.updatedAt.toISOString(),
+      createdAt: new Date(b.createdAt).toISOString(),
+      updatedAt: new Date(b.updatedAt).toISOString(),
     })),
   };
 
