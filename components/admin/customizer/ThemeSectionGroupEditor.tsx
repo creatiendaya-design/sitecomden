@@ -42,7 +42,7 @@ interface Props {
 
 export function ThemeSectionGroupEditor({ group, catalog }: Props) {
   const sections = useThemeSectionsStore((s) =>
-    group === "HEADER" ? s.header : s.footer,
+    group === "HEADER" ? s.header : group === "FOOTER" ? s.footer : s.product,
   )
   const reorderSections = useThemeSectionsStore((s) => s.reorderSections)
   const addSection = useThemeSectionsStore((s) => s.addSection)
@@ -111,8 +111,13 @@ export function ThemeSectionGroupEditor({ group, catalog }: Props) {
 }
 
 function SortableSectionRow({ section }: { section: SectionDraft }) {
+  // Plan 17 — PRODUCT_MAIN is the obligatory backbone of the product
+  // template. We lock it against drag-reorder and deletion so the admin
+  // can't end up with a product page that has no main section at all.
+  const isLocked = section.type === "PRODUCT_MAIN"
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: section.id })
+    useSortable({ id: section.id, disabled: isLocked })
 
   const def = getThemeSectionDefinition(section.type)
   const select = useThemeSectionsStore((s) => s.select)
@@ -142,8 +147,14 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
         <button
           {...attributes}
           {...listeners}
-          className="text-muted-foreground hover:text-foreground cursor-grab"
-          aria-label="Arrastrar"
+          disabled={isLocked}
+          className={`text-muted-foreground ${
+            isLocked
+              ? "opacity-30 cursor-not-allowed"
+              : "hover:text-foreground cursor-grab"
+          }`}
+          aria-label={isLocked ? "Sección fija" : "Arrastrar"}
+          title={isLocked ? "La sección principal no se puede mover" : undefined}
           onClick={(e) => e.stopPropagation()}
         >
           <GripVertical className="h-4 w-4" />
@@ -166,8 +177,10 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
           )}
         </button>
         <button
+          disabled={isLocked}
           onClick={(e) => {
             e.stopPropagation()
+            if (isLocked) return
             if (
               window.confirm(
                 `¿Eliminar la sección "${def?.label ?? section.type}"?`,
@@ -176,8 +189,15 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
               removeSection(section.id)
             }
           }}
-          className="text-muted-foreground hover:text-destructive"
+          className={`text-muted-foreground ${
+            isLocked ? "opacity-30 cursor-not-allowed" : "hover:text-destructive"
+          }`}
           aria-label="Eliminar"
+          title={
+            isLocked
+              ? "La sección principal no se puede eliminar"
+              : undefined
+          }
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
