@@ -14,6 +14,13 @@ import { footerSocialDefinition } from "./schema/footer-social"
 import { footerRichTextDefinition } from "./schema/footer-rich-text"
 import { footerPaymentIconsDefinition } from "./schema/footer-payment-icons"
 import { footerCopyrightDefinition } from "./schema/footer-copyright"
+// Plan 17 — Product template sections.
+import { productMainDefinition } from "./schema/product-main"
+import { richTextSectionDefinition } from "./schema/rich-text-section"
+import { imageWithTextDefinition } from "./schema/image-with-text"
+import { featuredCollectionDefinition } from "./schema/featured-collection"
+import { testimonialsDefinition } from "./schema/testimonials"
+import { faqSectionDefinition } from "./schema/faq-section"
 
 const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   announcementBarDefinition,
@@ -26,6 +33,12 @@ const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   footerRichTextDefinition,
   footerPaymentIconsDefinition,
   footerCopyrightDefinition,
+  productMainDefinition,
+  richTextSectionDefinition,
+  imageWithTextDefinition,
+  featuredCollectionDefinition,
+  testimonialsDefinition,
+  faqSectionDefinition,
 ]
 
 const registry: Map<string, ThemeSectionDefinition> = new Map(
@@ -53,7 +66,12 @@ export function getAvailableSectionDefinitions(
   catalog: ThemeSectionCatalog | null | undefined,
 ): ThemeSectionDefinition[] {
   const all = ALL_DEFINITIONS.filter((d) => d.groups.includes(group))
-  const allowed = group === "HEADER" ? catalog?.header : catalog?.footer
+  const allowed =
+    group === "HEADER"
+      ? catalog?.header
+      : group === "FOOTER"
+        ? catalog?.footer
+        : catalog?.product
   if (!allowed || allowed.length === 0) return all
   return all.filter((d) => allowed.includes(d.type))
 }
