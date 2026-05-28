@@ -14,8 +14,10 @@ interface Props {
   themeId: string
   /** Stable editor key for the current target (e.g. `page-<id>` or
    *  `category-<id>`). Null when the current target doesn't have an
-   *  editable surface (e.g. /productos index). When null, the Plantilla
-   *  zone shows a placeholder instead of the embedded editor. */
+   *  editable page/category surface (e.g. /productos index, /productos/<slug>).
+   *  When `templateMode === "product"` it's also null but the Plantilla zone
+   *  switches to the PRODUCT theme-sections editor instead of falling back
+   *  to the "no editable" placeholder. */
   editorKey: string | null
   initialBlocks: BlockInstance[]
   /** Customizer-supplied save fn for the Plantilla zone — wires either
@@ -28,22 +30,27 @@ interface Props {
   onBlocksSaved?: () => void
   /** Plan 16 — per-theme catalog (allowed section types per group). */
   sectionCatalog: ThemeSectionCatalog
+  /** Plan 17 — when "product", the Plantilla zone renders a PRODUCT-group
+   *  theme-sections editor instead of the page/category block editor.
+   *  Defaults to "page-or-category" for backwards-compat. */
+  templateMode?: "product" | "page-or-category"
 }
 
 /**
- * Plan 13 / 16 — Customizer left-panel zones (Shopify model).
+ * Plan 13 / 16 / 17 — Customizer left-panel zones (Shopify model).
  *
  * Three stacked zones replace the previous "Bloques / Tema" tabs:
  *   - Encabezado: theme-sections editor (Plan 16) — multiple ordered
  *     header sections (Announcement Bar, Header, Mega Menu, …).
- *   - Plantilla: page-builder block list for the active page.
+ *   - Plantilla: either page-builder blocks (pages/categories) or a
+ *     PRODUCT theme-sections editor (Plan 17) when previewing a product.
  *   - Pie de página: theme-sections editor (Plan 16) — multiple ordered
  *     footer sections (Columns, Newsletter, Social, …).
  *
- * Header / Footer mutations flow through the theme-sections Zustand
- * store; the customizer shell autosaves the dirty drafts on a debounce.
- * Settings for the Plantilla zone's blocks live in the page-builder
- * RightSidebar; settings for header/footer sections live in
+ * Header / Footer / Product mutations all flow through the theme-sections
+ * Zustand store; the customizer shell autosaves the dirty drafts on a
+ * debounce. Settings for the Plantilla zone's blocks live in the
+ * page-builder RightSidebar; settings for theme sections live in
  * ThemeSectionRightSidebar.
  */
 export function ZoneList({
@@ -53,6 +60,7 @@ export function ZoneList({
   targetLabel,
   onBlocksSaved,
   sectionCatalog,
+  templateMode = "page-or-category",
 }: Props) {
   return (
     <div className="flex flex-col">
@@ -65,7 +73,9 @@ export function ZoneList({
         icon={LayoutTemplate}
         sublabel={targetLabel}
       >
-        {editorKey ? (
+        {templateMode === "product" ? (
+          <ThemeSectionGroupEditor group="PRODUCT" catalog={sectionCatalog} />
+        ) : editorKey ? (
           <EmbeddedBlocksEditor
             editorKey={editorKey}
             initialBlocks={initialBlocks}
