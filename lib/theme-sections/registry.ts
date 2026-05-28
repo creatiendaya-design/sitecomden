@@ -8,12 +8,15 @@ import { announcementBarDefinition } from "./schema/announcement-bar"
 import { headerMainDefinition } from "./schema/header-main"
 import { megaMenuDefinition } from "./schema/mega-menu"
 import { headerPromoBannerDefinition } from "./schema/header-promo-banner"
-import { footerColumnsDefinition } from "./schema/footer-columns"
-import { footerNewsletterDefinition } from "./schema/footer-newsletter"
-import { footerSocialDefinition } from "./schema/footer-social"
-import { footerRichTextDefinition } from "./schema/footer-rich-text"
-import { footerPaymentIconsDefinition } from "./schema/footer-payment-icons"
-import { footerCopyrightDefinition } from "./schema/footer-copyright"
+// Phase 3 of the Shopify-style footer refactor — single unified FOOTER
+// section replaces the seven prior FOOTER_* types. Existing rows are
+// migrated by `scripts/migrate-footer-sections.ts` before deploy.
+import { footerDefinition } from "./schema/footer"
+// Phase 4 — peer-level FOOTER-group sections to make "Add section"
+// meaningful (matches Shopify's "Email signup" / "Image banner"
+// alongside the main Footer section).
+import { emailSignupDefinition } from "./schema/email-signup"
+import { footerBannerDefinition } from "./schema/footer-banner"
 // Plan 17 — Product template sections.
 import { productMainDefinition } from "./schema/product-main"
 import { richTextSectionDefinition } from "./schema/rich-text-section"
@@ -27,12 +30,9 @@ const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   headerMainDefinition,
   megaMenuDefinition,
   headerPromoBannerDefinition,
-  footerColumnsDefinition,
-  footerNewsletterDefinition,
-  footerSocialDefinition,
-  footerRichTextDefinition,
-  footerPaymentIconsDefinition,
-  footerCopyrightDefinition,
+  footerDefinition,
+  emailSignupDefinition,
+  footerBannerDefinition,
   productMainDefinition,
   richTextSectionDefinition,
   imageWithTextDefinition,

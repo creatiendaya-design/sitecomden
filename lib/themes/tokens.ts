@@ -125,6 +125,8 @@ export function tokensToCssRule(
   for (const [key, value] of Object.entries(tokens.scale)) {
     lines.push(`  --theme-${kebabCase(key)}: ${value};`)
   }
+  // `footer` is intentionally NOT emitted as --theme-* — it's applied
+  // directly on the <footer> element by `components/shop/Footer.tsx`.
   return `${selector} {\n${lines.join("\n")}\n}`
 }
 

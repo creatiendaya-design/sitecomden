@@ -3,12 +3,9 @@ import { AnnouncementBar } from "./header/AnnouncementBar"
 import { HeaderMain } from "./header/HeaderMain"
 import { MegaMenu } from "./header/MegaMenu"
 import { HeaderPromoBanner } from "./header/HeaderPromoBanner"
-import { FooterColumns } from "./footer/FooterColumns"
-import { FooterNewsletter } from "./footer/FooterNewsletter"
-import { FooterSocial } from "./footer/FooterSocial"
-import { FooterRichText } from "./footer/FooterRichText"
-import { FooterPaymentIcons } from "./footer/FooterPaymentIcons"
-import { FooterCopyright } from "./footer/FooterCopyright"
+import { FooterRoot } from "./footer/FooterRoot"
+import { EmailSignup } from "./footer/EmailSignup"
+import { FooterBanner } from "./footer/FooterBanner"
 
 /**
  * Renderers can be sync or async server components — both return
@@ -26,13 +23,20 @@ const HEADER_RENDERERS: Record<string, RendererComponent> = {
   HEADER_PROMO_BANNER: HeaderPromoBanner,
 }
 
+// Phase 3 of the Shopify-style footer refactor — the entire footer is
+// now a single FOOTER section with sub-blocks (Link column, Newsletter,
+// Social, etc). The seven prior FOOTER_* types have been removed; the
+// migration script `scripts/migrate-footer-sections.ts` rewrites
+// existing rows.
+//
+// Phase 4 adds peer-level sections (EMAIL_SIGNUP, FOOTER_BANNER) so
+// "Add section" in the customizer's footer zone offers meaningful
+// options alongside the main Footer — matching Shopify's footer-group
+// section list.
 const FOOTER_RENDERERS: Record<string, RendererComponent> = {
-  FOOTER_COLUMNS: FooterColumns,
-  FOOTER_NEWSLETTER: FooterNewsletter,
-  FOOTER_SOCIAL: FooterSocial,
-  FOOTER_RICH_TEXT: FooterRichText,
-  FOOTER_PAYMENT_ICONS: FooterPaymentIcons,
-  FOOTER_COPYRIGHT: FooterCopyright,
+  FOOTER: FooterRoot,
+  EMAIL_SIGNUP: EmailSignup,
+  FOOTER_BANNER: FooterBanner,
 }
 
 /**

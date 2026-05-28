@@ -1,13 +1,13 @@
 import { Facebook, Instagram, Twitter, type LucideIcon } from "lucide-react"
 import { getSiteSettings } from "@/lib/site-settings"
-import { applyThemeSectionStyle } from "@/lib/theme-sections/apply-style"
-import type { ResolvedThemeSection } from "@/lib/theme-sections/types"
+import { SubBlockWrapper } from "../../_helpers"
+import type { ResolvedThemeSectionBlock } from "@/lib/theme-sections/types"
 
 interface Props {
-  section: ResolvedThemeSection
+  block: ResolvedThemeSectionBlock
 }
 
-interface FooterSocialContent {
+interface SocialContent {
   title?: string
 }
 
@@ -17,12 +17,9 @@ interface SocialLink {
   label: string
 }
 
-export async function FooterSocial({ section }: Props) {
+export async function SocialBlock({ block }: Props) {
   const settings = await getSiteSettings()
-  const data = section.content as FooterSocialContent
-  const { className, style, dataColorScheme } = applyThemeSectionStyle(
-    section.content.style,
-  )
+  const data = block.content as SocialContent
   const candidates: Array<{
     href: string
     Icon: LucideIcon
@@ -36,15 +33,16 @@ export async function FooterSocial({ section }: Props) {
     (l): l is SocialLink => Boolean(l.href),
   )
   if (links.length === 0) return null
+
   return (
-    <div
-      className={`container mx-auto px-4 py-6 ${className}`}
-      style={style}
-      data-color-scheme={dataColorScheme}
-      data-preview-target={`section:${section.id}`}
-    >
+    <SubBlockWrapper block={block}>
       {data.title && (
-        <h3 data-content-field="title" className="text-sm font-semibold mb-3 text-center">{data.title}</h3>
+        <h3
+          data-content-field="title"
+          className="text-sm font-semibold mb-3 text-center"
+        >
+          {data.title}
+        </h3>
       )}
       <div className="flex justify-center gap-4">
         {links.map(({ href, Icon, label }) => (
@@ -60,6 +58,6 @@ export async function FooterSocial({ section }: Props) {
           </a>
         ))}
       </div>
-    </div>
+    </SubBlockWrapper>
   )
 }

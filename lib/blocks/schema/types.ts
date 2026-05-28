@@ -197,7 +197,8 @@ export interface MenuPickerFieldDef extends BaseFieldDef {
 
 /**
  * Checkbox list of allowed values. Stores a string[] of selected option values.
- * Used e.g. by FOOTER_PAYMENT_ICONS to pick which payment methods to display.
+ * Used e.g. by the FOOTER section's PAYMENT_ICONS sub-block to pick which
+ * payment methods to display.
  */
 export interface MultiSelectFieldDef extends BaseFieldDef {
   type: "multi-select"

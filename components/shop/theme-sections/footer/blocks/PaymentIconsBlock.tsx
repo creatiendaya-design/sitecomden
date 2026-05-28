@@ -5,14 +5,14 @@ import {
   PlinIcon,
   PayPalIcon,
 } from "@/components/payment-icons"
-import { applyThemeSectionStyle } from "@/lib/theme-sections/apply-style"
-import type { ResolvedThemeSection } from "@/lib/theme-sections/types"
+import { SubBlockWrapper } from "../../_helpers"
+import type { ResolvedThemeSectionBlock } from "@/lib/theme-sections/types"
 
 interface Props {
-  section: ResolvedThemeSection
+  block: ResolvedThemeSectionBlock
 }
 
-interface FooterPaymentIconsContent {
+interface PaymentIconsContent {
   methods?: string[]
 }
 
@@ -24,23 +24,18 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   PAYPAL: PayPalIcon,
 }
 
-export function FooterPaymentIcons({ section }: Props) {
-  const data = section.content as FooterPaymentIconsContent
-  const { className, style, dataColorScheme } = applyThemeSectionStyle(
-    section.content.style,
-  )
+export function PaymentIconsBlock({ block }: Props) {
+  const data = block.content as PaymentIconsContent
   const methods = data.methods ?? []
   return (
-    <div
-      className={`container mx-auto px-4 py-4 flex flex-wrap gap-3 justify-center items-center ${className}`}
-      style={style}
-      data-color-scheme={dataColorScheme}
-      data-preview-target={`section:${section.id}`}
+    <SubBlockWrapper
+      block={block}
+      className="flex flex-wrap gap-3 justify-center items-center"
     >
       {methods.map((m) => (
         <PaymentIcon key={m} method={m} />
       ))}
-    </div>
+    </SubBlockWrapper>
   )
 }
 
