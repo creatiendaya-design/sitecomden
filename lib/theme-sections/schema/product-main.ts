@@ -415,7 +415,13 @@ const productCollapseRowDefinition: ThemeSectionBlockDefinition = {
       key: "icon",
       label: "Icono (opcional)",
       options: [
-        { value: "", label: "Sin icono" },
+        // Radix `SelectItem` doesn't allow `value=""` — it reserves the
+        // empty string for "no selection / show placeholder" and throws if
+        // any item uses it. Use a sentinel string instead; the storefront
+        // renderer falls back to "no icon" because `"none"` isn't in
+        // `ICON_MAP`. Legacy rows with `icon: ""` still render correctly
+        // (Select shows the placeholder, ProductCollapseRow draws no icon).
+        { value: "none", label: "Sin icono" },
         { value: "info", label: "Info" },
         { value: "truck", label: "Camión (envío)" },
         { value: "shield-check", label: "Escudo (garantía)" },

@@ -80,8 +80,14 @@ export default function RichTextEditor({
         // sizes (sm:prose lg:prose-lg xl:prose-2xl) made text look huge in
         // a cramped panel. Keep a single compact scale; the storefront
         // renderer handles responsive sizing independently.
+        //
+        // `dark:prose-invert` is required for the admin dark mode: the
+        // globals.css retrofit remaps `bg-white` to `var(--card)` so the
+        // editor surface goes dark, but the prose body text is owned by
+        // Tailwind Typography's own `--tw-prose-*` variables and stays
+        // gray-700 unless we opt into the inverted palette here.
         class:
-          "prose prose-sm focus:outline-none min-h-[200px] max-w-none p-4",
+          "prose prose-sm dark:prose-invert focus:outline-none min-h-[200px] max-w-none p-4",
       },
     },
     onUpdate: ({ editor }) => {

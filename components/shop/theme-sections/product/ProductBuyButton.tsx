@@ -47,14 +47,17 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
   const addItem = useCartStore((s) => s.addItem)
   const { trackEvent } = useTracking()
 
-  // Inline styles for the CTA button. When the admin leaves a color empty,
-  // we omit the property so the button falls back to the section's color
-  // scheme (`var(--theme-text)` / `--theme-bg` inherited from the wrapper).
-  // Setting an empty string would force `background: ""` which removes the
-  // scheme inheritance — we want the property absent, not empty.
-  const buttonStyle: React.CSSProperties = {}
-  if (buttonBg) buttonStyle.backgroundColor = buttonBg
-  if (buttonText) buttonStyle.color = buttonText
+  // CTA button colors fall back to the active color scheme's `primary` /
+  // `primaryForeground` so the button matches the section instead of the
+  // global shadcn `bg-primary` (which is a fixed near-black and ignored the
+  // scheme entirely). Admin-chosen colors still win because they're set
+  // explicitly. We always set both properties so the button never inherits
+  // the surrounding `color` (which would tint icon + text to the wrapper's
+  // `--theme-text` and break contrast on the primary background).
+  const buttonStyle: React.CSSProperties = {
+    backgroundColor: buttonBg || "var(--theme-primary)",
+    color: buttonText || "var(--theme-primary-foreground)",
+  }
 
   const { className, style, dataColorScheme } = applyThemeSectionStyle(
     block.content.style,
@@ -161,16 +164,10 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
           style={buttonStyle}
           className={[
             "w-full h-11 px-4 rounded-md inline-flex items-center justify-center gap-2",
-            "text-sm font-medium transition-colors",
+            "text-sm font-medium transition-opacity",
+            "hover:opacity-90",
             "disabled:opacity-50 disabled:cursor-not-allowed",
-            // Tailwind fallback colors — used only when the admin hasn't
-            // chosen a custom buttonBgColor / buttonTextColor. Inline style
-            // wins over these (CSS specificity: inline > class).
-            buttonBg ? "" : "bg-primary hover:bg-primary/90",
-            buttonText ? "" : "text-primary-foreground",
-          ]
-            .filter(Boolean)
-            .join(" ")}
+          ].join(" ")}
         >
           <ShoppingCart className="h-5 w-5" />
           <span data-content-field="buttonText">
