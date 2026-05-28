@@ -16,7 +16,10 @@ export interface ProductForRender {
   compareAtPrice: number | null
   stock: number
   hasVariants: boolean
-  images: string[]
+  /** Raw images JSON as stored on the Product row. Each renderer normalizes
+   *  it with `getAllProductImages` when it needs string URLs — keeps the
+   *  shape compatible with legacy callers without re-shaping in page.tsx. */
+  images: unknown
   categories: Array<{
     category: { id: string; name: string; slug: string }
   }>
