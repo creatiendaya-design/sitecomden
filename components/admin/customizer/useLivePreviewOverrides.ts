@@ -82,6 +82,20 @@ export function useLivePreviewOverrides(
         ...themeState.footer,
         ...themeState.product,
       ]
+
+      // Shopify-style LEGACY_BLOCK adapter — a theme section that wraps a
+      // universal page-builder block. Its content shape mirrors
+      // BlockContentV2 ({ blockType, data, style, media }), so we want it
+      // to behave like a `block:*` target during live preview (text sync
+      // reads `content.data`, color element is firstElementChild, etc.).
+      // We track legacy section ids here so the patching loop below can
+      // branch without re-querying the registry each iteration.
+      const legacySectionIds = new Set(
+        allSections
+          .filter((s) => s.type === "LEGACY_BLOCK")
+          .map((s) => s.id),
+      )
+
       const targets: PreviewTarget[] = [
         ...allSections.map((s) => ({
           target: `section:${s.id}`,
@@ -133,13 +147,21 @@ export function useLivePreviewOverrides(
         )
         if (!wrapper) continue
 
+        // LEGACY_BLOCK sections render the wrapped block as their first
+        // child (the block's own <section> carries the inline
+        // backgroundColor / color from applyBlockStyle), so they need
+        // the same firstElementChild path as `block:*` targets.
+        const sectionId = target.startsWith("section:")
+          ? target.slice("section:".length)
+          : null
+        const isLegacySection =
+          sectionId !== null && legacySectionIds.has(sectionId)
+
         // The element that paints the colors:
         //  - `section:*` targets — the wrapper itself
-        //  - `block:*` targets — its first child (LandingBlockRenderer
-        //    wraps each block but the block's <section> is what carries
-        //    the inline backgroundColor / color from applyBlockStyle)
+        //  - `block:*` and LEGACY_BLOCK section targets — first child
         const colorEl: HTMLElement =
-          target.startsWith("block:") &&
+          (target.startsWith("block:") || isLegacySection) &&
           wrapper.firstElementChild instanceof HTMLElement
             ? wrapper.firstElementChild
             : wrapper
@@ -169,17 +191,39 @@ export function useLivePreviewOverrides(
       //    <section> inside the LandingBlockRenderer wrapper, so we read
       //    the wrapper.firstElementChild (matches the color-patching
       //    logic above for `block:*` targets).
+      //
+      //    LEGACY_BLOCK sections that wrap a HERO get the same treatment —
+      //    their preview target is `section:*` but the same hero element
+      //    sits as firstElementChild.
+      const heroSources: Array<{
+        target: string
+        data: Partial<HeroBlockContent>
+      }> = []
       for (const block of builderState.blocks) {
         if (block.type !== "HERO") continue
+        heroSources.push({
+          target: `block:${block.id}`,
+          data: (block.content.data ?? {}) as Partial<HeroBlockContent>,
+        })
+      }
+      for (const s of allSections) {
+        if (s.type !== "LEGACY_BLOCK") continue
+        if (s.content.blockType !== "HERO") continue
+        heroSources.push({
+          target: `section:${s.id}`,
+          data: ((s.content.data as Partial<HeroBlockContent> | undefined) ??
+            {}) as Partial<HeroBlockContent>,
+        })
+      }
+      for (const { target, data } of heroSources) {
         const wrapper = doc.querySelector<HTMLElement>(
-          `[data-preview-target="block:${cssEscape(block.id)}"]`,
+          `[data-preview-target="${cssEscape(target)}"]`,
         )
         if (!wrapper) continue
         const heroEl =
           wrapper.firstElementChild instanceof HTMLElement
             ? wrapper.firstElementChild
             : wrapper
-        const data = (block.content.data ?? {}) as Partial<HeroBlockContent>
         applyHeroDataLivePreview(heroEl, data)
       }
 
@@ -191,19 +235,45 @@ export function useLivePreviewOverrides(
       //     `var(--block-accent)` so changes repaint instantly. No
       //     per-block special-casing here — adding a new live-preview
       //     content color is a registry-only change.
+      //
+      //     LEGACY_BLOCK sections that wrap a block with `liveContentVars`
+      //     get the same treatment via the section target.
+      const contentVarSources: Array<{
+        target: string
+        mapping: Record<string, string>
+        data: Record<string, unknown>
+      }> = []
       for (const block of builderState.blocks) {
         const def = getBlockDefinition(block.type)
         if (!def?.liveContentVars) continue
+        contentVarSources.push({
+          target: `block:${block.id}`,
+          mapping: def.liveContentVars,
+          data: (block.content.data as Record<string, unknown>) ?? {},
+        })
+      }
+      for (const s of allSections) {
+        if (s.type !== "LEGACY_BLOCK") continue
+        const blockType = s.content.blockType
+        if (typeof blockType !== "string") continue
+        const def = getBlockDefinition(blockType)
+        if (!def?.liveContentVars) continue
+        contentVarSources.push({
+          target: `section:${s.id}`,
+          mapping: def.liveContentVars,
+          data: (s.content.data as Record<string, unknown>) ?? {},
+        })
+      }
+      for (const { target, mapping, data } of contentVarSources) {
         const wrapper = doc.querySelector<HTMLElement>(
-          `[data-preview-target="block:${cssEscape(block.id)}"]`,
+          `[data-preview-target="${cssEscape(target)}"]`,
         )
         if (!wrapper) continue
         const targetEl =
           wrapper.firstElementChild instanceof HTMLElement
             ? wrapper.firstElementChild
             : wrapper
-        const data = (block.content.data as Record<string, unknown>) ?? {}
-        applyContentVars(targetEl, def.liveContentVars, data)
+        applyContentVars(targetEl, mapping, data)
       }
 
       // 5. Text content sync — for any element inside a preview target
@@ -232,7 +302,15 @@ export function useLivePreviewOverrides(
       applyContentTextSync(doc, [
         ...allSections.map((s) => ({
           target: `section:${s.id}`,
-          data: s.content,
+          // LEGACY_BLOCK sections persist the wrapped block's BlockContentV2
+          // verbatim, so their text fields live under `s.content.data` —
+          // mirroring how the page-builder addresses block text fields. The
+          // native theme sections (Plan 16/17) keep their fields at the top
+          // level of `s.content`.
+          data:
+            s.type === "LEGACY_BLOCK"
+              ? ((s.content.data as Record<string, unknown>) ?? {})
+              : s.content,
         })),
         ...subBlockEntries,
         ...builderState.blocks.map((b) => ({

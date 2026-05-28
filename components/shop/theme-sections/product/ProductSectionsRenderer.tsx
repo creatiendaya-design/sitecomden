@@ -10,6 +10,7 @@ import { ImageWithText } from "./ImageWithText"
 import { FeaturedCollection } from "./FeaturedCollection"
 import { Testimonials } from "./Testimonials"
 import { FaqSection } from "./FaqSection"
+import { LegacyBlockSection } from "./LegacyBlockSection"
 
 interface ProductSectionsRendererProps {
   sections: ResolvedThemeSection[]
@@ -29,6 +30,10 @@ interface ProductSectionsRendererProps {
  * only needs the section itself, plus `currentProductId` for
  * FEATURED_COLLECTION (to exclude the current product from the related
  * list and to source "same_category" picks).
+ *
+ * `LEGACY_BLOCK` is the Shopify-style adapter that wraps any universal
+ * page-builder block (HERO, FRIENDLY, CAROUSEL, ICON_TEXT, FAQ_TWO, …)
+ * as a PRODUCT-group section — see `LegacyBlockSection`.
  */
 export function ProductSectionsRenderer({
   sections,
@@ -66,6 +71,14 @@ export function ProductSectionsRenderer({
             return <Testimonials key={section.id} section={section} />
           case "FAQ_SECTION":
             return <FaqSection key={section.id} section={section} />
+          case "LEGACY_BLOCK":
+            return (
+              <LegacyBlockSection
+                key={section.id}
+                section={section}
+                currentProductId={product.id}
+              />
+            )
           default:
             return null
         }

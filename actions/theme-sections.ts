@@ -11,6 +11,7 @@ import {
   getThemeSectionDefinition,
   getSectionBlockDefinition,
 } from "@/lib/theme-sections/registry"
+import { isKnownBlockType } from "@/lib/types/landing-blocks"
 import {
   BatchRaceError,
   batchConflict,
@@ -54,6 +55,39 @@ import {
  * accept these options — only `isolationLevel`.
  */
 const NEON_TX_OPTS = { timeout: 30_000, maxWait: 10_000 }
+
+/**
+ * LEGACY_BLOCK is a Shopify-style adapter that wraps a universal
+ * page-builder block as a PRODUCT-group theme section. Its persisted
+ * `content` must always carry a `blockType` discriminator pointing at a
+ * known LandingBlockType (see `KNOWN_BLOCK_TYPES`), plus the wrapped
+ * block's data/style/media zones. Reject malformed inputs at the
+ * batch-save boundary so the storefront renderer never has to defend
+ * against a missing blockType.
+ *
+ * We validate against `isKnownBlockType` (a server-safe `Set<string>`)
+ * instead of `getBlockDefinition`. The block registry is populated by a
+ * client-only side-effect module that imports React block renderers, so
+ * it stays empty in this Server Action's runtime — checking it here
+ * would falsely reject every blockType. The KNOWN_BLOCK_TYPES set has
+ * no React deps and stays in sync with the registry by convention (see
+ * comment in lib/types/landing-blocks.ts).
+ */
+function assertLegacyBlockContent(
+  type: string,
+  content: Record<string, unknown>,
+): void {
+  if (type !== "LEGACY_BLOCK") return
+  const blockType = content.blockType
+  if (typeof blockType !== "string" || blockType.length === 0) {
+    throw new Error("LEGACY_BLOCK section missing blockType discriminator")
+  }
+  if (!isKnownBlockType(blockType)) {
+    throw new Error(
+      `LEGACY_BLOCK references unknown blockType "${blockType}"`,
+    )
+  }
+}
 
 function invalidateSectionGroup(themeId: string, group: ThemeSectionGroup) {
   updateTag(`theme-sections-${themeId}-${group}`)
@@ -112,6 +146,16 @@ export async function addThemeSection(
   if (!def) throw new Error(`Section type "${input.type}" not registered`)
   if (!def.groups.includes(input.group)) {
     throw new Error(`Section type "${input.type}" is not allowed in ${input.group}`)
+  }
+  // LEGACY_BLOCK is an adapter — it can only be created through the
+  // batch save path, where the customizer attaches a concrete `blockType`
+  // + the block's defaultContent. The single-row `addThemeSection` flow
+  // has no way to learn which block to wrap, so refuse cleanly instead
+  // of persisting an empty adapter row.
+  if (input.type === "LEGACY_BLOCK") {
+    throw new Error(
+      "LEGACY_BLOCK can only be created via batch save with a concrete blockType",
+    )
   }
 
   if (def.maxPerGroup !== undefined) {
@@ -456,6 +500,13 @@ export async function saveThemeSectionGroup(
   await protectRoute("themes:update")
   const input = saveGroupSchema.parse({ themeId, group, sections })
 
+  // Validate LEGACY_BLOCK adapter sections up-front so the transaction
+  // can't open with a half-baked row to insert. Runs before any DB writes
+  // so a malformed payload fails fast without leaving partial state.
+  for (const section of input.sections) {
+    assertLegacyBlockContent(section.type, section.content)
+  }
+
   const persisted = await prisma.$transaction(async (tx) => {
     const existing = await tx.themeSection.findMany({
       where: { themeId: input.themeId, group: input.group },
@@ -676,6 +727,20 @@ export async function saveThemeSectionGroupVersioned(
   if (!allowed) return batchUnauthorized()
 
   const input = saveGroupSchemaVersioned.parse({ themeId, group, sections })
+
+  // Validate LEGACY_BLOCK adapter sections up-front. Mirrors the
+  // non-versioned path. Failing here returns a hard error response so
+  // the customizer's batch-conflict dialog is never asked to mediate a
+  // missing-blockType payload.
+  try {
+    for (const section of input.sections) {
+      assertLegacyBlockContent(section.type, section.content)
+    }
+  } catch (err) {
+    return batchErrored(
+      err instanceof Error ? err.message : "LEGACY_BLOCK inválido",
+    )
+  }
 
   // Pre-check section versions in a single read. Sub-blocks are checked the
   // same way, but in a separate query for clarity (and to keep TS happy).

@@ -1,15 +1,19 @@
 "use client"
 
 import { X } from "lucide-react"
+import * as LucideIcons from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SchemaForm } from "@/components/admin/page-builder/forms/SchemaForm"
 import { useThemeSectionsStore } from "./theme-sections-store"
 import { ThemeSectionStyleTab } from "./ThemeSectionStyleTab"
+import { LegacyBlockEditor } from "./LegacyBlockEditor"
 import {
   getThemeSectionDefinition,
   getSectionBlockDefinition,
 } from "@/lib/theme-sections/registry"
+import { getBlockDefinition } from "@/lib/blocks/registry"
+import type { LandingBlockType } from "@/lib/blocks/types"
 
 /**
  * RightSidebar variant for theme-section editing. Reads the current
@@ -65,14 +69,26 @@ export function ThemeSectionRightSidebar() {
 
   if (selected.kind === "section") {
     const def = getThemeSectionDefinition(sectionDraft.type)
-    const Icon = def?.icon
+    const isLegacy = sectionDraft.type === "LEGACY_BLOCK"
+    const legacyBlockType = isLegacy
+      ? (sectionDraft.content.blockType as LandingBlockType | undefined)
+      : undefined
+    const legacyBlockDef = legacyBlockType
+      ? getBlockDefinition(legacyBlockType)
+      : undefined
+    const HeaderIcon = isLegacy
+      ? resolveLucideIcon(legacyBlockDef?.icon)
+      : def?.icon
+    const headerLabel = isLegacy
+      ? (legacyBlockDef?.label ?? sectionDraft.type)
+      : (def?.label ?? sectionDraft.type)
     const hasContentFields = (def?.fields?.length ?? 0) > 0
     return (
       <aside className="w-[340px] shrink-0 border-l bg-background flex flex-col overflow-hidden">
         <div className="p-3 border-b flex items-center gap-2 shrink-0">
-          {Icon && <Icon className="h-4 w-4" />}
+          {HeaderIcon && <HeaderIcon className="h-4 w-4" />}
           <span className="text-sm font-medium truncate flex-1">
-            {def?.label ?? sectionDraft.type}
+            {headerLabel}
           </span>
           <Button
             variant="ghost"
@@ -84,6 +100,13 @@ export function ThemeSectionRightSidebar() {
             <X className="h-4 w-4" />
           </Button>
         </div>
+        {isLegacy ? (
+          <LegacyBlockEditor
+            key={sectionDraft.id}
+            content={sectionDraft.content}
+            onChange={(next) => updateSectionContent(sectionDraft.id, next)}
+          />
+        ) : (
         <Tabs
           defaultValue={hasContentFields ? "content" : "style"}
           className="flex-1 flex flex-col overflow-hidden"
@@ -129,6 +152,7 @@ export function ThemeSectionRightSidebar() {
             />
           </TabsContent>
         </Tabs>
+        )}
       </aside>
     )
   }
@@ -190,4 +214,20 @@ export function ThemeSectionRightSidebar() {
       </Tabs>
     </aside>
   )
+}
+
+/**
+ * `BlockDefinition.icon` is a lucide-react icon name (string), not a
+ * component. Bridge to a real component for the panel header. Falls back
+ * to a sensible default so a typo never blows up the sidebar.
+ */
+function resolveLucideIcon(
+  name: string | undefined,
+): React.ComponentType<{ className?: string }> | undefined {
+  if (!name) return undefined
+  const lib = LucideIcons as unknown as Record<
+    string,
+    React.ComponentType<{ className?: string }>
+  >
+  return lib[name] ?? LucideIcons.Puzzle
 }

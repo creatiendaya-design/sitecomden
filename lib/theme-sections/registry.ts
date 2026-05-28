@@ -24,6 +24,9 @@ import { imageWithTextDefinition } from "./schema/image-with-text"
 import { featuredCollectionDefinition } from "./schema/featured-collection"
 import { testimonialsDefinition } from "./schema/testimonials"
 import { faqSectionDefinition } from "./schema/faq-section"
+// Shopify-style universal-block adapter — exposes every `scope: "universal"`
+// block from the page-builder registry as a PRODUCT-group section.
+import { legacyBlockDefinition } from "./schema/legacy-block"
 
 const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   announcementBarDefinition,
@@ -39,6 +42,7 @@ const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   featuredCollectionDefinition,
   testimonialsDefinition,
   faqSectionDefinition,
+  legacyBlockDefinition,
 ]
 
 const registry: Map<string, ThemeSectionDefinition> = new Map(

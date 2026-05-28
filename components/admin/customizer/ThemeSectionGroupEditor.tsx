@@ -21,6 +21,12 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { Button } from "@/components/ui/button"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   useThemeSectionsStore,
   type SectionDraft,
   type BlockDraft,
@@ -30,10 +36,22 @@ import {
   getThemeSectionDefinition,
   getSectionBlockDefinition,
 } from "@/lib/theme-sections/registry"
+import { getBlockDefinition } from "@/lib/blocks/registry"
+import { registerExistingBlocks } from "@/lib/blocks/register-existing-blocks"
 import type {
   ThemeSectionCatalog,
   ThemeSectionGroup,
 } from "@/lib/theme-sections/types"
+import type { LandingBlockType } from "@/lib/blocks/types"
+
+// Module-level seed of the page-builder block registry. The PRODUCT-template
+// editor exposes universal blocks via the LEGACY_BLOCK adapter; those
+// definitions live in a side-effect module that EmbeddedBlocksEditor seeds
+// via useEffect when it mounts. The PRODUCT path of the customizer bypasses
+// that component, so we seed at import time here. `registerExistingBlocks`
+// is idempotent — guarded by an internal `registered` flag — so duplicate
+// calls across module boundaries are a no-op.
+registerExistingBlocks()
 
 interface Props {
   group: ThemeSectionGroup
@@ -70,9 +88,28 @@ export function ThemeSectionGroupEditor({ group, catalog }: Props) {
     reorderSections(group, reordered)
   }
 
-  function handleAdd(type: string) {
+  function handleAdd(type: string, legacyBlockType?: string) {
     const def = getThemeSectionDefinition(type)
     if (!def) return
+
+    // LEGACY_BLOCK path — the admin picked a universal page-builder block
+    // from the "Bloques" arm of the dropdown. We seed the section's
+    // content with the block's defaultContent (data/style/media zones)
+    // plus a `blockType` discriminator that the storefront dispatcher and
+    // right sidebar use to look the block back up in its own registry.
+    if (type === "LEGACY_BLOCK" && legacyBlockType) {
+      const blockDef = getBlockDefinition(legacyBlockType as LandingBlockType)
+      if (!blockDef) return
+      const seedContent: Record<string, unknown> = {
+        blockType: legacyBlockType,
+        data: blockDef.defaultContent.data,
+        style: blockDef.defaultContent.style,
+        media: blockDef.defaultContent.media,
+      }
+      addSection(group, type, seedContent)
+      return
+    }
+
     addSection(
       group,
       type,
@@ -127,6 +164,18 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
   const isSelected =
     selected?.kind === "section" && selected.sectionId === section.id
 
+  // LEGACY_BLOCK adapter rows display the wrapped block's label/icon
+  // instead of the generic "Bloque" so the list looks like a unified
+  // Shopify-style sections list (HERO / FRIENDLY / Testimonios / ...).
+  const legacyBlockType =
+    section.type === "LEGACY_BLOCK"
+      ? (section.content.blockType as LandingBlockType | undefined)
+      : undefined
+  const legacyBlockDef = legacyBlockType
+    ? getBlockDefinition(legacyBlockType)
+    : undefined
+  const displayLabel = legacyBlockDef?.label ?? def?.label ?? section.type
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -160,7 +209,7 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
           <GripVertical className="h-4 w-4" />
         </button>
         <span className="flex-1 text-sm truncate">
-          {def?.label ?? section.type}
+          {displayLabel}
         </span>
         <button
           onClick={(e) => {
@@ -183,7 +232,7 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
             if (isLocked) return
             if (
               window.confirm(
-                `¿Eliminar la sección "${def?.label ?? section.type}"?`,
+                `¿Eliminar la sección "${displayLabel}"?`,
               )
             ) {
               removeSection(section.id)
@@ -261,22 +310,40 @@ function SectionBlocksList({ section }: { section: SectionDraft }) {
         </SortableContext>
       </DndContext>
       {availableBlockTypes.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-3 py-2">
-          {availableBlockTypes.map((bt) => (
-            <Button
-              key={bt.type}
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                addBlock(section.id, bt.type, bt.defaultContent as Record<string, unknown>)
-              }
-              className="h-7 text-xs"
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              {bt.label}
-            </Button>
-          ))}
+        <div className="px-3 py-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 w-full justify-start text-xs text-primary hover:bg-primary/10"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Agregar bloque
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              {availableBlockTypes.map((bt) => {
+                const Icon = bt.icon
+                return (
+                  <DropdownMenuItem
+                    key={bt.type}
+                    onSelect={() =>
+                      addBlock(
+                        section.id,
+                        bt.type,
+                        bt.defaultContent as Record<string, unknown>,
+                      )
+                    }
+                  >
+                    <Icon className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                    <span className="text-sm">{bt.label}</span>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </div>
