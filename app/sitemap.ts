@@ -14,67 +14,99 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Type assertion para JsonValue
   const siteConfig = siteSettings?.value as { siteUrl?: string } | undefined
-  const baseUrl = siteConfig?.siteUrl || 'https://nuejoy.online'
+  const baseUrl = (siteConfig?.siteUrl || 'https://nuejoy.online').replace(
+    /\/$/,
+    '',
+  )
 
-  // Páginas estáticas
-  const staticPages = [
+  // Páginas estáticas (siempre indexables, no dependen de DB).
+  // `/carrito` y `/checkout` se omiten — quedan disallow en robots.txt y
+  // no aportan valor en buscadores ni LLMs.
+  const staticPages: MetadataRoute.Sitemap = [
     {
-      url: baseUrl,
+      url: `${baseUrl}/`,
       lastModified: new Date(),
-      changeFrequency: 'daily' as const,
+      changeFrequency: 'daily',
       priority: 1,
     },
     {
       url: `${baseUrl}/productos`,
       lastModified: new Date(),
-      changeFrequency: 'daily' as const,
+      changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/carrito`,
+      url: `${baseUrl}/contacto`,
       lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
+      changeFrequency: 'monthly',
       priority: 0.5,
     },
     {
-      url: `${baseUrl}/checkout`,
+      url: `${baseUrl}/libro-reclamaciones`,
       lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.5,
+      changeFrequency: 'monthly',
+      priority: 0.4,
     },
   ]
 
-  // Obtener todas las categorías activas
-  const categories = await prisma.category.findMany({
-    where: { active: true },
-    select: {
-      slug: true,
-      updatedAt: true,
-    },
-  })
+  // Catálogo + contenido editable cargado en paralelo. Filtramos `noIndex`
+  // donde aplique (Page y Policy lo exponen explícitamente).
+  const [categories, products, pages, policies] = await Promise.all([
+    prisma.category.findMany({
+      where: { active: true },
+      select: { slug: true, updatedAt: true },
+    }),
+    prisma.product.findMany({
+      where: { active: true },
+      select: { slug: true, updatedAt: true },
+    }),
+    prisma.page.findMany({
+      where: { active: true, noIndex: false },
+      select: { slug: true, updatedAt: true },
+    }),
+    prisma.policy.findMany({
+      where: { active: true, noIndex: false },
+      select: { slug: true, updatedAt: true },
+    }),
+  ])
 
-  const categoryPages = categories.map((category) => ({
-    url: `${baseUrl}/productos?category=${category.slug}`,
+  // Categorías canónicas viven en /categoria/[slug]. La URL antigua
+  // /productos?category=slug fue eliminada para no confundir crawlers
+  // (un mismo listado en dos URLs era contenido duplicado).
+  const categoryPages: MetadataRoute.Sitemap = categories.map((category) => ({
+    url: `${baseUrl}/categoria/${category.slug}`,
     lastModified: category.updatedAt,
-    changeFrequency: 'daily' as const,
+    changeFrequency: 'daily',
     priority: 0.8,
   }))
 
-  // Obtener todos los productos activos
-  const products = await prisma.product.findMany({
-    where: { active: true },
-    select: {
-      slug: true,
-      updatedAt: true,
-    },
-  })
-
-  const productPages = products.map((product) => ({
+  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
     url: `${baseUrl}/productos/${product.slug}`,
     lastModified: product.updatedAt,
-    changeFrequency: 'weekly' as const,
+    changeFrequency: 'weekly',
     priority: 0.7,
   }))
 
-  return [...staticPages, ...categoryPages, ...productPages]
+  // Static `Page` model (Nosotros, FAQ, etc.) — resuelven en /<slug>.
+  const editablePages: MetadataRoute.Sitemap = pages.map((page) => ({
+    url: `${baseUrl}/${page.slug}`,
+    lastModified: page.updatedAt,
+    changeFrequency: 'weekly',
+    priority: 0.6,
+  }))
+
+  const policyPages: MetadataRoute.Sitemap = policies.map((policy) => ({
+    url: `${baseUrl}/politicas/${policy.slug}`,
+    lastModified: policy.updatedAt,
+    changeFrequency: 'monthly',
+    priority: 0.4,
+  }))
+
+  return [
+    ...staticPages,
+    ...categoryPages,
+    ...productPages,
+    ...editablePages,
+    ...policyPages,
+  ]
 }

@@ -9,7 +9,7 @@ import ConsentAwarePixels from "@/components/tracking/ConsentAwarePixels";
 import CookieConsentBanner from "@/components/shop/CookieConsentBanner";
 import { resolveActiveTheme } from "@/lib/themes/resolve-active-theme";
 import { getThemesHash } from "@/lib/themes/get-themes-hash";
-import { buildWebSiteSchema } from "@/lib/seo/jsonld";
+import { buildOnlineStoreSchema, buildWebSiteSchema } from "@/lib/seo/jsonld";
 export default async function ShopLayout({
   children,
 }: {
@@ -27,33 +27,36 @@ export default async function ShopLayout({
   ]);
   const themeClass = theme ? `theme-${theme.id}` : undefined;
 
-  // Structured Data para la organización
-  const organizationSchema = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
+  // Structured Data — OnlineStore (subtype of Store/Organization). Richer
+  // than a bare Organization for retail; lets generative shopping engines
+  // (Copilot Shopping, Perplexity) compare us against other merchants.
+  const organizationSchema = buildOnlineStoreSchema({
     name: settings.site_name,
     url: settings.site_url,
     logo: settings.site_logo,
     description: settings.seo_home_description,
-    address: {
-      "@type": "PostalAddress",
-      addressCountry: "PE",
-      streetAddress: settings.contact_address,
-    },
-    contactPoint: {
-      "@type": "ContactPoint",
-      contactType: "Customer Service",
-      email: settings.contact_email,
-      telephone: settings.contact_phone,
-      availableLanguage: ["Spanish"],
-    },
+    email: settings.contact_email,
+    phone: settings.contact_phone,
+    streetAddress: settings.contact_address,
+    countryCode: "PE",
     sameAs: [
       settings.social_facebook,
       settings.social_instagram,
       settings.social_twitter,
       settings.social_tiktok,
-    ].filter(Boolean),
-  };
+    ],
+    currenciesAccepted: settings.default_currency || "PEN",
+    paymentAccepted: [
+      "Visa",
+      "Mastercard",
+      "American Express",
+      "Yape",
+      "Plin",
+      "PayPal",
+      "Contra entrega",
+    ],
+    areaServed: ["PE"],
+  });
 
   const siteUrl = settings.site_url.replace(/\/$/, "");
   const websiteSchema = buildWebSiteSchema({

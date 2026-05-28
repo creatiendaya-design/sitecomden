@@ -4,12 +4,17 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import ProductCard from "@/components/shop/ProductCard";
 import { getSiteSettings } from "@/lib/site-settings";
+import { getCspNonce } from "@/lib/csp";
 import { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PackageSearch } from "lucide-react";
 import LandingBlockRenderer from "@/components/shop/templates/blocks/LandingBlockRenderer";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
+import {
+  buildBreadcrumbList,
+  buildItemListSchema,
+} from "@/lib/seo/jsonld";
 
 interface CategoryPageProps {
   params: Promise<{
@@ -36,7 +41,11 @@ const getCategoryBySlug = cache((slug: string) =>
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
 
-  const category = await getCategoryBySlug(slug);
+  const [category, settings, nonce] = await Promise.all([
+    getCategoryBySlug(slug),
+    getSiteSettings(),
+    getCspNonce(),
+  ]);
 
   if (!category) {
     notFound();
@@ -72,8 +81,43 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     serializedProducts = await loadCategoryProducts(category.id);
   }
 
+  // JSON-LD: BreadcrumbList + ItemList. LLMs (Perplexity / Copilot Shopping)
+  // use ItemList to understand which products belong to a collection so
+  // they can cite the whole listing instead of guessing.
+  const baseUrl = settings.site_url.replace(/\/$/, "");
+  const breadcrumbSchema = buildBreadcrumbList([
+    { name: "Inicio", url: `${baseUrl}/` },
+    { name: "Productos", url: `${baseUrl}/productos` },
+    { name: category.name, url: `${baseUrl}/categoria/${category.slug}` },
+  ]);
+  const itemListSchema =
+    serializedProducts.length > 0
+      ? buildItemListSchema(
+          serializedProducts.map((p) => {
+            const images = Array.isArray(p.images) ? (p.images as string[]) : [];
+            return {
+              url: `${baseUrl}/productos/${p.slug}`,
+              name: p.name,
+              image: images[0] ?? null,
+            };
+          }),
+        )
+      : null;
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      {itemListSchema && (
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
+        />
+      )}
       {hasBlocks && (
         <div className="flex flex-col">
           <LandingBlockRenderer blocks={blocks} currentCategoryId={category.id} />

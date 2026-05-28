@@ -8,6 +8,18 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb', // ✅ Agregado para subir imágenes OG
     },
   },
+  // GEO: expose the markdown variant of each product under the LLM-friendly
+  // `/productos/[slug].md` URL. Internally it resolves to the catch-all
+  // route at app/productos/[slug]/markdown/route.ts (Next does not allow
+  // `.md` in folder names directly).
+  async rewrites() {
+    return [
+      {
+        source: '/productos/:slug.md',
+        destination: '/productos/:slug/markdown',
+      },
+    ]
+  },
   images: {
     remotePatterns: [
       {

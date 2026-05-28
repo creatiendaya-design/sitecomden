@@ -69,6 +69,14 @@ const fetchProductBySlug = (slug: string) =>
           thankYouPage: { select: { slug: true } },
         },
       },
+      // SEO/GEO: approved reviews feed AggregateRating + review[] in the
+      // Product JSON-LD. Capped at 20 to keep the script tag small; the
+      // average is computed from this slice so storefront and schema agree.
+      reviews: {
+        where: { approved: true },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
     },
   });
 
@@ -120,7 +128,15 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `/productos/${product.slug}` },
+    alternates: {
+      canonical: `/productos/${product.slug}`,
+      // GEO: advertise the markdown variant of this product so LLM bots
+      // (GPTBot, ClaudeBot, PerplexityBot) can fetch a clean text version
+      // instead of parsing the full HTML page.
+      types: {
+        "text/markdown": `/productos/${product.slug}.md`,
+      },
+    },
     openGraph: {
       type: "website",
       url,
@@ -300,8 +316,13 @@ export default async function ProductDetailPage({
   // Date fields come back as Date objects on cache MISS and as ISO strings
   // on cache HIT (unstable_cache serializes through JSON). Wrap in `new Date(...)`
   // so both paths produce the same ISO string output.
+  // Strip `reviews` from the spread — they hold Date objects on cache MISS
+  // and ISO strings on cache HIT, so passing them to Client Components
+  // would surface that inconsistency. The schema below uses the original
+  // `product.reviews` directly and we don't render them on the storefront yet.
+  const { reviews: _reviews, ...productWithoutReviews } = product;
   const serializedProductFull = {
-    ...product,
+    ...productWithoutReviews,
     basePrice: Number(product.basePrice),
     compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
     weight: product.weight ? Number(product.weight) : null,
@@ -357,14 +378,38 @@ export default async function ProductDetailPage({
     promotions,
   };
 
-  // JSON-LD structured data: Product + BreadcrumbList. Google uses these for
-  // rich snippets (price, availability, breadcrumbs) in search results.
+  // JSON-LD structured data: Product + BreadcrumbList. Google + Copilot
+  // Shopping + Perplexity use these for rich snippets (price, availability,
+  // ratings, shipping, returns) in search and AI answers.
   const baseUrl = settings.site_url.replace(/\/$/, "");
   const productUrl = `${baseUrl}/productos/${product.slug}`;
   const productImages = Array.isArray(product.images)
     ? (product.images as string[])
     : [];
   const primaryCategory = product.categories[0]?.category;
+
+  // Aggregate rating from approved reviews loaded above.
+  const reviewsList = product.reviews ?? [];
+  const aggregateRating =
+    reviewsList.length > 0
+      ? {
+          ratingValue:
+            reviewsList.reduce((sum, r) => sum + r.rating, 0) /
+            reviewsList.length,
+          reviewCount: reviewsList.length,
+        }
+      : undefined;
+
+  // Discounted offers must declare priceValidUntil. We don't track promo
+  // end-dates yet, so default to +30 days — search engines re-crawl and
+  // refresh well before then.
+  const priceValidUntil =
+    initialComparePrice !== null
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10)
+      : undefined;
+
   const productSchema = buildProductSchema({
     name: product.name,
     description:
@@ -376,13 +421,35 @@ export default async function ProductDetailPage({
     sku: product.sku ?? null,
     brand: settings.site_name,
     category: primaryCategory?.name ?? null,
+    itemCondition: "NewCondition",
     offer: {
       url: productUrl,
       price: initialPrice,
       priceCurrency: "PEN",
       availability: inStock ? "InStock" : "OutOfStock",
       sku: product.sku ?? null,
+      ...(priceValidUntil ? { priceValidUntil } : {}),
     },
+    // Generic merchant return policy — PE consumer law allows return
+    // windows; defaulting to 7 days / buyer-pays-shipping. Override per
+    // store once Setting-level return config is added.
+    merchantReturnPolicy: {
+      countryCode: "PE",
+      returnDays: 7,
+      buyerPaysReturnShipping: true,
+    },
+    ...(aggregateRating ? { aggregateRating } : {}),
+    ...(reviewsList.length > 0
+      ? {
+          reviews: reviewsList.map((r) => ({
+            rating: r.rating,
+            author: r.customerName,
+            title: r.title,
+            body: r.comment,
+            datePublished: new Date(r.createdAt).toISOString(),
+          })),
+        }
+      : {}),
   });
   const breadcrumbSchema = buildBreadcrumbList([
     { name: "Inicio", url: `${baseUrl}/` },
