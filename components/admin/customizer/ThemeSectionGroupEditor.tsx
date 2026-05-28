@@ -225,6 +225,20 @@ function SectionBlocksList({ section }: { section: SectionDraft }) {
     reorderBlocks(section.id, reordered)
   }
 
+  // Plan 17 — Shopify-style: hide the "+ Agregar" button for any sub-block
+  // type that has already reached `maxPerSection`. Keeps the add panel
+  // clean and prevents users from creating duplicates the server would
+  // otherwise have to reject. Types without `maxPerSection` remain
+  // available indefinitely.
+  const blockCounts: Record<string, number> = {}
+  for (const b of section.blocks) {
+    blockCounts[b.type] = (blockCounts[b.type] ?? 0) + 1
+  }
+  const availableBlockTypes = (def?.acceptedBlockTypes ?? []).filter((bt) => {
+    if (bt.maxPerSection === undefined) return true
+    return (blockCounts[bt.type] ?? 0) < bt.maxPerSection
+  })
+
   return (
     <div className="pl-6 bg-muted/20">
       <DndContext
@@ -246,23 +260,25 @@ function SectionBlocksList({ section }: { section: SectionDraft }) {
           ))}
         </SortableContext>
       </DndContext>
-      <div className="flex flex-wrap gap-2 px-3 py-2">
-        {def?.acceptedBlockTypes?.map((bt) => (
-          <Button
-            key={bt.type}
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() =>
-              addBlock(section.id, bt.type, bt.defaultContent as Record<string, unknown>)
-            }
-            className="h-7 text-xs"
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            {bt.label}
-          </Button>
-        ))}
-      </div>
+      {availableBlockTypes.length > 0 && (
+        <div className="flex flex-wrap gap-2 px-3 py-2">
+          {availableBlockTypes.map((bt) => (
+            <Button
+              key={bt.type}
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                addBlock(section.id, bt.type, bt.defaultContent as Record<string, unknown>)
+              }
+              className="h-7 text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              {bt.label}
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
