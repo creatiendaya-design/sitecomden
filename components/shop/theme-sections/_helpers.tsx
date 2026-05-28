@@ -75,6 +75,11 @@ interface SubBlockWrapperProps {
   as?: SectionTag
   className?: string
   style?: CSSProperties
+  /** Plan 17 — when a sub-block carries its own `style.colorSchemeId`,
+   *  pass the resolved scheme key here so storefront CSS can rebind the
+   *  `--theme-*` custom properties via the `[data-color-scheme="…"]`
+   *  attribute selector (same mechanism Plan 13.1 set up for blocks). */
+  colorScheme?: string
   children: ReactNode
 }
 
@@ -97,6 +102,7 @@ export function SubBlockWrapper({
   as = "div",
   className,
   style,
+  colorScheme,
   children,
 }: SubBlockWrapperProps) {
   const Tag = as
@@ -104,6 +110,7 @@ export function SubBlockWrapper({
     <Tag
       className={className}
       style={style}
+      data-color-scheme={colorScheme}
       data-preview-target={`subblock:${block.id}`}
     >
       {children}
