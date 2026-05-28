@@ -8,6 +8,9 @@ import {
   AlignLeft,
   Info,
   Type,
+  ShieldCheck,
+  CreditCard,
+  ChevronDown,
 } from "lucide-react"
 import type {
   ThemeSectionDefinition,
@@ -270,6 +273,159 @@ const productRichTextSubBlockDefinition: ThemeSectionBlockDefinition = {
   defaultContent: { body: "" },
 }
 
+const productTrustBadgesDefinition: ThemeSectionBlockDefinition = {
+  type: "PRODUCT_TRUST_BADGES",
+  label: "Sellos de confianza",
+  icon: ShieldCheck,
+  maxPerSection: 2,
+  fields: [
+    {
+      type: "select",
+      key: "layout",
+      label: "Diseño",
+      options: [
+        { value: "horizontal", label: "Horizontal" },
+        { value: "vertical", label: "Vertical" },
+        { value: "grid", label: "Cuadrícula 2 columnas" },
+      ],
+    },
+    {
+      type: "array",
+      key: "items",
+      label: "Sellos",
+      addButtonText: "+ Agregar sello",
+      itemLabel: (item, i) => {
+        const label = typeof item.label === "string" ? item.label.trim() : ""
+        return label || `Sello ${i + 1}`
+      },
+      newItem: () => ({
+        icon: "truck",
+        label: "Envío gratis",
+        helpText: "",
+      }),
+      itemSchema: [
+        {
+          type: "select",
+          key: "icon",
+          label: "Icono",
+          options: [
+            { value: "truck", label: "Camión (envío)" },
+            { value: "shield-check", label: "Escudo (garantía)" },
+            { value: "rotate-ccw", label: "Devolución" },
+            { value: "credit-card", label: "Tarjeta (pagos)" },
+            { value: "award", label: "Medalla (calidad)" },
+            { value: "clock", label: "Reloj (rapidez)" },
+            { value: "headphones", label: "Auriculares (soporte)" },
+            { value: "lock", label: "Candado (seguridad)" },
+            { value: "package", label: "Paquete" },
+            { value: "leaf", label: "Hoja (sustentable)" },
+          ],
+        },
+        { type: "text", key: "label", label: "Texto principal" },
+        {
+          type: "text",
+          key: "helpText",
+          label: "Texto secundario (opcional)",
+          placeholder: "",
+        },
+      ],
+    },
+  ],
+  defaultContent: {
+    layout: "horizontal",
+    items: [
+      { icon: "truck", label: "Envío gratis", helpText: "En compras desde S/ 150" },
+      { icon: "shield-check", label: "Compra protegida", helpText: "Garantía del fabricante" },
+      { icon: "rotate-ccw", label: "Devolución fácil", helpText: "30 días para cambios" },
+    ],
+  },
+}
+
+const productPaymentIconsDefinition: ThemeSectionBlockDefinition = {
+  type: "PRODUCT_PAYMENT_ICONS",
+  label: "Métodos de pago",
+  icon: CreditCard,
+  maxPerSection: 1,
+  fields: [
+    {
+      type: "text",
+      key: "heading",
+      label: "Texto previo (opcional)",
+      placeholder: "Aceptamos",
+    },
+    {
+      type: "multi-select",
+      key: "methods",
+      label: "Métodos a mostrar",
+      options: [
+        { value: "VISA", label: "Visa" },
+        { value: "MASTERCARD", label: "Mastercard" },
+        { value: "AMEX", label: "American Express" },
+        { value: "YAPE", label: "Yape" },
+        { value: "PLIN", label: "Plin" },
+        { value: "PAYPAL", label: "PayPal" },
+      ],
+    },
+    {
+      type: "select",
+      key: "align",
+      label: "Alineación",
+      options: [
+        { value: "start", label: "Izquierda" },
+        { value: "center", label: "Centro" },
+        { value: "end", label: "Derecha" },
+      ],
+    },
+  ],
+  defaultContent: {
+    heading: "Aceptamos",
+    methods: ["VISA", "MASTERCARD", "YAPE", "PLIN"],
+    align: "start",
+  },
+}
+
+const productCollapseRowDefinition: ThemeSectionBlockDefinition = {
+  type: "PRODUCT_COLLAPSE_ROW",
+  label: "Fila colapsable",
+  icon: ChevronDown,
+  maxPerSection: 8,
+  fields: [
+    {
+      type: "select",
+      key: "icon",
+      label: "Icono (opcional)",
+      options: [
+        { value: "", label: "Sin icono" },
+        { value: "info", label: "Info" },
+        { value: "truck", label: "Camión (envío)" },
+        { value: "shield-check", label: "Escudo (garantía)" },
+        { value: "rotate-ccw", label: "Devolución" },
+        { value: "ruler", label: "Regla (medidas)" },
+        { value: "package", label: "Paquete" },
+        { value: "leaf", label: "Materiales" },
+      ],
+    },
+    {
+      type: "text",
+      key: "title",
+      label: "Título",
+      placeholder: "Envío y devoluciones",
+    },
+    { type: "richtext", key: "body", label: "Contenido" },
+    {
+      type: "switch",
+      key: "defaultOpen",
+      label: "Iniciar abierta",
+    },
+  ],
+  defaultContent: {
+    icon: "info",
+    title: "Más información",
+    body: "",
+    defaultOpen: false,
+  },
+}
+
 export const productMainDefinition: ThemeSectionDefinition = {
   type: "PRODUCT_MAIN",
   groups: ["PRODUCT"],
@@ -286,6 +442,9 @@ export const productMainDefinition: ThemeSectionDefinition = {
     productBuyButtonDefinition,
     productDescriptionDefinition,
     productMetaDefinition,
+    productTrustBadgesDefinition,
+    productPaymentIconsDefinition,
+    productCollapseRowDefinition,
     productRichTextSubBlockDefinition,
   ],
   fields: [

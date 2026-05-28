@@ -8,6 +8,9 @@ import { ProductBuyButton } from "./ProductBuyButton"
 import { ProductDescription } from "./ProductDescription"
 import { ProductMeta } from "./ProductMeta"
 import { ProductRichText } from "./ProductRichText"
+import { ProductTrustBadges } from "./ProductTrustBadges"
+import { ProductPaymentIcons } from "./ProductPaymentIcons"
+import { ProductCollapseRow } from "./ProductCollapseRow"
 
 interface ProductMainSubBlockDispatcherProps {
   block: ResolvedThemeSectionBlock
@@ -48,6 +51,12 @@ export function ProductMainSubBlockDispatcher({
       return <ProductMeta block={block} product={product} />
     case "PRODUCT_RICH_TEXT":
       return <ProductRichText block={block} />
+    case "PRODUCT_TRUST_BADGES":
+      return <ProductTrustBadges block={block} />
+    case "PRODUCT_PAYMENT_ICONS":
+      return <ProductPaymentIcons block={block} />
+    case "PRODUCT_COLLAPSE_ROW":
+      return <ProductCollapseRow block={block} />
     default:
       return null
   }
