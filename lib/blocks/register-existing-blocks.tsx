@@ -1089,7 +1089,10 @@ const existing: BlockDefinition[] = [
       },
     ],
     styleSupport: {
-      bgImage: true,
+      // FriendlyBlock renders its own image-on-the-right via the inline
+      // `imageUrl` data field — it never reads `media.bgImage`. Exposing
+      // the "Imagen de fondo" Style control would persist a value that
+      // nothing renders, so opt out.
       gradient: true,
     },
     liveContentVars: {
@@ -1546,7 +1549,10 @@ const existing: BlockDefinition[] = [
       },
     ],
     styleSupport: {
-      bgImage: true,
+      // PorcentajeUnoBlock renders its image via the `__imageMedia` content
+      // field (writes to `media.image`) — it never reads `media.bgImage`.
+      // The "Imagen de fondo" Style control was confusing the admin: subir
+      // ahí guardaba una imagen que el renderer nunca pinta. Opt out.
       gradient: true,
       // Container width is overridden by the curved wrapper (sets its own
       // width via the section element).
