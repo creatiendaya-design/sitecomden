@@ -437,7 +437,30 @@ const productCollapseRowDefinition: ThemeSectionBlockDefinition = {
       label: "Título",
       placeholder: "Envío y devoluciones",
     },
-    { type: "richtext", key: "body", label: "Contenido" },
+    {
+      type: "select",
+      key: "bodySource",
+      label: "Origen del contenido",
+      options: [
+        { value: "manual", label: "Texto personalizado" },
+        {
+          value: "product-description",
+          label: "Descripción del producto",
+        },
+      ],
+      helpText:
+        "Cuando elegís 'Descripción del producto', la fila muestra automáticamente la descripción larga del producto actual — útil para reutilizar lo que ya cargaste en el admin sin escribir dos veces.",
+    },
+    {
+      type: "richtext",
+      key: "body",
+      label: "Contenido",
+      // Intentionally NOT gated by `bodySource` — keeping the editor
+      // visible means switching to "Descripción del producto" doesn't
+      // wipe the manually-typed body, so the admin can toggle back and
+      // forth without losing work. The renderer ignores this field when
+      // `bodySource === "product-description"`.
+    },
     {
       type: "switch",
       key: "defaultOpen",
@@ -447,6 +470,7 @@ const productCollapseRowDefinition: ThemeSectionBlockDefinition = {
   defaultContent: {
     icon: "info",
     title: "Más información",
+    bodySource: "manual",
     body: "",
     defaultOpen: false,
   },

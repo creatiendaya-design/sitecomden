@@ -56,7 +56,7 @@ export function ProductMainSubBlockDispatcher({
     case "PRODUCT_PAYMENT_ICONS":
       return <ProductPaymentIcons block={block} />
     case "PRODUCT_COLLAPSE_ROW":
-      return <ProductCollapseRow block={block} />
+      return <ProductCollapseRow block={block} product={product} />
     default:
       return null
   }

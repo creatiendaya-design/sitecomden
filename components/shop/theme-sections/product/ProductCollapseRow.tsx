@@ -13,15 +13,22 @@ import type { ResolvedThemeSectionBlock } from "@/lib/theme-sections/types"
 import { applyThemeSectionStyle } from "@/lib/theme-sections/apply-style"
 import RichTextContent from "@/components/RichTextContent"
 import { SubBlockWrapper } from "../_helpers"
+import type { ProductForRender } from "./types"
 
 interface ProductCollapseRowProps {
   block: ResolvedThemeSectionBlock
+  product: ProductForRender
 }
 
 interface ProductCollapseRowContent {
   icon?: string
   title?: string
   body?: string
+  /** When set to "product-description", the row pulls its body from the
+   *  current product's long description instead of the manual `body`
+   *  field. Default (or absent) is "manual" — preserves the original
+   *  behavior for legacy rows persisted before this field existed. */
+  bodySource?: "manual" | "product-description"
   defaultOpen?: boolean
 }
 
@@ -41,11 +48,23 @@ const ICON_MAP: Record<string, LucideIcon> = {
  * policies, materials, etc. Uses the native HTML <details> element so we
  * don't need to ship JS for the toggle.
  */
-export function ProductCollapseRow({ block }: ProductCollapseRowProps) {
+export function ProductCollapseRow({
+  block,
+  product,
+}: ProductCollapseRowProps) {
   const content = block.content as ProductCollapseRowContent
   const iconKey = content.icon?.trim() ?? ""
   const title = content.title?.trim() ?? ""
-  const body = content.body?.trim() ?? ""
+  // `bodySource` chooses between the row's own manual rich-text and the
+  // product's long description. Defaulting to "manual" keeps every
+  // legacy row (persisted before the field existed) painting exactly
+  // the same content as before.
+  const bodySource = content.bodySource ?? "manual"
+  const manualBody = content.body?.trim() ?? ""
+  const body =
+    bodySource === "product-description"
+      ? (product.description?.trim() ?? "")
+      : manualBody
   const defaultOpen = content.defaultOpen ?? false
   const Icon = iconKey ? ICON_MAP[iconKey] : undefined
 
