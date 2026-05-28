@@ -26,7 +26,8 @@ export function ThemeSectionRightSidebar() {
   const selected = useThemeSectionsStore((s) => s.selected)
   const select = useThemeSectionsStore((s) => s.select)
 
-  // Pull the actual draft for whichever target is selected.
+  // Pull the actual draft for whichever target is selected. Searches all
+  // three group slots (Plan 17 added `product` alongside header/footer).
   const sectionDraft = useThemeSectionsStore((s) => {
     if (!s.selected) return null
     const sectionId =
@@ -39,6 +40,7 @@ export function ThemeSectionRightSidebar() {
     return (
       s.header.find((x) => x.id === sectionId) ??
       s.footer.find((x) => x.id === sectionId) ??
+      s.product.find((x) => x.id === sectionId) ??
       null
     )
   })
@@ -49,6 +51,7 @@ export function ThemeSectionRightSidebar() {
     const section =
       s.header.find((x) => x.id === target.sectionId) ??
       s.footer.find((x) => x.id === target.sectionId) ??
+      s.product.find((x) => x.id === target.sectionId) ??
       null
     return section?.blocks.find((b) => b.id === target.blockId) ?? null
   })
@@ -95,8 +98,13 @@ export function ThemeSectionRightSidebar() {
           </TabsList>
           <TabsContent
             value="content"
-            className="flex-1 overflow-auto p-3 mt-0"
+            className="flex-1 overflow-auto p-3 mt-0 space-y-3"
           >
+            {def?.description && (
+              <p className="text-xs text-muted-foreground leading-relaxed border-l-2 pl-2">
+                {def.description}
+              </p>
+            )}
             {hasContentFields ? (
               <SchemaForm
                 schema={def!.fields}
@@ -107,7 +115,7 @@ export function ThemeSectionRightSidebar() {
               />
             ) : (
               <p className="text-xs text-muted-foreground">
-                Esta sección no tiene configuración de contenido.
+                Esta sección no tiene configuración propia. Seleccioná uno de los sub-bloques de abajo para configurarlo.
               </p>
             )}
           </TabsContent>

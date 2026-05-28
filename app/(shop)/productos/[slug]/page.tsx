@@ -6,6 +6,8 @@ import type { Metadata } from "next";
 import ProductTracking from "./tracking-client";
 import ProductStandardView from "@/components/shop/templates/ProductStandardView";
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
+import { ProductSectionsRenderer } from "@/components/shop/theme-sections/product/ProductSectionsRenderer";
+import { getThemedSections } from "@/lib/theme-sections/resolve-active-sections";
 import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
 import type {
@@ -152,10 +154,15 @@ export default async function ProductDetailPage({
 }: ProductDetailPageProps) {
   const { slug } = await params;
 
-  const [product, settings, nonce] = await Promise.all([
+  const [product, settings, nonce, productSections] = await Promise.all([
     getProductBySlug(slug),
     getSiteSettings(),
     getCspNonce(),
+    // Plan 17 — Theme-level PRODUCT sections drive the page when present.
+    // Tagged via `theme-sections-<themeId>-PRODUCT` + invalidated as part
+    // of the `products` tag (see actions/theme-sections.ts:45-54), so an
+    // admin save in the customizer triggers a re-render here.
+    getThemedSections("PRODUCT", "desktop"),
   ]);
 
   if (!product) {
@@ -289,13 +296,17 @@ export default async function ProductDetailPage({
   // top-level spread carries nested relations (variants, customizableTemplate)
   // that still hold Decimal instances, so we override them with already-
   // serialized versions before passing to Client Components.
+  //
+  // Date fields come back as Date objects on cache MISS and as ISO strings
+  // on cache HIT (unstable_cache serializes through JSON). Wrap in `new Date(...)`
+  // so both paths produce the same ISO string output.
   const serializedProductFull = {
     ...product,
     basePrice: Number(product.basePrice),
     compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
     weight: product.weight ? Number(product.weight) : null,
-    createdAt: product.createdAt.toISOString(),
-    updatedAt: product.updatedAt.toISOString(),
+    createdAt: new Date(product.createdAt).toISOString(),
+    updatedAt: new Date(product.updatedAt).toISOString(),
     variants: serializedVariants,
     customizableTemplate: product.customizableTemplate
       ? {
@@ -307,8 +318,8 @@ export default async function ProductDetailPage({
       : null,
     landingBlocks: renderableLandingBlocks.map((b) => ({
       ...b,
-      createdAt: b.createdAt.toISOString(),
-      updatedAt: b.updatedAt.toISOString(),
+      createdAt: new Date(b.createdAt).toISOString(),
+      updatedAt: new Date(b.updatedAt).toISOString(),
     })),
   };
 
@@ -404,13 +415,44 @@ export default async function ProductDetailPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
 
-      {/* 🎯 RENDERIZAR SEGÚN TEMPLATE */}
+      {/* Render priority:
+        *   1. `Product.template === "LANDING"` → legacy LandingView (per-product)
+        *   2. Plan 17 — theme has PRODUCT sections → render via ProductSectionsRenderer
+        *   3. Fallback → legacy hardcoded ProductStandardView (keeps storefront
+        *      working when no seed has run yet, or when a tenant intentionally
+        *      opts out by removing all PRODUCT sections).
+        */}
       {product.template === "LANDING" ? (
         <ProductLandingView {...templateProps} />
-      ) : product.template === "MINIMAL" ? (
-        <ProductStandardView {...templateProps} />
-      ) : product.template === "GALLERY" ? (
-        <ProductStandardView {...templateProps} />
+      ) : productSections.length > 0 ? (
+        <ProductSectionsRenderer
+          sections={productSections}
+          product={{
+            id: product.id,
+            name: product.name,
+            slug: product.slug,
+            description: product.description,
+            shortDescription: product.shortDescription,
+            sku: product.sku,
+            weight: product.weight ? Number(product.weight) : null,
+            basePrice: Number(product.basePrice),
+            compareAtPrice: product.compareAtPrice
+              ? Number(product.compareAtPrice)
+              : null,
+            stock: totalStock,
+            hasVariants: product.hasVariants,
+            images: product.images,
+            categories: product.categories.map((pc) => ({
+              category: {
+                id: pc.category.id,
+                name: pc.category.name,
+                slug: pc.category.slug,
+              },
+            })),
+          }}
+          variants={serializedVariants}
+          options={product.options}
+        />
       ) : (
         <ProductStandardView {...templateProps} />
       )}

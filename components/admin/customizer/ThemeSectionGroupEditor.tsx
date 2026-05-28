@@ -42,7 +42,7 @@ interface Props {
 
 export function ThemeSectionGroupEditor({ group, catalog }: Props) {
   const sections = useThemeSectionsStore((s) =>
-    group === "HEADER" ? s.header : s.footer,
+    group === "HEADER" ? s.header : group === "FOOTER" ? s.footer : s.product,
   )
   const reorderSections = useThemeSectionsStore((s) => s.reorderSections)
   const addSection = useThemeSectionsStore((s) => s.addSection)
@@ -111,8 +111,13 @@ export function ThemeSectionGroupEditor({ group, catalog }: Props) {
 }
 
 function SortableSectionRow({ section }: { section: SectionDraft }) {
+  // Plan 17 — PRODUCT_MAIN is the obligatory backbone of the product
+  // template. We lock it against drag-reorder and deletion so the admin
+  // can't end up with a product page that has no main section at all.
+  const isLocked = section.type === "PRODUCT_MAIN"
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: section.id })
+    useSortable({ id: section.id, disabled: isLocked })
 
   const def = getThemeSectionDefinition(section.type)
   const select = useThemeSectionsStore((s) => s.select)
@@ -142,8 +147,14 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
         <button
           {...attributes}
           {...listeners}
-          className="text-muted-foreground hover:text-foreground cursor-grab"
-          aria-label="Arrastrar"
+          disabled={isLocked}
+          className={`text-muted-foreground ${
+            isLocked
+              ? "opacity-30 cursor-not-allowed"
+              : "hover:text-foreground cursor-grab"
+          }`}
+          aria-label={isLocked ? "Sección fija" : "Arrastrar"}
+          title={isLocked ? "La sección principal no se puede mover" : undefined}
           onClick={(e) => e.stopPropagation()}
         >
           <GripVertical className="h-4 w-4" />
@@ -166,8 +177,10 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
           )}
         </button>
         <button
+          disabled={isLocked}
           onClick={(e) => {
             e.stopPropagation()
+            if (isLocked) return
             if (
               window.confirm(
                 `¿Eliminar la sección "${def?.label ?? section.type}"?`,
@@ -176,8 +189,15 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
               removeSection(section.id)
             }
           }}
-          className="text-muted-foreground hover:text-destructive"
+          className={`text-muted-foreground ${
+            isLocked ? "opacity-30 cursor-not-allowed" : "hover:text-destructive"
+          }`}
           aria-label="Eliminar"
+          title={
+            isLocked
+              ? "La sección principal no se puede eliminar"
+              : undefined
+          }
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -205,6 +225,20 @@ function SectionBlocksList({ section }: { section: SectionDraft }) {
     reorderBlocks(section.id, reordered)
   }
 
+  // Plan 17 — Shopify-style: hide the "+ Agregar" button for any sub-block
+  // type that has already reached `maxPerSection`. Keeps the add panel
+  // clean and prevents users from creating duplicates the server would
+  // otherwise have to reject. Types without `maxPerSection` remain
+  // available indefinitely.
+  const blockCounts: Record<string, number> = {}
+  for (const b of section.blocks) {
+    blockCounts[b.type] = (blockCounts[b.type] ?? 0) + 1
+  }
+  const availableBlockTypes = (def?.acceptedBlockTypes ?? []).filter((bt) => {
+    if (bt.maxPerSection === undefined) return true
+    return (blockCounts[bt.type] ?? 0) < bt.maxPerSection
+  })
+
   return (
     <div className="pl-6 bg-muted/20">
       <DndContext
@@ -226,23 +260,25 @@ function SectionBlocksList({ section }: { section: SectionDraft }) {
           ))}
         </SortableContext>
       </DndContext>
-      <div className="flex flex-wrap gap-2 px-3 py-2">
-        {def?.acceptedBlockTypes?.map((bt) => (
-          <Button
-            key={bt.type}
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() =>
-              addBlock(section.id, bt.type, bt.defaultContent as Record<string, unknown>)
-            }
-            className="h-7 text-xs"
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            {bt.label}
-          </Button>
-        ))}
-      </div>
+      {availableBlockTypes.length > 0 && (
+        <div className="flex flex-wrap gap-2 px-3 py-2">
+          {availableBlockTypes.map((bt) => (
+            <Button
+              key={bt.type}
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                addBlock(section.id, bt.type, bt.defaultContent as Record<string, unknown>)
+              }
+              className="h-7 text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              {bt.label}
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -1552,6 +1552,7 @@ model ThemeSectionBlock {
 enum ThemeSectionGroup {
   HEADER
   FOOTER
+  PRODUCT
 }
 
 model CustomizableTemplate {

@@ -42,8 +42,28 @@ import {
  *      authoritative during the editing session, so we don't need the
  *      server-driven refresh here.
  */
+/**
+ * Plan 17 — Neon serverless interactive transactions need a generous timeout.
+ * The default 5s fires during cold starts + multi-row PRODUCT_MAIN saves
+ * (1 section + 7+ sub-blocks → 8+ round-trips inside the transaction).
+ * `maxWait` is how long Prisma can sit in the pool queue before opening the
+ * transaction; bumped proportionally so it doesn't fail before timeout kicks in.
+ *
+ * Only applicable to the interactive-callback form (`$transaction(async tx =>
+ * {...})`). The sequential-array form (`$transaction([op, op, ...])`) doesn't
+ * accept these options — only `isolationLevel`.
+ */
+const NEON_TX_OPTS = { timeout: 30_000, maxWait: 10_000 }
+
 function invalidateSectionGroup(themeId: string, group: ThemeSectionGroup) {
   updateTag(`theme-sections-${themeId}-${group}`)
+  // Plan 17: PRODUCT-group sections drive every `/productos/[slug]` page,
+  // which caches under the `products` tag (see app/(shop)/productos/[slug]/page.tsx).
+  // Without this invalidation a customizer save would render stale until the
+  // 60s revalidate window expires.
+  if (group === "PRODUCT") {
+    updateTag("products")
+  }
 }
 
 // ---------- Row types ----------
@@ -76,7 +96,7 @@ export interface ThemeSectionBlockRow {
 
 const addThemeSectionSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
   type: z.string().min(1),
 })
 
@@ -176,7 +196,7 @@ export async function removeThemeSection(sectionId: string): Promise<void> {
 
 const reorderSectionsSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
   orderedIds: z.array(z.string().min(1)),
 })
 
@@ -386,7 +406,7 @@ const batchSectionSchema = z.object({
 
 const saveGroupSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
   sections: z.array(batchSectionSchema),
 })
 
@@ -413,7 +433,7 @@ const batchSectionSchemaVersioned = z.object({
 
 const saveGroupSchemaVersioned = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
   sections: z.array(batchSectionSchemaVersioned),
 })
 
@@ -530,7 +550,7 @@ export async function saveThemeSectionGroup(
       orderBy: { position: "asc" },
       include: { blocks: { orderBy: { position: "asc" } } },
     })
-  })
+  }, NEON_TX_OPTS)
 
   invalidateSectionGroup(input.themeId, input.group)
 
@@ -852,7 +872,7 @@ export async function saveThemeSectionGroupVersioned(
         orderBy: { position: "asc" },
         include: { blocks: { orderBy: { position: "asc" } } },
       })
-    })
+    }, NEON_TX_OPTS)
 
     invalidateSectionGroup(input.themeId, input.group)
 

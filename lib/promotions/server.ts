@@ -225,8 +225,8 @@ export async function getPublicPromotionsForProduct(
       active: row.active,
       priority: row.priority,
       config,
-      startsAt: row.startsAt ? row.startsAt.toISOString() : null,
-      expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+      startsAt: row.startsAt ? new Date(row.startsAt).toISOString() : null,
+      expiresAt: row.expiresAt ? new Date(row.expiresAt).toISOString() : null,
       usageCount: row.usageCount,
       totalDiscountApplied: Number(row.totalDiscountApplied ?? 0),
       productIds,
@@ -234,8 +234,12 @@ export async function getPublicPromotionsForProduct(
       targets,
       freeGiftProduct,
       bundlePartnerProducts,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
+      // Defensive: wrap with `new Date(...)` so callers in cached/serialized
+      // paths (where Prisma Dates may come back as ISO strings) still get a
+      // valid ISO string out. See app/(shop)/productos/[slug]/page.tsx for
+      // the same pattern.
+      createdAt: new Date(row.createdAt).toISOString(),
+      updatedAt: new Date(row.updatedAt).toISOString(),
     };
 
     const isDirect = row.productTargets.some((t) => t.productId === productId);

@@ -73,15 +73,26 @@ export function useLivePreviewOverrides(
       const themeState = useThemeSectionsStore.getState()
       const builderState = useBuilderStore.getState()
 
+      // Plan 17 — `product` joins header/footer as a live-previewable group.
+      // Without including it here, every Plan 17 section/sub-block edit
+      // (color scheme switch, padding, alignment, scheme rebind, etc.)
+      // waited on the ~500-1000ms autosave + revalidate round-trip.
+      const allSections = [
+        ...themeState.header,
+        ...themeState.footer,
+        ...themeState.product,
+      ]
       const targets: PreviewTarget[] = [
-        ...themeState.header.map((s) => ({
+        ...allSections.map((s) => ({
           target: `section:${s.id}`,
           style: (s.content.style as BlockStyle | undefined) ?? undefined,
         })),
-        ...themeState.footer.map((s) => ({
-          target: `section:${s.id}`,
-          style: (s.content.style as BlockStyle | undefined) ?? undefined,
-        })),
+        ...allSections.flatMap((s) =>
+          s.blocks.map((b) => ({
+            target: `subblock:${b.id}`,
+            style: (b.content.style as BlockStyle | undefined) ?? undefined,
+          })),
+        ),
         ...builderState.blocks.map((b) => ({
           target: `block:${b.id}`,
           style: b.content.style,
@@ -96,10 +107,7 @@ export function useLivePreviewOverrides(
       //    All three categories repaint instantly via CSS so the admin
       //    doesn't wait for the autosave round-trip.
       const baseCss = buildPreviewOverridesCss(targets)
-      const portalCss = buildPortalOverridesCss([
-        ...themeState.header,
-        ...themeState.footer,
-      ])
+      const portalCss = buildPortalOverridesCss(allSections)
       const visibilityCss = buildBlockVisibilityCss(builderState.blocks)
       const css = [baseCss, portalCss, visibilityCss]
         .filter(Boolean)
@@ -215,23 +223,14 @@ export function useLivePreviewOverrides(
         target: string
         data: Record<string, unknown>
       }> = []
-      for (const s of themeState.header) {
-        for (const b of s.blocks) {
-          subBlockEntries.push({ target: `subblock:${b.id}`, data: b.content })
-        }
-      }
-      for (const s of themeState.footer) {
+      for (const s of allSections) {
         for (const b of s.blocks) {
           subBlockEntries.push({ target: `subblock:${b.id}`, data: b.content })
         }
       }
 
       applyContentTextSync(doc, [
-        ...themeState.header.map((s) => ({
-          target: `section:${s.id}`,
-          data: s.content,
-        })),
-        ...themeState.footer.map((s) => ({
+        ...allSections.map((s) => ({
           target: `section:${s.id}`,
           data: s.content,
         })),

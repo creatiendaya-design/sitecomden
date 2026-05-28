@@ -150,4 +150,5 @@ export interface PortalOverrideMapping {
 export interface ThemeSectionCatalog {
   header?: string[]
   footer?: string[]
+  product?: string[]
 }
