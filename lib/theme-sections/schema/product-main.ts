@@ -194,12 +194,32 @@ const productBuyButtonDefinition: ThemeSectionBlockDefinition = {
       min: 1,
       showWhen: { field: "showQuantityPicker", equals: true },
     },
+    // Plan 17 — Per-button colors. The shadcn Button used to render with
+    // `bg-primary text-primary-foreground` baked in, which override any
+    // color the admin set on the wrapper. These fields opt the renderer
+    // into reading admin-chosen colors and apply them as inline styles on
+    // the <button> itself. `showInStyleTab: true` moves them to the Estilo
+    // tab so they sit next to the section's bg/text controls.
+    {
+      type: "color",
+      key: "buttonBgColor",
+      label: "Color de fondo del botón",
+      showInStyleTab: true,
+    },
+    {
+      type: "color",
+      key: "buttonTextColor",
+      label: "Color del texto del botón",
+      showInStyleTab: true,
+    },
   ],
   defaultContent: {
     buttonText: "Agregar al carrito",
     showQuantityPicker: true,
     quantityMin: 1,
     quantityMax: 99,
+    buttonBgColor: "",
+    buttonTextColor: "",
   },
 }
 
