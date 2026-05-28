@@ -46,13 +46,15 @@ export function ProductTitle({ block, product }: ProductTitleProps) {
         </div>
       )}
       <Heading
-        className="product-title"
+        className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight break-words"
         data-content-field="productName"
       >
         {product.name}
       </Heading>
       {showShort && product.shortDescription && (
-        <p className="product-description mt-2">{product.shortDescription}</p>
+        <p className="mt-2 text-sm sm:text-base opacity-80">
+          {product.shortDescription}
+        </p>
       )}
     </SubBlockWrapper>
   )
