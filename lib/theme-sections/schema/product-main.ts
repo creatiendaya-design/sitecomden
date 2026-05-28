@@ -23,7 +23,9 @@ const productGalleryDefinition: ThemeSectionBlockDefinition = {
     {
       type: "select",
       key: "layout",
-      label: "Diseño",
+      label: "Diseño (escritorio)",
+      helpText:
+        "En móvil siempre se usa el carrusel; este ajuste solo aplica a pantallas medianas o más grandes.",
       options: [
         { value: "carousel", label: "Carrusel" },
         { value: "two_column", label: "Dos columnas" },
@@ -36,8 +38,7 @@ const productGalleryDefinition: ThemeSectionBlockDefinition = {
       type: "switch",
       key: "autoplay",
       label: "Reproducción automática",
-      helpText: "Sólo aplica al diseño carrusel.",
-      showWhen: { field: "layout", equals: "carousel" },
+      helpText: "Aplica al carrusel (móvil siempre, y escritorio si elegís Carrusel).",
     },
     {
       type: "select",

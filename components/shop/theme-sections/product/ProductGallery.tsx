@@ -63,6 +63,22 @@ export function ProductGallery({ block, product }: ProductGalleryProps) {
     showThumbnails,
   }
 
+  // Mobile always uses the carousel — stacked / grid / two-column layouts
+  // don't make sense on narrow screens (they'd either turn into a stacked
+  // mess or shrink images below usability). The admin's `layout` choice
+  // only takes effect from `md` (≥768px) up. `autoplay` and `showThumbnails`
+  // are shared between mobile and desktop.
+  const desktopGallery =
+    layout === "carousel" ? (
+      <CarouselGallery {...commonProps} autoplay={autoplay} />
+    ) : layout === "stacked" ? (
+      <StackedGallery {...commonProps} />
+    ) : layout === "grid" ? (
+      <GridGallery {...commonProps} />
+    ) : (
+      <TwoColumnGallery {...commonProps} />
+    )
+
   return (
     <SubBlockWrapper
       block={block}
@@ -70,15 +86,10 @@ export function ProductGallery({ block, product }: ProductGalleryProps) {
       style={style}
       colorScheme={dataColorScheme}
     >
-      {layout === "carousel" ? (
+      <div className="md:hidden">
         <CarouselGallery {...commonProps} autoplay={autoplay} />
-      ) : layout === "stacked" ? (
-        <StackedGallery {...commonProps} />
-      ) : layout === "grid" ? (
-        <GridGallery {...commonProps} />
-      ) : (
-        <TwoColumnGallery {...commonProps} />
-      )}
+      </div>
+      <div className="hidden md:block">{desktopGallery}</div>
     </SubBlockWrapper>
   )
 }
