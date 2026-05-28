@@ -14,27 +14,14 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#020617",
-    icons: [
-      {
-        src: settings.site_favicon || "/favicon.ico",
-        sizes: "any",
-        type: "image/x-icon",
-      },
-      {
-        src: "/favicon-16x16.png",
-        sizes: "16x16",
-        type: "image/png",
-      },
-      {
-        src: "/favicon-32x32.png",
-        sizes: "32x32",
-        type: "image/png",
-      },
-      {
-        src: "/apple-touch-icon.png",
-        sizes: "180x180",
-        type: "image/png",
-      },
-    ],
+    icons: settings.site_favicon
+      ? [
+          {
+            src: settings.site_favicon,
+            sizes: "any",
+            type: "image/x-icon",
+          },
+        ]
+      : [],
   };
 }
