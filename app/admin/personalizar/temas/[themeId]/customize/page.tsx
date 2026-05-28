@@ -81,9 +81,10 @@ export default async function CustomizeThemePage({
   // per-theme section catalog. The customizer hydrates its zustand store
   // from these on mount; autosave round-trips replace tmp- ids on next
   // server render via router.refresh().
-  const [headerSections, footerSections] = await Promise.all([
+  const [headerSections, footerSections, productSections] = await Promise.all([
     listThemeSections(theme.id, "HEADER"),
     listThemeSections(theme.id, "FOOTER"),
+    listThemeSections(theme.id, "PRODUCT"),
   ])
   const sectionCatalog = theme.sectionCatalog
 
@@ -146,6 +147,7 @@ export default async function CustomizeThemePage({
       initialBlocks={initialBlocks}
       headerSections={headerSections}
       footerSections={footerSections}
+      productSections={productSections}
       sectionCatalog={sectionCatalog}
     />
   )

@@ -83,6 +83,8 @@ interface Props {
   headerSections: ThemeSectionRow[]
   /** Plan 16 — server-fetched ordered FOOTER theme sections (with blocks). */
   footerSections: ThemeSectionRow[]
+  /** Plan 17 — server-fetched ordered PRODUCT theme sections (with blocks). */
+  productSections: ThemeSectionRow[]
   /** Plan 16 — per-theme allowed section types per group. */
   sectionCatalog: ThemeSectionCatalog
 }
@@ -109,6 +111,7 @@ export function CustomizerShell({
   initialBlocks,
   headerSections,
   footerSections,
+  productSections,
   sectionCatalog,
 }: Props) {
   const router = useRouter()
@@ -299,6 +302,11 @@ export function CustomizerShell({
   )
   const currentTarget =
     findTarget(targets, targetKey) ?? targets[0] ?? null
+  // Plan 17 — drives the Plantilla zone's editor choice: when the admin is
+  // previewing a product target, render the PRODUCT-group theme-sections
+  // editor instead of the page/category block editor.
+  const templateMode: "product" | "page-or-category" =
+    currentTarget?.key === "product" ? "product" : "page-or-category"
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   useEffect(() => {
@@ -360,7 +368,11 @@ export function CustomizerShell({
   useEffect(() => {
     if (hydratedThemeIdRef.current === theme.id) return
     hydratedThemeIdRef.current = theme.id
-    hydrateThemeSections(theme.id, headerSections, footerSections)
+    hydrateThemeSections(theme.id, {
+      header: headerSections,
+      footer: footerSections,
+      product: productSections,
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme.id, hydrateThemeSections])
 
@@ -383,16 +395,22 @@ export function CustomizerShell({
   useEffect(() => {
     if (!reloadExpectedRef.current) return
     reloadExpectedRef.current = false
-    hydrateThemeSections(theme.id, headerSections, footerSections)
+    hydrateThemeSections(theme.id, {
+      header: headerSections,
+      footer: footerSections,
+      product: productSections,
+    })
     selectThemeSection(null)
     setReloadPending(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headerSections, footerSections])
+  }, [headerSections, footerSections, productSections])
 
   const headerDrafts = useThemeSectionsStore((s) => s.header)
   const footerDrafts = useThemeSectionsStore((s) => s.footer)
+  const productDrafts = useThemeSectionsStore((s) => s.product)
   const headerDirty = useThemeSectionsStore((s) => s.headerDirty)
   const footerDirty = useThemeSectionsStore((s) => s.footerDirty)
+  const productDirty = useThemeSectionsStore((s) => s.productDirty)
   const themeSectionsSelected = useThemeSectionsStore((s) => s.selected)
   const selectThemeSection = useThemeSectionsStore((s) => s.select)
 
@@ -418,14 +436,14 @@ export function CustomizerShell({
   // server reports a conflict, freeze autosave (so we don't keep firing
   // requests that will keep failing) and show the BatchConflictDialog.
   const [sectionsConflict, setSectionsConflict] = useState<{
-    group: "HEADER" | "FOOTER"
+    group: "HEADER" | "FOOTER" | "PRODUCT"
     sent: SectionDraft[]
     conflicts: BatchConflictEntry<ThemeSectionRow>[]
   } | null>(null)
 
   const handleSectionsConflict = useCallback(
     (
-      group: "HEADER" | "FOOTER",
+      group: "HEADER" | "FOOTER" | "PRODUCT",
       sent: SectionDraft[],
       conflicts: BatchConflictEntry<ThemeSectionRow>[],
     ) => {
@@ -527,6 +545,16 @@ export function CustomizerShell({
     handleSectionsConflict,
     sectionsConflict !== null || reloadPending,
   )
+  useDebouncedSaveGroup(
+    theme.id,
+    "PRODUCT",
+    productDrafts,
+    productDirty,
+    mergeSavedIds,
+    handleAnySaved,
+    handleSectionsConflict,
+    sectionsConflict !== null || reloadPending,
+  )
 
   const handleExit = useCallback(() => {
     router.push("/admin/personalizar/temas")
@@ -580,7 +608,7 @@ export function CustomizerShell({
               />
 
               <div className="flex-1 min-h-0 overflow-y-auto">
-                {editorKey ? (
+                {editorKey || templateMode === "product" ? (
                   <ZoneList
                     themeId={theme.id}
                     editorKey={editorKey}
@@ -589,6 +617,7 @@ export function CustomizerShell({
                     targetLabel={currentTarget?.label ?? "Plantilla"}
                     onBlocksSaved={handleAnySaved}
                     sectionCatalog={sectionCatalog}
+                    templateMode={templateMode}
                   />
                 ) : (
                   <BlocksUnavailable
@@ -756,17 +785,17 @@ export function CustomizerShell({
  */
 function useDebouncedSaveGroup(
   themeId: string,
-  group: "HEADER" | "FOOTER",
+  group: "HEADER" | "FOOTER" | "PRODUCT",
   drafts: SectionDraft[],
   groupDirty: boolean,
   mergeSavedIds: (
-    group: "HEADER" | "FOOTER",
+    group: "HEADER" | "FOOTER" | "PRODUCT",
     sent: SectionDraft[],
     saved: ThemeSectionRow[],
   ) => void,
   onSaved: () => void,
   onConflict: (
-    group: "HEADER" | "FOOTER",
+    group: "HEADER" | "FOOTER" | "PRODUCT",
     sent: SectionDraft[],
     conflicts: BatchConflictEntry<ThemeSectionRow>[],
   ) => void,

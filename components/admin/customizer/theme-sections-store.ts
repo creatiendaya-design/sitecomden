@@ -36,10 +36,16 @@ export type SidebarTarget =
   | { kind: "section-block"; sectionId: string; blockId: string }
   | null
 
+/** Single source of truth for the list of editable groups in the store.
+ *  Adding a new ThemeSectionGroup value should only require appending it
+ *  here (plus the matching slot in the initial state below). */
+const GROUPS: readonly ThemeSectionGroup[] = ["HEADER", "FOOTER", "PRODUCT"]
+
 interface Store {
   themeId: string | null
   header: SectionDraft[]
   footer: SectionDraft[]
+  product: SectionDraft[]
   selected: SidebarTarget
   /** Group-level dirty flags. Set true on every mutation that affects a
    *  group's section list (add / remove / reorder / toggle / content edit
@@ -48,13 +54,13 @@ interface Store {
    *  (which leave no per-draft dirty trace) still trigger a save. */
   headerDirty: boolean
   footerDirty: boolean
+  productDirty: boolean
 
   /** Replace local state with what came from the server. Called on first
    *  mount and after every successful save (so persisted ids replace tmp- ids). */
   hydrate: (
     themeId: string,
-    header: ThemeSectionRow[],
-    footer: ThemeSectionRow[],
+    rows: { header: ThemeSectionRow[]; footer: ThemeSectionRow[]; product: ThemeSectionRow[] },
   ) => void
 
   /** Called by the autosave hook after `saveThemeSectionGroup` resolves
@@ -129,6 +135,21 @@ interface Store {
 let counter = 0
 const tmpId = (kind: "s" | "b") => `tmp-${kind}-${++counter}-${Date.now()}`
 
+type SlotKey = "header" | "footer" | "product"
+type DirtyKey = "headerDirty" | "footerDirty" | "productDirty"
+
+function slotKey(group: ThemeSectionGroup): SlotKey {
+  if (group === "HEADER") return "header"
+  if (group === "FOOTER") return "footer"
+  return "product"
+}
+
+function dirtyKey(group: ThemeSectionGroup): DirtyKey {
+  if (group === "HEADER") return "headerDirty"
+  if (group === "FOOTER") return "footerDirty"
+  return "productDirty"
+}
+
 /**
  * Maps the current `selected` target (which may reference a tmp-id from
  * the about-to-be-replaced drafts) to the persisted equivalent by
@@ -199,34 +220,62 @@ function rowToDraft(row: ThemeSectionRow): SectionDraft {
   }
 }
 
+/** Find which group owns a given section id, scanning all known slots. */
+function findGroupBySection(
+  state: { header: SectionDraft[]; footer: SectionDraft[]; product: SectionDraft[] },
+  sectionId: string,
+): ThemeSectionGroup | null {
+  if (state.header.some((x) => x.id === sectionId)) return "HEADER"
+  if (state.footer.some((x) => x.id === sectionId)) return "FOOTER"
+  if (state.product.some((x) => x.id === sectionId)) return "PRODUCT"
+  return null
+}
+
+function findGroupByBlock(
+  state: { header: SectionDraft[]; footer: SectionDraft[]; product: SectionDraft[] },
+  blockId: string,
+): ThemeSectionGroup | null {
+  for (const g of GROUPS) {
+    const slot = state[slotKey(g)]
+    if (slot.some((sec) => sec.blocks.some((b) => b.id === blockId))) {
+      return g
+    }
+  }
+  return null
+}
+
 export const useThemeSectionsStore = create<Store>((set, get) => ({
   themeId: null,
   header: [],
   footer: [],
+  product: [],
   selected: null,
   headerDirty: false,
   footerDirty: false,
+  productDirty: false,
 
-  hydrate(themeId, header, footer) {
+  hydrate(themeId, rows) {
     set({
       themeId,
-      header: header.map(rowToDraft),
-      footer: footer.map(rowToDraft),
+      header: rows.header.map(rowToDraft),
+      footer: rows.footer.map(rowToDraft),
+      product: rows.product.map(rowToDraft),
       // Reset selection on hydrate to avoid pointing at a stale id.
       selected: null,
       headerDirty: false,
       footerDirty: false,
+      productDirty: false,
     })
   },
 
   markGroupSaved(group) {
-    set(group === "HEADER" ? { headerDirty: false } : { footerDirty: false })
+    set({ [dirtyKey(group)]: false } as Partial<Store>)
   },
 
   replaceGroup(group, rows) {
     set((s) => {
       const fresh = rows.map(rowToDraft)
-      const previous = group === "HEADER" ? s.header : s.footer
+      const previous = s[slotKey(group)]
 
       // Preserve the user's selected sidebar target across the swap by
       // mapping its id through positional alignment: when the previously
@@ -239,9 +288,11 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
         group,
       )
 
-      return group === "HEADER"
-        ? { header: fresh, headerDirty: false, selected: nextSelected }
-        : { footer: fresh, footerDirty: false, selected: nextSelected }
+      return {
+        [slotKey(group)]: fresh,
+        [dirtyKey(group)]: false,
+        selected: nextSelected,
+      } as Partial<Store>
     })
   },
 
@@ -252,11 +303,6 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
       // and saved[i].id is the just-persisted real id — there's no way
       // to correlate the two except by their position in the array we
       // sent (the server preserves order).
-      //
-      // Plan 18: also build sent.id → saved.version maps so the local
-      // drafts adopt the freshly-bumped versions returned by the server.
-      // Without this, the next autosave would send the same `version`
-      // we sent before and immediately conflict against the DB.
       const sectionIdMap = new Map<string, string>()
       const blockIdMap = new Map<string, string>()
       const sectionVersionMap = new Map<string, number>()
@@ -283,8 +329,6 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
       const patchList = (list: SectionDraft[]): SectionDraft[] =>
         list.map((sec) => {
           const newSecId = sectionIdMap.get(sec.id) ?? sec.id
-          // If the section was just persisted, also drop its `isNew`
-          // flag so future renders don't treat it as a pending insert.
           const isNew = sectionIdMap.has(sec.id) ? false : sec.isNew
           const newVersion = sectionVersionMap.get(sec.id) ?? sec.version
           const blocks = sec.blocks.map((b) => {
@@ -309,7 +353,6 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
           }
         })
 
-      // Remap selected if it pointed at a tmp-id that was just renamed.
       const remapSelected = (sel: SidebarTarget): SidebarTarget => {
         if (!sel) return null
         const newSectionId =
@@ -325,17 +368,11 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
         }
       }
 
-      return group === "HEADER"
-        ? {
-            header: patchList(s.header),
-            headerDirty: false,
-            selected: remapSelected(s.selected),
-          }
-        : {
-            footer: patchList(s.footer),
-            footerDirty: false,
-            selected: remapSelected(s.selected),
-          }
+      return {
+        [slotKey(group)]: patchList(s[slotKey(group)]),
+        [dirtyKey(group)]: false,
+        selected: remapSelected(s.selected),
+      } as Partial<Store>
     })
   },
 
@@ -346,7 +383,7 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
   addSection(group, type, defaultContent, defaultBlocks) {
     const themeId = get().themeId ?? ""
     const id = tmpId("s")
-    const list = group === "HEADER" ? get().header : get().footer
+    const list = get()[slotKey(group)]
     const newSection: SectionDraft = {
       id,
       themeId,
@@ -368,34 +405,31 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
       isNew: true,
       dirty: true,
     }
-    set((s) =>
-      group === "HEADER"
-        ? { header: [...s.header, newSection], headerDirty: true }
-        : { footer: [...s.footer, newSection], footerDirty: true },
-    )
+    set((s) => ({
+      [slotKey(group)]: [...s[slotKey(group)], newSection],
+      [dirtyKey(group)]: true,
+    } as Partial<Store>))
     return id
   },
 
   removeSection(sectionId) {
     set((s) => {
-      const inHeader = s.header.some((x) => x.id === sectionId)
-      const inFooter = s.footer.some((x) => x.id === sectionId)
+      const owner = findGroupBySection(s, sectionId)
+      if (!owner) return {}
       return {
-        header: s.header.filter((x) => x.id !== sectionId),
-        footer: s.footer.filter((x) => x.id !== sectionId),
+        [slotKey(owner)]: s[slotKey(owner)].filter((x) => x.id !== sectionId),
+        [dirtyKey(owner)]: true,
         selected:
           s.selected?.kind === "section" && s.selected.sectionId === sectionId
             ? null
             : s.selected,
-        headerDirty: inHeader ? true : s.headerDirty,
-        footerDirty: inFooter ? true : s.footerDirty,
-      }
+      } as Partial<Store>
     })
   },
 
   reorderSections(group, orderedIds) {
     set((s) => {
-      const list = group === "HEADER" ? s.header : s.footer
+      const list = s[slotKey(group)]
       const map = new Map(list.map((x) => [x.id, x]))
       const reordered = orderedIds
         .map((id, idx) => {
@@ -404,192 +438,158 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
           return { ...item, position: idx, dirty: true }
         })
         .filter((x): x is SectionDraft => x !== null)
-      return group === "HEADER"
-        ? { header: reordered, headerDirty: true }
-        : { footer: reordered, footerDirty: true }
+      return {
+        [slotKey(group)]: reordered,
+        [dirtyKey(group)]: true,
+      } as Partial<Store>
     })
   },
 
   updateSectionContent(sectionId, content) {
     set((s) => {
-      const inHeader = s.header.some((x) => x.id === sectionId)
-      const inFooter = s.footer.some((x) => x.id === sectionId)
+      const owner = findGroupBySection(s, sectionId)
+      if (!owner) return {}
       return {
-        header: s.header.map((x) =>
+        [slotKey(owner)]: s[slotKey(owner)].map((x) =>
           x.id === sectionId ? { ...x, content, dirty: true } : x,
         ),
-        footer: s.footer.map((x) =>
-          x.id === sectionId ? { ...x, content, dirty: true } : x,
-        ),
-        headerDirty: inHeader ? true : s.headerDirty,
-        footerDirty: inFooter ? true : s.footerDirty,
-      }
+        [dirtyKey(owner)]: true,
+      } as Partial<Store>
     })
   },
 
   toggleSectionEnabled(sectionId) {
     set((s) => {
-      const inHeader = s.header.some((x) => x.id === sectionId)
-      const inFooter = s.footer.some((x) => x.id === sectionId)
+      const owner = findGroupBySection(s, sectionId)
+      if (!owner) return {}
       return {
-        header: s.header.map((x) =>
+        [slotKey(owner)]: s[slotKey(owner)].map((x) =>
           x.id === sectionId ? { ...x, enabled: !x.enabled, dirty: true } : x,
         ),
-        footer: s.footer.map((x) =>
-          x.id === sectionId ? { ...x, enabled: !x.enabled, dirty: true } : x,
-        ),
-        headerDirty: inHeader ? true : s.headerDirty,
-        footerDirty: inFooter ? true : s.footerDirty,
-      }
+        [dirtyKey(owner)]: true,
+      } as Partial<Store>
     })
   },
 
   addBlock(sectionId, type, defaultContent) {
     const id = tmpId("b")
     set((s) => {
-      const inHeader = s.header.some((sec) => sec.id === sectionId)
-      const inFooter = s.footer.some((sec) => sec.id === sectionId)
-      const patch = (list: SectionDraft[]) =>
-        list.map((sec) => {
-          if (sec.id !== sectionId) return sec
-          return {
-            ...sec,
-            dirty: true,
-            blocks: [
-              ...sec.blocks,
-              {
-                id,
-                sectionId,
-                type,
-                position: sec.blocks.length,
-                enabled: true,
-                content: defaultContent,
-                isNew: true,
-                dirty: true,
-              },
-            ],
-          }
-        })
+      const owner = findGroupBySection(s, sectionId)
+      if (!owner) return {}
+      const patched = s[slotKey(owner)].map((sec) => {
+        if (sec.id !== sectionId) return sec
+        return {
+          ...sec,
+          dirty: true,
+          blocks: [
+            ...sec.blocks,
+            {
+              id,
+              sectionId,
+              type,
+              position: sec.blocks.length,
+              enabled: true,
+              content: defaultContent,
+              isNew: true,
+              dirty: true,
+            },
+          ],
+        }
+      })
       return {
-        header: patch(s.header),
-        footer: patch(s.footer),
-        headerDirty: inHeader ? true : s.headerDirty,
-        footerDirty: inFooter ? true : s.footerDirty,
-      }
+        [slotKey(owner)]: patched,
+        [dirtyKey(owner)]: true,
+      } as Partial<Store>
     })
     return id
   },
 
   removeBlock(blockId) {
     set((s) => {
-      const inHeader = s.header.some((sec) =>
-        sec.blocks.some((b) => b.id === blockId),
-      )
-      const inFooter = s.footer.some((sec) =>
-        sec.blocks.some((b) => b.id === blockId),
-      )
-      const patch = (list: SectionDraft[]) =>
-        list.map((sec) => ({
-          ...sec,
-          dirty: sec.blocks.some((b) => b.id === blockId) ? true : sec.dirty,
-          blocks: sec.blocks.filter((b) => b.id !== blockId),
-        }))
+      const owner = findGroupByBlock(s, blockId)
+      if (!owner) return {}
+      const patched = s[slotKey(owner)].map((sec) => ({
+        ...sec,
+        dirty: sec.blocks.some((b) => b.id === blockId) ? true : sec.dirty,
+        blocks: sec.blocks.filter((b) => b.id !== blockId),
+      }))
       return {
-        header: patch(s.header),
-        footer: patch(s.footer),
+        [slotKey(owner)]: patched,
+        [dirtyKey(owner)]: true,
         selected:
           s.selected?.kind === "section-block" && s.selected.blockId === blockId
             ? null
             : s.selected,
-        headerDirty: inHeader ? true : s.headerDirty,
-        footerDirty: inFooter ? true : s.footerDirty,
-      }
+      } as Partial<Store>
     })
   },
 
   reorderBlocks(sectionId, orderedIds) {
     set((s) => {
-      const inHeader = s.header.some((sec) => sec.id === sectionId)
-      const inFooter = s.footer.some((sec) => sec.id === sectionId)
-      const patch = (list: SectionDraft[]) =>
-        list.map((sec) => {
-          if (sec.id !== sectionId) return sec
-          const map = new Map(sec.blocks.map((b) => [b.id, b]))
-          const reordered = orderedIds
-            .map((id, idx) => {
-              const b = map.get(id)
-              if (!b) return null
-              return { ...b, position: idx, dirty: true }
-            })
-            .filter((x): x is BlockDraft => x !== null)
-          return { ...sec, blocks: reordered, dirty: true }
-        })
+      const owner = findGroupBySection(s, sectionId)
+      if (!owner) return {}
+      const patched = s[slotKey(owner)].map((sec) => {
+        if (sec.id !== sectionId) return sec
+        const map = new Map(sec.blocks.map((b) => [b.id, b]))
+        const reordered = orderedIds
+          .map((id, idx) => {
+            const b = map.get(id)
+            if (!b) return null
+            return { ...b, position: idx, dirty: true }
+          })
+          .filter((x): x is BlockDraft => x !== null)
+        return { ...sec, blocks: reordered, dirty: true }
+      })
       return {
-        header: patch(s.header),
-        footer: patch(s.footer),
-        headerDirty: inHeader ? true : s.headerDirty,
-        footerDirty: inFooter ? true : s.footerDirty,
-      }
+        [slotKey(owner)]: patched,
+        [dirtyKey(owner)]: true,
+      } as Partial<Store>
     })
   },
 
   updateBlockContent(blockId, content) {
     set((s) => {
-      const inHeader = s.header.some((sec) =>
-        sec.blocks.some((b) => b.id === blockId),
-      )
-      const inFooter = s.footer.some((sec) =>
-        sec.blocks.some((b) => b.id === blockId),
-      )
-      const patch = (list: SectionDraft[]) =>
-        list.map((sec) => {
-          if (!sec.blocks.some((b) => b.id === blockId)) return sec
-          return {
-            ...sec,
-            dirty: true,
-            blocks: sec.blocks.map((b) =>
-              b.id === blockId ? { ...b, content, dirty: true } : b,
-            ),
-          }
-        })
+      const owner = findGroupByBlock(s, blockId)
+      if (!owner) return {}
+      const patched = s[slotKey(owner)].map((sec) => {
+        if (!sec.blocks.some((b) => b.id === blockId)) return sec
+        return {
+          ...sec,
+          dirty: true,
+          blocks: sec.blocks.map((b) =>
+            b.id === blockId ? { ...b, content, dirty: true } : b,
+          ),
+        }
+      })
       return {
-        header: patch(s.header),
-        footer: patch(s.footer),
-        headerDirty: inHeader ? true : s.headerDirty,
-        footerDirty: inFooter ? true : s.footerDirty,
-      }
+        [slotKey(owner)]: patched,
+        [dirtyKey(owner)]: true,
+      } as Partial<Store>
     })
   },
 
   toggleBlockEnabled(blockId) {
     set((s) => {
-      const inHeader = s.header.some((sec) =>
-        sec.blocks.some((b) => b.id === blockId),
-      )
-      const inFooter = s.footer.some((sec) =>
-        sec.blocks.some((b) => b.id === blockId),
-      )
-      const patch = (list: SectionDraft[]) =>
-        list.map((sec) => {
-          if (!sec.blocks.some((b) => b.id === blockId)) return sec
-          return {
-            ...sec,
-            dirty: true,
-            blocks: sec.blocks.map((b) =>
-              b.id === blockId ? { ...b, enabled: !b.enabled, dirty: true } : b,
-            ),
-          }
-        })
+      const owner = findGroupByBlock(s, blockId)
+      if (!owner) return {}
+      const patched = s[slotKey(owner)].map((sec) => {
+        if (!sec.blocks.some((b) => b.id === blockId)) return sec
+        return {
+          ...sec,
+          dirty: true,
+          blocks: sec.blocks.map((b) =>
+            b.id === blockId ? { ...b, enabled: !b.enabled, dirty: true } : b,
+          ),
+        }
+      })
       return {
-        header: patch(s.header),
-        footer: patch(s.footer),
-        headerDirty: inHeader ? true : s.headerDirty,
-        footerDirty: inFooter ? true : s.footerDirty,
-      }
+        [slotKey(owner)]: patched,
+        [dirtyKey(owner)]: true,
+      } as Partial<Store>
     })
   },
 
   getGroupSnapshot(group) {
-    return group === "HEADER" ? get().header : get().footer
+    return get()[slotKey(group)]
   },
 }))
