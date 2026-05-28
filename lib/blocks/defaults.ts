@@ -415,4 +415,77 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
       image: { desktop: "", mobile: "" },
     },
   },
+
+  PORCENTAJE_UNO: {
+    data: {
+      caption: "",
+      heading: "Human Performance Analytics",
+      imageAlt: "Producto",
+      stats: [
+        {
+          id: crypto.randomUUID(),
+          value: 88,
+          suffix: "%",
+          highlight: "of participants experienced",
+          description:
+            "a significant increase in peak muscular endurance during high-intensity training.*",
+        },
+        {
+          id: crypto.randomUUID(),
+          value: 92,
+          suffix: "%",
+          highlight: "of our customers said",
+          description:
+            "they felt a noticeable improvement in overall energy levels and physical recovery within 30 days.*",
+        },
+        {
+          id: crypto.randomUUID(),
+          value: 74,
+          suffix: "%",
+          highlight: "of users found",
+          description:
+            "a measurable reduction in cellular markers associated with biological aging and muscle fatigue.*",
+        },
+      ],
+      footnote:
+        "Based on a 16-week double-blind clinical study monitoring 120 participants aged 35–65 on a daily 500mg Urolith-X™ regimen.",
+      hotspots: [
+        {
+          id: crypto.randomUUID(),
+          x: 62,
+          y: 48,
+          title: "Clinically Verified",
+          description:
+            "Every batch undergoes rigorous third-party molecular analysis to ensure the absolute purity of our compound.",
+        },
+        {
+          id: crypto.randomUUID(),
+          x: 48,
+          y: 72,
+          title: "Premium Sourcing",
+          description:
+            "Sourced from peer-reviewed suppliers with full traceability from raw material to final dose.",
+        },
+      ],
+      mediaPosition: "left",
+      curveStrength: "normal",
+      countDurationMs: 1800,
+      numberColor: "#9eb4d4",
+      numberWeight: "bold",
+      statTextColor: "#ffffff",
+      dividerColor: "rgba(255,255,255,0.12)",
+      hotspotColor: "rgba(255,255,255,0.92)",
+      hotspotRingColor: "rgba(255,255,255,0.35)",
+    },
+    style: {
+      ...DEFAULT_STYLE,
+      paddingY: "xl",
+      alignment: "left",
+      backgroundColor: "#262626",
+      textColor: "#ffffff",
+    },
+    media: {
+      image: { desktop: "", mobile: "" },
+    },
+  },
 }

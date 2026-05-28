@@ -24,6 +24,7 @@ const ComparisonBlock = dynamic(() => import("@/components/shop/templates/blocks
 const FriendlyBlock = dynamic(() => import("@/components/shop/templates/blocks/FriendlyBlock"))
 const CarouselBlock = dynamic(() => import("@/components/shop/templates/blocks/CarouselBlock"))
 const BannerTopTextBlock = dynamic(() => import("@/components/shop/templates/blocks/BannerTopTextBlock"))
+const PorcentajeUnoBlock = dynamic(() => import("@/components/shop/templates/blocks/PorcentajeUnoBlock"))
 
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
@@ -1336,6 +1337,226 @@ const existing: BlockDefinition[] = [
       arrowColor: "--carousel-arrow-color",
       dotActiveColor: "--carousel-dot-active",
       dotInactiveColor: "--carousel-dot-inactive",
+    },
+  },
+  {
+    type: "PORCENTAJE_UNO",
+    label: "Porcentaje uno (stats + imagen)",
+    icon: "Percent",
+    description:
+      "Stats con porcentaje animado (cuenta desde 0), bordes ovalados arriba/abajo e imagen con hotspots interactivos.",
+    scope: "universal",
+    category: "social-proof",
+    defaultContent: DEFAULT_CONTENT_V2.PORCENTAJE_UNO,
+    renderer: PorcentajeUnoBlock as any,
+    contentSchema: [
+      // ─── Encabezado ──────────────────────────────────────────────────
+      {
+        type: "text",
+        key: "caption",
+        label: "Caption (opcional)",
+        placeholder: "Resultados clínicos",
+      },
+      {
+        type: "text",
+        key: "heading",
+        label: "Título",
+        placeholder: "Human Performance Analytics",
+      },
+      {
+        type: "textarea",
+        key: "footnote",
+        label: "Pie de sección (opcional)",
+        rows: 3,
+        placeholder:
+          "Based on a 16-week double-blind clinical study...",
+      },
+
+      // ─── Imagen ──────────────────────────────────────────────────────
+      {
+        type: "custom",
+        key: "__imageMedia",
+        label: "Imagen",
+        component: ImageTextMediaField,
+        helpText:
+          "Imagen del producto. Puedes definir una versión para desktop y otra para mobile.",
+      },
+      { type: "text", key: "imageAlt", label: "Texto alternativo (alt)" },
+      {
+        type: "select",
+        key: "mediaPosition",
+        label: "Posición de la imagen (desktop)",
+        options: [
+          { value: "left", label: "Izquierda" },
+          { value: "right", label: "Derecha" },
+        ],
+      },
+
+      // ─── Estadísticas ────────────────────────────────────────────────
+      {
+        type: "array",
+        key: "stats",
+        label: "Estadísticas",
+        addButtonText: "+ Agregar estadística",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          value: 88,
+          suffix: "%",
+          highlight: "of users",
+          description: "experienced measurable improvements.",
+        }),
+        itemLabel: (it, i) => {
+          const v = it.value as number | undefined;
+          const s = it.suffix as string | undefined;
+          if (typeof v === "number") return `${v}${s ?? ""}`;
+          return `Stat ${i + 1}`;
+        },
+        itemSchema: [
+          { type: "number", key: "value", label: "Número", min: 0, max: 10000 },
+          { type: "text", key: "prefix", label: "Prefijo (opcional)", placeholder: "$" },
+          { type: "text", key: "suffix", label: "Sufijo (opcional)", placeholder: "%" },
+          {
+            type: "text",
+            key: "highlight",
+            label: "Texto destacado (negrita)",
+            placeholder: "of participants experienced",
+          },
+          {
+            type: "textarea",
+            key: "description",
+            label: "Descripción",
+            rows: 2,
+            placeholder: "a significant increase in...",
+          },
+        ],
+      },
+      {
+        type: "range",
+        key: "countDurationMs",
+        label: "Duración de la animación",
+        min: 400,
+        max: 5000,
+        step: 100,
+        unit: "ms",
+        defaultValue: 1800,
+        helpText: "Tiempo que tarda el contador en llegar al valor final.",
+      },
+
+      // ─── Hotspots sobre la imagen ────────────────────────────────────
+      {
+        type: "array",
+        key: "hotspots",
+        label: "Hotspots (círculos sobre la imagen)",
+        addButtonText: "+ Agregar hotspot",
+        newItem: () => ({
+          id: crypto.randomUUID(),
+          x: 50,
+          y: 50,
+          title: "Nuevo hotspot",
+          description: "Descripción del hotspot.",
+        }),
+        itemLabel: (it, i) => (it.title as string) || `Hotspot ${i + 1}`,
+        itemSchema: [
+          {
+            type: "range",
+            key: "x",
+            label: "Posición horizontal (%)",
+            min: 0,
+            max: 100,
+            step: 1,
+            unit: "%",
+            defaultValue: 50,
+          },
+          {
+            type: "range",
+            key: "y",
+            label: "Posición vertical (%)",
+            min: 0,
+            max: 100,
+            step: 1,
+            unit: "%",
+            defaultValue: 50,
+          },
+          { type: "text", key: "title", label: "Título del tooltip" },
+          {
+            type: "textarea",
+            key: "description",
+            label: "Descripción del tooltip",
+            rows: 3,
+          },
+        ],
+      },
+
+      // ─── Forma de la sección ─────────────────────────────────────────
+      {
+        type: "select",
+        key: "curveStrength",
+        label: "Curvatura ovalada (arriba/abajo)",
+        options: [
+          { value: "none", label: "Sin curvatura" },
+          { value: "subtle", label: "Sutil" },
+          { value: "normal", label: "Normal" },
+          { value: "strong", label: "Pronunciada" },
+        ],
+      },
+
+      // ─── Colores (Estilo) ────────────────────────────────────────────
+      {
+        type: "color",
+        key: "numberColor",
+        label: "Color de los números",
+        showInStyleTab: true,
+      },
+      {
+        type: "select",
+        key: "numberWeight",
+        label: "Grosor de los números",
+        options: [
+          { value: "regular", label: "Regular" },
+          { value: "medium", label: "Medio" },
+          { value: "semibold", label: "Semibold" },
+          { value: "bold", label: "Bold" },
+        ],
+      },
+      {
+        type: "color",
+        key: "statTextColor",
+        label: "Color del texto descriptivo",
+        showInStyleTab: true,
+        helpText: "Opcional. Hereda el color del bloque si está vacío.",
+      },
+      {
+        type: "color",
+        key: "dividerColor",
+        label: "Color de los separadores",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "hotspotColor",
+        label: "Color del círculo hotspot",
+        showInStyleTab: true,
+      },
+      {
+        type: "color",
+        key: "hotspotRingColor",
+        label: "Color del halo del hotspot",
+        showInStyleTab: true,
+      },
+    ],
+    styleSupport: {
+      bgImage: true,
+      gradient: true,
+      // Container width is overridden by the curved wrapper (sets its own
+      // width via the section element).
+      containerWidth: false,
+    },
+    liveContentVars: {
+      numberColor: "--pu-number-color",
+      statTextColor: "--pu-text-color",
+      dividerColor: "--pu-divider",
+      hotspotColor: "--pu-hotspot",
+      hotspotRingColor: "--pu-hotspot-ring",
     },
   },
   {

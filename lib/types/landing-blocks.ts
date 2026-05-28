@@ -35,7 +35,8 @@ export type KnownLandingBlockType =
   | "COMPARISON"
   | "FRIENDLY"
   | "CAROUSEL"
-  | "BANNER_TOP_TEXT";
+  | "BANNER_TOP_TEXT"
+  | "PORCENTAJE_UNO";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type LandingBlockType = KnownLandingBlockType | (string & {});
@@ -61,6 +62,7 @@ export const KNOWN_BLOCK_TYPES: ReadonlySet<KnownLandingBlockType> = new Set<Kno
   "FRIENDLY",
   "CAROUSEL",
   "BANNER_TOP_TEXT",
+  "PORCENTAJE_UNO",
 ]);
 
 export function isKnownBlockType(type: string): type is KnownLandingBlockType {
@@ -444,6 +446,69 @@ export interface CarouselBlockContent {
   dotInactiveColor?: string;
 }
 
+export type PorcentajeUnoCurveStrength = "none" | "subtle" | "normal" | "strong";
+export type PorcentajeUnoMediaPosition = "left" | "right";
+export type PorcentajeUnoNumberWeight = "regular" | "medium" | "semibold" | "bold";
+
+export interface PorcentajeUnoStat {
+  id: string;
+  /** Numeric value (0-100 typical, but accepts any integer). */
+  value: number;
+  /** Suffix shown after the animated number (e.g. "%", "x", "+"). */
+  suffix?: string;
+  /** Prefix shown before the animated number (e.g. "$"). */
+  prefix?: string;
+  /** Bold lead-in text rendered before `description`. */
+  highlight?: string;
+  /** Rest of the descriptive line (plain text). */
+  description: string;
+}
+
+export interface PorcentajeUnoHotspot {
+  id: string;
+  /** Horizontal position over the image, 0–100 (% from left). */
+  x: number;
+  /** Vertical position over the image, 0–100 (% from top). */
+  y: number;
+  /** Tooltip card title. */
+  title: string;
+  /** Tooltip card body (plain text or simple paragraph). */
+  description: string;
+}
+
+export interface PorcentajeUnoBlockContent {
+  /** Eyebrow caption above the main heading. Optional. */
+  caption?: string;
+  /** Main heading (e.g. "Human Performance Analytics"). */
+  heading?: string;
+  /** Alt text for the side image. */
+  imageAlt?: string;
+  /** Statistics rendered on the right column. */
+  stats: PorcentajeUnoStat[];
+  /** Footnote rendered at the bottom (plain text, italic-style). */
+  footnote?: string;
+  /** Interactive hotspots placed on top of the image. */
+  hotspots: PorcentajeUnoHotspot[];
+  /** Position of the media column on desktop. Mobile always stacks media on top. */
+  mediaPosition?: PorcentajeUnoMediaPosition;
+  /** Curvature strength of the top/bottom oval edges. */
+  curveStrength?: PorcentajeUnoCurveStrength;
+  /** Animation duration in milliseconds for the number counter. */
+  countDurationMs?: number;
+  /** Color of the big animated numbers (defaults to a soft accent). */
+  numberColor?: string;
+  /** Font weight of the big animated numbers. */
+  numberWeight?: PorcentajeUnoNumberWeight;
+  /** Color of the description text next to each stat. */
+  statTextColor?: string;
+  /** Color of the divider lines between stats. */
+  dividerColor?: string;
+  /** Background color of the hotspot dots. */
+  hotspotColor?: string;
+  /** Ring/halo color around hotspot dots when hovered. */
+  hotspotRingColor?: string;
+}
+
 export type BannerTopTextMediaType = "image" | "video";
 export type BannerTopTextMediaPosition = "left" | "right";
 export type BannerTopTextScrollDirection = "up" | "down";
@@ -556,7 +621,8 @@ export type BlockContent =
   | ComparisonBlockContent
   | FriendlyBlockContent
   | CarouselBlockContent
-  | BannerTopTextBlockContent;
+  | BannerTopTextBlockContent
+  | PorcentajeUnoBlockContent;
 
 export interface LandingBlock {
   id: string;
@@ -593,6 +659,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   FRIENDLY: "Friendly (beneficios + imagen)",
   CAROUSEL: "Carrusel (imagen / video)",
   BANNER_TOP_TEXT: "Banner + Texto vertical (loop)",
+  PORCENTAJE_UNO: "Porcentaje uno (stats + imagen)",
 };
 
 /**
@@ -693,5 +760,13 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
     pauseOnHover: true,
     scrollItalic: true,
     scrollUppercase: true,
+  },
+  PORCENTAJE_UNO: {
+    stats: [],
+    hotspots: [],
+    mediaPosition: "left",
+    curveStrength: "normal",
+    countDurationMs: 1800,
+    numberWeight: "bold",
   },
 };
