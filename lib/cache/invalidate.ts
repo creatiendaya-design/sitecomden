@@ -38,4 +38,15 @@ export function invalidateCategory(slugOrId: string) {
 export function invalidateAllCategories() {
   revalidateTag("categories", IMMEDIATE);
   revalidateTag("products", IMMEDIATE);
+  // Header "All Categories" pill dropdown — see lib/categories/get-active-root-categories.ts
+  revalidateTag("categories:active", IMMEDIATE);
+}
+
+/**
+ * Invalidate ONLY the cached list of active root categories used by the
+ * storefront Header's "All Categories" pill dropdown. Cheap to call from
+ * any category mutation route — does not touch product caches.
+ */
+export function invalidateActiveRootCategories() {
+  revalidateTag("categories:active", IMMEDIATE);
 }

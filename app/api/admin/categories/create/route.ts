@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { createCategorySchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
+import { invalidateActiveRootCategories } from "@/lib/cache/invalidate";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
     revalidatePath("/");
     revalidatePath("/admin/categorias");
     revalidatePath(`/productos`);
+    invalidateActiveRootCategories();
 
     return NextResponse.json({ success: true, category });
   } catch (error) {

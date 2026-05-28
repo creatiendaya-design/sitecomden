@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { invalidateCategory } from "@/lib/cache/invalidate";
+import { invalidateActiveRootCategories, invalidateCategory } from "@/lib/cache/invalidate";
 import { logAudit } from "@/lib/audit-log";
 
 export async function DELETE(
@@ -55,6 +55,7 @@ export async function DELETE(
     revalidatePath(`/productos`);
     invalidateCategory(category.slug);
     invalidateCategory(categoryId);
+    invalidateActiveRootCategories();
 
     await logAudit({
       action: "category.soft_deleted",

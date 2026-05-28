@@ -39,10 +39,17 @@ export function MenuLink({ item, className, children }: Props) {
     )
   }
 
+  // Storefront perf: items inside collapsed dropdown panels (HeaderNavMenu,
+  // MobileMenu) start with `opacity-0 pointer-events-none`, which suppresses
+  // Next.js' viewport-based prefetch heuristic. Forcing `prefetch={true}`
+  // makes the router prefetch them as soon as the Link mounts, so the page
+  // is already warm when the user actually clicks. Skipped for items that
+  // open in a new tab (no client-side navigation happens).
   return (
     <Link
       href={href}
       target={item.openInNewTab ? "_blank" : undefined}
+      prefetch={item.openInNewTab ? undefined : true}
       className={className}
     >
       {label}

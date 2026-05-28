@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { ChevronDown, ChevronRight } from "lucide-react"
 import { MenuLink } from "./MenuLink"
 import { resolveMenuItemHref } from "@/lib/menus/resolve-link"
@@ -37,12 +38,28 @@ function NavItem({
   item: ResolvedMenuItem
   depth: number
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [flip, setFlip] = useState(false)
+  const prefetchedRef = useRef(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const hasChildren = item.children.length > 0
+
+  // Warm the router cache for this item's destination + its immediate
+  // children as soon as the user shows intent (hover/focus). We dedupe
+  // with a ref so repeated hovers don't re-issue prefetches every time.
+  const prefetchSelfAndChildren = () => {
+    if (prefetchedRef.current) return
+    prefetchedRef.current = true
+    const selfHref = resolveMenuItemHref(item)
+    if (selfHref && !selfHref.startsWith("http")) router.prefetch(selfHref)
+    for (const child of item.children) {
+      const href = resolveMenuItemHref(child)
+      if (href && !href.startsWith("http")) router.prefetch(href)
+    }
+  }
 
   const cancelClose = () => {
     if (closeTimer.current) {
@@ -140,11 +157,13 @@ function NavItem({
       onMouseEnter={() => {
         cancelClose()
         setOpen(true)
+        prefetchSelfAndChildren()
       }}
       onMouseLeave={scheduleClose}
       onFocus={() => {
         cancelClose()
         setOpen(true)
+        prefetchSelfAndChildren()
       }}
       onBlur={(e) => {
         // Only close if focus left the entire wrapper (not just moved inside).

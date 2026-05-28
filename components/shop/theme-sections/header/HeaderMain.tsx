@@ -3,7 +3,6 @@ import Image from "next/image"
 import { ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { prisma } from "@/lib/db"
 import CartCounter from "@/components/shop/CartCounter"
 import MobileMenu from "@/components/shop/MobileMenu"
 import SearchPill from "@/components/shop/SearchPill"
@@ -12,6 +11,7 @@ import { HeaderNavMenu } from "@/components/shop/HeaderNavMenu"
 import { getSiteSettings } from "@/lib/site-settings"
 import { getMenuBySlug } from "@/lib/menus/get-menu-by-slug"
 import { getMenuById } from "@/lib/menus/get-menu-by-id"
+import { getActiveRootCategories } from "@/lib/categories/get-active-root-categories"
 import { applyThemeSectionStyle } from "@/lib/theme-sections/apply-style"
 import { resolveColorValue } from "@/lib/blocks/apply-style"
 import type { BlockStyle } from "@/lib/blocks/types"
@@ -42,11 +42,8 @@ export async function HeaderMain({ section }: Props) {
     // Only fetch a separate mobile menu when the admin explicitly picked one.
     data.mobileMenuId ? getMenuById(data.mobileMenuId) : Promise.resolve(null),
     // Root-level categories for the "All Categories" pill dropdown.
-    prisma.category.findMany({
-      where: { active: true, parentId: null },
-      orderBy: [{ order: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, slug: true },
-    }),
+    // Cached cross-request — invalidated by admin category mutations.
+    getActiveRootCategories(),
   ])
 
   const menuItems = menu?.items ?? []
