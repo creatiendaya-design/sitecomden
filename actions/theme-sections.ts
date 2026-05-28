@@ -44,6 +44,13 @@ import {
  */
 function invalidateSectionGroup(themeId: string, group: ThemeSectionGroup) {
   updateTag(`theme-sections-${themeId}-${group}`)
+  // Plan 17: PRODUCT-group sections drive every `/productos/[slug]` page,
+  // which caches under the `products` tag (see app/(shop)/productos/[slug]/page.tsx).
+  // Without this invalidation a customizer save would render stale until the
+  // 60s revalidate window expires.
+  if (group === "PRODUCT") {
+    updateTag("products")
+  }
 }
 
 // ---------- Row types ----------
@@ -76,7 +83,7 @@ export interface ThemeSectionBlockRow {
 
 const addThemeSectionSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
   type: z.string().min(1),
 })
 
@@ -176,7 +183,7 @@ export async function removeThemeSection(sectionId: string): Promise<void> {
 
 const reorderSectionsSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
   orderedIds: z.array(z.string().min(1)),
 })
 
@@ -386,7 +393,7 @@ const batchSectionSchema = z.object({
 
 const saveGroupSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
   sections: z.array(batchSectionSchema),
 })
 
@@ -413,7 +420,7 @@ const batchSectionSchemaVersioned = z.object({
 
 const saveGroupSchemaVersioned = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
   sections: z.array(batchSectionSchemaVersioned),
 })
 
