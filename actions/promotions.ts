@@ -72,15 +72,18 @@ function serialize(p: PromotionWithTargets): PromotionData {
     active: p.active,
     priority: p.priority,
     config: p.config as PromotionData["config"],
-    startsAt: p.startsAt ? p.startsAt.toISOString() : null,
-    expiresAt: p.expiresAt ? p.expiresAt.toISOString() : null,
+    startsAt: p.startsAt ? new Date(p.startsAt).toISOString() : null,
+    expiresAt: p.expiresAt ? new Date(p.expiresAt).toISOString() : null,
     usageCount: p.usageCount,
     totalDiscountApplied: Number((p as { totalDiscountApplied?: unknown }).totalDiscountApplied ?? 0),
     productIds,
     categoryIds,
     targets,
-    createdAt: p.createdAt.toISOString(),
-    updatedAt: p.updatedAt.toISOString(),
+    // Defensive: dates may come back as ISO strings when this serializer
+    // is reached via a cached path (Prisma findMany inside unstable_cache
+    // would JSON-serialize Dates). Wrap so both Date and string inputs work.
+    createdAt: new Date(p.createdAt).toISOString(),
+    updatedAt: new Date(p.updatedAt).toISOString(),
   };
 }
 
