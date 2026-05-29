@@ -18,6 +18,7 @@ import CarouselBlock from "./CarouselBlock";
 import BannerTopTextBlock from "./BannerTopTextBlock";
 import PorcentajeUnoBlock from "./PorcentajeUnoBlock";
 import FaqTwoBlock from "./FaqTwoBlock";
+import CartMainBlock from "./CartMainBlock";
 
 interface LandingBlockRendererProps {
   blocks: LandingBlock[];
@@ -178,6 +179,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             break;
           case "FAQ_TWO":
             inner = <FaqTwoBlock content={c} />;
+            break;
+          case "CART_MAIN":
+            inner = <CartMainBlock content={c} />;
             break;
           default:
             return null;

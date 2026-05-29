@@ -6,6 +6,8 @@ import { protectRoute } from "@/lib/protect-route"
 import { getCurrentUserIdOrNull } from "@/lib/auth"
 import { hasPermission } from "@/lib/permissions"
 import type { ThemeTokens } from "@/lib/themes/tokens"
+import { DEFAULT_CONTENT_V2 } from "@/lib/blocks/defaults"
+import { ensureCartMainBlock } from "@/lib/themes/ensure-cart-main-block"
 import {
   resolveColorSchemes,
   type ColorSchemeArray,
@@ -504,6 +506,11 @@ export async function ensureCartPageForTheme(
   if (!theme) throw new Error("Tema no encontrado")
 
   if (theme.cartPageId) {
+    // Cart page already exists — backfill a CART_MAIN block if missing.
+    // This handles tenants whose cart page was created BEFORE CART_MAIN
+    // was introduced: without this branch their customizer sidebar
+    // would never surface the cart-skeleton block for editing.
+    await ensureCartMainBlock(theme.cartPageId)
     return { pageId: theme.cartPageId, created: false }
   }
 
@@ -514,8 +521,21 @@ export async function ensureCartPageForTheme(
       slug,
       title: `Carrito — ${theme.name}`,
       description:
-        "Bloques que se renderizan arriba del UI del carrito. Editala desde el Customizer.",
+        "Skeleton de la página del carrito. El bloque CART_MAIN pinta la UI; agregá otros bloques para mostrar arriba del carrito.",
       active: true,
+      // Seed a single CART_MAIN block so the cart page paints with the
+      // customizable skeleton from day one — without it the admin would
+      // see a blank canvas and the storefront would fall back to the
+      // un-customized stand-alone CartView.
+      pageBlocks: {
+        create: [
+          {
+            type: "CART_MAIN",
+            position: 0,
+            content: DEFAULT_CONTENT_V2.CART_MAIN as object,
+          },
+        ],
+      },
     },
     select: { id: true },
   })

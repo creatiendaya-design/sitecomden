@@ -545,4 +545,29 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
     style: { ...DEFAULT_STYLE, paddingY: "none", alignment: "left" },
     media: {},
   },
+  CART_MAIN: {
+    // Cart-skeleton block. Every field is optional — when absent the
+    // renderer falls back to the canonical Spanish copy in
+    // `cart-customization.ts:CART_DEFAULTS`. We seed empty strings so the
+    // SchemaForm renders an empty input the admin can fill, rather than
+    // showing a placeholder that disappears mid-edit.
+    data: {
+      heading: "",
+      emptyTitle: "",
+      emptyMessage: "",
+      emptyButtonText: "",
+      summaryTitle: "",
+      subtotalLabel: "",
+      discountLabel: "",
+      shippingLabel: "",
+      shippingValueText: "",
+      totalLabel: "",
+      checkoutButtonText: "",
+      checkoutLoadingText: "",
+      continueShoppingText: "",
+      paymentMethodsLabel: "",
+    },
+    style: { ...DEFAULT_STYLE, paddingY: "none", alignment: "left" },
+    media: {},
+  },
 }

@@ -26,6 +26,7 @@ const CarouselBlock = dynamic(() => import("@/components/shop/templates/blocks/C
 const BannerTopTextBlock = dynamic(() => import("@/components/shop/templates/blocks/BannerTopTextBlock"))
 const PorcentajeUnoBlock = dynamic(() => import("@/components/shop/templates/blocks/PorcentajeUnoBlock"))
 const FaqTwoBlock = dynamic(() => import("@/components/shop/templates/blocks/FaqTwoBlock"))
+const CartMainBlock = dynamic(() => import("@/components/shop/templates/blocks/CartMainBlock"))
 
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
@@ -2047,6 +2048,117 @@ const existing: BlockDefinition[] = [
       },
     ],
     styleSupport: { textColor: false, alignment: false },
+  },
+  {
+    type: "CART_MAIN",
+    label: "Carrito principal",
+    icon: "ShoppingCart",
+    description:
+      "Skeleton de la página del carrito: edita títulos, etiquetas, botones y colores de la UI del carrito.",
+    // Cart-only — only meaningful when rendered inside the cart page.
+    // The customizer's "Add block" panel filters by scope and won't expose
+    // CART_MAIN in product / category / generic-page builders.
+    scope: "universal",
+    category: "commerce",
+    defaultContent: DEFAULT_CONTENT_V2.CART_MAIN,
+    renderer: CartMainBlock as never,
+    contentSchema: [
+      {
+        type: "text",
+        key: "heading",
+        label: "Título principal",
+        placeholder: "Carrito de Compras",
+      },
+      // ── Carrito vacío ────────────────────────────────────────────
+      {
+        type: "text",
+        key: "emptyTitle",
+        label: "Título carrito vacío",
+        placeholder: "Tu carrito está vacío",
+      },
+      {
+        type: "text",
+        key: "emptyMessage",
+        label: "Mensaje carrito vacío",
+        placeholder: "Agrega productos para comenzar tu compra",
+      },
+      {
+        type: "text",
+        key: "emptyButtonText",
+        label: "Botón carrito vacío",
+        placeholder: "Ver Productos",
+      },
+      // ── Resumen del pedido ───────────────────────────────────────
+      {
+        type: "text",
+        key: "summaryTitle",
+        label: "Título del resumen",
+        placeholder: "Resumen del Pedido",
+      },
+      {
+        type: "text",
+        key: "subtotalLabel",
+        label: "Etiqueta de subtotal",
+        placeholder: "Subtotal",
+      },
+      {
+        type: "text",
+        key: "discountLabel",
+        label: "Etiqueta de descuento",
+        placeholder: "Descuento por promociones",
+      },
+      {
+        type: "text",
+        key: "shippingLabel",
+        label: "Etiqueta de envío",
+        placeholder: "Envío",
+      },
+      {
+        type: "text",
+        key: "shippingValueText",
+        label: "Texto del valor de envío",
+        placeholder: "Calculado en checkout",
+      },
+      {
+        type: "text",
+        key: "totalLabel",
+        label: "Etiqueta de total",
+        placeholder: "Total",
+      },
+      // ── Botones ──────────────────────────────────────────────────
+      {
+        type: "text",
+        key: "checkoutButtonText",
+        label: "Botón de checkout",
+        placeholder: "Proceder al Pago",
+      },
+      {
+        type: "text",
+        key: "checkoutLoadingText",
+        label: "Texto durante verificación de stock",
+        placeholder: "Verificando stock...",
+      },
+      {
+        type: "text",
+        key: "continueShoppingText",
+        label: "Botón seguir comprando",
+        placeholder: "← Seguir Comprando",
+      },
+      // ── Métodos de pago ──────────────────────────────────────────
+      {
+        type: "text",
+        key: "paymentMethodsLabel",
+        label: "Etiqueta métodos de pago",
+        placeholder: "Métodos de pago aceptados",
+      },
+    ],
+    // Background + text apply to the outer wrapper around CartView; the
+    // typography/padding/etc. controls behave the same as any other block.
+    styleSupport: {
+      gradient: true,
+      bgImage: false,
+      textColor: true,
+    },
   },
 ]
 

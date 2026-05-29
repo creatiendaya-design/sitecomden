@@ -37,7 +37,8 @@ export type KnownLandingBlockType =
   | "CAROUSEL"
   | "BANNER_TOP_TEXT"
   | "PORCENTAJE_UNO"
-  | "FAQ_TWO";
+  | "FAQ_TWO"
+  | "CART_MAIN";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type LandingBlockType = KnownLandingBlockType | (string & {});
@@ -65,6 +66,7 @@ export const KNOWN_BLOCK_TYPES: ReadonlySet<KnownLandingBlockType> = new Set<Kno
   "BANNER_TOP_TEXT",
   "PORCENTAJE_UNO",
   "FAQ_TWO",
+  "CART_MAIN",
 ]);
 
 export function isKnownBlockType(type: string): type is KnownLandingBlockType {
@@ -726,6 +728,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   BANNER_TOP_TEXT: "Banner + Texto vertical (loop)",
   PORCENTAJE_UNO: "Porcentaje uno (stats + imagen)",
   FAQ_TWO: "Pregunta frecuente dos",
+  CART_MAIN: "Carrito principal",
 };
 
 /**
@@ -843,4 +846,10 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
     curveStrength: "normal",
     itemGap: "normal",
   },
+  // CART_MAIN is a v2-only block — every customizable label lives in
+  // `data` on the v2 content shape (see lib/blocks/defaults.ts). This
+  // legacy v1 record is only consumed by the deprecated landing-builder
+  // v1 components, so an empty placeholder keeps the type complete
+  // without re-encoding the v2 schema here.
+  CART_MAIN: {},
 };

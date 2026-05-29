@@ -18,8 +18,20 @@ import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/comp
 import { CustomDesignBadge } from "./CustomDesignBadge";
 import { checkImageReachable } from "@/lib/customizer/validate-cart-images";
 import CartFreeGiftsPreview from "./CartFreeGiftsPreview";
+import {
+  type CartCustomization,
+  pickText,
+} from "./cart-customization";
 
-export default function CartView() {
+interface CartViewProps {
+  /** Optional copy overrides provided by the CART_MAIN page-builder block.
+   *  When absent, every label falls back to its canonical default so a
+   *  storefront with no theme cart page paints exactly as before. */
+  customization?: CartCustomization;
+}
+
+export default function CartView({ customization }: CartViewProps = {}) {
+  const t = (key: keyof CartCustomization) => pickText(customization, key);
   const {
     items,
     updateQuantity,
@@ -129,12 +141,12 @@ export default function CartView() {
       <div className="container py-16">
         <div className="mx-auto max-w-md text-center">
           <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground" />
-          <h1 className="mt-4 text-2xl font-bold">Tu carrito está vacío</h1>
+          <h1 className="mt-4 text-2xl font-bold">{t("emptyTitle")}</h1>
           <p className="mt-2 text-muted-foreground">
-            Agrega productos para comenzar tu compra
+            {t("emptyMessage")}
           </p>
           <Button asChild className="mt-6">
-            <Link href="/productos">Ver Productos</Link>
+            <Link href="/productos">{t("emptyButtonText")}</Link>
           </Button>
         </div>
       </div>
@@ -146,7 +158,7 @@ export default function CartView() {
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-      <h1 className="mb-8 text-3xl font-bold">Carrito de Compras</h1>
+      <h1 className="mb-8 text-3xl font-bold">{t("heading")}</h1>
 
       {/* Alertas de stock */}
       {hasStockErrors && (
@@ -329,20 +341,20 @@ export default function CartView() {
 
           {/* Continue Shopping */}
           <Button variant="outline" asChild className="mt-6">
-            <Link href="/productos">← Seguir Comprando</Link>
+            <Link href="/productos">{t("continueShoppingText")}</Link>
           </Button>
         </div>
 
         {/* Order Summary */}
         <div>
           <Card className="p-6 sticky top-24">
-            <h2 className="text-xl font-semibold">Resumen del Pedido</h2>
+            <h2 className="text-xl font-semibold">{t("summaryTitle")}</h2>
             <Separator className="my-4" />
 
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  Subtotal ({getTotalItems()}{" "}
+                  {t("subtotalLabel")} ({getTotalItems()}{" "}
                   {getTotalItems() === 1 ? "producto" : "productos"})
                 </span>
                 <span className="font-medium">
@@ -352,7 +364,7 @@ export default function CartView() {
               {getTotalDiscount() > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    Descuento por promociones
+                    {t("discountLabel")}
                   </span>
                   <span className="font-semibold text-rose-600">
                     -{formatPrice(getTotalDiscount())}
@@ -360,26 +372,26 @@ export default function CartView() {
                 </div>
               )}
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Envío</span>
-                <span className="font-medium">Calculado en checkout</span>
+                <span className="text-muted-foreground">{t("shippingLabel")}</span>
+                <span className="font-medium">{t("shippingValueText")}</span>
               </div>
             </div>
 
             <Separator className="my-4" />
 
             <div className="flex justify-between text-lg font-bold">
-              <span>Total</span>
+              <span>{t("totalLabel")}</span>
               <span>{formatPrice(getTotalPrice())}</span>
             </div>
 
-            <Button 
-              asChild 
-              size="lg" 
+            <Button
+              asChild
+              size="lg"
               className="mt-6 w-full"
               disabled={!canProceedToCheckout}
             >
               <Link href="/checkout">
-                {stockCheck.loading ? "Verificando stock..." : "Proceder al Pago"}
+                {stockCheck.loading ? t("checkoutLoadingText") : t("checkoutButtonText")}
               </Link>
             </Button>
 
@@ -392,7 +404,7 @@ export default function CartView() {
             {/* Payment Methods Icons */}
             <div className="mt-6 pt-4 border-t">
               <p className="text-xs text-muted-foreground text-center mb-3">
-                Métodos de pago aceptados
+                {t("paymentMethodsLabel")}
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <div className="flex items-center justify-center h-10 px-2 bg-white rounded border">

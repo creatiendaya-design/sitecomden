@@ -5,6 +5,7 @@ import { getTheme } from "@/actions/themes"
 import { listLandingTemplates } from "@/actions/landing-templates"
 import { listPagesForThemePicker } from "@/actions/pages"
 import { listThemeSections } from "@/actions/theme-sections"
+import { ensureCartMainBlock } from "@/lib/themes/ensure-cart-main-block"
 import {
   CustomizerShell,
   type EditableSurface,
@@ -94,6 +95,13 @@ export default async function CustomizeThemePage({
 
   const pageId = resolveEditablePageId(targetKey, theme)
   if (pageId) {
+    // Cart pages created before CART_MAIN existed have no skeleton block —
+    // appending one here lets the customizer's sidebar surface it on the
+    // very same render. The helper is idempotent, so this is a no-op when
+    // the block is already there.
+    if (targetKey === "cart") {
+      await ensureCartMainBlock(pageId)
+    }
     const page = await prisma.page.findUnique({
       where: { id: pageId },
       include: { pageBlocks: { orderBy: { position: "asc" } } },
