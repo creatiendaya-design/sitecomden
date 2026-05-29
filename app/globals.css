@@ -427,6 +427,32 @@
 [data-color-scheme] {
   background-color: var(--theme-bg);
   color: var(--theme-text);
+
+  /* Bridge: shadcn Button / Card / Badge etc. read these tokens. Without
+     this rule, any block with a custom color scheme paints its wrapper
+     (bg/text) from the scheme but inner shadcn widgets keep their light
+     defaults — symptom: the "Proceder al Pago" button in CART_MAIN and
+     the <Button> CTAs inside IMAGE_TEXT / TESTIMONIALS / etc. ignored
+     the admin's chosen scheme. Mapping the shadcn tokens to their
+     scheme counterparts here is a single point of truth that every
+     scheme-wrapped subtree inherits. */
+  --background: var(--theme-bg);
+  --foreground: var(--theme-text);
+  --card: var(--theme-card-bg, var(--theme-bg));
+  --card-foreground: var(--theme-card-text, var(--theme-text));
+  --popover: var(--theme-card-bg, var(--theme-bg));
+  --popover-foreground: var(--theme-card-text, var(--theme-text));
+  --primary: var(--theme-primary);
+  --primary-foreground: var(--theme-primary-foreground);
+  --secondary: var(--theme-muted);
+  --secondary-foreground: var(--theme-text);
+  --accent: var(--theme-accent);
+  --accent-foreground: var(--theme-accent-foreground);
+  --muted: var(--theme-muted);
+  --muted-foreground: var(--theme-text);
+  --border: var(--theme-border);
+  --input: var(--theme-border);
+  --ring: var(--theme-primary);
 }
 
 body.is-landing-page header,
@@ -484,8 +510,13 @@ body.is-landing-page footer {
   --hero-justify-content-mobile: var(--hero-justify-content);
   --hero-text-align-mobile: var(--hero-text-align);
   --hero-overlay: none;
-  --hero-cta-bg: #ffffff;
-  --hero-cta-color: #0f172a;
+  /* Chain through the active color scheme so the CTA inherits
+     "Color del botón" / "Texto del botón" when the admin picks a scheme
+     for the HERO block (or its ancestor wrapper). Admin per-block
+     overrides via deriveHeroLiveStyles set these inline and win
+     because inline styles beat the var fallback. */
+  --hero-cta-bg: var(--theme-primary, #ffffff);
+  --hero-cta-color: var(--theme-primary-foreground, #0f172a);
   --hero-cta-border: transparent;
   --hero-cta-backdrop: none;
 

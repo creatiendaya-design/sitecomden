@@ -456,13 +456,13 @@ function SchemeEditor({
               disabled={pending}
             />
             <ColorField
-              label="Primario"
+              label="Color del botón"
               value={colors.primary}
               onChange={(v) => setColors((p) => ({ ...p, primary: v }))}
               disabled={pending}
             />
             <ColorField
-              label="Texto sobre primario"
+              label="Texto del botón"
               value={colors.primaryForeground}
               onChange={(v) =>
                 setColors((p) => ({ ...p, primaryForeground: v }))
