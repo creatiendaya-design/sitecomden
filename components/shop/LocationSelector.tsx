@@ -43,6 +43,11 @@ interface LocationSelectorProps {
   allowedProvinceIds?: string[];
   allowedDistrictCodes?: string[];
   restrictionMessage?: string;
+  /**
+   * Departments resolved on the server. When provided we seed state from it
+   * and skip the on-mount fetch — no cold-Neon round-trip, no spinner.
+   */
+  initialDepartments?: Department[];
 }
 
 export default function LocationSelector({
@@ -53,21 +58,27 @@ export default function LocationSelector({
   allowedProvinceIds,
   allowedDistrictCodes,
   restrictionMessage,
+  initialDepartments,
 }: LocationSelectorProps) {
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departments, setDepartments] = useState<Department[]>(
+    initialDepartments ?? []
+  );
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
 
-  const [loadingDepartments, setLoadingDepartments] = useState(true);
+  const [loadingDepartments, setLoadingDepartments] = useState(
+    !initialDepartments?.length
+  );
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
 
   useEffect(() => {
+    if (initialDepartments?.length) return;
     getDepartments().then((r) => {
       if (r.success) setDepartments(r.data);
       setLoadingDepartments(false);
     });
-  }, []);
+  }, [initialDepartments]);
 
   useEffect(() => {
     if (value.departmentId) {

@@ -20,6 +20,11 @@ export function BlockWrapper({ block, children }: BlockWrapperProps) {
 
   const isSelected = selectedBlockId === block.id
   const origin = block.origin ?? "local"
+  // Plan 13.1 — opt the wrapped subtree into a color scheme. Mirrors the
+  // storefront's LandingBlockRenderer so the canvas recolors live when a
+  // `.theme-<id>` ancestor + theme CSS are present (template editor). A no-op
+  // elsewhere: without that CSS the attribute carries no styling.
+  const colorSchemeId = block.content?.style?.colorSchemeId || undefined
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: block.id })
@@ -39,6 +44,7 @@ export function BlockWrapper({ block, children }: BlockWrapperProps) {
     <div
       ref={setNodeRef}
       style={style}
+      data-color-scheme={colorSchemeId}
       className={cn(
         "relative group",
         // Origin tint: subtle background overlay so admins can scan a long

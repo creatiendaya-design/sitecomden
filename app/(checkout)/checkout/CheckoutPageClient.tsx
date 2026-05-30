@@ -64,6 +64,16 @@ interface CheckoutPageClientProps {
   siteLogo: string;
   sunatEnabled: boolean;
   pricesIncludeIgv: boolean;
+  /** Departments resolved on the server (avoids a client round-trip). */
+  departments: { id: string; code: string; name: string }[];
+  /** Enabled payment methods resolved on the server. */
+  enabledMethods: {
+    yape: boolean;
+    plin: boolean;
+    card: boolean;
+    paypal: boolean;
+    mercadopago: boolean;
+  };
 }
 
 export default function CheckoutPageClient({
@@ -71,6 +81,8 @@ export default function CheckoutPageClient({
   siteLogo,
   sunatEnabled,
   pricesIncludeIgv,
+  departments,
+  enabledMethods,
 }: CheckoutPageClientProps) {
   const router = useRouter();
   const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();
@@ -1044,6 +1056,7 @@ export default function CheckoutPageClient({
                           districtCode: formData.districtCode,
                         }}
                         onChange={handleLocationChange}
+                        initialDepartments={departments}
                         errors={{
                           department: validationErrors.department,
                           province: validationErrors.city,
@@ -1191,6 +1204,7 @@ export default function CheckoutPageClient({
                   <CardContent className="space-y-3 min-w-0">
                     <PaymentMethodSelector
                       selectedMethod={formData.paymentMethod}
+                      initialEnabledMethods={enabledMethods}
                       onMethodChange={(method) => {
                         setFormData({ ...formData, paymentMethod: method });
                         setCulqiToken(null);

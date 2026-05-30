@@ -1,4 +1,5 @@
 import type { ResolvedThemeSection } from "@/lib/theme-sections/types"
+import { getProductImageUrl } from "@/lib/image-utils"
 import { SectionWrapper } from "../_helpers"
 import {
   ProductProvider,
@@ -90,6 +91,7 @@ export function ProductMain({
         basePrice={product.basePrice}
         baseComparePrice={product.compareAtPrice}
         baseStock={product.stock}
+        baseImage={getProductImageUrl(product.images)}
         hasVariants={product.hasVariants}
         variants={variants}
         options={options}

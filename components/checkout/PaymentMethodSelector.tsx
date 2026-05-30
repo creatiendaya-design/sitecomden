@@ -8,44 +8,73 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
 
+type EnabledMethods = {
+  yape: boolean;
+  plin: boolean;
+  card: boolean;
+  paypal: boolean;
+  mercadopago: boolean;
+};
+
+const DEFAULT_ENABLED: EnabledMethods = {
+  yape: true,
+  plin: true,
+  card: true,
+  paypal: false,
+  mercadopago: false,
+};
+
 interface PaymentMethodSelectorProps {
   selectedMethod: "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO";
   onMethodChange: (method: "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO") => void;
   disabled?: boolean;
+  /**
+   * Enabled methods resolved on the server (passed from the checkout page).
+   * When provided, we skip the client round-trip entirely and render
+   * instantly — no spinner, no flicker.
+   */
+  initialEnabledMethods?: EnabledMethods;
 }
 
-export function PaymentMethodSelector({ 
-  selectedMethod, 
-  onMethodChange, 
-  disabled 
+export function PaymentMethodSelector({
+  selectedMethod,
+  onMethodChange,
+  disabled,
+  initialEnabledMethods,
 }: PaymentMethodSelectorProps) {
-  const [enabledMethods, setEnabledMethods] = useState({
-    yape: true,
-    plin: true,
-    card: true,
-    paypal: false,
-    mercadopago: false,
-  });
-  const [loading, setLoading] = useState(true);
+  const [enabledMethods, setEnabledMethods] = useState<EnabledMethods>(
+    initialEnabledMethods ?? DEFAULT_ENABLED
+  );
+  const [loading, setLoading] = useState(!initialEnabledMethods);
 
+  // Fetch only when the server didn't already provide the data.
   useEffect(() => {
-    async function loadMethods() {
-      const methods = await getEnabledPaymentMethods();
+    if (initialEnabledMethods) return;
+    let active = true;
+    getEnabledPaymentMethods().then((methods) => {
+      if (!active) return;
       setEnabledMethods(methods);
       setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [initialEnabledMethods]);
 
-      // Si el método seleccionado ya no está habilitado, cambiar al primero disponible
-      const methodKey = selectedMethod.toLowerCase() as keyof typeof methods;
-      if (!methods[methodKey]) {
-        // Encontrar el primer método habilitado
-        const firstEnabled = Object.entries(methods).find(([_, enabled]) => enabled)?.[0];
-        if (firstEnabled) {
-          onMethodChange(firstEnabled.toUpperCase() as any);
-        }
+  // If the currently selected method is disabled, fall back to the first
+  // enabled one. Kept separate from the fetch so it never re-triggers a load.
+  useEffect(() => {
+    if (loading) return;
+    const methodKey = selectedMethod.toLowerCase() as keyof EnabledMethods;
+    if (!enabledMethods[methodKey]) {
+      const firstEnabled = Object.entries(enabledMethods).find(
+        ([, enabled]) => enabled
+      )?.[0];
+      if (firstEnabled) {
+        onMethodChange(firstEnabled.toUpperCase() as PaymentMethodSelectorProps["selectedMethod"]);
       }
     }
-    loadMethods();
-  }, [selectedMethod, onMethodChange]);
+  }, [loading, enabledMethods, selectedMethod, onMethodChange]);
 
   if (loading) {
     return (

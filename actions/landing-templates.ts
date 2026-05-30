@@ -303,74 +303,101 @@ interface IncomingBlock {
   content: unknown
 }
 
+/** Internal sentinel: thrown inside the save transaction when the optimistic
+ *  version guard on the parent template fails, so the whole reconciliation
+ *  rolls back before any block is written. */
+class TemplateVersionConflict extends Error {
+  constructor() {
+    super("template-version-conflict")
+    this.name = "TemplateVersionConflict"
+  }
+}
+
 /**
- * Explicit-save for the template editor. Reconciles TemplateBlock rows inside
- * a single transaction:
- *  - rows not present in `incomingBlocks` are deleted
- *  - rows whose id starts with "tmp-" (or isn't in the DB) are created
- *  - remaining rows are updated (type/position/content)
+ * Plan 18 — explicit, version-aware save for the template editor.
  *
- * After save we bump the template's `updatedAt` and revalidate the editor
- * path + the `template:${id}` tag used by product landing rendering.
- *
- * Note: newly-created blocks come back with fresh ids on the next fetch; the
- * client calls `router.refresh()` after save, which reloads the template and
- * replaces the builder store's snapshot with real ids.
+ * The template editor is an explicit-save surface: the admin accumulates
+ * changes and flushes the whole template in one transaction ("Guardar y
+ * propagar"). The right optimistic-locking granularity is therefore the
+ * parent `LandingTemplate` row, not each block — we bump its `version`
+ * conditionally at the start of the transaction. If another admin saved
+ * (metadata or blocks) while this editor was open, the guard misses, the
+ * transaction rolls back untouched, and we return a `conflict` so the UI can
+ * offer reload / force-save instead of silently clobbering the other save.
  */
-export async function saveTemplateBlocks(
+export async function saveTemplateBlocksVersioned(
   templateId: string,
+  expectedVersion: number,
   incomingBlocks: IncomingBlock[],
-): Promise<{ success: true }> {
-  await protectRoute("landing_templates:update")
+): Promise<SaveResult<{ id: string; version: number }>> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return unauthorized()
+  const allowed = await hasPermission(userId, "landing_templates:update")
+  if (!allowed) return unauthorized()
+
   for (const b of incomingBlocks) assertKnownBlockType(b.type)
 
-  await prisma.$transaction(async (tx) => {
-    const existing = await tx.templateBlock.findMany({
-      where: { templateId },
-      select: { id: true },
-    })
-    const existingIds = new Set(existing.map((b) => b.id))
-    const incomingIds = new Set(incomingBlocks.map((b) => b.id))
+  try {
+    const newVersion = await prisma.$transaction(async (tx) => {
+      // Optimistic lock on the parent template. Bump first so the reconcile
+      // below never runs against a version that's already moved on.
+      const bumped = await tx.landingTemplate.updateMany({
+        where: { id: templateId, version: expectedVersion },
+        data: { version: { increment: 1 }, updatedAt: new Date() },
+      })
+      if (bumped.count === 0) throw new TemplateVersionConflict()
 
-    // Delete removed blocks
-    const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
-    if (toDelete.length > 0) {
-      await tx.templateBlock.deleteMany({ where: { id: { in: toDelete } } })
-    }
+      const existing = await tx.templateBlock.findMany({
+        where: { templateId },
+        select: { id: true },
+      })
+      const existingIds = new Set(existing.map((b) => b.id))
+      const incomingIds = new Set(incomingBlocks.map((b) => b.id))
 
-    // Upsert each incoming block
-    for (const b of incomingBlocks) {
-      // tmp- ids come from new blocks added in this session; create them.
-      if (b.id.startsWith("tmp-") || !existingIds.has(b.id)) {
-        await tx.templateBlock.create({
-          data: {
-            templateId,
-            type: b.type,
-            position: b.position,
-            content: b.content as object,
-          },
-        })
-      } else {
-        await tx.templateBlock.update({
-          where: { id: b.id },
-          data: {
-            type: b.type,
-            position: b.position,
-            content: b.content as object,
-          },
-        })
+      const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+      if (toDelete.length > 0) {
+        await tx.templateBlock.deleteMany({ where: { id: { in: toDelete } } })
       }
-    }
 
-    await tx.landingTemplate.update({
-      where: { id: templateId },
-      data: { updatedAt: new Date() },
+      for (const b of incomingBlocks) {
+        if (b.id.startsWith("tmp-") || !existingIds.has(b.id)) {
+          await tx.templateBlock.create({
+            data: {
+              templateId,
+              type: b.type,
+              position: b.position,
+              content: b.content as object,
+            },
+          })
+        } else {
+          await tx.templateBlock.update({
+            where: { id: b.id },
+            data: {
+              type: b.type,
+              position: b.position,
+              content: b.content as object,
+            },
+          })
+        }
+      }
+
+      return expectedVersion + 1
     })
-  })
 
-  updateTag(`template:${templateId}`)
-  revalidatePath(`/admin/landing-plantillas/${templateId}`)
-  return { success: true }
+    updateTag(`template:${templateId}`)
+    revalidatePath(`/admin/landing-plantillas/${templateId}`)
+    return ok({ id: templateId, version: newVersion }, newVersion)
+  } catch (err) {
+    if (err instanceof TemplateVersionConflict) {
+      const fresh = await prisma.landingTemplate.findUnique({
+        where: { id: templateId },
+        select: { id: true, version: true },
+      })
+      if (!fresh) return notFound()
+      return conflict({ id: fresh.id, version: fresh.version }, fresh.version)
+    }
+    return errored(err instanceof Error ? err.message : "Error al guardar plantilla")
+  }
 }
 
 /**

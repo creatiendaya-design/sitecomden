@@ -142,6 +142,43 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* Page-builder canvas insulation.
+   The admin shell follows the admin-chosen theme: AdminThemeProvider toggles
+   the `.dark` class (+ `[data-admin-theme="dark"]`) on an ancestor, which flips
+   the shadcn `--background` / `--foreground` / … tokens (via the `.dark` block
+   above) and the hardcoded-color retrofit rules below. The page-builder canvas,
+   however, is a *storefront preview*: it must look identical whether the admin
+   picked light, dark or "system". This re-pins the shadcn base tokens to the
+   exact `:root` (storefront light) values and forces light native controls, so
+   the canvas reproduces the storefront baseline regardless of the admin theme.
+   Per-block color schemes keep working: their wrapper carries
+   `[data-color-scheme]`, whose rule sets these tokens directly on a closer
+   ancestor and therefore wins. Sidebars/topbar live outside the canvas, so they
+   keep following the admin theme as before. */
+.pb-canvas-light {
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --cta: oklch(0.72 0.22 45);
+  --cta-foreground: oklch(0.13 0.02 45);
+  --primary: oklch(0.208 0.042 265.755);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -55,6 +55,10 @@ export interface ProductContextValue {
   currentPrice: number
   currentComparePrice: number | null
   currentStock: number
+  /** Image shown for the current selection: the selected variant's own
+   *  image when present, otherwise the product's first base image. Used by
+   *  the BuyButton so cart items always carry a thumbnail. */
+  currentImage: string | null
   inStock: boolean
 }
 
@@ -66,6 +70,9 @@ interface ProductProviderProps {
   basePrice: number
   baseComparePrice: number | null
   baseStock: number
+  /** First base image URL of the product (already normalized server-side).
+   *  Falls back to this when the selected variant has no own image. */
+  baseImage: string | null
   hasVariants: boolean
   variants: ProductVariant[]
   options: ProductOption[]
@@ -78,6 +85,7 @@ export function ProductProvider({
   basePrice,
   baseComparePrice,
   baseStock,
+  baseImage,
   hasVariants,
   variants,
   options,
@@ -96,6 +104,7 @@ export function ProductProvider({
     const currentComparePrice =
       selectedVariant?.compareAtPrice ?? baseComparePrice
     const currentStock = selectedVariant?.stock ?? baseStock
+    const currentImage = selectedVariant?.image ?? baseImage
     return {
       productId,
       productName,
@@ -114,6 +123,7 @@ export function ProductProvider({
       currentPrice,
       currentComparePrice,
       currentStock,
+      currentImage,
       inStock: currentStock > 0,
     }
   }, [
@@ -122,6 +132,7 @@ export function ProductProvider({
     basePrice,
     baseComparePrice,
     baseStock,
+    baseImage,
     hasVariants,
     variants,
     options,

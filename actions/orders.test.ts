@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { createOrderSchema } from "./orders";
+import { createOrderSchema } from "./orders-schema";
 
 function validPayload(overrides: Record<string, unknown> = {}) {
   return {

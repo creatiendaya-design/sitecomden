@@ -23,7 +23,11 @@ export function CanvasFrame({ children }: CanvasFrameProps) {
     <div className="flex-1 flex items-stretch justify-center py-6 px-4 overflow-hidden min-h-0">
       <div
         className={cn(
-          "bg-background shadow-xl border transition-all duration-200 overflow-y-auto overflow-x-hidden",
+          // `pb-canvas-light` insulates this storefront preview frame from the
+          // admin's dark theme so the canvas content never inherits dark
+          // `--background`/`--muted`/… tokens (see app/globals.css). The
+          // sidebars/topbar live outside the frame and stay theme-driven.
+          "pb-canvas-light bg-background shadow-xl border transition-all duration-200 overflow-y-auto overflow-x-hidden",
           device === "desktop"
             ? "w-full max-w-[1280px] rounded-lg"
             : "w-[375px] rounded-2xl border-2"
