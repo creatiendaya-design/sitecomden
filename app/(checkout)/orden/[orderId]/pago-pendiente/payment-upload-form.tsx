@@ -11,9 +11,10 @@ import Image from "next/image";
 
 interface PaymentUploadFormProps {
   orderId: string;
+  viewToken: string;
 }
 
-export default function PaymentUploadForm({ orderId }: PaymentUploadFormProps) {
+export default function PaymentUploadForm({ orderId, viewToken }: PaymentUploadFormProps) {
   const [reference, setReference] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export default function PaymentUploadForm({ orderId }: PaymentUploadFormProps) {
     try {
       const formData = new FormData();
       formData.append("orderId", orderId);
+      formData.append("viewToken", viewToken);
       formData.append("reference", reference);
       formData.append("proofImage", imageFile);
 

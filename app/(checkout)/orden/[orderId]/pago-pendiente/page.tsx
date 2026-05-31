@@ -196,7 +196,7 @@ export default async function PendingPaymentPage({ params }: PageProps) {
                 </p>
               </CardHeader>
               <CardContent>
-                <PaymentUploadForm orderId={order.id} />
+                <PaymentUploadForm orderId={order.id} viewToken={order.viewToken ?? ""} />
               </CardContent>
             </Card>
           </>

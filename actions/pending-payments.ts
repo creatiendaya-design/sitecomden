@@ -2,9 +2,26 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { put } from "@vercel/blob";
 import { autoEmitOnPayment } from "@/actions/sunat";
 import { protectRoute } from "@/lib/protect-route";
+import { checkRateLimit, uploadRateLimiter } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
+
+const log = logger.child({ module: "pending-payments" });
+
+// Magic-byte signatures for the image formats we accept. The server must
+// validate this itself — never trust the client's file.type or the form's
+// client-side checks.
+const IMAGE_SIGNATURES: number[][] = [
+  [0xff, 0xd8, 0xff], // JPEG
+  [0x89, 0x50, 0x4e, 0x47], // PNG
+  [0x47, 0x49, 0x46, 0x38], // GIF
+  [0x52, 0x49, 0x46, 0x46], // WebP (RIFF)
+];
+
+const MAX_PROOF_BYTES = 5 * 1024 * 1024; // 5MB
 
 // ============================================================
 // SUBIR COMPROBANTE DE PAGO (Cliente)
@@ -13,26 +30,42 @@ import { protectRoute } from "@/lib/protect-route";
 export async function uploadPaymentProof(formData: FormData) {
   try {
     const orderId = formData.get("orderId") as string;
+    const viewToken = formData.get("viewToken") as string;
     const reference = formData.get("reference") as string;
     const proofFile = formData.get("proofImage") as File;
 
-    if (!orderId || !reference || !proofFile) {
+    if (!orderId || !viewToken || !reference || !proofFile) {
       return {
         success: false,
         error: "Faltan datos requeridos",
       };
     }
 
-    // Verificar que la orden existe y tiene pago pendiente
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
+    // Rate limiting por IP: previene spam de comprobantes.
+    const hdrs = await headers();
+    const ip = hdrs.get("x-forwarded-for")?.split(",")[0].trim() ?? "anonymous";
+    const rl = await checkRateLimit(uploadRateLimiter, `proof:${ip}`, {
+      action: "uploadPaymentProof",
+    });
+    if (!rl.success) {
+      return {
+        success: false,
+        error: "Demasiados intentos. Espera unos minutos e intenta nuevamente.",
+      };
+    }
+
+    // AUTORIZACIÓN: la orden debe coincidir con su viewToken. Sin esto,
+    // cualquiera con un orderId podía subir un comprobante falso a una orden
+    // ajena (el token solo se conoce vía el link enviado por email al cliente).
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, viewToken },
       include: { pendingPayment: true },
     });
 
     if (!order) {
       return {
         success: false,
-        error: "Orden no encontrada",
+        error: "No autorizado o orden no encontrada",
       };
     }
 
@@ -43,10 +76,27 @@ export async function uploadPaymentProof(formData: FormData) {
       };
     }
 
-    // Subir imagen a Vercel Blob
-    const blob = await put(`payments/${orderId}-${Date.now()}.jpg`, proofFile, {
-      access: "public",
-    });
+    // Validación del archivo EN EL SERVIDOR (tamaño + tipo + magic bytes).
+    if (proofFile.size > MAX_PROOF_BYTES) {
+      return { success: false, error: "La imagen debe ser menor a 5MB" };
+    }
+    if (!proofFile.type.startsWith("image/")) {
+      return { success: false, error: "El archivo debe ser una imagen" };
+    }
+    const bytes = new Uint8Array(await proofFile.arrayBuffer());
+    const isValidImage = IMAGE_SIGNATURES.some((sig) =>
+      sig.every((b, i) => bytes[i] === b)
+    );
+    if (!isValidImage) {
+      return { success: false, error: "El archivo no es una imagen válida" };
+    }
+
+    // Subir imagen a Vercel Blob usando los bytes ya validados.
+    const blob = await put(
+      `payments/${orderId}-${Date.now()}.jpg`,
+      new Blob([bytes], { type: proofFile.type }),
+      { access: "public" }
+    );
 
     // Actualizar PendingPayment con referencia e imagen
     await prisma.pendingPayment.update({
@@ -66,11 +116,8 @@ export async function uploadPaymentProof(formData: FormData) {
       },
     });
 
-    console.log("Comprobante subido exitosamente:", {
-      orderId,
-      reference,
-      imageUrl: blob.url,
-    });
+    // No registrar la referencia bancaria del cliente (dato financiero) en logs.
+    log.info({ orderId }, "Comprobante de pago subido");
 
     return {
       success: true,

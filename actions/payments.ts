@@ -97,44 +97,10 @@ export async function processCardPayment(data: {
       console.error("SUNAT auto-emission failed (payment still confirmed):", emitError);
     }
 
-    // 6. Reducir inventario de productos
-    for (const item of order.items) {
-      if (item.variantId) {
-        // Producto con variante
-        await prisma.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { decrement: item.quantity } },
-        });
-
-        // Registrar movimiento de inventario
-        await prisma.inventoryMovement.create({
-          data: {
-            variantId: item.variantId,
-            type: "SALE",
-            quantity: -item.quantity,
-            reason: `Venta orden #${order.orderNumber}`,
-            reference: order.id,
-          },
-        });
-      } else if (item.productId) {
-        // Producto simple
-        await prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
-
-        // Registrar movimiento de inventario
-        await prisma.inventoryMovement.create({
-          data: {
-            productId: item.productId,
-            type: "SALE",
-            quantity: -item.quantity,
-            reason: `Venta orden #${order.orderNumber}`,
-            reference: order.id,
-          },
-        });
-      }
-    }
+    // NOTA: El inventario YA se descontó atómicamente en createOrder (para
+    // tarjeta/PayPal el stock se reserva al crear la orden). NO volver a
+    // descontar aquí — hacerlo causaba doble/triple descuento (createOrder +
+    // processCardPayment + webhook) y stock negativo.
 
     // 7. Enviar email de confirmación
     try {

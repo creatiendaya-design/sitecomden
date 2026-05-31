@@ -134,40 +134,9 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
     },
   });
 
-  // Reducir inventario si no se ha hecho
-  for (const item of order.items) {
-    if (item.variantId) {
-      await prisma.productVariant.update({
-        where: { id: item.variantId },
-        data: { stock: { decrement: item.quantity } },
-      });
-
-      await prisma.inventoryMovement.create({
-        data: {
-          variantId: item.variantId,
-          type: "SALE",
-          quantity: -item.quantity,
-          reason: `Venta orden #${order.orderNumber} (webhook)`,
-          reference: order.id,
-        },
-      });
-    } else if (item.productId) {
-      await prisma.product.update({
-        where: { id: item.productId },
-        data: { stock: { decrement: item.quantity } },
-      });
-
-      await prisma.inventoryMovement.create({
-        data: {
-          productId: item.productId,
-          type: "SALE",
-          quantity: -item.quantity,
-          reason: `Venta orden #${order.orderNumber} (webhook)`,
-          reference: order.id,
-        },
-      });
-    }
-  }
+  // NOTA: El inventario para órdenes con tarjeta YA se descontó atómicamente
+  // en createOrder al crear la orden. NO descontar aquí — duplicaba el
+  // descuento (createOrder + webhook) y dejaba el stock en negativo.
 
   // Revalidar páginas
   revalidatePath("/admin/ordenes");

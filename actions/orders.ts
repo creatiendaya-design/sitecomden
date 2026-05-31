@@ -7,7 +7,7 @@ import crypto from "crypto";
 import { trackConversion } from "@/lib/conversion-api";
 import { headers } from "next/headers";
 import { protectRoute } from "@/lib/protect-route";
-import { checkRateLimit, apiRateLimiter } from "@/lib/rate-limit";
+import { checkRateLimit, apiRateLimiter, checkoutRateLimiter } from "@/lib/rate-limit";
 import { createOrderSchema, type UpdateOrderStatusInput } from "./orders-schema";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
@@ -49,6 +49,17 @@ export async function createOrder(rawData: unknown) {
     }
     const data = parsed.data;
 
+    // Rate limiting por IP: previene spam de órdenes falsas (10 / 10 min).
+    const hdrs = await headers();
+    const ip = hdrs.get("x-forwarded-for")?.split(",")[0].trim() ?? "anonymous";
+    const rl = await checkRateLimit(checkoutRateLimiter, ip, { action: "createOrder" });
+    if (!rl.success) {
+      return {
+        success: false,
+        error: "Demasiados intentos de compra. Espera unos minutos e intenta nuevamente.",
+      };
+    }
+
     // Obtener precios autoritativos del servidor — nunca confiar en los del cliente
     const serverPrices = new Map<string, number>();
     for (const item of data.items) {
@@ -73,7 +84,30 @@ export async function createOrder(rawData: unknown) {
       const price = serverPrices.get(key) ?? 0;
       return sum + price * item.quantity;
     }, 0);
-    const shipping = data.shipping || 0;
+    // Costo de envío SIEMPRE resuelto desde la BD vía shippingRateId. Nunca
+    // confiar en data.shipping del cliente (un payload manipulado podría enviar
+    // shipping:0 para no pagar envío). Mismo patrón que el flujo COD.
+    let resolvedShipping = 0;
+    if (data.shippingRateId) {
+      const rate = await prisma.shippingRate.findUnique({
+        where: { id: data.shippingRateId },
+        select: {
+          active: true,
+          baseCost: true,
+          freeShippingMin: true,
+          zone: { select: { active: true } },
+        },
+      });
+      if (!rate || !rate.active || !rate.zone.active) {
+        return {
+          success: false,
+          error: "La tarifa de envío seleccionada ya no está disponible.",
+        };
+      }
+      const baseCost = Number(rate.baseCost);
+      const freeMin = rate.freeShippingMin ? Number(rate.freeShippingMin) : null;
+      resolvedShipping = freeMin && subtotal >= freeMin ? 0 : baseCost;
+    }
 
     // Resolver descuentos por volumen + suscripción server-side. Nunca
     // confiamos en valores del cliente; solo en los promotionId/email que
@@ -160,22 +194,47 @@ export async function createOrder(rawData: unknown) {
 
     promotionDiscount = Math.round(promotionDiscount * 100) / 100;
 
-    // Revalidar cupón en el servidor si se aplicó uno
+    // Revalidar cupón SIEMPRE en el servidor. El cliente solo envía el código;
+    // nunca confiamos en couponDiscount. Validamos vigencia (expiresAt/startsAt),
+    // monto mínimo y LÍMITE DE USOS antes de aplicar. El incremento atómico en
+    // la transacción (más abajo) es la red de seguridad final contra carreras.
     let couponDiscount = 0;
+    let freeShippingApplied = false;
+    let couponApplied = false;
     if (data.couponCode) {
       const coupon = await prisma.coupon.findUnique({
         where: { code: data.couponCode.toUpperCase(), active: true },
       });
-      if (coupon && (!coupon.expiresAt || coupon.expiresAt > new Date())) {
-        if (coupon.type === "PERCENTAGE") {
-          couponDiscount = (subtotal * Number(coupon.value)) / 100;
-          if (coupon.maxDiscount) couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
-        } else if (coupon.type === "FIXED_AMOUNT") {
-          couponDiscount = Math.min(Number(coupon.value), subtotal);
-        }
+
+      const now = new Date();
+      const invalid =
+        !coupon ||
+        (coupon.expiresAt !== null && coupon.expiresAt <= now) ||
+        (coupon.startsAt !== null && coupon.startsAt > now) ||
+        (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) ||
+        (coupon.minPurchase !== null && subtotal < Number(coupon.minPurchase));
+
+      if (invalid) {
+        return {
+          success: false,
+          error: "El cupón ya no es válido o no aplica a tu compra. Quítalo e inténtalo de nuevo.",
+        };
       }
+
+      if (coupon!.type === "PERCENTAGE") {
+        couponDiscount = (subtotal * Number(coupon!.value)) / 100;
+        if (coupon!.maxDiscount) {
+          couponDiscount = Math.min(couponDiscount, Number(coupon!.maxDiscount));
+        }
+      } else if (coupon!.type === "FIXED_AMOUNT") {
+        couponDiscount = Math.min(Number(coupon!.value), subtotal);
+      } else if (coupon!.type === "FREE_SHIPPING") {
+        freeShippingApplied = true;
+      }
+      couponApplied = couponDiscount > 0 || freeShippingApplied;
     }
 
+    const shipping = freeShippingApplied ? 0 : resolvedShipping;
     const discount = couponDiscount + promotionDiscount;
     const total = subtotal + shipping - discount;
 
@@ -452,11 +511,23 @@ export async function createOrder(rawData: unknown) {
           }
         }
 
-        if (data.couponCode) {
-          await tx.coupon.updateMany({
-            where: { code: data.couponCode },
-            data: { usageCount: { increment: 1 } },
-          });
+        // Incremento atómico con guarda de límite: solo incrementa si aún hay
+        // cupos disponibles. Si un checkout concurrente consumió el último uso
+        // entre la validación de arriba y este punto, el UPDATE afecta 0 filas
+        // y abortamos la orden (red de seguridad contra la carrera de cupones).
+        if (couponApplied && data.couponCode) {
+          const incremented = await tx.$executeRaw`
+            UPDATE "Coupon"
+            SET "usageCount" = "usageCount" + 1
+            WHERE "code" = ${data.couponCode.toUpperCase()}
+              AND "active" = true
+              AND ("usageLimit" IS NULL OR "usageCount" < "usageLimit")
+          `;
+          if (incremented === 0) {
+            throw new StockUnavailableError(
+              "El cupón ya alcanzó su límite de usos."
+            );
+          }
         }
 
         return created;
