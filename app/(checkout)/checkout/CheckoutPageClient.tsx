@@ -8,8 +8,8 @@ import { createOrder } from "@/actions/orders";
 import { processCardPayment } from "@/actions/payments";
 import { checkCartStock } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CheckoutInput } from "@/components/checkout/CheckoutField";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,7 +23,7 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { AlertTriangle, ChevronUp, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X } from "lucide-react";
+import { AlertTriangle, ChevronUp, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X, User, Mail, Phone, IdCard, Home, MapPin } from "lucide-react";
 import { useTracking } from "@/hooks/useTracking";
 import CulqiCheckoutButton from "@/components/shop/CulqiCheckoutButton";
 import {
@@ -941,87 +941,69 @@ export default function CheckoutPageClient({
                   </CardHeader>
                   <CardContent className="space-y-4 min-w-0">
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="min-w-0">
-                        <Label htmlFor="customerName" className="block mb-2">
-                          Nombre Completo <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          ref={nameRef}
-                          id="customerName"
-                          name="customerName"
-                          value={formData.customerName}
-                          onChange={handleInputChange}
-                          onBlur={handleBlur}
-                          placeholder="Juan Pérez"
-                          autoComplete="name"
-                          className={validationErrors.customerName ? "border-destructive" : ""}
-                        />
-                        {validationErrors.customerName && (
-                          <p className="text-sm text-destructive mt-1">{validationErrors.customerName}</p>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <Label htmlFor="customerDni" className="block mb-2">
-                          DNI (opcional)
-                        </Label>
-                        <Input
-                          id="customerDni"
-                          name="customerDni"
-                          value={formData.customerDni}
-                          onChange={handleInputChange}
-                          placeholder="12345678"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          maxLength={8}
-                          autoComplete="off"
-                        />
-                      </div>
+                      <CheckoutInput
+                        ref={nameRef}
+                        id="customerName"
+                        name="customerName"
+                        label="Nombre Completo"
+                        required
+                        icon={<User />}
+                        value={formData.customerName}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
+                        placeholder="Juan Pérez"
+                        autoComplete="name"
+                        error={validationErrors.customerName}
+                      />
+                      <CheckoutInput
+                        id="customerDni"
+                        name="customerDni"
+                        label="DNI (opcional)"
+                        icon={<IdCard />}
+                        value={formData.customerDni}
+                        onChange={handleInputChange}
+                        placeholder="12345678"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={8}
+                        autoComplete="off"
+                      />
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="min-w-0">
-                        <Label htmlFor="customerEmail" className="block mb-2">
-                          Email <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          ref={emailRef}
-                          id="customerEmail"
-                          name="customerEmail"
-                          type="email"
-                          value={formData.customerEmail}
-                          onChange={handleInputChange}
-                          onBlur={handleBlur}
-                          placeholder="juan@example.com"
-                          autoComplete="email"
-                          inputMode="email"
-                          className={validationErrors.customerEmail ? "border-destructive" : ""}
-                        />
-                        {validationErrors.customerEmail && (
-                          <p className="text-sm text-destructive mt-1">{validationErrors.customerEmail}</p>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <Label htmlFor="customerPhone" className="block mb-2">
-                          Teléfono/WhatsApp <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          ref={phoneRef}
-                          id="customerPhone"
-                          name="customerPhone"
-                          type="text"
-                          value={formData.customerPhone}
-                          onChange={handleInputChange}
-                          onBlur={handleBlur}
-                          placeholder="987654321"
-                          autoComplete="tel"
-                          inputMode="numeric"
-                          maxLength={9}
-                          className={validationErrors.customerPhone ? "border-destructive" : ""}
-                        />
-                        {validationErrors.customerPhone && (
-                          <p className="text-sm text-destructive mt-1">{validationErrors.customerPhone}</p>
-                        )}
-                      </div>
+                      <CheckoutInput
+                        ref={emailRef}
+                        id="customerEmail"
+                        name="customerEmail"
+                        type="email"
+                        label="Email"
+                        required
+                        icon={<Mail />}
+                        value={formData.customerEmail}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
+                        placeholder="juan@example.com"
+                        autoComplete="email"
+                        inputMode="email"
+                        error={validationErrors.customerEmail}
+                      />
+                      <CheckoutInput
+                        ref={phoneRef}
+                        id="customerPhone"
+                        name="customerPhone"
+                        type="text"
+                        label="Teléfono/WhatsApp"
+                        required
+                        icon={<Phone />}
+                        value={formData.customerPhone}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
+                        placeholder="987654321"
+                        autoComplete="tel"
+                        inputMode="numeric"
+                        maxLength={9}
+                        error={validationErrors.customerPhone}
+                      />
                     </div>
 
                     <div className="flex items-start space-x-2 pt-2">
@@ -1050,6 +1032,7 @@ export default function CheckoutPageClient({
                   <CardContent className="space-y-4 min-w-0">
                     <div ref={locationRef}>
                       <LocationSelector
+                        variant="checkout"
                         value={{
                           departmentId: formData.departmentId,
                           provinceId: formData.provinceId,
@@ -1076,36 +1059,30 @@ export default function CheckoutPageClient({
                       </div>
                     )}
 
-                    <div className="min-w-0">
-                      <Label htmlFor="address" className="block mb-2">
-                        Dirección <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        ref={addressRef}
-                        id="address"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        onBlur={handleBlur}
-                        placeholder="Av. Larco 123, Dpto 501"
-                        autoComplete="street-address"
-                        className={validationErrors.address ? "border-destructive" : ""}
-                      />
-                      {validationErrors.address && (
-                        <p className="text-sm text-destructive mt-1">{validationErrors.address}</p>
-                      )}
-                    </div>
+                    <CheckoutInput
+                      ref={addressRef}
+                      id="address"
+                      name="address"
+                      label="Dirección"
+                      required
+                      icon={<Home />}
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      placeholder="Av. Larco 123, Dpto 501"
+                      autoComplete="street-address"
+                      error={validationErrors.address}
+                    />
 
-                    <div className="min-w-0">
-                      <Label htmlFor="reference" className="block mb-2">Referencia (opcional)</Label>
-                      <Input
-                        id="reference"
-                        name="reference"
-                        value={formData.reference}
-                        onChange={handleInputChange}
-                        placeholder="Edificio blanco al lado del banco"
-                      />
-                    </div>
+                    <CheckoutInput
+                      id="reference"
+                      name="reference"
+                      label="Referencia (opcional)"
+                      icon={<MapPin />}
+                      value={formData.reference}
+                      onChange={handleInputChange}
+                      placeholder="Edificio blanco al lado del banco"
+                    />
                   </CardContent>
                 </Card>
 
@@ -1141,55 +1118,41 @@ export default function CheckoutPageClient({
 
                       {formData.documentType === "FACTURA" && (
                         <div className="space-y-3 pt-2 border-t">
-                          <div>
-                            <Label htmlFor="buyerRuc">RUC *</Label>
-                            <Input
-                              id="buyerRuc"
-                              placeholder="20123456789"
-                              maxLength={11}
-                              value={formData.buyerRuc}
-                              onChange={(e) =>
-                                setFormData({ ...formData, buyerRuc: e.target.value })
-                              }
-                            />
-                            {validationErrors.buyerRuc && (
-                              <p className="text-sm text-red-500 mt-1">
-                                {validationErrors.buyerRuc}
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <Label htmlFor="buyerRazonSocial">Razón Social *</Label>
-                            <Input
-                              id="buyerRazonSocial"
-                              placeholder="Mi Empresa SAC"
-                              value={formData.buyerRazonSocial}
-                              onChange={(e) =>
-                                setFormData({ ...formData, buyerRazonSocial: e.target.value })
-                              }
-                            />
-                            {validationErrors.buyerRazonSocial && (
-                              <p className="text-sm text-red-500 mt-1">
-                                {validationErrors.buyerRazonSocial}
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <Label htmlFor="buyerFiscalAddress">Dirección Fiscal *</Label>
-                            <Input
-                              id="buyerFiscalAddress"
-                              placeholder="Av. Ejemplo 123, Lima"
-                              value={formData.buyerFiscalAddress}
-                              onChange={(e) =>
-                                setFormData({ ...formData, buyerFiscalAddress: e.target.value })
-                              }
-                            />
-                            {validationErrors.buyerFiscalAddress && (
-                              <p className="text-sm text-red-500 mt-1">
-                                {validationErrors.buyerFiscalAddress}
-                              </p>
-                            )}
-                          </div>
+                          <CheckoutInput
+                            id="buyerRuc"
+                            label="RUC"
+                            required
+                            placeholder="20123456789"
+                            maxLength={11}
+                            inputMode="numeric"
+                            value={formData.buyerRuc}
+                            onChange={(e) =>
+                              setFormData({ ...formData, buyerRuc: e.target.value })
+                            }
+                            error={validationErrors.buyerRuc}
+                          />
+                          <CheckoutInput
+                            id="buyerRazonSocial"
+                            label="Razón Social"
+                            required
+                            placeholder="Mi Empresa SAC"
+                            value={formData.buyerRazonSocial}
+                            onChange={(e) =>
+                              setFormData({ ...formData, buyerRazonSocial: e.target.value })
+                            }
+                            error={validationErrors.buyerRazonSocial}
+                          />
+                          <CheckoutInput
+                            id="buyerFiscalAddress"
+                            label="Dirección Fiscal"
+                            required
+                            placeholder="Av. Ejemplo 123, Lima"
+                            value={formData.buyerFiscalAddress}
+                            onChange={(e) =>
+                              setFormData({ ...formData, buyerFiscalAddress: e.target.value })
+                            }
+                            error={validationErrors.buyerFiscalAddress}
+                          />
                         </div>
                       )}
                     </CardContent>
