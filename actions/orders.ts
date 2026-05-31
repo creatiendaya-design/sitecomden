@@ -576,7 +576,7 @@ export async function createOrder(rawData: unknown) {
         shippingAddress: order.shippingAddress as any,
         paymentMethod: order.paymentMethod,
         // Link para ver orden sin login
-        viewOrderLink: `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${encodeURIComponent(order.customerEmail)}`,
+        viewOrderLink: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${encodeURIComponent(order.customerEmail)}`,
       });
     } catch (emailError) {
       // No fallar la orden si el email falla
@@ -990,7 +990,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           currency: "PEN",
           transactionId: currentOrder.orderNumber,
           items: trackingItems,
-          sourceUrl: `${process.env.NEXT_PUBLIC_URL || "https://nuejoy.online"}/orden/${currentOrder.id}/confirmacion`,
+          sourceUrl: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || "https://nuejoy.online"}/orden/${currentOrder.id}/confirmacion`,
           clientIp: clientIp || undefined,
           clientUserAgent: clientUserAgent || undefined,
         });
@@ -1001,7 +1001,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
     }
 
     // ✅ ENVIAR EMAILS AUTOMÁTICOS según el cambio de estado
-    const viewOrderLink = `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${currentOrder.viewToken}&email=${encodeURIComponent(currentOrder.customerEmail)}`;
+    const viewOrderLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${currentOrder.viewToken}&email=${encodeURIComponent(currentOrder.customerEmail)}`;
 
     try {
       const {

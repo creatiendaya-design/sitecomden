@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     // Generar link de visualización
     const viewOrderLink = order.viewToken
-      ? `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
+      ? `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
       : '';
 
     // Enviar email de envío

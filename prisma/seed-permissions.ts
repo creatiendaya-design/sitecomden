@@ -306,13 +306,26 @@ async function createSuperAdmin(roles: any[]) {
     return;
   }
 
-  const hashedPassword = await bcrypt.hash("admin123", 10);
+  // La contraseña del super admin NUNCA debe estar hardcodeada en el repo.
+  // Se toma de SEED_ADMIN_PASSWORD; si falta, abortamos el seed del admin
+  // en vez de crear una cuenta con contraseña trivial conocida públicamente.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@shopgood.pe";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!adminPassword || adminPassword.length < 8) {
+    console.warn(
+      "⚠️  SEED_ADMIN_PASSWORD no definida (mín. 8 caracteres). " +
+        "Se omite la creación del Super Admin. Defínela y vuelve a correr el seed."
+    );
+    return;
+  }
 
-  const user = await prisma.user.upsert({
-    where: { email: "admin@shopgood.pe" },
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+  await prisma.user.upsert({
+    where: { email: adminEmail },
     update: {},
     create: {
-      email: "admin@shopgood.pe",
+      email: adminEmail,
       password: hashedPassword,
       name: "Super Admin",
       roleId: superAdminRole.id,
@@ -321,8 +334,8 @@ async function createSuperAdmin(roles: any[]) {
   });
 
   console.log("✅ Super Admin creado:");
-  console.log(`   Email: admin@shopgood.pe`);
-  console.log(`   Password: admin123`);
+  console.log(`   Email: ${adminEmail}`);
+  console.log(`   Password: (definida vía SEED_ADMIN_PASSWORD)`);
   console.log(`   Role: ${superAdminRole.name}`);
 }
 
@@ -347,10 +360,8 @@ async function main() {
     console.log("\n📊 Resumen:");
     console.log(`   - ${permissions.length} permisos creados`);
     console.log(`   - ${roles.length} roles creados`);
-    console.log(`   - 1 usuario Super Admin creado`);
-    console.log("\n🔐 Credenciales de acceso:");
-    console.log(`   Email: admin@shopgood.pe`);
-    console.log(`   Password: admin123`);
+    console.log(`   - Super Admin (si SEED_ADMIN_PASSWORD estaba definida)`);
+    console.log("\n🔐 Acceso: usa el email y la contraseña que definiste en SEED_ADMIN_PASSWORD.");
   } catch (error) {
     console.error("❌ Error durante el seed:", error);
     throw error;

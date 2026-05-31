@@ -19,51 +19,28 @@ export async function POST(request: Request) {
       );
     }
 
-    // Buscar cupón
+    // Buscar cupón. Para no permitir ENUMERACIÓN de códigos, todos los casos de
+    // "no aplicable" (inexistente, inactivo, fuera de fecha, sin cupos) devuelven
+    // el MISMO mensaje genérico y el mismo status. La única excepción es la
+    // compra mínima, porque es una pista accionable y legítima para el cliente.
+    const GENERIC = { error: "Cupón inválido o no aplicable" };
     const coupon = await prisma.coupon.findUnique({
       where: { code: code.toUpperCase() },
     });
 
-    if (!coupon) {
-      return NextResponse.json(
-        { error: "Cupón no válido" },
-        { status: 404 }
-      );
+    const now = new Date();
+    const notApplicable =
+      !coupon ||
+      !coupon.active ||
+      (coupon.startsAt && new Date(coupon.startsAt) > now) ||
+      (coupon.expiresAt && new Date(coupon.expiresAt) < now) ||
+      (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit);
+
+    if (notApplicable) {
+      return NextResponse.json(GENERIC, { status: 400 });
     }
 
-    // Validar estado activo
-    if (!coupon.active) {
-      return NextResponse.json(
-        { error: "Este cupón no está activo" },
-        { status: 400 }
-      );
-    }
-
-    // Validar fecha de inicio
-    if (coupon.startsAt && new Date(coupon.startsAt) > new Date()) {
-      return NextResponse.json(
-        { error: "Este cupón aún no está disponible" },
-        { status: 400 }
-      );
-    }
-
-    // Validar fecha de expiración
-    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
-      return NextResponse.json(
-        { error: "Este cupón ha expirado" },
-        { status: 400 }
-      );
-    }
-
-    // Validar límite de usos
-    if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
-      return NextResponse.json(
-        { error: "Este cupón ha alcanzado su límite de usos" },
-        { status: 400 }
-      );
-    }
-
-    // Validar compra mínima
+    // Validar compra mínima (mensaje específico permitido: es una guía útil).
     if (coupon.minPurchase && subtotal < Number(coupon.minPurchase)) {
       return NextResponse.json(
         {
