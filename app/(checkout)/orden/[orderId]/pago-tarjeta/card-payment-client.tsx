@@ -15,6 +15,7 @@ interface CardPaymentClientProps {
   orderNumber: string;
   total: number;
   customerEmail: string;
+  viewToken: string;
 }
 
 export default function CardPaymentClient({
@@ -22,6 +23,7 @@ export default function CardPaymentClient({
   orderNumber,
   total,
   customerEmail,
+  viewToken,
 }: CardPaymentClientProps) {
   const router = useRouter();
   const { clearCart } = useCartStore();
@@ -48,8 +50,8 @@ export default function CardPaymentClient({
       // Limpiar carrito
       clearCart();
 
-      // Redirigir a confirmación
-      router.push(`/orden/${orderId}/confirmacion`);
+      // Redirigir a confirmación (token como respaldo del access cookie)
+      router.push(`/orden/${orderId}/confirmacion?token=${viewToken}`);
     } catch (err) {
       console.error("Error processing payment:", err);
       setError("Error inesperado al procesar el pago");

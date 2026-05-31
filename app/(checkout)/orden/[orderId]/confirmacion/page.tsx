@@ -22,11 +22,13 @@ import {
 import type { Metadata } from "next";
 import { CustomDesignConfirmation } from "@/components/checkout/CustomDesignConfirmation";
 import type { CustomDesign, CustomDesignImage } from "@/lib/customizer/types";
+import { canViewOrder } from "@/lib/orders/order-access";
 
 interface PageProps {
   params: Promise<{
     orderId: string;
   }>;
+  searchParams: Promise<{ token?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -53,8 +55,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function OrderConfirmationPage({ params }: PageProps) {
+export default async function OrderConfirmationPage({ params, searchParams }: PageProps) {
   const { orderId } = await params;
+  const { token } = await searchParams;
   const siteSettings = await getSiteSettings();
 
   const order = await prisma.order.findUnique({
@@ -71,6 +74,18 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
 
   if (!order) {
     notFound();
+  }
+
+  // Authorization: only the buyer (via access cookie) or someone holding the
+  // order's viewToken may see this page. Otherwise send them to the secure
+  // verify flow (email + token) instead of leaking PII by orderId alone.
+  const allowed = await canViewOrder({
+    orderId: order.id,
+    viewToken: order.viewToken,
+    urlToken: token,
+  });
+  if (!allowed) {
+    redirect("/orden/verificar");
   }
 
   if (order.paymentStatus === "PENDING") {

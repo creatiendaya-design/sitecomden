@@ -138,6 +138,10 @@ export async function uploadPaymentProof(formData: FormData) {
 
 export async function getPendingPayments() {
   try {
+    // Solo admins con permiso de ver órdenes. Expone PII (nombre/email/teléfono)
+    // y montos de todos los pagos pendientes, así que debe ir protegido.
+    await protectRoute("orders:view");
+
     const pendingPayments = await prisma.pendingPayment.findMany({
       where: {
         status: "pending",

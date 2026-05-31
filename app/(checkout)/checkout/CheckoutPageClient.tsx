@@ -392,7 +392,7 @@ export default function CheckoutPageClient({
       clearCart();
       clearPersistedData();
 
-      router.push(`/orden/${result.orderId}/confirmacion`);
+      router.push(`/orden/${result.orderId}/confirmacion?token=${result.viewToken}`);
 
     } catch (err) {
       console.error("❌ Error en proceso automático:", err);
@@ -576,12 +576,13 @@ export default function CheckoutPageClient({
       clearCart();
       clearPersistedData();
 
+      const tokenQs = `?token=${result.viewToken}`;
       if (result.paymentMethod === "YAPE" || result.paymentMethod === "PLIN") {
-        router.push(`/orden/${result.orderId}/pago-pendiente`);
+        router.push(`/orden/${result.orderId}/pago-pendiente${tokenQs}`);
       } else if (result.paymentMethod === "PAYPAL") {
-        router.push(`/orden/${result.orderId}/pago-paypal`);
+        router.push(`/orden/${result.orderId}/pago-paypal${tokenQs}`);
       } else {
-        router.push(`/orden/${result.orderId}/confirmacion`);
+        router.push(`/orden/${result.orderId}/confirmacion${tokenQs}`);
       }
     } catch (err) {
       console.error("Error al crear orden:", err);

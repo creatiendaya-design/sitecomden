@@ -17,6 +17,7 @@ import {
   decrementStockAtomic,
   StockUnavailableError,
 } from "@/lib/inventory/decrement-stock";
+import { grantOrderAccess } from "@/lib/orders/order-access";
 import {
   resolveAppliedVolumeDiscount,
   resolveAppliedSubscriptionDiscount,
@@ -538,6 +539,11 @@ export async function createOrder(rawData: unknown) {
       }
       throw txError;
     }
+
+    // Grant this browser access to the just-created order so the post-checkout
+    // redirect (router.push to /orden/[orderId]/...) works without leaking the
+    // order to anyone who guesses the id. See lib/orders/order-access.ts.
+    await grantOrderAccess(order.id, order.viewToken);
 
     // Subscribe collected emails (one per unique address) to the newsletter.
     for (const email of subscriptionEmails) {

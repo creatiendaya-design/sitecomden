@@ -1,19 +1,22 @@
 import { prisma } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CreditCard } from "lucide-react";
+import { canViewOrder } from "@/lib/orders/order-access";
 
 interface PageProps {
   params: Promise<{
     orderId: string;
   }>;
+  searchParams: Promise<{ token?: string }>;
 }
 
-export default async function PaymentPayPalPage({ params }: PageProps) {
+export default async function PaymentPayPalPage({ params, searchParams }: PageProps) {
   const { orderId } = await params;
+  const { token } = await searchParams;
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -21,6 +24,16 @@ export default async function PaymentPayPalPage({ params }: PageProps) {
 
   if (!order) {
     notFound();
+  }
+
+  // Authorization: buyer (access cookie) or holder of the order viewToken only.
+  const allowed = await canViewOrder({
+    orderId: order.id,
+    viewToken: order.viewToken,
+    urlToken: token,
+  });
+  if (!allowed) {
+    redirect("/orden/verificar");
   }
 
   return (

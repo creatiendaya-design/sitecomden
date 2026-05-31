@@ -7,16 +7,20 @@ import Link from "next/link";
 import { Clock, CheckCircle2, Upload, AlertCircle } from "lucide-react";
 import PaymentUploadForm from "./payment-upload-form";
 import { getPaymentMethodSettings } from "@/actions/payment-settings";
+import { canViewOrder } from "@/lib/orders/order-access";
+import { redirect } from "next/navigation";
 import Image from "next/image";
 
 interface PageProps {
   params: Promise<{
     orderId: string;
   }>;
+  searchParams: Promise<{ token?: string }>;
 }
 
-export default async function PendingPaymentPage({ params }: PageProps) {
+export default async function PendingPaymentPage({ params, searchParams }: PageProps) {
   const { orderId } = await params;
+  const { token } = await searchParams;
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -28,6 +32,16 @@ export default async function PendingPaymentPage({ params }: PageProps) {
 
   if (!order) {
     notFound();
+  }
+
+  // Authorization: buyer (access cookie) or holder of the order viewToken only.
+  const allowed = await canViewOrder({
+    orderId: order.id,
+    viewToken: order.viewToken,
+    urlToken: token,
+  });
+  if (!allowed) {
+    redirect("/orden/verificar");
   }
 
   if (!order.pendingPayment) {
