@@ -11,14 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Edit,
-  Trash2,
-  Eye,
-  EyeOff,
-  GripVertical,
-} from "lucide-react";
+import { Edit, Trash2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { deleteFormField, updateFormField } from "@/actions/complaints";
 import {
@@ -75,6 +70,7 @@ const widthLabels: Record<string, string> = {
 
 export default function FormFieldsList({ fields }: FormFieldsListProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -87,7 +83,7 @@ export default function FormFieldsList({ fields }: FormFieldsListProps) {
         title: currentActive ? "Campo desactivado" : "Campo activado",
         description: "El campo se actualizó correctamente",
       });
-      window.location.reload();
+      router.refresh();
     } else {
       toast({
         title: "Error",
@@ -110,7 +106,7 @@ export default function FormFieldsList({ fields }: FormFieldsListProps) {
         description: "El campo se eliminó correctamente",
       });
       setDeleteId(null);
-      window.location.reload();
+      router.refresh();
     } else {
       toast({
         title: "Error",
@@ -148,7 +144,7 @@ export default function FormFieldsList({ fields }: FormFieldsListProps) {
             </div>
 
             {/* Tabla de campos */}
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -165,10 +161,7 @@ export default function FormFieldsList({ fields }: FormFieldsListProps) {
                   {sectionFields.map((field) => (
                     <TableRow key={field.id}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <GripVertical className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{field.order}</span>
-                        </div>
+                        <span className="font-medium">{field.order}</span>
                       </TableCell>
                       <TableCell>
                         <div>

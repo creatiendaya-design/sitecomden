@@ -3,7 +3,6 @@
 import { use, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -18,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { getComplaintById, updateComplaintStatus } from "@/actions/complaints";
+import ComplaintStatusBadge from "@/components/admin/complaints/ComplaintStatusBadge";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -38,14 +38,7 @@ interface Complaint {
   updatedAt: Date;
 }
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "Pendiente", color: "bg-amber-100 text-amber-700" },
-  IN_REVIEW: { label: "En Revisión", color: "bg-blue-100 text-blue-700" },
-  RESOLVED: { label: "Resuelto", color: "bg-green-100 text-green-700" },
-  CLOSED: { label: "Cerrado", color: "bg-slate-100 text-slate-700" },
-};
-
-export default function ComplaintDetailPage({ 
+export default function ComplaintDetailPage({
   params 
 }: { 
   params: Promise<{ id: string }> 
@@ -89,8 +82,7 @@ export default function ComplaintDetailPage({
     const result = await updateComplaintStatus(
       complaint.id,
       newStatus,
-      response || undefined,
-      "admin" // TODO: Usar ID del admin autenticado
+      response || undefined
     );
 
     if (result.success) {
@@ -136,11 +128,6 @@ export default function ComplaintDetailPage({
     );
   }
 
-  const statusInfo = statusLabels[complaint.status] || {
-    label: complaint.status,
-    color: "bg-slate-100 text-slate-700",
-  };
-
   // Extraer datos del formulario
   const formDataMapped = complaint.formData?.mapped || {};
   const formDataOriginal = complaint.formData?.original || {};
@@ -167,7 +154,7 @@ export default function ComplaintDetailPage({
             </p>
           </div>
         </div>
-        <Badge className={`${statusInfo.color} flex-shrink-0`}>{statusInfo.label}</Badge>
+        <ComplaintStatusBadge status={complaint.status} className="flex-shrink-0" />
       </div>
 
       {/* Layout Responsive: columna única en mobile, 2 columnas en desktop */}

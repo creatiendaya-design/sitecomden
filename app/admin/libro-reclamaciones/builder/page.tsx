@@ -344,6 +344,41 @@ export default function ConstructorMobileOptimized() {
   };
 
   const handleSave = async () => {
+    // Validar opciones antes de guardar: un select/radio sin opciones reales
+    // (o con los placeholders por defecto) rompería el formulario público.
+    const PLACEHOLDER_OPTIONS = ["Opción 1", "Opción 2", "Opción 3"];
+    for (const section of sections) {
+      for (const element of section.elements) {
+        const needsOptions = ["select", "select_with_other", "radio"].includes(
+          element.type
+        );
+        if (!needsOptions) continue;
+
+        const cleanOptions = (element.options || [])
+          .map((o) => o.trim())
+          .filter(Boolean);
+
+        if (cleanOptions.length === 0) {
+          toast({
+            title: "❌ Faltan opciones",
+            description: `El campo "${element.label}" necesita al menos una opción.`,
+          });
+          return;
+        }
+
+        const isPlaceholder =
+          cleanOptions.length === PLACEHOLDER_OPTIONS.length &&
+          cleanOptions.every((o, i) => o === PLACEHOLDER_OPTIONS[i]);
+        if (isPlaceholder) {
+          toast({
+            title: "❌ Opciones sin editar",
+            description: `Edita las opciones del campo "${element.label}" antes de guardar.`,
+          });
+          return;
+        }
+      }
+    }
+
     setSaving(true);
 
     try {
@@ -378,19 +413,25 @@ export default function ConstructorMobileOptimized() {
       });
 
       for (const field of fieldsToSave) {
-        await fetch("/api/admin/complaints/fields", {
+        const res = await fetch("/api/admin/complaints/fields", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(field),
         });
+        if (!res.ok) {
+          throw new Error(`No se pudo crear el campo "${field.label}"`);
+        }
       }
 
       for (const field of fieldsToUpdate) {
-        await fetch(`/api/admin/complaints/fields/${field.id}`, {
+        const res = await fetch(`/api/admin/complaints/fields/${field.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(field),
         });
+        if (!res.ok) {
+          throw new Error(`No se pudo actualizar el campo "${field.label}"`);
+        }
       }
 
       toast({
@@ -403,7 +444,10 @@ export default function ConstructorMobileOptimized() {
       console.error("Error saving form:", error);
       toast({
         title: "❌ Error",
-        description: "Error al guardar el formulario",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Error al guardar el formulario",
       });
     } finally {
       setSaving(false);

@@ -59,8 +59,8 @@ export default async function ComplaintsManagementPage() {
       <Tabs defaultValue="fields" className="space-y-4 md:space-y-6">
         <TabsList className="grid grid-cols-3 w-full">
           <TabsTrigger value="fields" className="text-xs md:text-sm">
-            <List className="mr-0 md:mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Campos</span>
+            <List className="mr-1 md:mr-2 h-4 w-4" />
+            Campos
           </TabsTrigger>
           <TabsTrigger value="complaints" className="text-xs md:text-sm">
             <FileText className="mr-0 md:mr-2 h-4 w-4" />

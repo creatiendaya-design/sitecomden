@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import ComplaintStatusBadge from "@/components/admin/complaints/ComplaintStatusBadge";
 import {
   Select,
   SelectContent,
@@ -35,12 +35,7 @@ interface Complaint {
   createdAt: Date;
 }
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "Pendiente", color: "bg-amber-100 text-amber-700" },
-  IN_REVIEW: { label: "En Revisión", color: "bg-blue-100 text-blue-700" },
-  RESOLVED: { label: "Resuelto", color: "bg-green-100 text-green-700" },
-  CLOSED: { label: "Cerrado", color: "bg-slate-100 text-slate-700" },
-};
+const LIST_LIMIT = 100;
 
 export default function ComplaintsList() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
@@ -56,7 +51,7 @@ export default function ComplaintsList() {
     setLoading(true);
     const result = await getComplaints({
       status: statusFilter !== "all" ? statusFilter : undefined,
-      limit: 100,
+      limit: LIST_LIMIT,
     });
 
     if (result.success) {
@@ -91,7 +86,7 @@ export default function ComplaintsList() {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -104,7 +99,7 @@ export default function ComplaintsList() {
               </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -178,7 +173,7 @@ export default function ComplaintsList() {
               </p>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -192,11 +187,6 @@ export default function ComplaintsList() {
                 </TableHeader>
                 <TableBody>
                   {filteredComplaints.map((complaint) => {
-                    const statusInfo = statusLabels[complaint.status] || {
-                      label: complaint.status,
-                      color: "bg-slate-100 text-slate-700",
-                    };
-
                     return (
                       <TableRow key={complaint.id}>
                         <TableCell>
@@ -211,9 +201,7 @@ export default function ComplaintsList() {
                           {complaint.customerEmail || "-"}
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusInfo.color}>
-                            {statusInfo.label}
-                          </Badge>
+                          <ComplaintStatusBadge status={complaint.status} />
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground">
@@ -238,6 +226,12 @@ export default function ComplaintsList() {
                 </TableBody>
               </Table>
             </div>
+          )}
+          {!loading && complaints.length >= LIST_LIMIT && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              Mostrando las {LIST_LIMIT} reclamaciones más recientes. Usa el
+              filtro de estado para acotar resultados.
+            </p>
           )}
         </CardContent>
       </Card>

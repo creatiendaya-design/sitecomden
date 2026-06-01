@@ -473,7 +473,8 @@ export async function updateComplaintStatus(
   respondedBy?: string
 ) {
   try {
-    await protectRoute("complaints:respond");
+    // El responsable es siempre el admin autenticado, no un valor del cliente.
+    const userId = await protectRoute("complaints:respond");
     const complaint = await prisma.complaint.update({
       where: { id },
       data: {
@@ -481,9 +482,17 @@ export async function updateComplaintStatus(
         ...(adminResponse && {
           adminResponse,
           respondedAt: new Date(),
-          respondedBy,
+          respondedBy: respondedBy ?? userId,
         }),
       },
+    });
+
+    await logAudit({
+      action: "complaint.status_updated",
+      userId,
+      entityType: "Complaint",
+      entityId: complaint.id,
+      after: { status, responded: Boolean(adminResponse) },
     });
 
     // Si hay respuesta, enviar email al cliente

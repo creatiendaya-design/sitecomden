@@ -172,15 +172,22 @@ export default function OrganizarCamposPage() {
 
     try {
       // Actualizar cada campo con su nueva sección
-      const updates = fields.map((field) =>
-        fetch(`/api/admin/complaints/fields/${field.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ section: field.section }),
-        })
+      const responses = await Promise.all(
+        fields.map((field) =>
+          fetch(`/api/admin/complaints/fields/${field.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ section: field.section }),
+          })
+        )
       );
 
-      await Promise.all(updates);
+      const failed = responses.filter((res) => !res.ok).length;
+      if (failed > 0) {
+        throw new Error(
+          `No se pudieron guardar ${failed} de ${responses.length} campos`
+        );
+      }
 
       toast({
         title: "✅ Cambios guardados",
@@ -192,7 +199,8 @@ export default function OrganizarCamposPage() {
       console.error("Error saving:", error);
       toast({
         title: "❌ Error",
-        description: "Error al guardar cambios",
+        description:
+          error instanceof Error ? error.message : "Error al guardar cambios",
       });
     } finally {
       setSaving(false);
