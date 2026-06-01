@@ -1023,6 +1023,12 @@ model Customer {
   birthday DateTime?
   address  Json?
 
+  /// Internal admin-only notes about the customer (Shopify-style). Never exposed
+  /// to the storefront/customer portal.
+  notes String? @db.Text
+  /// Free-form admin tags for segmentation (e.g. "mayorista", "VIP").
+  tags  String[] @default([])
+
   orders        Order[]
   pointsHistory PointTransaction[]
   rewards       RewardRedemption[]
@@ -1030,10 +1036,14 @@ model Customer {
   registeredAt   DateTime  @default(now())
   lastPurchaseAt DateTime?
   updatedAt      DateTime  @updatedAt
+  /// Soft-delete tombstone. Customers are never hard-deleted so their orders,
+  /// point history, and audit trail stay intact. See Product.deletedAt.
+  deletedAt DateTime?
 
   @@index([email])
   @@index([referralCode])
   @@index([referredById])
+  @@index([deletedAt])
 }
 
 enum LoyaltyTier {

@@ -222,7 +222,7 @@ export default async function AdminLealtadPage() {
               </CardDescription>
             </div>
             <Button variant="outline" asChild size="sm" className="shrink-0">
-              <Link href="/admin/lealtad/clientes">Ver todos</Link>
+              <Link href="/admin/clientes">Ver todos</Link>
             </Button>
           </div>
         </CardHeader>
@@ -271,7 +271,7 @@ export default async function AdminLealtadPage() {
       {/* Acciones Rápidas */}
       <div className="grid gap-2 sm:gap-4 grid-cols-1 md:grid-cols-3">
         <Card className="hover:shadow-lg transition-shadow">
-          <Link href="/admin/lealtad/clientes" className="block">
+          <Link href="/admin/clientes" className="block">
             <CardHeader className="px-4 py-3 sm:px-6 sm:py-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 sm:p-3 bg-blue-100 rounded-lg shrink-0">

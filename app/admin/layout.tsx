@@ -132,6 +132,11 @@ function AdminLayoutInner({
       label: "Órdenes",
     },
     {
+      href: "/admin/clientes",
+      icon: Users,
+      label: "Clientes",
+    },
+    {
       icon: Package,
       label: "Productos",
       items: [
