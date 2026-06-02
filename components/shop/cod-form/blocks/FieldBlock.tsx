@@ -146,7 +146,7 @@ export default function FieldBlock({
   return (
     <div className="space-y-1">
       <div
-        className={`relative overflow-hidden rounded-xl border-2 bg-white shadow-sm transition-all duration-150 focus-within:ring-4 focus-within:shadow-none ${wrapperState}`}
+        className={`relative overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:shadow-none ${wrapperState}`}
       >
         {isTextarea ? (
           <textarea

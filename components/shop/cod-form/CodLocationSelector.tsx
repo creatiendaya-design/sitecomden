@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import * as SelectPrimitive from "@radix-ui/react-select"
 import {
   Building2,
   ChevronDownIcon,
@@ -10,10 +9,6 @@ import {
   MapPin,
   type LucideIcon,
 } from "lucide-react"
-import {
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select"
 import {
   getDepartments,
   getProvincesByDepartment,
@@ -80,23 +75,25 @@ function FloatingSelect({
     ? "border-red-400 focus-within:border-red-500 focus-within:ring-red-100"
     : "border-gray-200 focus-within:border-primary focus-within:ring-primary/15"
 
-  const iconColor = hasError ? "text-red-500" : "text-gray-400"
+  const iconColor = hasError
+    ? "text-red-500"
+    : "text-gray-400 peer-focus:text-primary"
 
   const labelColor = hasError ? "text-red-500" : "text-gray-500"
   const focusLabelColor = hasError
-    ? "peer-focus:text-red-500 peer-data-[state=open]:text-red-500"
-    : "peer-focus:text-primary peer-data-[state=open]:text-primary"
+    ? "peer-focus:text-red-500"
+    : "peer-focus:text-primary"
 
   // When user has selected a value, the label is "floated" (small uppercase tag).
-  // When empty AND closed AND not focused, it sits centered like a placeholder.
-  // peer-focus / peer-data-[state=open] always force the floated look.
+  // When empty AND not focused, it sits centered like a placeholder.
+  // peer-focus always forces the floated look.
   const labelStaticClasses = hasValue
     ? "top-1 text-[11px] font-semibold uppercase tracking-wider"
     : "top-1/2 -translate-y-1/2 text-sm font-normal normal-case tracking-normal text-gray-400"
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border-2 bg-white shadow-sm transition-all duration-150 focus-within:ring-4 focus-within:shadow-none ${wrapperState} ${
+      className={`relative overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:shadow-none ${wrapperState} ${
         disabled ? "opacity-60" : ""
       }`}
     >
@@ -105,38 +102,36 @@ function FloatingSelect({
           <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
         </div>
       ) : (
-        <SelectPrimitive.Root
-          value={value || undefined}
-          onValueChange={onValueChange}
-          disabled={disabled}
-        >
-          <SelectPrimitive.Trigger
+        <>
+          <select
             id={id}
-            data-slot="select-trigger"
-            className="peer flex h-14 w-full items-center gap-2 bg-transparent pl-11 pr-3 pt-5 pb-1 text-left text-sm text-gray-900 outline-none transition-colors disabled:cursor-not-allowed data-[placeholder]:text-transparent"
+            value={value}
+            onChange={(e) => onValueChange(e.target.value)}
+            disabled={disabled}
+            className={`peer h-14 w-full cursor-pointer appearance-none bg-transparent pl-11 pr-9 pt-5 pb-1 text-left text-sm outline-none transition-colors disabled:cursor-not-allowed ${
+              hasValue ? "text-gray-900" : "text-transparent"
+            }`}
           >
-            <SelectPrimitive.Value
-              data-slot="select-value"
-              placeholder=" "
-              className="line-clamp-1 flex-1 text-left"
-            />
-            <SelectPrimitive.Icon asChild>
-              <ChevronDownIcon className="size-4 shrink-0 opacity-50" />
-            </SelectPrimitive.Icon>
-          </SelectPrimitive.Trigger>
-          <SelectContent>
+            <option value="" disabled hidden>
+              {" "}
+            </option>
             {options.length === 0 ? (
-              <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+              <option value="" disabled>
                 {placeholderEmpty}
-              </div>
+              </option>
             ) : (
               options.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
+                <option key={o.value} value={o.value} className="text-gray-900">
                   {o.label}
-                </SelectItem>
+                </option>
               ))
             )}
-          </SelectContent>
+          </select>
+
+          <ChevronDownIcon
+            aria-hidden
+            className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 opacity-50"
+          />
 
           <label
             htmlFor={id}
@@ -144,14 +139,13 @@ function FloatingSelect({
               pointer-events-none absolute left-11 right-8 z-10 select-none truncate transition-all duration-150
               ${labelColor} ${labelStaticClasses}
               peer-focus:top-1 peer-focus:translate-y-0 peer-focus:text-[11px] peer-focus:font-semibold peer-focus:uppercase peer-focus:tracking-wider
-              peer-data-[state=open]:top-1 peer-data-[state=open]:translate-y-0 peer-data-[state=open]:text-[11px] peer-data-[state=open]:font-semibold peer-data-[state=open]:uppercase peer-data-[state=open]:tracking-wider
               ${focusLabelColor}
             `}
           >
             {label}
             <span className="ml-0.5 text-red-500">*</span>
           </label>
-        </SelectPrimitive.Root>
+        </>
       )}
 
       <Icon

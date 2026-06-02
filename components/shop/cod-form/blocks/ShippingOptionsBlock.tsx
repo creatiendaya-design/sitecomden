@@ -38,7 +38,7 @@ export default function ShippingOptionsBlock({
           return (
             <label
               key={o.id}
-              className={`group flex cursor-pointer items-center gap-3 rounded-xl border-2 bg-white p-3 transition-all ${
+              className={`group flex cursor-pointer items-center gap-3 rounded-xl border bg-white p-3 transition-all ${
                 selected
                   ? "border-primary bg-primary/5 shadow-sm"
                   : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
