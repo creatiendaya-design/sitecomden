@@ -6,6 +6,7 @@ import { Monitor, Smartphone, Upload, X } from "lucide-react"
 import Image from "next/image"
 import { useState } from "react"
 import { toast } from "sonner"
+import ImageMetaEditButton from "@/components/admin/media/ImageMetaEditButton"
 
 interface DeviceImage {
   desktop?: string
@@ -115,16 +116,19 @@ function ImageSlot({
     return (
       <div className="relative aspect-video w-full overflow-hidden rounded-md border bg-muted">
         <Image src={url} alt="" fill className="object-cover" unoptimized />
-        <Button
-          type="button"
-          variant="secondary"
-          size="icon"
-          className="absolute top-1 right-1 h-6 w-6 shadow"
-          onClick={onRemove}
-          aria-label="Quitar imagen"
-        >
-          <X className="h-3 w-3" />
-        </Button>
+        <div className="absolute top-1 right-1 flex gap-1">
+          <ImageMetaEditButton url={url} onRenamed={onUpload} />
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="h-6 w-6 shadow"
+            onClick={onRemove}
+            aria-label="Quitar imagen"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
     )
   }

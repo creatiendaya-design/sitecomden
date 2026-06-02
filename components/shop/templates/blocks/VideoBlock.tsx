@@ -204,13 +204,40 @@ function VideoCard({ video }: { video: VideoItem }) {
     }
   };
 
-  if (video.provider === "youtube" || video.provider === "vimeo") {
+  const lib = video.library;
+  const title = video.title ?? lib?.title;
+  // Honor the explicit source choice; legacy items fall back to lib-if-present.
+  const source: "url" | "library" = video.source ?? (lib ? "library" : "url");
+  const useLibrary = source === "library" && Boolean(lib);
+
+  // Library video from Cloudflare Stream → embed its iframe player (adaptive HLS).
+  if (useLibrary && lib?.kind === "cloudflare") {
+    return (
+      <div className="relative aspect-video rounded-2xl overflow-hidden shadow-md bg-black">
+        {title && (
+          <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/70 to-transparent px-4 py-3 pointer-events-none">
+            <p className="text-white text-sm font-medium line-clamp-1">{title}</p>
+          </div>
+        )}
+        <iframe
+          src={lib.url}
+          className="w-full h-full"
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+          allowFullScreen
+          title={title ?? "Video"}
+        />
+      </div>
+    );
+  }
+
+  // External embeds (YouTube / Vimeo) — only in URL mode.
+  if (!useLibrary && (video.provider === "youtube" || video.provider === "vimeo")) {
     const embedUrl = getEmbedUrl(video.url, video.provider);
     return (
       <div className="relative aspect-video rounded-2xl overflow-hidden shadow-md bg-black">
-        {video.title && (
+        {title && (
           <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
-            <p className="text-white text-sm font-medium line-clamp-1">{video.title}</p>
+            <p className="text-white text-sm font-medium line-clamp-1">{title}</p>
           </div>
         )}
         <iframe
@@ -218,12 +245,14 @@ function VideoCard({ video }: { video: VideoItem }) {
           className="w-full h-full"
           allow="autoplay; fullscreen"
           allowFullScreen
-          title={video.title ?? "Video"}
+          title={title ?? "Video"}
         />
       </div>
     );
   }
 
+  // Direct file playback: an uploaded blob (library) or legacy `provider: upload`.
+  const directSrc = useLibrary && lib ? lib.url : video.url;
   return (
     <div
       className="relative rounded-2xl overflow-hidden shadow-md bg-black cursor-pointer group"
@@ -231,7 +260,7 @@ function VideoCard({ video }: { video: VideoItem }) {
     >
       <video
         ref={videoRef}
-        src={video.url}
+        src={directSrc}
         muted={muted}
         playsInline
         loop
@@ -259,9 +288,9 @@ function VideoCard({ video }: { video: VideoItem }) {
         </button>
       )}
 
-      {video.title && (
+      {title && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-4 py-3">
-          <p className="text-white text-sm font-medium line-clamp-1">{video.title}</p>
+          <p className="text-white text-sm font-medium line-clamp-1">{title}</p>
         </div>
       )}
     </div>

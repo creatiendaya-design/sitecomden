@@ -400,6 +400,20 @@ export default async function ProductDetailPage({
         }
       : undefined;
 
+  // Serialize approved reviews for the PRODUCT_REVIEWS theme section. Dates
+  // come back as Date (cache MISS) or ISO string (cache HIT) — normalize to
+  // ISO. `images` is a String[] column; coerce defensively.
+  const serializedReviews = reviewsList.map((r) => ({
+    id: r.id,
+    customerName: r.customerName,
+    rating: r.rating,
+    title: r.title,
+    comment: r.comment,
+    images: Array.isArray(r.images) ? (r.images as string[]) : [],
+    verified: r.verified,
+    createdAt: new Date(r.createdAt).toISOString(),
+  }));
+
   // Discounted offers must declare priceValidUntil. We don't track promo
   // end-dates yet, so default to +30 days — search engines re-crawl and
   // refresh well before then.
@@ -516,6 +530,7 @@ export default async function ProductDetailPage({
                 slug: pc.category.slug,
               },
             })),
+            reviews: serializedReviews,
           }}
           variants={serializedVariants}
           options={product.options}

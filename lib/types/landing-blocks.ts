@@ -159,10 +159,34 @@ export interface TestimonialsBlockContent {
   items: TestimonialItem[];
 }
 
+/**
+ * A video chosen from the media library (Cloudflare Stream or an uploaded
+ * blob). When present on a VideoItem it takes precedence over the manual
+ * `url`/`provider` fields. Stored under the item's `library` key.
+ */
+export interface LibraryVideoSelection {
+  mediaFileId: string;
+  /** "cloudflare" → embed via iframe; "blob" → <video> direct playback. */
+  kind: "cloudflare" | "blob";
+  /** Iframe URL (Cloudflare) or direct blob URL. Self-contained for playback. */
+  url: string;
+  /** Cloudflare Stream video uid, when kind === "cloudflare". */
+  streamUid?: string;
+  thumbnailUrl?: string;
+  title?: string;
+}
+
 export interface VideoItem {
   url: string;
   title?: string;
   provider: "youtube" | "vimeo" | "upload";
+  /**
+   * Which source to play. "library" → use `library`; "url" → use `url`/`provider`.
+   * Legacy items without this field fall back to: library if present, else url.
+   */
+  source?: "url" | "library";
+  /** A video picked from the media library (used when source === "library"). */
+  library?: LibraryVideoSelection;
 }
 
 export interface VideoBlockContent {

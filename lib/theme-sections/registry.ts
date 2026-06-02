@@ -24,6 +24,7 @@ import { imageWithTextDefinition } from "./schema/image-with-text"
 import { featuredCollectionDefinition } from "./schema/featured-collection"
 import { testimonialsDefinition } from "./schema/testimonials"
 import { faqSectionDefinition } from "./schema/faq-section"
+import { productReviewsDefinition } from "./schema/product-reviews"
 // Shopify-style universal-block adapter — exposes every `scope: "universal"`
 // block from the page-builder registry as a PRODUCT-group section.
 import { legacyBlockDefinition } from "./schema/legacy-block"
@@ -42,6 +43,7 @@ const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   featuredCollectionDefinition,
   testimonialsDefinition,
   faqSectionDefinition,
+  productReviewsDefinition,
   legacyBlockDefinition,
 ]
 

@@ -107,6 +107,7 @@ app/
 │   ├── lealtad/                  configuracion, clientes, recompensas
 │   ├── personalizar/             temas/[themeId]/customize  ← Theme Customizer (split-screen, auto-save)
 │   ├── menus/                    [menuId]/editar
+│   ├── contenido/               archivos  ← Media library (Shopify-style "Files")
 │   ├── paginas/                  [pageId]/editar  ← Page Builder
 │   ├── politicas/                [policyId]
 │   ├── landing-plantillas/       biblioteca, [templateId]
@@ -245,6 +246,8 @@ Highlights from [prisma/schema.prisma](prisma/schema.prisma):
 - **Shipping**: `ShippingZone` → `ShippingZoneDistrict` (PE district codes), `ShippingZone` → `ShippingRate` (flat — `ShippingRateGroup` se eliminó el 2026-05-06; las tarifas pueden agruparse visualmente en checkout vía el campo opcional `ShippingRate.category`).
 - **Geo**: `Department` → `Province` → `District`.
 - **Misc**: `Coupon`, `Cart` / `CartItem`, `ProductReview`, `Setting`, `NewsletterSubscriber`, `TrackingPixel`, `Complaint`, `ComplaintFormField`, `InventoryMovement`.
+- **Media library**: `MediaFile` — Shopify-style "Contenido → Archivos" (`/admin/contenido/archivos`). Tracks every blob uploaded via `/api/upload` (recorded best-effort in [lib/media/record.ts](lib/media/record.ts)) so admins can browse/search files and edit `displayName` + `alt`. Editing the **file name renames the blob** to an SEO-friendly URL: [lib/media/rename.ts](lib/media/rename.ts) copies the blob to a slugified pathname, re-points every reference DB-wide (one PL/pgSQL `DO` block that `REPLACE`s the old URL across all content `jsonb` / text / text[] columns whose name suggests a URL — fast, ~300ms), then deletes the old blob. The page-builder image picker passes an `onRenamed` callback so the edited block updates to the new URL. Deleting removes the file from storage + soft-deletes the row. Pre-existing blobs are imported with `scripts/backfill-media-files.ts` (via `@vercel/blob` `list()`). RBAC: `media:view` / `media:update` / `media:delete` (`scripts/setup-media-permissions.ts`). UI in [components/admin/media/](components/admin/media/), mutations in [actions/media.ts](actions/media.ts).
+  - **Video → Cloudflare Stream** ([lib/media/cloudflare-stream.ts](lib/media/cloudflare-stream.ts), [actions/media-video.ts](actions/media-video.ts)): images stay on Vercel Blob; videos route to Cloudflare Stream (transcoding + adaptive HLS) via **direct creator upload** (browser → Cloudflare, bytes skip our server). Gated on env (`CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_STREAM_API_TOKEN`); when unset, videos fall back to Vercel Blob so nothing breaks. `MediaFile.provider` (`vercel_blob` | `cloudflare_stream`), `providerId` (Stream uid), `thumbnailUrl`, `status` (`processing`/`ready`/`error`), `durationSeconds`. CSP in [middleware.ts](middleware.ts) allows the Stream iframe/upload hosts.
 
 ### Checkout Flow
 
@@ -269,7 +272,7 @@ If COD is enabled at the product level (`Product.checkoutMode` = `COD_ONLY` / `C
 
 ### Image & File Storage
 
-Uploads → Vercel Blob via `/api/upload`. [next.config.ts](next.config.ts) whitelists allowed remote image hosts. Sharp handles server-side processing.
+Uploads → Vercel Blob via `/api/upload`. [next.config.ts](next.config.ts) whitelists allowed remote image hosts. Sharp handles server-side processing. Raster images (JPG/PNG/WebP/GIF) are verified by magic bytes; **SVG** is allowed too but sanitized first — [lib/media/sanitize-svg.ts](lib/media/sanitize-svg.ts) parses it as XML via `jsdom` (dynamic import; `serverExternalPackages: ["jsdom"]`) and strips `<script>`, `on*` handlers, `<foreignObject>`, SMIL animation tags and `javascript:` URLs while preserving camelCase elements (`linearGradient`, `clipPath`, filters).
 
 ### Conventions
 

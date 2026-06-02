@@ -8,6 +8,7 @@ import Image from "next/image"
 import { useState } from "react"
 import { toast } from "sonner"
 import type { ImageFieldDef } from "../types"
+import ImageMetaEditButton from "@/components/admin/media/ImageMetaEditButton"
 
 interface Props {
   field: ImageFieldDef
@@ -67,16 +68,19 @@ function SingleImage({
       {value ? (
         <div className="relative aspect-video w-full overflow-hidden rounded-md border bg-muted">
           <Image src={value} alt="" fill className="object-cover" unoptimized />
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="absolute top-1 right-1 h-6 w-6 shadow"
-            onClick={() => onChange(undefined)}
-            aria-label="Quitar imagen"
-          >
-            <X className="h-3 w-3" />
-          </Button>
+          <div className="absolute top-1 right-1 flex gap-1">
+            <ImageMetaEditButton url={value} onRenamed={(u) => onChange(u)} />
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="h-6 w-6 shadow"
+              onClick={() => onChange(undefined)}
+              aria-label="Quitar imagen"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
       ) : (
         <label className="flex items-center justify-center gap-2 p-3 rounded-md border-2 border-dashed text-xs text-muted-foreground cursor-pointer hover:bg-muted/40">

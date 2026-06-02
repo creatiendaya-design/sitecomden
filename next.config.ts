@@ -3,6 +3,9 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // jsdom is loaded (dynamically) only to sanitize uploaded SVGs. Keep it as an
+  // external server package so Next doesn't try to bundle its dynamic requires.
+  serverExternalPackages: ["jsdom"],
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb', // ✅ Agregado para subir imágenes OG
@@ -45,6 +48,14 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'cdn.shopify.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'videodelivery.net',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.cloudflarestream.com',
       },
     ],
       formats: ['image/avif', 'image/webp'],

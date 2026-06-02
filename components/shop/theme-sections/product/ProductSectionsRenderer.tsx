@@ -10,6 +10,7 @@ import { ImageWithText } from "./ImageWithText"
 import { FeaturedCollection } from "./FeaturedCollection"
 import { Testimonials } from "./Testimonials"
 import { FaqSection } from "./FaqSection"
+import { ProductReviews } from "./ProductReviews"
 import { LegacyBlockSection } from "./LegacyBlockSection"
 
 interface ProductSectionsRendererProps {
@@ -71,6 +72,14 @@ export function ProductSectionsRenderer({
             return <Testimonials key={section.id} section={section} />
           case "FAQ_SECTION":
             return <FaqSection key={section.id} section={section} />
+          case "PRODUCT_REVIEWS":
+            return (
+              <ProductReviews
+                key={section.id}
+                section={section}
+                product={product}
+              />
+            )
           case "LEGACY_BLOCK":
             return (
               <LegacyBlockSection

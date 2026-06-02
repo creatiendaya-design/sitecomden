@@ -37,8 +37,8 @@ model Category {
   categoryBlocks   CategoryBlock[]
   promotionTargets PromotionCategory[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   /// Soft-delete tombstone. See Product.deletedAt for rationale.
   deletedAt DateTime?
 
@@ -53,21 +53,21 @@ model Category {
 /// page. Mirrors the PageBlock model — same renderer, same content shape,
 /// but scoped to a Category instead of a Page (Plan 7).
 model CategoryBlock {
-  id         String           @id @default(cuid())
+  id         String   @id @default(cuid())
   categoryId String
-  category   Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   /// Block type id from lib/blocks/registry.ts (e.g. "HERO", "GALLERY").
   /// String — not enum — so adding a block type does not require migration.
   /// Validated in runtime by the server actions via getBlockDefinition().
   type       String
   position   Int
-  content    Json             @default("{}")
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  content    Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   /// Optimistic-locking version. Incremented on every update via
   /// `updateMany` with `where: { id, version }`. See
   /// docs/superpowers/guides/concurrency-and-locking.md (Plan 18).
-  version    Int              @default(0)
+  version    Int      @default(0)
 
   @@index([categoryId, position])
 }
@@ -124,34 +124,34 @@ model Product {
 
   categories ProductCategory[]
 
-  variants           ProductVariant[]
-  options            ProductOption[]
-  orderItems         OrderItem[]
-  reviews            ProductReview[]
-  cartItems          CartItem[]
-  inventoryMovements InventoryMovement[]
-  landingBlocks      LandingBlock[]
-  landingTemplateId  String?
-  landingTemplate    LandingTemplate?    @relation(fields: [landingTemplateId], references: [id], onDelete: SetNull)
+  variants                    ProductVariant[]
+  options                     ProductOption[]
+  orderItems                  OrderItem[]
+  reviews                     ProductReview[]
+  cartItems                   CartItem[]
+  inventoryMovements          InventoryMovement[]
+  landingBlocks               LandingBlock[]
+  landingTemplateId           String?
+  landingTemplate             LandingTemplate?      @relation(fields: [landingTemplateId], references: [id], onDelete: SetNull)
   customizableTemplateId      String?
   customizableTemplate        CustomizableTemplate? @relation(fields: [customizableTemplateId], references: [id], onDelete: SetNull)
   customizableMockupOverrides Json?
-  sizeGuideId String?
-  sizeGuide   SizeGuide? @relation(fields: [sizeGuideId], references: [id], onDelete: SetNull)
-  codFormTemplateId   String?
-  codFormTemplate     CodFormTemplate? @relation(fields: [codFormTemplateId], references: [id], onDelete: SetNull)
-  shippingRestriction Json?
-  promotionTargets    PromotionProduct[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  sizeGuideId                 String?
+  sizeGuide                   SizeGuide?            @relation(fields: [sizeGuideId], references: [id], onDelete: SetNull)
+  codFormTemplateId           String?
+  codFormTemplate             CodFormTemplate?      @relation(fields: [codFormTemplateId], references: [id], onDelete: SetNull)
+  shippingRestriction         Json?
+  promotionTargets            PromotionProduct[]
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
   /// Optimistic-locking version (Plan 18). Applies to content edits
   /// (name, description, SEO, images, template bindings). Stock changes
   /// use atomic `{ increment }` / `{ decrement }` and do NOT bump this.
-  version            Int                 @default(0)
+  version                     Int                   @default(0)
   /// Soft-delete tombstone. Null = live row. Non-null = the admin removed
   /// the product but its history (OrderItem snapshots, audit trail) must
   /// remain intact. Storefront queries must filter `deletedAt: null`.
-  deletedAt          DateTime?
+  deletedAt                   DateTime?
 
   @@index([slug])
   @@index([active])
@@ -164,19 +164,19 @@ model Product {
 }
 
 model LandingBlock {
-  id                    String           @id @default(cuid())
+  id                    String   @id @default(cuid())
   productId             String
-  product               Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product               Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   /// See CategoryBlock.type — string, validated against the registry.
   type                  String
   position              Int
-  content               Json             @default("{}")
+  content               Json     @default("{}")
   sourceTemplateBlockId String?
-  detached              Boolean          @default(false)
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  detached              Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
   /// Optimistic-locking version (Plan 18).
-  version               Int              @default(0)
+  version               Int      @default(0)
 
   @@index([productId, position])
   @@index([sourceTemplateBlockId])
@@ -332,22 +332,22 @@ model Order {
 }
 
 model OrderItem {
-  id             String          @id @default(cuid())
-  orderId        String
-  productId      String?
-  variantId      String?
-  name           String
-  variantName    String?
-  price          Decimal         @db.Decimal(10, 2)
-  quantity       Int
-  image          String?
-  sku            String?
-  variantOptions Json?
-  customDesign        Json?
-  customDesignImages  Json?
-  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product        Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-  variant        ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  id                 String          @id @default(cuid())
+  orderId            String
+  productId          String?
+  variantId          String?
+  name               String
+  variantName        String?
+  price              Decimal         @db.Decimal(10, 2)
+  quantity           Int
+  image              String?
+  sku                String?
+  variantOptions     Json?
+  customDesign       Json?
+  customDesignImages Json?
+  order              Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product            Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant            ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@index([productId])
@@ -526,26 +526,26 @@ enum CouponType {
 }
 
 model Promotion {
-  id                    String                @id @default(cuid())
-  name                  String
-  type                  ProductPromotionType
-  active                Boolean               @default(true)
-  priority              Int                   @default(0)
-  config                Json                  @default("{}")
-  startsAt              DateTime?
-  expiresAt             DateTime?
-  usageCount            Int                   @default(0)
+  id                   String               @id @default(cuid())
+  name                 String
+  type                 ProductPromotionType
+  active               Boolean              @default(true)
+  priority             Int                  @default(0)
+  config               Json                 @default("{}")
+  startsAt             DateTime?
+  expiresAt            DateTime?
+  usageCount           Int                  @default(0)
   /// Sum of discount amounts applied across all orders that used this
   /// promotion (in PEN). For FREE_GIFT it accumulates the basePrice of
   /// the gift handed out per order.
-  totalDiscountApplied  Decimal               @default(0) @db.Decimal(12, 2)
-  productTargets        PromotionProduct[]
-  categoryTargets       PromotionCategory[]
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  totalDiscountApplied Decimal              @default(0) @db.Decimal(12, 2)
+  productTargets       PromotionProduct[]
+  categoryTargets      PromotionCategory[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
   /// Soft-delete tombstone. Preserves analytics on
   /// `totalDiscountApplied` and `usageCount` after retirement.
-  deletedAt             DateTime?
+  deletedAt            DateTime?
 
   @@index([active])
   @@index([type])
@@ -808,6 +808,60 @@ model Setting {
   @@index([category])
 }
 
+/// Media library (Shopify-style "Contenido → Archivos"). Tracks every blob
+/// uploaded through /api/upload so admins can browse, search, edit the alt
+/// text / display name, and delete files from one place.
+///
+/// The blob `url` stays STABLE on metadata edits: renaming a blob would mean
+/// copying to a new URL and breaking every product / page / block that already
+/// references it. So editing the "filename" only touches `displayName` here —
+/// the actual stored file is never renamed.
+model MediaFile {
+  id              String    @id @default(cuid())
+  /// Public Vercel Blob URL — the stable identifier referenced across the app.
+  url             String    @unique
+  /// Blob pathname, e.g. "products/1700000000-ab12cd.jpg".
+  pathname        String
+  /// Original filename at upload time (e.g. "foto-zapatos.jpg").
+  filename        String
+  /// Admin-editable display name for organization. Falls back to `filename`.
+  displayName     String?
+  /// SEO alt text (images only).
+  alt             String?
+  mimeType        String
+  /// Size in bytes.
+  size            Int
+  width           Int?
+  height          Int?
+  isImage         Boolean   @default(true)
+  /// Storage backend: "vercel_blob" (images + fallback videos) or
+  /// "cloudflare_stream" (videos with transcoding + adaptive streaming).
+  provider        String    @default("vercel_blob")
+  /// Provider-side id. For Cloudflare Stream this is the video `uid`; null for
+  /// plain Vercel Blob uploads (the `url` is the identifier there).
+  providerId      String?
+  /// Poster/thumbnail URL (Cloudflare Stream videos). Images derive their own.
+  thumbnailUrl    String?
+  /// Processing state for async backends: "processing" | "ready" | "error".
+  /// Null for Vercel Blob (always immediately available).
+  status          String?
+  /// Video duration in seconds, when known.
+  durationSeconds Int?
+  /// Admin user id that uploaded it (plain String, no FK — survives user deletion).
+  uploadedById    String?
+  uploadedAt      DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  /// Soft-delete tombstone. Set when removed from the library.
+  deletedAt       DateTime?
+  /// Optimistic-locking version (Plan 18 convention).
+  version         Int       @default(0)
+
+  @@index([deletedAt, uploadedAt])
+  @@index([isImage])
+  @@index([mimeType])
+  @@index([providerId])
+}
+
 model NewsletterSubscriber {
   id             String    @id @default(cuid())
   email          String    @unique
@@ -826,7 +880,7 @@ model NewsletterSubscriber {
 model SubscriptionVerification {
   id         String    @id @default(cuid())
   email      String    @unique // canonical (normalized) form
-  code       String    // 6-digit numeric code
+  code       String // 6-digit numeric code
   attempts   Int       @default(0)
   verifiedAt DateTime?
   expiresAt  DateTime
@@ -1025,7 +1079,7 @@ model Customer {
 
   /// Internal admin-only notes about the customer (Shopify-style). Never exposed
   /// to the storefront/customer portal.
-  notes String? @db.Text
+  notes String?  @db.Text
   /// Free-form admin tags for segmentation (e.g. "mayorista", "VIP").
   tags  String[] @default([])
 
@@ -1038,7 +1092,7 @@ model Customer {
   updatedAt      DateTime  @updatedAt
   /// Soft-delete tombstone. Customers are never hard-deleted so their orders,
   /// point history, and audit trail stay intact. See Product.deletedAt.
-  deletedAt DateTime?
+  deletedAt      DateTime?
 
   @@index([email])
   @@index([referralCode])
@@ -1217,32 +1271,34 @@ enum PixelPlatform {
 }
 
 model LandingTemplate {
-  id             String          @id @default(cuid())
-  name           String
-  description    String?
-  category       String?
-  thumbnail      String?
-  active         Boolean         @default(true)
-  createdBy      String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                   String          @id @default(cuid())
+  name                 String
+  description          String?
+  category             String?
+  thumbnail            String?
+  active               Boolean         @default(true)
+  createdBy            String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
   /// Optimistic-locking version (Plan 18).
-  version        Int             @default(0)
-  templateBlocks TemplateBlock[]
-  products       Product[]
-  /** Themes that use this landing template as their default product page. */
+  version              Int             @default(0)
+  templateBlocks       TemplateBlock[]
+  products             Product[]
+  /**
+   * Themes that use this landing template as their default product page.
+   */
   themesUsingAsDefault Theme[]
 
   @@index([active, category])
 }
 
 model CodFormTemplate {
-  id               String           @id @default(cuid())
-  name             String           @unique
-  isDefault        Boolean          @default(false)
+  id        String  @id @default(cuid())
+  name      String  @unique
+  isDefault Boolean @default(false)
 
-  buttonText       String           @default("Realizar Pedido y Pagar al Recibir")
-  buttonStyle      Json             @default("{}")
+  buttonText  String @default("Realizar Pedido y Pagar al Recibir")
+  buttonStyle Json   @default("{}")
 
   postSubmitAction PostSubmitAction @default(INLINE_THANK_YOU)
   thankYouTitle    String?
@@ -1252,17 +1308,17 @@ model CodFormTemplate {
   thankYouPageId   String?
   thankYouPage     Page?            @relation("CodFormThankYouPage", fields: [thankYouPageId], references: [id], onDelete: SetNull)
 
-  blocks           CodFormBlock[]
-  products         Product[]
+  blocks   CodFormBlock[]
+  products Product[]
 
   /// Per-template shipping profile. When non-empty, only these rates appear
   /// in the COD modal for products bound to this template (Shopify-style
   /// shipping profile). When empty, the modal falls back to the regular
   /// (non-excluded) rates for the customer's district.
-  shippingRates    ShippingRate[]   @relation("CodFormTemplateShippingRates")
+  shippingRates ShippingRate[] @relation("CodFormTemplateShippingRates")
 
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isDefault])
   @@index([thankYouPageId])
@@ -1287,41 +1343,47 @@ model CodFormBlock {
 /// via the page builder. The storefront resolves /<slug> to the active
 /// Page when one exists, falling back to hardcoded route files otherwise.
 model Page {
-  id             String      @id @default(cuid())
-  slug           String      @unique
+  id                String            @id @default(cuid())
+  slug              String            @unique
   /// Visible title — used as the page's main heading and as SEO title fallback.
-  title          String
+  title             String
   /// Internal/visible description — used in the admin list and as SEO
   /// description fallback. Optional.
-  description    String?
+  description       String?
   /// SEO `<title>` override. When null, the meta tag falls back to `title`.
   /// Use when the visible H1 should differ from the search-result title
   /// (e.g. brand-suffixed: "Promociones | ShopGood Perú").
-  seoTitle       String?
+  seoTitle          String?
   /// SEO meta description override. When null, falls back to `description`.
   /// Aim for ~150-160 chars for best SERP truncation.
-  seoDescription String?
+  seoDescription    String?
   /// Open Graph image URL — preview shown when the page is shared on
   /// WhatsApp, Facebook, LinkedIn, Twitter, etc. Recommended 1200×630.
-  seoImage       String?
+  seoImage          String?
   /// When true, emits <meta name="robots" content="noindex,nofollow">.
   /// Useful for internal / temporary landing pages that shouldn't appear
   /// in search engines.
-  noIndex        Boolean     @default(false)
-  active         Boolean     @default(true)
-  createdBy      String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  noIndex           Boolean           @default(false)
+  active            Boolean           @default(true)
+  createdBy         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
   /// Optimistic-locking version (Plan 18). Covers metadata, SEO, slug.
   /// Block-list reorders bump each touched PageBlock.version separately.
-  version        Int         @default(0)
-  pageBlocks     PageBlock[]
-  /** Themes that point to this page as their storefront home. */
-  themesUsingAsHome Theme[] @relation("ThemeHomePage")
-  /** Themes that point to this page as their cart-blocks wrapper. */
-  themesUsingAsCart Theme[] @relation("ThemeCartPage")
-  /** CodFormTemplates that point to this page as their thank-you destination. */
-  codFormTemplates CodFormTemplate[] @relation("CodFormThankYouPage")
+  version           Int               @default(0)
+  pageBlocks        PageBlock[]
+  /**
+   * Themes that point to this page as their storefront home.
+   */
+  themesUsingAsHome Theme[]           @relation("ThemeHomePage")
+  /**
+   * Themes that point to this page as their cart-blocks wrapper.
+   */
+  themesUsingAsCart Theme[]           @relation("ThemeCartPage")
+  /**
+   * CodFormTemplates that point to this page as their thank-you destination.
+   */
+  codFormTemplates  CodFormTemplate[] @relation("CodFormThankYouPage")
 
   @@index([slug, active])
 }
@@ -1349,53 +1411,53 @@ model Menu {
 }
 
 model MenuItem {
-  id            String     @id @default(cuid())
-  menuId        String
-  menu          Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  menuId       String
+  menu         Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
   /// Self-referential parent. Max depth 3 — enforced server-side in
   /// actions/menus.ts (computeDepth + cycle check). The DB itself does
   /// not enforce a cap; depth is treated as a domain rule.
-  parentId      String?
-  parent        MenuItem?  @relation("MenuItemNesting", fields: [parentId], references: [id], onDelete: Cascade)
-  children      MenuItem[] @relation("MenuItemNesting")
-  position      Int
+  parentId     String?
+  parent       MenuItem?  @relation("MenuItemNesting", fields: [parentId], references: [id], onDelete: Cascade)
+  children     MenuItem[] @relation("MenuItemNesting")
+  position     Int
   /// Visible label shown in the menu.
-  label         String
+  label        String
   /// Discriminator. Valid values:
   ///   PAGE, PRODUCT, CATEGORY, EXTERNAL_URL,
   ///   HOME, PRODUCTS_INDEX, COLLECTIONS_INDEX
   /// Stored as String (not enum) to avoid migration churn when adding new types.
-  linkType      String
+  linkType     String
   /// Generic target reference, interpreted per linkType:
   ///   PAGE          → Page.id
   ///   PRODUCT       → Product.id
   ///   CATEGORY      → Category.id
   ///   EXTERNAL_URL  → null (uses externalUrl)
   ///   HOME / *_INDEX → null
-  targetId      String?
+  targetId     String?
   /// Used only when linkType == EXTERNAL_URL.
-  externalUrl   String?
-  openInNewTab  Boolean    @default(false)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  externalUrl  String?
+  openInNewTab Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   /// Optimistic-locking version (Plan 18).
-  version       Int        @default(0)
+  version      Int        @default(0)
 
   @@index([menuId, parentId, position])
 }
 
 model PageBlock {
-  id        String           @id @default(cuid())
+  id        String   @id @default(cuid())
   pageId    String
-  page      Page             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
   /// See CategoryBlock.type — string, validated against the registry.
   type      String
   position  Int
-  content   Json             @default("{}")
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  content   Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   /// Optimistic-locking version (Plan 18).
-  version   Int              @default(0)
+  version   Int      @default(0)
 
   @@index([pageId, position])
 }
@@ -1444,12 +1506,12 @@ model Policy {
 /// Plan 4 only wires `defaultProductLandingTemplateId`; the other sections
 /// are added in subsequent plans (5, 6, 7…).
 model Theme {
-  id                              String   @id @default(cuid())
+  id                              String           @id @default(cuid())
   name                            String
   description                     String?
   /// Whether this theme is the currently active theme. Enforced as a
   /// singleton in code (only one theme has active=true at a time).
-  active                          Boolean  @default(false)
+  active                          Boolean          @default(false)
   /// Default product landing template — used when a product has no
   /// landingTemplateId of its own. Null = no default; products without
   /// their own template render with no landing blocks.
@@ -1489,28 +1551,28 @@ model Theme {
   /// (Phase E dropped the legacy headerMenuId/footerMenuId columns).
   sections                        ThemeSection[]
   createdBy                       String?
-  createdAt                       DateTime @default(now())
-  updatedAt                       DateTime @updatedAt
+  createdAt                       DateTime         @default(now())
+  updatedAt                       DateTime         @updatedAt
   /// Optimistic-locking version (Plan 18). Highest collision risk in the
   /// app: the customizer auto-saves on every keystroke / click, and a
   /// theme is the singleton most likely to be edited by multiple admins.
-  version                         Int      @default(0)
+  version                         Int              @default(0)
 
   @@index([active])
 }
 
 model TemplateBlock {
-  id         String           @id @default(cuid())
+  id         String          @id @default(cuid())
   templateId String
-  template   LandingTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template   LandingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   /// See CategoryBlock.type — string, validated against the registry.
   type       String
   position   Int
-  content    Json             @default("{}")
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  content    Json            @default("{}")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
   /// Optimistic-locking version (Plan 18).
-  version    Int              @default(0)
+  version    Int             @default(0)
 
   @@index([templateId, position])
 }

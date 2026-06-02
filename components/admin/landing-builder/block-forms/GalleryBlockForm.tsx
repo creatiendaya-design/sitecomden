@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Trash2, Upload } from "lucide-react";
 import { useRef } from "react";
 import type { GalleryBlockContent } from "@/lib/types/landing-blocks";
+import ImageMetaEditButton from "@/components/admin/media/ImageMetaEditButton";
 
 interface GalleryBlockFormProps {
   content: GalleryBlockContent;
@@ -81,13 +82,27 @@ export default function GalleryBlockForm({ content, onChange }: GalleryBlockForm
             <div key={i} className="relative aspect-square rounded border overflow-hidden group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" className="w-full h-full object-cover" />
-              <button
-                type="button"
-                onClick={() => removeImage(i)}
-                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-              >
-                <Trash2 className="h-4 w-4 text-white" />
-              </button>
+              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <ImageMetaEditButton
+                  url={url}
+                  onRenamed={(u) =>
+                    onChange({
+                      ...content,
+                      images: content.images.map((x, idx) => (idx === i ? u : x)),
+                    })
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="h-6 w-6 shadow"
+                  onClick={() => removeImage(i)}
+                  aria-label="Quitar imagen"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

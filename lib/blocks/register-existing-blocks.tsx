@@ -31,6 +31,7 @@ const CartMainBlock = dynamic(() => import("@/components/shop/templates/blocks/C
 // ColorsContentForm intentionally not imported — block is deprecated from the picker
 import { ImageTextMediaField } from "@/components/admin/page-builder/forms/custom/ImageTextMediaField"
 import { LinkUrlField } from "@/components/admin/page-builder/forms/custom/LinkUrlField"
+import { MediaLibraryVideoPickerField } from "@/components/admin/page-builder/forms/custom/MediaLibraryVideoPickerField"
 
 const existing: BlockDefinition[] = [
   {
@@ -298,21 +299,47 @@ const existing: BlockDefinition[] = [
         key: "videos",
         label: "Videos",
         addButtonText: "+ Agregar video",
-        newItem: () => ({ id: crypto.randomUUID(), url: "", title: "", provider: "youtube" }),
-        itemLabel: (it) => (it.title as string) || (it.url as string) || "Video",
+        newItem: () => ({ id: crypto.randomUUID(), source: "library", url: "", title: "", provider: "youtube" }),
+        itemLabel: (it) => {
+          const lib = it.library as { title?: string } | undefined;
+          return (it.title as string) || lib?.title || (it.url as string) || "Video";
+        },
         itemSchema: [
-          { type: "text", key: "url", label: "URL del video" },
-          { type: "text", key: "title", label: "Título (opcional)" },
+          {
+            type: "select",
+            key: "source",
+            label: "Fuente del video",
+            options: [
+              { value: "library", label: "Biblioteca (video subido)" },
+              { value: "url", label: "URL externa (YouTube / Vimeo)" },
+            ],
+          },
+          {
+            type: "custom",
+            key: "library",
+            label: "Video de la biblioteca",
+            component: MediaLibraryVideoPickerField,
+            showWhen: { field: "source", equals: "library" },
+            helpText: "Elige un video subido (Cloudflare Stream).",
+          },
+          {
+            type: "text",
+            key: "url",
+            label: "URL del video",
+            showWhen: { field: "source", equals: "url" },
+          },
           {
             type: "select",
             key: "provider",
             label: "Proveedor",
+            showWhen: { field: "source", equals: "url" },
             options: [
               { value: "youtube", label: "YouTube" },
               { value: "vimeo", label: "Vimeo" },
-              { value: "upload", label: "Subido" },
+              { value: "upload", label: "Subido (URL directa)" },
             ],
           },
+          { type: "text", key: "title", label: "Título (opcional)" },
         ],
       },
     ],

@@ -1,8 +1,12 @@
 import { put } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 import { requireAuth } from "@/lib/auth";
 import { uploadRateLimiter, withRateLimit } from "@/lib/rate-limit";
+import { recordMediaFile } from "@/lib/media/record";
+import { mimeFromExtension } from "@/lib/media/blob-meta";
+import { sanitizeSvg } from "@/lib/media/sanitize-svg";
 
 export const maxDuration = 60;
 
@@ -12,6 +16,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/png",
   "image/webp",
   "image/gif",
+  "image/svg+xml",
 ]);
 
 const ALLOWED_VIDEO_TYPES = new Set([
@@ -20,10 +25,11 @@ const ALLOWED_VIDEO_TYPES = new Set([
   "video/quicktime",
 ]);
 
-const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "svg"]);
 const ALLOWED_VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov"]);
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;   // 10MB
+const MAX_SVG_SIZE = 2 * 1024 * 1024;      // 2MB — SVGs should be tiny
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;  // 100MB
 
 // Magic byte signatures to verify actual image content (prevents content-type spoofing)
@@ -49,7 +55,7 @@ function detectImageType(buffer: Uint8Array): string | null {
 
 export async function POST(request: Request) {
   // Auth — only logged-in admins may upload
-  const { response: authResponse } = await requireAuth();
+  const { user, response: authResponse } = await requireAuth();
   if (authResponse) return authResponse;
 
   const contentType = request.headers.get("content-type") ?? "";
@@ -75,8 +81,18 @@ export async function POST(request: Request) {
           };
         },
         onUploadCompleted: async ({ blob }) => {
-          // Vercel Blob calls this after the direct upload finishes
-          console.log("[UPLOAD] Video upload completed:", blob.url);
+          // Vercel Blob calls this after the direct upload finishes.
+          // NOTE: in local dev this webhook is NOT delivered (no public URL);
+          // such videos get picked up later by scripts/backfill-media-files.ts.
+          const ext = (blob.pathname.split(".").pop() ?? "").toLowerCase();
+          await recordMediaFile({
+            url: blob.url,
+            filename: blob.pathname.split("/").pop() ?? null,
+            mimeType: mimeFromExtension(ext),
+            // The completion payload doesn't carry the byte size; 0 is a
+            // placeholder the backfill script can later correct.
+            size: 0,
+          });
         },
       });
 
@@ -117,6 +133,65 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Extensión no permitida: .${ext}` }, { status: 400 });
     }
 
+    // ── SVG: sanitize then store (SVGs are XML and can carry scripts) ──
+    if (ext === "svg" || file.type === "image/svg+xml") {
+      if (file.size > MAX_SVG_SIZE) {
+        return NextResponse.json(
+          { error: `SVG demasiado grande (${(file.size / 1024 / 1024).toFixed(2)}MB). Máximo: 2MB.` },
+          { status: 413 }
+        );
+      }
+
+      const svgText = Buffer.from(await file.arrayBuffer()).toString("utf8");
+      if (!svgText.toLowerCase().includes("<svg")) {
+        return NextResponse.json({ error: "El archivo no es un SVG válido" }, { status: 400 });
+      }
+
+      const clean = await sanitizeSvg(svgText);
+      if (!clean) {
+        return NextResponse.json(
+          { error: "No se pudo procesar el SVG (contenido no válido)" },
+          { status: 400 }
+        );
+      }
+
+      const cleanBuffer = Buffer.from(clean, "utf8");
+
+      // Best-effort intrinsic dimensions (from the SVG viewBox/size).
+      let svgWidth: number | null = null;
+      let svgHeight: number | null = null;
+      try {
+        const meta = await sharp(cleanBuffer).metadata();
+        svgWidth = meta.width ?? null;
+        svgHeight = meta.height ?? null;
+      } catch {
+        // Non-fatal.
+      }
+
+      const svgName = `products/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.svg`;
+      const svgBlob = await put(svgName, cleanBuffer, {
+        access: "public",
+        contentType: "image/svg+xml",
+      });
+
+      await recordMediaFile({
+        url: svgBlob.url,
+        filename: file.name,
+        mimeType: "image/svg+xml",
+        size: cleanBuffer.byteLength,
+        width: svgWidth,
+        height: svgHeight,
+        uploadedById: user?.id ?? null,
+      });
+
+      return NextResponse.json({
+        url: svgBlob.url,
+        filename: file.name,
+        size: cleanBuffer.byteLength,
+        type: "image/svg+xml",
+      });
+    }
+
     if (file.size > MAX_IMAGE_SIZE) {
       return NextResponse.json(
         { error: `Imagen demasiado grande (${(file.size / 1024 / 1024).toFixed(2)}MB). Máximo: 10MB.` },
@@ -146,6 +221,28 @@ export async function POST(request: Request) {
 
     const blob = await put(uniqueName, new Blob([buffer], { type: detectedMime }), {
       access: "public",
+    });
+
+    // Best-effort: read intrinsic dimensions so the media library can show them.
+    let width: number | null = null;
+    let height: number | null = null;
+    try {
+      const meta = await sharp(buffer).metadata();
+      width = meta.width ?? null;
+      height = meta.height ?? null;
+    } catch {
+      // Non-fatal — dimensions are nice-to-have, not required.
+    }
+
+    // Record into the media library (best-effort; never blocks the upload).
+    await recordMediaFile({
+      url: blob.url,
+      filename: file.name,
+      mimeType: detectedMime,
+      size: file.size,
+      width,
+      height,
+      uploadedById: user?.id ?? null,
     });
 
     return NextResponse.json({ url: blob.url, filename: file.name, size: file.size, type: detectedMime });

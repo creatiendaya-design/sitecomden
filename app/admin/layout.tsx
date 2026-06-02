@@ -32,6 +32,7 @@ import {
   Sparkles,
   Tag,
   ExternalLink,
+  Images,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -181,6 +182,17 @@ function AdminLayoutInner({
       href: "/admin/personalizar",
       icon: Store,
       label: "Personalizar tienda",
+    },
+    {
+      icon: Images,
+      label: "Contenido",
+      items: [
+        {
+          href: "/admin/contenido/archivos",
+          icon: Images,
+          label: "Archivos",
+        },
+      ],
     },
     {
       href: "/admin/paginas",
