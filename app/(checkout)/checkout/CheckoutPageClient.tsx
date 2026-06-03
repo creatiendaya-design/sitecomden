@@ -35,6 +35,11 @@ import {
 } from "@/components/ui/sheet";
 import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
 import { PaymentMethodSelector } from "@/components/checkout/PaymentMethodSelector";
+import CheckoutUpsell from "@/components/checkout/CheckoutUpsell";
+import {
+  getCartRecommendations,
+  type RecommendationCard,
+} from "@/actions/recommendations";
 
 const initialFormData = {
   customerName: "",
@@ -100,6 +105,30 @@ export default function CheckoutPageClient({
   
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [selectedShippingRate, setSelectedShippingRate] = useState<ShippingRate | null>(null);
+
+  // Checkout upsell: recommend against the current basket. Re-fetches when the
+  // basket changes (e.g. after the customer adds an upsell), excluding items
+  // already in the cart.
+  const [upsellRecs, setUpsellRecs] = useState<RecommendationCard[]>([]);
+  const cartIdsKey = items.map((i) => i.productId).join(",");
+  useEffect(() => {
+    const ids = cartIdsKey ? cartIdsKey.split(",") : [];
+    if (ids.length === 0) {
+      setUpsellRecs([]);
+      return;
+    }
+    let cancelled = false;
+    getCartRecommendations(ids, 3)
+      .then((r) => {
+        if (!cancelled) setUpsellRecs(r.filter((x) => !ids.includes(x.id)));
+      })
+      .catch(() => {
+        if (!cancelled) setUpsellRecs([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cartIdsKey]);
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
     type: string;
@@ -754,6 +783,13 @@ export default function CheckoutPageClient({
           </div>
         ))}
       </div>
+
+      {upsellRecs.length > 0 && (
+        <>
+          <Separator className="my-4" />
+          <CheckoutUpsell recs={upsellRecs} />
+        </>
+      )}
 
       <Separator className="my-4" />
 
