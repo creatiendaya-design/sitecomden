@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Star, Loader2 } from "lucide-react"
+import { useRef, useState } from "react"
+import { Star, Loader2, ImagePlus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -18,6 +18,8 @@ interface WriteReviewButtonProps {
 }
 
 type SubmitState = "idle" | "submitting" | "done"
+
+const MAX_PHOTOS = 5
 
 /**
  * Storefront "write a review" button + modal form. Posts to
@@ -41,6 +43,9 @@ export function WriteReviewButton({
   const [customerEmail, setCustomerEmail] = useState("")
   const [title, setTitle] = useState("")
   const [comment, setComment] = useState("")
+  const [images, setImages] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   function resetForm() {
     setState("idle")
@@ -51,6 +56,47 @@ export function WriteReviewButton({
     setCustomerEmail("")
     setTitle("")
     setComment("")
+    setImages([])
+    setUploading(false)
+  }
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return
+    setError(null)
+
+    const remaining = MAX_PHOTOS - images.length
+    if (remaining <= 0) {
+      setError(`Máximo ${MAX_PHOTOS} fotos.`)
+      return
+    }
+
+    const toUpload = Array.from(files).slice(0, remaining)
+    setUploading(true)
+    try {
+      for (const file of toUpload) {
+        const fd = new FormData()
+        fd.append("file", file)
+        const res = await fetch("/api/reviews/upload-photo", {
+          method: "POST",
+          body: fd,
+        })
+        const json = await res.json()
+        if (!res.ok || !json.url) {
+          setError(json.error || "No se pudo subir una imagen.")
+          continue
+        }
+        setImages((prev) => [...prev, json.url])
+      }
+    } catch {
+      setError("Error al subir la imagen. Intenta de nuevo.")
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  function removeImage(url: string) {
+    setImages((prev) => prev.filter((u) => u !== url))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -82,6 +128,7 @@ export function WriteReviewButton({
           rating,
           title: title.trim() || undefined,
           comment: comment.trim() || undefined,
+          images: images.length > 0 ? images : undefined,
         }),
       })
       const json = await res.json()
@@ -236,11 +283,67 @@ export function WriteReviewButton({
               />
             </div>
 
+            {/* Photo uploader */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Fotos (opcional)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {images.map((url) => (
+                  <div key={url} className="relative h-16 w-16">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt="Foto de la reseña"
+                      className="h-16 w-16 rounded-md object-cover border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(url)}
+                      aria-label="Quitar foto"
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background shadow"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+
+                {images.length < MAX_PHOTOS && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-dashed border-input text-muted-foreground transition-colors hover:bg-accent disabled:opacity-60"
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <ImagePlus className="h-5 w-5" />
+                        <span className="text-[10px]">Subir</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Hasta {MAX_PHOTOS} fotos · JPG, PNG o WebP · máx 5MB c/u
+              </p>
+            </div>
+
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <button
               type="submit"
-              disabled={state === "submitting"}
+              disabled={state === "submitting" || uploading}
               className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
               {state === "submitting" ? (
