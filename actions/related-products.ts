@@ -1,6 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/db"
+import { requirePermission } from "@/lib/auth"
 
 export interface RelatedProductCard {
   id: string
@@ -183,6 +184,10 @@ export async function searchProductsForPicker(
   query: string,
   limit = 20,
 ): Promise<RelatedProductCard[]> {
+  // Admin-only picker: exposes the full catalog (name/price/image), so gate it.
+  const { response } = await requirePermission("products:view")
+  if (response) return []
+
   const q = query.trim()
   const rows = await prisma.product.findMany({
     where: q

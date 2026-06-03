@@ -20,6 +20,7 @@ import type { MockupOverrides } from "@/lib/customizer/types";
 import CodFormTemplateCard from "@/components/admin/products/CodFormTemplateCard";
 import ShippingRestrictionCard from "@/components/admin/products/ShippingRestrictionCard";
 import ProductPromotionsCard from "@/components/admin/products/ProductPromotionsCard";
+import ProductRelationsCard from "@/components/admin/products/ProductRelationsCard";
 import type { ShippingRestriction } from "@/lib/cod-forms/types";
 import type { ProductScopedPromotion } from "@/lib/promotions/types";
 import BulkEditModal from "@/components/admin/BulkEditModal";
@@ -822,6 +823,8 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   productName={product.name}
   initialPromotions={initialPromotions}
 />
+
+<ProductRelationsCard productId={product.id} />
 
             <Card className="hidden sm:block">
               <CardContent className="space-y-2 p-6">

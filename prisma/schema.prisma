@@ -148,6 +148,11 @@ model Product {
   codFormTemplate             CodFormTemplate?      @relation(fields: [codFormTemplateId], references: [id], onDelete: SetNull)
   shippingRestriction         Json?
   promotionTargets            PromotionProduct[]
+  /// Cross-sell / "frequently bought together" curation (manual side of the
+  /// hybrid recommender). `relationsFrom` = picks the admin set on THIS
+  /// product; `relationsTo` = the inverse (this product is recommended by X).
+  relationsFrom               ProductRelation[]     @relation("ProductRelationsFrom")
+  relationsTo                 ProductRelation[]     @relation("ProductRelationsTo")
   createdAt                   DateTime              @default(now())
   updatedAt                   DateTime              @updatedAt
   /// Optimistic-locking version (Plan 18). Applies to content edits
@@ -167,6 +172,32 @@ model Product {
   @@index([sizeGuideId])
   @@index([codFormTemplateId])
   @@index([deletedAt])
+}
+
+/// Manual product↔product curation for cross-sell / "comprados juntos".
+/// The recommender is hybrid: this table is the highest-priority source;
+/// when a product has no rows here, the resolver falls back to automatic
+/// co-purchase inference (order history) and then to same-category.
+model ProductRelation {
+  id               String              @id @default(cuid())
+  productId        String
+  relatedProductId String
+  type             ProductRelationType @default(BOUGHT_TOGETHER)
+  /// Admin-controlled display order (lower = first).
+  position         Int                 @default(0)
+  createdAt        DateTime            @default(now())
+
+  product        Product @relation("ProductRelationsFrom", fields: [productId], references: [id], onDelete: Cascade)
+  relatedProduct Product @relation("ProductRelationsTo", fields: [relatedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, relatedProductId, type])
+  @@index([productId, type, position])
+  @@index([relatedProductId])
+}
+
+enum ProductRelationType {
+  BOUGHT_TOGETHER
+  CROSS_SELL
 }
 
 model LandingBlock {
