@@ -11,6 +11,7 @@ import {
   Shield,
   Database,
   Globe,
+  Package,
 } from "lucide-react";
 import { protectRoute } from "@/lib/protect-route";
 import { prisma } from "@/lib/db";
@@ -104,6 +105,14 @@ export default async function ConfiguracionPage() {
       href: "/admin/configuracion/i18n",
       color: "text-cyan-600",
       bgColor: "bg-cyan-100",
+    },
+    {
+      title: "Comprados juntos",
+      description: "Venta cruzada y up-sell en las fichas de producto",
+      icon: Package,
+      href: "/admin/configuracion/comprados-juntos",
+      color: "text-orange-600",
+      bgColor: "bg-orange-100",
     },
   ];
 

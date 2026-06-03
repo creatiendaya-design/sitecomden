@@ -4,6 +4,13 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import ProductTracking from "./tracking-client";
+import Breadcrumbs from "@/components/shop/Breadcrumbs";
+import FrequentlyBoughtTogether, {
+  type FbtItem,
+} from "@/components/shop/FrequentlyBoughtTogether";
+import { getFrequentlyBoughtTogether } from "@/actions/recommendations";
+import { getFbtConfig } from "@/lib/recommendations/fbt-settings";
+import { getProductImageUrl } from "@/lib/image-utils";
 import ProductStandardView from "@/components/shop/templates/ProductStandardView";
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
 import { ProductSectionsRenderer } from "@/components/shop/theme-sections/product/ProductSectionsRenderer";
@@ -388,15 +395,17 @@ export default async function ProductDetailPage({
     : [];
   const primaryCategory = product.categories[0]?.category;
 
-  // Aggregate rating from approved reviews loaded above.
+  // Aggregate rating from the denormalized product columns, which reflect
+  // ALL approved reviews (recompute-aggregates.ts keeps them in sync), not
+  // just the 20-review slice loaded for the review[] list below. This way the
+  // star count Google shows matches the real total.
   const reviewsList = product.reviews ?? [];
   const aggregateRating =
-    reviewsList.length > 0
+    product.reviewCount > 0
       ? {
-          ratingValue:
-            reviewsList.reduce((sum, r) => sum + r.rating, 0) /
-            reviewsList.length,
-          reviewCount: reviewsList.length,
+          ratingValue: product.averageRating,
+          reviewCount: product.reviewCount,
+          ratingCount: product.reviewCount,
         }
       : undefined;
 
@@ -467,7 +476,7 @@ export default async function ProductDetailPage({
         }
       : {}),
   });
-  const breadcrumbSchema = buildBreadcrumbList([
+  const breadcrumbItems = [
     { name: "Inicio", url: `${baseUrl}/` },
     { name: "Productos", url: `${baseUrl}/productos` },
     ...(primaryCategory
@@ -479,7 +488,37 @@ export default async function ProductDetailPage({
         ]
       : []),
     { name: product.name, url: productUrl },
-  ]);
+  ];
+  const breadcrumbSchema = buildBreadcrumbList(breadcrumbItems);
+
+  // "Comprados juntos" — hybrid recommendations (manual → co-purchase →
+  // category). Skipped for LANDING products (bespoke pages).
+  const fbtConfig = await getFbtConfig();
+  let fbtItems: FbtItem[] = [];
+  if (fbtConfig.enabled && product.template !== "LANDING") {
+    const recs = await getFrequentlyBoughtTogether(product.id, fbtConfig.limit);
+    if (recs.length > 0) {
+      // Include the current product in the combo only when it has no variants
+      // (otherwise an option must be chosen, which a one-click combo can't do).
+      const currentItem: FbtItem | null = product.hasVariants
+        ? null
+        : {
+            id: product.id,
+            slug: product.slug,
+            name: product.name,
+            price: initialPrice,
+            mainImage: getProductImageUrl(product.images),
+            hasVariants: false,
+            inStock: totalStock > 0,
+            stock: totalStock,
+            isCurrent: true,
+          };
+      fbtItems = [
+        ...(currentItem ? [currentItem] : []),
+        ...recs.map((r) => ({ ...r, isCurrent: false })),
+      ];
+    }
+  }
 
   return (
     <>
@@ -497,6 +536,19 @@ export default async function ProductDetailPage({
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
+
+      {/* Visual breadcrumb trail (mirrors the JSON-LD above). Skipped for
+        * LANDING products, which are bespoke landing pages. */}
+      {product.template !== "LANDING" && (
+        <div className="container mx-auto px-4 pt-4 sm:pt-6">
+          <Breadcrumbs
+            items={breadcrumbItems.map((i) => ({
+              name: i.name,
+              href: i.url,
+            }))}
+          />
+        </div>
+      )}
 
       {/* Render priority:
         *   1. `Product.template === "LANDING"` → legacy LandingView (per-product)
@@ -539,6 +591,17 @@ export default async function ProductDetailPage({
         />
       ) : (
         <ProductStandardView {...templateProps} />
+      )}
+
+      {fbtItems.length > 0 && (
+        <div className="container mx-auto px-4 pb-12">
+          <FrequentlyBoughtTogether
+            items={fbtItems}
+            mode={fbtConfig.mode}
+            title={fbtConfig.title}
+            discountPercent={fbtConfig.discountPercent}
+          />
+        </div>
       )}
     </>
   );
