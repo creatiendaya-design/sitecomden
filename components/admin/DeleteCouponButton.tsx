@@ -46,7 +46,7 @@ export default function DeleteCouponButton({
 
       setOpen(false);
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al eliminar cupón");
     } finally {
       setLoading(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ import {
   Edit2,
   Loader2,
   Save,
-  X,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
@@ -113,20 +112,16 @@ export default function ConstructorMobileOptimized() {
     elementId?: string;
   } | null>(null);
 
-  useEffect(() => {
-    loadExistingFields();
-  }, []);
-
-  const loadExistingFields = async () => {
+  const loadExistingFields = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/complaints/fields");
       const data = await response.json();
 
       if (data.success && data.fields.length > 0) {
-        const fieldsBySection: Record<string, any[]> = {};
+        const fieldsBySection: Record<string, Record<string, unknown>[]> = {};
 
-        data.fields.forEach((field: any) => {
-          const section = field.section || "Sección Principal";
+        data.fields.forEach((field: Record<string, unknown>) => {
+          const section = (field.section as string) || "Sección Principal";
           if (!fieldsBySection[section]) {
             fieldsBySection[section] = [];
           }
@@ -138,15 +133,15 @@ export default function ConstructorMobileOptimized() {
             id: `section-${index}`,
             title: sectionName,
             elements: fields.map((field) => ({
-              id: field.id,
-              type: field.fieldType,
-              label: field.label,
-              width: field.width || "full",
-              placeholder: field.placeholder || "",
-              helpText: field.helpText || "",
-              required: field.required,
-              options: field.options || [],
-              otherLabel: field.otherLabel || "",
+              id: field.id as string,
+              type: field.fieldType as string,
+              label: field.label as string,
+              width: (field.width as string) || "full",
+              placeholder: (field.placeholder as string) || "",
+              helpText: (field.helpText as string) || "",
+              required: field.required as boolean,
+              options: (field.options as string[]) || [],
+              otherLabel: (field.otherLabel as string) || "",
             })),
           })
         );
@@ -173,7 +168,11 @@ export default function ConstructorMobileOptimized() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadExistingFields();
+  }, [loadExistingFields]);
 
   const addSection = () => {
     const newSection: Section = {
@@ -199,7 +198,7 @@ export default function ConstructorMobileOptimized() {
     }
   };
 
-  const updateSectionTitle = (sectionId: string, newTitle: string) => {
+  const _updateSectionTitle = (sectionId: string, newTitle: string) => {
     setSections(
       sections.map((s) => (s.id === sectionId ? { ...s, title: newTitle } : s))
     );
@@ -331,7 +330,7 @@ export default function ConstructorMobileOptimized() {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, toSectionId: string, toIndex?: number) => {
+  const handleDrop = (e: React.DragEvent, toSectionId: string, _toIndex?: number) => {
     e.preventDefault();
 
     if (!draggedElement) return;
@@ -382,8 +381,10 @@ export default function ConstructorMobileOptimized() {
     setSaving(true);
 
     try {
-      const fieldsToSave: any[] = [];
-      const fieldsToUpdate: any[] = [];
+      type FieldPayload = { label: string; fieldType: string; section: string; width: string; placeholder?: string; helpText?: string; required: boolean; options: string[]; otherLabel?: string; order: number };
+      type FieldUpdatePayload = FieldPayload & { id: string };
+      const fieldsToSave: FieldPayload[] = [];
+      const fieldsToUpdate: FieldUpdatePayload[] = [];
       let order = 0;
 
       sections.forEach((section) => {
@@ -396,7 +397,7 @@ export default function ConstructorMobileOptimized() {
             placeholder: element.placeholder || undefined,
             helpText: element.helpText || undefined,
             required: element.required,
-            options: element.options,
+            options: element.options || [],
             otherLabel: element.otherLabel || undefined,
             order: order++,
           };
@@ -874,7 +875,7 @@ function ElementEditor({
 
       {formData.type === "select_with_other" && (
         <div>
-          <Label>Etiqueta para "Otro"</Label>
+          <Label>Etiqueta para &quot;Otro&quot;</Label>
           <Input
             value={formData.otherLabel}
             onChange={(e) =>

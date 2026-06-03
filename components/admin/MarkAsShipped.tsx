@@ -16,7 +16,7 @@ interface MarkAsShippedProps {
 
 export default function MarkAsShipped({
   orderId,
-  orderNumber,
+  orderNumber: _orderNumber,
   isShipped,
 }: MarkAsShippedProps) {
   const router = useRouter();
@@ -55,7 +55,7 @@ export default function MarkAsShipped({
       }
 
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al marcar como enviada");
     } finally {
       setLoading(false);

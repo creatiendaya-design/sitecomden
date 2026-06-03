@@ -43,23 +43,36 @@ import {
   deleteReward 
 } from "@/actions/loyalty";
 import { toast } from "sonner";
+import type { Reward } from "@prisma/client";
 
 type RewardType = "DISCOUNT" | "PERCENTAGE" | "FREE_SHIPPING" | "PRODUCT";
 
+type RewardFormData = {
+  name: string;
+  description: string;
+  image: string;
+  pointsCost: string;
+  rewardType: RewardType;
+  rewardValue: string;
+  minPurchase: string;
+  maxUses: string;
+  active: boolean;
+};
+
 export default function RecompensasAdminPage() {
-  const [rewards, setRewards] = useState<any[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingReward, setEditingReward] = useState<any>(null);
+  const [editingReward, setEditingReward] = useState<Reward | null>(null);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RewardFormData>({
     name: "",
     description: "",
     image: "",
     pointsCost: "",
-    rewardType: "DISCOUNT" as RewardType,
+    rewardType: "DISCOUNT",
     rewardValue: "",
     minPurchase: "",
     maxUses: "",
@@ -178,7 +191,7 @@ export default function RecompensasAdminPage() {
     }
   }
 
-  function openEditModal(reward: any) {
+  function openEditModal(reward: Reward) {
     setEditingReward(reward);
     setFormData({
       name: reward.name,
@@ -348,13 +361,13 @@ export default function RecompensasAdminPage() {
 }
 
 // Componente: Tarjeta de Recompensa
-function RewardCard({ 
-  reward, 
-  onEdit, 
-  onDelete, 
-  onToggleStatus 
-}: { 
-  reward: any;
+function RewardCard({
+  reward,
+  onEdit,
+  onDelete,
+  onToggleStatus
+}: {
+  reward: Reward;
   onEdit: () => void;
   onDelete: () => void;
   onToggleStatus: () => void;
@@ -404,7 +417,7 @@ function RewardCard({
                 <span className="sm:hidden">Mín. compra</span>
               </p>
               <p className="text-sm sm:text-base font-semibold tabular-nums">
-                S/. {reward.minPurchase}
+                S/. {reward.minPurchase?.toString()}
               </p>
             </div>
           )}
@@ -465,13 +478,13 @@ function RewardCard({
 }
 
 // Componente: Formulario de Recompensa
-function RewardForm({ 
-  formData, 
+function RewardForm({
+  formData,
   setFormData,
-  isEdit = false 
-}: { 
-  formData: any;
-  setFormData: any;
+  isEdit = false
+}: {
+  formData: RewardFormData;
+  setFormData: (data: RewardFormData) => void;
   isEdit?: boolean;
 }) {
   return (
@@ -512,7 +525,7 @@ function RewardForm({
           <Label htmlFor="rewardType">Tipo de Recompensa *</Label>
           <Select
             value={formData.rewardType}
-            onValueChange={(value) => setFormData({ ...formData, rewardType: value })}
+            onValueChange={(value) => setFormData({ ...formData, rewardType: value as RewardType })}
           >
             <SelectTrigger>
               <SelectValue />
@@ -628,7 +641,7 @@ function RewardIcon({ type, size = 48 }: { type: string; size?: number }) {
   );
 }
 
-function getRewardValueDisplay(reward: any): string {
+function getRewardValueDisplay(reward: Reward): string {
   if (reward.rewardType === "DISCOUNT") {
     return `S/. ${reward.rewardValue}`;
   }

@@ -1,5 +1,7 @@
 // lib/csv-shopify.ts
 import Papa from "papaparse";
+import type { IgvType } from "@prisma/client";
+import type { Decimal } from "@prisma/client/runtime/library";
 
 export interface ShopifyProductRow {
   Handle: string;
@@ -32,9 +34,64 @@ export const SHOPIFY_HEADERS: (keyof ShopifyProductRow)[] = [
   "Image Src", "Image Alt", "SEO Title", "SEO Description",
 ];
 
+// Minimal shape of a Prisma Product row used for Shopify CSV export
+interface PrismaProductForShopify {
+  slug: string;
+  name: string;
+  description?: string | null;
+  active?: boolean;
+  basePrice: number | Decimal;
+  compareAtPrice?: number | Decimal | null;
+  weight?: number | Decimal | null;
+  stock: number;
+  sku?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  images?: unknown;
+  hasVariants?: boolean;
+  options?: Array<{ name: string }>;
+  variants?: Array<{
+    sku: string;
+    price: number | Decimal;
+    stock: number;
+    compareAtPrice?: number | Decimal | null;
+    options: Record<string, string> | unknown;
+  }>;
+}
+
+interface ProductInputVariant {
+  sku: string;
+  price: number;
+  compareAtPrice: number | null;
+  stock: number;
+  options: Record<string, string>;
+}
+
+interface ProductInput {
+  slug: string;
+  name: string;
+  description: string | null;
+  shortDescription: null;
+  basePrice: number;
+  compareAtPrice: number | null;
+  weight: number | null;
+  stock: number;
+  sku: string | null;
+  active: boolean;
+  featured: boolean;
+  igvType: IgvType;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  categorySlug: null;
+  imageUrls: string[];
+  variants: ProductInputVariant[];
+  _option1Name: string;
+  _option2Name: string;
+}
+
 /** Convierte un producto Prisma a filas Shopify CSV */
-export function productToShopifyRows(product: any): ShopifyProductRow[] {
-  const images: string[] = Array.isArray(product.images) ? product.images : [];
+export function productToShopifyRows(product: PrismaProductForShopify): ShopifyProductRow[] {
+  const images: string[] = Array.isArray(product.images) ? (product.images as string[]) : [];
   const firstImage = images[0] ?? "";
   const options = product.options ?? [];
 
@@ -49,8 +106,8 @@ export function productToShopifyRows(product: any): ShopifyProductRow[] {
     "Image Alt": product.name,
     "SEO Title": product.metaTitle ?? "",
     "SEO Description": product.metaDescription ?? "",
-    "Variant Compare At Price": product.compareAtPrice ? String(product.compareAtPrice) : "",
-    "Variant Weight": product.weight ? String(product.weight) : "",
+    "Variant Compare At Price": product.compareAtPrice ? String(Number(product.compareAtPrice)) : "",
+    "Variant Weight": product.weight ? String(Number(product.weight)) : "",
     "Variant Weight Unit": product.weight ? "kg" : "",
   };
 
@@ -62,14 +119,14 @@ export function productToShopifyRows(product: any): ShopifyProductRow[] {
       "Option2 Name": "",
       "Option2 Value": "",
       "Variant SKU": product.sku ?? "",
-      "Variant Price": String(product.basePrice),
+      "Variant Price": String(Number(product.basePrice)),
       "Variant Inventory Qty": String(product.stock),
     } as ShopifyProductRow];
   }
 
-  return product.variants.map((v: any) => {
-    const variantOptions = v.options as Record<string, string> ?? {};
-    const optionNames = options.map((o: any) => o.name);
+  return product.variants.map((v) => {
+    const variantOptions: Record<string, string> = (v.options as Record<string, string>) ?? {};
+    const optionNames = options.map((o) => o.name);
     const optionValues = optionNames.map((name: string) => variantOptions[name] ?? "");
 
     return {
@@ -79,7 +136,7 @@ export function productToShopifyRows(product: any): ShopifyProductRow[] {
       "Option2 Name": optionNames[1] ?? "",
       "Option2 Value": optionValues[1] ?? "",
       "Variant SKU": v.sku,
-      "Variant Price": String(v.price),
+      "Variant Price": String(Number(v.price)),
       "Variant Inventory Qty": String(v.stock),
     } as ShopifyProductRow;
   });
@@ -96,8 +153,8 @@ function generateVariantSku(handle: string, opt1: string, opt2: string): string 
 }
 
 /** Agrupa filas Shopify por Handle y convierte a ProductInput */
-export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<string, any> {
-  const byHandle = new Map<string, any>();
+export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<string, ProductInput> {
+  const byHandle = new Map<string, ProductInput>();
 
   for (const row of rows) {
     const handle = row.Handle;
@@ -125,12 +182,12 @@ export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<strin
         sku: isShopifyDefaultVariant ? (row["Variant SKU"] || null) : null,
         active: row.Published?.toUpperCase() === "TRUE",
         featured: false,
-        igvType: "GRAVADO" as any,
+        igvType: "GRAVADO" as IgvType,
         metaTitle: row["SEO Title"] || row.Title || null,
         metaDescription: row["SEO Description"] || null,
         categorySlug: null,
         imageUrls: row["Image Src"] ? [row["Image Src"]] : [],
-        variants: [] as any[],
+        variants: [],
         _option1Name: row["Option1 Name"],
         _option2Name: row["Option2 Name"],
       });
@@ -174,7 +231,7 @@ export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<strin
 }
 
 /** Genera CSV Shopify en memoria */
-export function generateShopifyCsv(products: any[]): string {
+export function generateShopifyCsv(products: PrismaProductForShopify[]): string {
   const rows: ShopifyProductRow[] = products.flatMap(productToShopifyRows);
   return Papa.unparse(rows, { columns: SHOPIFY_HEADERS });
 }

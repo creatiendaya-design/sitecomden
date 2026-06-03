@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +37,7 @@ function UnsubscribeForm() {
         setStatus("error");
         setMessage(data.error || "Hubo un error. Intenta de nuevo.");
       }
-    } catch (error) {
+    } catch {
       setStatus("error");
       setMessage("Hubo un error. Intenta de nuevo.");
     }
@@ -63,7 +64,7 @@ function UnsubscribeForm() {
         </CardContent>
         <CardFooter className="flex justify-center">
           <Button variant="outline" asChild>
-            <a href="/">Volver al inicio</a>
+            <Link href="/">Volver al inicio</Link>
           </Button>
         </CardFooter>
       </Card>
@@ -123,7 +124,7 @@ function UnsubscribeForm() {
             className="flex-1"
             asChild
           >
-            <a href="/">Mantener suscripción</a>
+            <Link href="/">Mantener suscripción</Link>
           </Button>
           <Button
             type="submit"

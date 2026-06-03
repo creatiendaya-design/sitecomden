@@ -11,12 +11,13 @@ import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import { createRole, getAllPermissions } from "@/actions/roles";
 import { toast } from "sonner";
+import type { Permission } from "@prisma/client";
 import PermissionSelector from "@/components/admin/PermissionSelector";
 
 export default function NewRolePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [permissionsGrouped, setPermissionsGrouped] = useState<Record<string, any>>({});
+  const [permissionsGrouped, setPermissionsGrouped] = useState<Record<string, Permission[]>>({});
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -65,7 +66,7 @@ export default function NewRolePage() {
       } else {
         toast.error(result.error || "Error al crear el rol");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al crear el rol");
     } finally {
       setLoading(false);

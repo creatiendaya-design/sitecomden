@@ -15,10 +15,12 @@ import {
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { updateOrderStatus } from "@/actions/orders";
+import type { UpdateOrderStatusInput } from "@/actions/orders-schema";
 import {
   ORDER_STATUS_TRANSITIONS,
   ORDER_STATUS_LABELS,
   isTerminalOrderStatus,
+  type OrderStatus,
 } from "@/lib/order-status-logic";
 
 interface OrderStatusCardProps {
@@ -44,7 +46,7 @@ export default function OrderStatusCard({
     if (!hasChanged) return;
     setLoading(true);
     try {
-      const result = await updateOrderStatus({ orderId, status: status as any });
+      const result = await updateOrderStatus({ orderId, status: status as UpdateOrderStatusInput["status"] });
       if (result.success) {
         toast.success("Estado de orden actualizado");
         router.refresh();
@@ -69,7 +71,7 @@ export default function OrderStatusCard({
           </p>
         </div>
 
-        {isTerminalOrderStatus(currentStatus as any) ? (
+        {isTerminalOrderStatus(currentStatus as OrderStatus) ? (
           <p className="text-sm text-muted-foreground">
             Estado final — no se puede modificar
           </p>

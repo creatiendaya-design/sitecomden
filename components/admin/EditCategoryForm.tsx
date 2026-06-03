@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
 import ManualProductSelector from "@/components/admin/ManualProductSelector";
@@ -135,7 +135,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
 
       router.push("/admin/categorias");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al actualizar categoría");
     } finally {
       setLoading(false);

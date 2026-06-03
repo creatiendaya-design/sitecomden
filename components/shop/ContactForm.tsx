@@ -31,7 +31,7 @@ export default function ContactForm() {
           description: result.error || "Por favor, intenta de nuevo.",
         });
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al enviar mensaje", {
         description: "Por favor, intenta de nuevo más tarde.",
       });

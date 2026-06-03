@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Minus, Plus, Trash2, ShoppingBag, AlertTriangle, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
@@ -52,30 +52,7 @@ export default function CartView({ customization }: CartViewProps = {}) {
     itemsStatus: {},
   });
 
-  // Verificar stock al cargar la página
-  useEffect(() => {
-    if (items.length > 0) {
-      verifyStock();
-    }
-  }, []);
-
-  // Validate custom design PNGs are still reachable in Vercel Blob
-  useEffect(() => {
-    const cartItems = useCartStore.getState().items;
-    const mark = useCartStore.getState().markCustomDesignBroken;
-    for (const cartItem of cartItems) {
-      if (cartItem.customDesignImages && cartItem.customDesignImages.length > 0 && !cartItem.customDesignBroken) {
-        Promise.all(
-          cartItem.customDesignImages.map((img) => checkImageReachable(img.url))
-        ).then((results) => {
-          const broken = results.some((r) => !r);
-          if (broken) mark(cartItem.id, true);
-        });
-      }
-    }
-  }, []);
-
-  const verifyStock = async () => {
+  const verifyStock = useCallback(async () => {
     setStockCheck({ loading: true, errors: [], itemsStatus: {} });
 
     const stockItems = items.map((item) => ({
@@ -91,8 +68,8 @@ export default function CartView({ customization }: CartViewProps = {}) {
     // pueden pasar por este checkout, así que se quitan del carrito normal.
     const codItems = result.items.filter((it) => it.codOnly);
     if (codItems.length > 0) {
-      const removeItem = useCartStore.getState().removeItem;
-      codItems.forEach((it) => removeItem(it.id));
+      const removeItemFn = useCartStore.getState().removeItem;
+      codItems.forEach((it) => removeItemFn(it.id));
       toast.info(
         codItems.length === 1
           ? "Quitamos un producto que solo se vende contra entrega."
@@ -119,10 +96,34 @@ export default function CartView({ customization }: CartViewProps = {}) {
       errors: filteredErrors,
       itemsStatus,
     });
-  };
+  }, [items]);
+
+  // Verificar stock al cargar la página
+  useEffect(() => {
+    if (items.length > 0) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect -- verifyStock updates stock state; intentional async-fetch-on-mount */
+      verifyStock();
+    }
+  }, [items.length, verifyStock]);
+
+  // Validate custom design PNGs are still reachable in Vercel Blob
+  useEffect(() => {
+    const cartItems = useCartStore.getState().items;
+    const mark = useCartStore.getState().markCustomDesignBroken;
+    for (const cartItem of cartItems) {
+      if (cartItem.customDesignImages && cartItem.customDesignImages.length > 0 && !cartItem.customDesignBroken) {
+        Promise.all(
+          cartItem.customDesignImages.map((img) => checkImageReachable(img.url))
+        ).then((results) => {
+          const broken = results.some((r) => !r);
+          if (broken) mark(cartItem.id, true);
+        });
+      }
+    }
+  }, []);
 
   // Helper para obtener la URL de imagen correcta
-  const getItemImage = (item: any) => {
+  const getItemImage = (item: typeof items[number]) => {
     // Prefer custom design PNG (first zone) over base product image
     if (item.customDesignImages && item.customDesignImages.length > 0 && !item.customDesignBroken) {
       return item.customDesignImages[0].url;

@@ -192,6 +192,7 @@ function Carousel({
   const touchDeltaX = useRef(0);
 
   useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- clamps index when maxIndex shrinks (e.g. window resize reduces perView) */
     setIndex((i) => Math.min(i, maxIndex));
   }, [maxIndex]);
 

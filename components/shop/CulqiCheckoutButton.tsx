@@ -5,6 +5,21 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Loader2, Shield, Lock } from 'lucide-react';
 
+declare global {
+  interface Window {
+    Culqi?: {
+      publicKey: string;
+      options: (opts: Record<string, unknown>) => void;
+      settings: (opts: Record<string, unknown>) => void;
+      open: () => void;
+      close: () => void;
+      token?: { id: string };
+      error?: { user_message?: string; merchant_message?: string };
+    };
+    culqi?: () => void;
+  }
+}
+
 interface CulqiCheckoutButtonProps {
   amount: number;
   email: string;
@@ -57,7 +72,7 @@ export default function CulqiCheckoutButton({
     script.async = true;
     
     script.onload = () => {
-      if (typeof window === 'undefined' || !(window as any).Culqi) {
+      if (typeof window === 'undefined' || !window.Culqi) {
         setLoadError('Error al cargar el sistema de pagos');
         return;
       }
@@ -70,13 +85,13 @@ export default function CulqiCheckoutButton({
       }
 
       try {
-        (window as any).Culqi.publicKey = publicKey;
+        window.Culqi.publicKey = publicKey;
 
         const logoUrl = siteLogo.startsWith('http') 
           ? siteLogo 
           : `${window.location.origin}${siteLogo}`;
 
-        (window as any).Culqi.options({
+        window.Culqi.options({
           lang: 'auto',
           installments: false,
           paymentMethods: {
@@ -99,29 +114,32 @@ export default function CulqiCheckoutButton({
           }
         });
 
-        (window as any).culqi = () => {
+        window.culqi = () => {
           resetProcessingState();
-          
-          if ((window as any).Culqi.token) {
-            const token = (window as any).Culqi.token.id;
-            
+
+          const culqi = window.Culqi;
+          if (!culqi) return;
+
+          if (culqi.token) {
+            const token = culqi.token.id;
+
             try {
-              (window as any).Culqi.close();
+              culqi.close();
             } catch (e) {
               console.warn('Error cerrando popup:', e);
             }
-            
+
             onSuccess(token);
-            
-          } else if ((window as any).Culqi.error) {
-            const error = (window as any).Culqi.error;
-            
+
+          } else if (culqi.error) {
+            const error = culqi.error;
+
             try {
-              (window as any).Culqi.close();
+              culqi.close();
             } catch (e) {
               console.warn('Error cerrando popup:', e);
             }
-            
+
             onError(error?.user_message || error?.merchant_message || 'Error al procesar el pago');
           }
         };
@@ -129,7 +147,7 @@ export default function CulqiCheckoutButton({
         scriptLoadedRef.current = true;
         setIsLoaded(true);
         
-      } catch (err) {
+      } catch {
         setLoadError('Error al configurar el sistema de pagos');
       }
     };
@@ -148,7 +166,7 @@ export default function CulqiCheckoutButton({
   }, [onSuccess, onError, resetProcessingState, siteLogo, siteName]);
 
   const openCulqiCheckout = () => {
-    if (!isLoaded || !(window as any).Culqi) {
+    if (!isLoaded || !window.Culqi) {
       onError('Sistema de pagos no disponible');
       return;
     }
@@ -160,16 +178,16 @@ export default function CulqiCheckoutButton({
     setIsProcessing(true);
     
     try {
-      (window as any).Culqi.settings({
+      window.Culqi.settings({
         title: siteName,
         currency: 'PEN',
         description: `Pago de ${customerName}`,
         amount: amount
       });
       
-      (window as any).Culqi.open();
+      window.Culqi.open();
       
-    } catch (error) {
+    } catch {
       resetProcessingState();
       onError('Error al abrir el formulario de pago');
     }

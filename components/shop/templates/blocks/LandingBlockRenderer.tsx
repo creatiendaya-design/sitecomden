@@ -119,6 +119,7 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
       )}
 
       {rest.map((block) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- block.content is a discriminated union typed per-block; cast required for switch dispatch
         const c = block.content as any;
         const className = getVisibilityClass(getVisibility(block));
         let inner: React.ReactNode = null;

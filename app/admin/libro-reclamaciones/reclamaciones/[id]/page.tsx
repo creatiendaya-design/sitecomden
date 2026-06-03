@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,10 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Calendar, Mail, Phone, User, FileText, Loader2, Send } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { getComplaintById, updateComplaintStatus } from "@/actions/complaints";
 import ComplaintStatusBadge from "@/components/admin/complaints/ComplaintStatusBadge";
@@ -28,7 +26,7 @@ interface Complaint {
   customerEmail?: string | null;
   customerPhone?: string | null;
   status: string;
-  formData: any;
+  formData: Record<string, unknown>;
   ipAddress?: string | null;
   userAgent?: string | null;
   adminResponse?: string | null;
@@ -44,7 +42,6 @@ export default function ComplaintDetailPage({
   params: Promise<{ id: string }> 
 }) {
   const { id } = use(params);
-  const router = useRouter();
   const { toast } = useToast();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,11 +49,7 @@ export default function ComplaintDetailPage({
   const [newStatus, setNewStatus] = useState<string>("");
   const [response, setResponse] = useState("");
 
-  useEffect(() => {
-    loadComplaint();
-  }, [id]);
-
-  const loadComplaint = async () => {
+  const loadComplaint = useCallback(async () => {
     setLoading(true);
     const result = await getComplaintById(id);
 
@@ -73,7 +66,12 @@ export default function ComplaintDetailPage({
       });
     }
     setLoading(false);
-  };
+  }, [id, toast]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadComplaint(); // data fetch on id change; setState is async inside loadComplaint
+  }, [id, loadComplaint]);
 
   const handleUpdateStatus = async () => {
     if (!complaint) return;
@@ -130,7 +128,7 @@ export default function ComplaintDetailPage({
 
   // Extraer datos del formulario
   const formDataMapped = complaint.formData?.mapped || {};
-  const formDataOriginal = complaint.formData?.original || {};
+  const _formDataOriginal = complaint.formData?.original || {};
 
   return (
     <div className="container mx-auto py-4 md:py-6 px-4 space-y-4 md:space-y-6">

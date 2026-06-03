@@ -5,15 +5,29 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
 
+interface VariantOption {
+  id: string;
+  name: string;
+  values: Array<{ id: string; value: string }>;
+}
+
+interface VariantRecord {
+  id: string;
+  price: number;
+  stock: number;
+  options: Record<string, string>;
+  [key: string]: unknown;
+}
+
 interface VariantSelectorProps {
-  product: any;
-  variants: any[];
-  options: any[];
-  onVariantChange?: (variant: any | null) => void;
+  product: Record<string, unknown>;
+  variants: VariantRecord[];
+  options: VariantOption[];
+  onVariantChange?: (variant: VariantRecord | null) => void;
 }
 
 export default function VariantSelector({
-  product,
+  product: _product,
   variants,
   options,
   onVariantChange,
@@ -64,12 +78,12 @@ export default function VariantSelector({
             )}
           </h3>
           <div className="flex flex-wrap gap-2">
-            {option.values.map((value: any) => {
+            {option.values.map((value) => {
               const isSelected = selectedOptions[option.name] === value.value;
               
               // Verificar si esta opción está disponible
               const isAvailable = variants.some((variant) => {
-                const variantOptions = variant.options as Record<string, string>;
+                const variantOptions = variant.options;
                 const matchesCurrentSelections = Object.entries(
                   selectedOptions
                 ).every(([key, val]) => {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Calendar } from "lucide-react";
+import { Plus, Edit, Calendar } from "lucide-react";
 import DeleteCouponButton from "@/components/admin/DeleteCouponButton";
 
 export default async function CouponsPage() {

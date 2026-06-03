@@ -5,7 +5,6 @@ import {
   Head,
   Heading,
   Html,
-  Img,
   Link,
   Preview,
   Section,
@@ -22,7 +21,7 @@ interface NewsletterWelcomeEmailProps {
 
 export const NewsletterWelcomeEmail = ({
   name,
-  email,
+  email: _email,
   couponCode,  // ← Variable del cupón
   unsubscribeUrl,
 }: NewsletterWelcomeEmailProps) => {

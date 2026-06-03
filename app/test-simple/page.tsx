@@ -8,8 +8,8 @@ export default async function TestSimplePage() {
     // ⭐ CLERK v5+: auth() necesita await
     const authResult = await auth();
     userId = authResult.userId || "NULL";
-  } catch (e: any) {
-    error = e.message;
+  } catch (e: unknown) {
+    error = e instanceof Error ? e.message : String(e);
   }
 
   return (

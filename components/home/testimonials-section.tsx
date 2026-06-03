@@ -21,15 +21,8 @@ interface TestimonialsSectionProps {
   className?: string;
 }
 
-export function TestimonialsSection({
-  title,
-  subtitle,
-  testimonials,
-  layout = "grid",
-  showImages = false,
-  className = "",
-}: TestimonialsSectionProps) {
-  const StarRating = ({ rating }: { rating: number }) => (
+function StarRating({ rating }: { rating: number }) {
+  return (
     <div className="flex gap-1">
       {[...Array(5)].map((_, i) => (
         <Star
@@ -43,6 +36,16 @@ export function TestimonialsSection({
       ))}
     </div>
   );
+}
+
+export function TestimonialsSection({
+  title,
+  subtitle,
+  testimonials,
+  layout = "grid",
+  showImages = false,
+  className = "",
+}: TestimonialsSectionProps) {
 
   if (layout === "featured" && testimonials.length >= 3) {
     return (
@@ -68,7 +71,7 @@ export function TestimonialsSection({
                 <StarRating rating={testimonials[0].rating} />
               </div>
               <blockquote className="mb-6 text-xl font-medium leading-relaxed">
-                "{testimonials[0].comment}"
+                &ldquo;{testimonials[0].comment}&rdquo;
               </blockquote>
               <div className="flex items-center gap-4">
                 {testimonials[0].avatar && (
@@ -99,7 +102,7 @@ export function TestimonialsSection({
                   <StarRating rating={testimonial.rating} />
                 </div>
                 <blockquote className="mb-4 text-sm leading-relaxed text-muted-foreground">
-                  "{testimonial.comment}"
+                  &ldquo;{testimonial.comment}&rdquo;
                 </blockquote>
                 <div className="flex items-center gap-3">
                   {testimonial.avatar && (
@@ -171,7 +174,7 @@ export function TestimonialsSection({
 
               {/* Comentario */}
               <blockquote className="mb-6 leading-relaxed text-muted-foreground">
-                "{testimonial.comment}"
+                &ldquo;{testimonial.comment}&rdquo;
               </blockquote>
 
               {/* Autor */}

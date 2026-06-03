@@ -32,7 +32,7 @@ export default function ProtectedRoute({
         }
         
         setHasAccess(true);
-      } catch (error) {
+      } catch {
         router.push(fallbackPath);
       } finally {
         setChecking(false);

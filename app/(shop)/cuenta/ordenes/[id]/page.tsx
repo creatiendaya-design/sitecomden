@@ -1,5 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
+import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -9,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -96,7 +96,13 @@ export default async function OrderDetailPage({
     redirect("/cuenta/ordenes");
   }
 
-  const shippingAddress = order.shippingAddress as any;
+  const shippingAddress = order.shippingAddress as {
+    address?: string;
+    district?: string;
+    city?: string;
+    department?: string;
+    reference?: string;
+  };
 
   return (
     <div className="space-y-6">
@@ -237,11 +243,15 @@ export default async function OrderDetailPage({
                 {order.items.map((item) => (
                   <div key={item.id} className="flex gap-4">
                     {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-20 w-20 rounded object-cover"
-                      />
+                      <div className="relative h-20 w-20 flex-shrink-0">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          className="rounded object-cover"
+                          sizes="80px"
+                        />
+                      </div>
                     )}
                     <div className="flex-1">
                       {/* ✅ CAMBIO: Verificar que product existe antes de acceder a .slug */}

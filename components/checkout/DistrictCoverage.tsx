@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { checkShippingCoverage } from "@/actions/shipping-checkout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -19,17 +19,7 @@ export function DistrictCoverage({
   const [hasShipping, setHasShipping] = useState<boolean | null>(null);
   const [zoneName, setZoneName] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!districtCode) {
-      setHasShipping(null);
-      setZoneName(null);
-      return;
-    }
-
-    checkCoverage();
-  }, [districtCode]);
-
-  const checkCoverage = async () => {
+  const checkCoverage = useCallback(async () => {
     setLoading(true);
 
     const result = await checkShippingCoverage(districtCode);
@@ -44,7 +34,18 @@ export function DistrictCoverage({
     }
 
     setLoading(false);
-  };
+  }, [districtCode, onCoverageCheck]);
+
+  useEffect(() => {
+    if (!districtCode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHasShipping(null);
+      setZoneName(null);
+      return;
+    }
+
+    checkCoverage();
+  }, [districtCode, checkCoverage]);
 
   if (!districtCode) {
     return null;

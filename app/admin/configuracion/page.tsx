@@ -37,9 +37,9 @@ export default async function ConfiguracionPage() {
 
   // Convertir array de settings a objeto
   const settingsObject = siteSettings.reduce((acc, setting) => {
-    acc[setting.key] = setting.value;
+    acc[setting.key] = typeof setting.value === "string" ? setting.value : String(setting.value ?? "");
     return acc;
-  }, {} as Record<string, any>);
+  }, {} as Record<string, string>);
 
   const otherSettingsOptions = [
     {

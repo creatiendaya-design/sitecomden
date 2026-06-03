@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { InventoryMovementType } from "@prisma/client"; // ✅ Importar el enum
+import { Prisma, InventoryMovementType } from "@prisma/client"; // ✅ Importar el enum
 import { protectRoute } from "@/lib/protect-route";
 import { z } from "zod";
 import {
@@ -28,7 +28,7 @@ export interface InventoryItem {
   variants?: {
     id: string;
     sku: string;
-    options: any;
+    options: Prisma.JsonValue;
     stock: number;
     lowStockAlert: number;
   }[];
@@ -48,7 +48,7 @@ export interface InventoryMovementWithDetails {
   variant?: {
     id: string;
     sku: string;
-    options: any;
+    options: Prisma.JsonValue;
   };
 }
 

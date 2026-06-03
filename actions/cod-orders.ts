@@ -161,7 +161,7 @@ export async function createCodOrder(rawData: unknown) {
     where: { id: primaryProductId },
     select: { shippingRestriction: true },
   });
-  const restrictionRaw = (primaryProduct as any)?.shippingRestriction;
+  const restrictionRaw = primaryProduct?.shippingRestriction;
   const restrictionErr = validateShippingRestriction(
     (restrictionRaw as ShippingRestriction | null) ?? null,
     {
@@ -312,8 +312,8 @@ export async function createCodOrder(rawData: unknown) {
 
   const siteSettings = await getSiteSettings();
   const orderPrefix = siteSettings.order_prefix || "PED";
-  const formattedNumber = (order as any).orderSeq
-    ? formatOrderNumber((order as any).orderSeq, orderPrefix)
+  const formattedNumber = order.orderSeq
+    ? formatOrderNumber(order.orderSeq, orderPrefix)
     : `#${order.id.slice(-8).toUpperCase()}`;
 
   return { success: true, orderId: order.id, formattedNumber };

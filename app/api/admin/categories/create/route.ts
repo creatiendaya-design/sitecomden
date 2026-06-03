@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         data.conditions.length > 0
       ) {
         await tx.categoryCondition.createMany({
-          data: data.conditions.map((condition: any) => ({
+          data: data.conditions.map((condition: { field: string; operator: string; value: string }) => ({
             categoryId: newCategory.id,
             field: condition.field,
             operator: condition.operator,

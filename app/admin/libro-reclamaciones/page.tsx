@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Plus, Settings, FileText, List, Layout, FolderOpen } from "lucide-react";
 import { getAllFormFields } from "@/actions/complaints";
@@ -15,17 +14,6 @@ export default async function ComplaintsManagementPage() {
    await protectRoute("complaints:view");
   const fieldsResult = await getAllFormFields();
   const fields = fieldsResult.success ? fieldsResult.data : [];
-
-  const fieldTypeLabels: Record<string, string> = {
-    text: "Texto",
-    email: "Email",
-    tel: "Teléfono",
-    textarea: "Área de texto",
-    select: "Selector",
-    radio: "Radio",
-    checkbox: "Checkbox",
-    date: "Fecha",
-  };
 
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-0">
@@ -125,7 +113,7 @@ export default async function ComplaintsManagementPage() {
                   </Button>
                 </div>
               ) : (
-                <FormFieldsList fields={fields as any} />
+                <FormFieldsList fields={fields ?? []} />
               )}
             </CardContent>
           </Card>

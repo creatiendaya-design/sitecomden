@@ -52,8 +52,10 @@ export async function sendFacebookConversion(data: ConversionEventData) {
       return { success: false, error: "Pixel no configurado" };
     }
 
-    const config = pixelConfig.config as any;
-    const { pixelId, accessToken, testEventCode } = config;
+    const config = pixelConfig.config as Record<string, unknown>;
+    const pixelId = config.pixelId as string | undefined;
+    const accessToken = config.accessToken as string | undefined;
+    const testEventCode = config.testEventCode as string | undefined;
 
     if (!pixelId || !accessToken) {
       console.log("Facebook Pixel ID o Access Token faltante");
@@ -61,7 +63,7 @@ export async function sendFacebookConversion(data: ConversionEventData) {
     }
 
     // Hash de datos de usuario (requerido por Facebook)
-    const hashedUserData: any = {};
+    const hashedUserData: Record<string, string> = {};
     if (data.userData?.email) {
       hashedUserData.em = hashData(data.userData.email.toLowerCase().trim());
     }
@@ -155,8 +157,9 @@ export async function sendTikTokConversion(data: ConversionEventData) {
       return { success: false, error: "Pixel no configurado" };
     }
 
-    const config = pixelConfig.config as any;
-    const { pixelId, accessToken } = config;
+    const config = pixelConfig.config as Record<string, unknown>;
+    const pixelId = config.pixelId as string | undefined;
+    const accessToken = config.accessToken as string | undefined;
 
     if (!pixelId || !accessToken) {
       console.log("TikTok Pixel ID o Access Token faltante");
@@ -164,7 +167,7 @@ export async function sendTikTokConversion(data: ConversionEventData) {
     }
 
     // Hash de datos de usuario
-    const hashedUserData: any = {};
+    const hashedUserData: Record<string, string> = {};
     if (data.userData?.email) {
       hashedUserData.email = hashData(data.userData.email.toLowerCase().trim());
     }
@@ -239,8 +242,9 @@ export async function sendGoogleAdsConversion(
       return { success: false, error: "Pixel no configurado" };
     }
 
-    const config = pixelConfig.config as any;
-    const { conversionId, conversionLabel } = config;
+    const config = pixelConfig.config as Record<string, unknown>;
+    const conversionId = config.conversionId as string | undefined;
+    const conversionLabel = config.conversionLabel as string | undefined;
 
     if (!conversionId || !conversionLabel) {
       console.log("Google Ads Conversion ID o Label faltante");
@@ -283,8 +287,9 @@ export async function sendGA4Conversion(data: ConversionEventData) {
       return { success: false, error: "Pixel no configurado" };
     }
 
-    const config = pixelConfig.config as any;
-    const { measurementId, apiSecret } = config;
+    const config = pixelConfig.config as Record<string, unknown>;
+    const measurementId = config.measurementId as string | undefined;
+    const apiSecret = config.apiSecret as string | undefined;
 
     if (!measurementId || !apiSecret) {
       console.log("GA4 Measurement ID o API Secret faltante");

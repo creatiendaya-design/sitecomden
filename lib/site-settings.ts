@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
+import type { InputJsonValue } from "@prisma/client/runtime/library";
 
 export interface SiteSettings {
   // General
@@ -62,10 +63,10 @@ const DEFAULT_SETTINGS: SiteSettings = {
 /**
  * Extrae el valor de un setting, manejando objetos JSON con 'url'
  */
-function extractSettingValue(value: any): any {
+function extractSettingValue(value: unknown): unknown {
   // Si es un objeto JSON con 'url', extraer solo la URL
   if (value && typeof value === "object" && "url" in value) {
-    return value.url;
+    return (value as { url: unknown }).url;
   }
   return value;
 }
@@ -119,7 +120,7 @@ async function _getSiteSettings(): Promise<SiteSettings> {
       const settingsObject = newSettings.reduce((acc, setting) => {
         acc[setting.key] = extractSettingValue(setting.value);
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, unknown>);
 
       return {
         ...DEFAULT_SETTINGS,
@@ -131,7 +132,7 @@ async function _getSiteSettings(): Promise<SiteSettings> {
     const settingsObject = settings.reduce((acc, setting) => {
       acc[setting.key] = extractSettingValue(setting.value);
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, unknown>);
 
     // Combinar con defaults para asegurar que todos los campos existan
     return {
@@ -207,7 +208,7 @@ async function createDefaultSettings() {
 /**
  * Obtiene un setting específico
  */
-export async function getSetting(key: string, defaultValue: any = null) {
+export async function getSetting(key: string, defaultValue: unknown = null) {
   try {
     const setting = await prisma.setting.findUnique({
       where: { key },
@@ -225,7 +226,7 @@ export async function getSetting(key: string, defaultValue: any = null) {
  */
 export async function updateSetting(
   key: string,
-  value: any,
+  value: InputJsonValue,
   category?: string
 ) {
   return prisma.setting.upsert({

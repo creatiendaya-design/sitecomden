@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut, Settings, ShoppingBag } from "lucide-react";
+import { User, LogOut, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 
 export function UserMenu() {

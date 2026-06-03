@@ -252,6 +252,7 @@ function RelationPickerDialog({
 
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPending(new Set());
     setQuery("");
   }, [open]);

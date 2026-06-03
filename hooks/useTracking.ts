@@ -20,7 +20,7 @@ interface EventData {
   content_type?: string;
   contents?: Array<{ id: string; quantity: number; item_price: number }>;
   num_items?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export function useTracking() {
@@ -29,19 +29,19 @@ export function useTracking() {
     if (!hasMarketingConsent()) return;
 
     // Facebook Pixel
-    if ((window as any).fbq) {
-      (window as any).fbq("track", event, data);
+    if (window.fbq) {
+      window.fbq("track", event, data);
     }
 
     // TikTok Pixel
-    if ((window as any).ttq) {
-      (window as any).ttq.track(event, data);
+    if (window.ttq && typeof (window.ttq as Record<string, unknown>).track === "function") {
+      (window.ttq as { track: (...args: unknown[]) => void }).track(event, data);
     }
 
     // Google Analytics 4
-    if ((window as any).gtag) {
+    if (window.gtag) {
       const eventName = convertToGA4EventName(event);
-      (window as any).gtag("event", eventName, {
+      window.gtag("event", eventName, {
         value: data?.value,
         currency: data?.currency,
         items: data?.contents,
@@ -55,18 +55,18 @@ export function useTracking() {
     if (!hasMarketingConsent()) return;
 
     // Facebook Pixel
-    if ((window as any).fbq) {
-      (window as any).fbq("track", "PageView");
+    if (window.fbq) {
+      window.fbq("track", "PageView");
     }
 
     // TikTok Pixel
-    if ((window as any).ttq) {
-      (window as any).ttq.page();
+    if (window.ttq && typeof (window.ttq as Record<string, unknown>).page === "function") {
+      (window.ttq as { page: () => void }).page();
     }
 
     // Google Analytics 4
-    if ((window as any).gtag) {
-      (window as any).gtag("event", "page_view", {
+    if (window.gtag) {
+      window.gtag("event", "page_view", {
         page_path: url,
       });
     }

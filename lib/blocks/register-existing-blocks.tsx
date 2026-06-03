@@ -1,7 +1,11 @@
 import dynamic from "next/dynamic"
+import type { ComponentType } from "react"
 import { registerBlock } from "./registry"
 import { DEFAULT_CONTENT_V2 } from "./defaults"
 import type { BlockDefinition } from "./registry"
+import type { BlockContentV2 } from "./types"
+
+type BlockRenderer = ComponentType<{ content: BlockContentV2 }>
 
 // Storefront renderers are the same components used in ProductLandingView.
 // We reuse them unchanged in the editor canvas — they already accept
@@ -42,7 +46,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.HERO,
-    renderer: HeroBlock as any,
+    renderer: HeroBlock as BlockRenderer,
     contentSchema: [
       { type: "text", key: "title", label: "Título" },
       { type: "text", key: "subtitle", label: "Subtítulo" },
@@ -204,7 +208,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "media",
     defaultContent: DEFAULT_CONTENT_V2.GALLERY,
-    renderer: GalleryBlock as any,
+    renderer: GalleryBlock as BlockRenderer,
     contentSchema: [
       {
         type: "select",
@@ -239,7 +243,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "social-proof",
     defaultContent: DEFAULT_CONTENT_V2.TESTIMONIALS,
-    renderer: TestimonialsBlock as any,
+    renderer: TestimonialsBlock as BlockRenderer,
     contentSchema: [
       {
         type: "array",
@@ -281,7 +285,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "media",
     defaultContent: DEFAULT_CONTENT_V2.VIDEO,
-    renderer: VideoBlock as any,
+    renderer: VideoBlock as BlockRenderer,
     contentSchema: [
       {
         type: "select",
@@ -357,7 +361,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "visual",
     defaultContent: DEFAULT_CONTENT_V2.TICKER,
-    renderer: TickerBlock as any,
+    renderer: TickerBlock as BlockRenderer,
     contentSchema: [
       {
         type: "select",
@@ -395,7 +399,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "social-proof",
     defaultContent: DEFAULT_CONTENT_V2.TRUST_BADGES,
-    renderer: TrustBadgesBlock as any,
+    renderer: TrustBadgesBlock as BlockRenderer,
     contentSchema: [
       {
         type: "select",
@@ -464,7 +468,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.RICH_TEXT,
-    renderer: RichTextBlock as any,
+    renderer: RichTextBlock as BlockRenderer,
     contentSchema: [
       {
         type: "text",
@@ -545,7 +549,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.FAQ,
-    renderer: FaqBlock as any,
+    renderer: FaqBlock as BlockRenderer,
     contentSchema: [
       // ─── Encabezado ──────────────────────────────────────────────────
       {
@@ -669,7 +673,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.IMAGE_TEXT,
-    renderer: ImageTextBlock as any,
+    renderer: ImageTextBlock as BlockRenderer,
     contentSchema: [
       { type: "text", key: "title", label: "Título" },
       { type: "richtext", key: "description", label: "Descripción" },
@@ -718,7 +722,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.ICON_TEXT,
-    renderer: IconTextBlock as any,
+    renderer: IconTextBlock as BlockRenderer,
     contentSchema: [
       {
         type: "select",
@@ -861,7 +865,7 @@ const existing: BlockDefinition[] = [
     scope: "product",
     category: "commerce",
     defaultContent: DEFAULT_CONTENT_V2.RELATED_PRODUCTS,
-    renderer: RelatedProductsBlockEditorWrapper as any,
+    renderer: RelatedProductsBlockEditorWrapper as BlockRenderer,
     contentSchema: [
       { type: "text", key: "title", label: "Título", placeholder: "También te puede gustar" },
       {
@@ -925,7 +929,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "social-proof",
     defaultContent: DEFAULT_CONTENT_V2.COMPARISON,
-    renderer: ComparisonBlock as any,
+    renderer: ComparisonBlock as BlockRenderer,
     contentSchema: [
       { type: "text", key: "title", label: "Título", placeholder: "BENEFICIOS INIGUALABLES" },
       {
@@ -1025,7 +1029,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.FRIENDLY,
-    renderer: FriendlyBlock as any,
+    renderer: FriendlyBlock as BlockRenderer,
     contentSchema: [
       {
         type: "text",
@@ -1139,7 +1143,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "media",
     defaultContent: DEFAULT_CONTENT_V2.CAROUSEL,
-    renderer: CarouselBlock as any,
+    renderer: CarouselBlock as BlockRenderer,
     contentSchema: [
       {
         type: "text",
@@ -1380,7 +1384,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "social-proof",
     defaultContent: DEFAULT_CONTENT_V2.PORCENTAJE_UNO,
-    renderer: PorcentajeUnoBlock as any,
+    renderer: PorcentajeUnoBlock as BlockRenderer,
     contentSchema: [
       // ─── Encabezado ──────────────────────────────────────────────────
       {
@@ -1603,7 +1607,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "visual",
     defaultContent: DEFAULT_CONTENT_V2.BANNER_TOP_TEXT,
-    renderer: BannerTopTextBlock as any,
+    renderer: BannerTopTextBlock as BlockRenderer,
     contentSchema: [
       // ─── Texto del banner ────────────────────────────────────────────
       {
@@ -1837,7 +1841,7 @@ const existing: BlockDefinition[] = [
     scope: "universal",
     category: "content",
     defaultContent: DEFAULT_CONTENT_V2.FAQ_TWO,
-    renderer: FaqTwoBlock as any,
+    renderer: FaqTwoBlock as BlockRenderer,
     contentSchema: [
       // ─── Encabezado ──────────────────────────────────────────────────
       {
@@ -2026,7 +2030,7 @@ const existing: BlockDefinition[] = [
     scope: "category",
     category: "commerce",
     defaultContent: DEFAULT_CONTENT_V2.PRODUCT_GRID,
-    renderer: ProductGridBlockEditor as any,
+    renderer: ProductGridBlockEditor as BlockRenderer,
     contentSchema: [
       {
         type: "text",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   getDepartments,
   getProvincesByDepartment,
@@ -187,6 +187,7 @@ export default function LocationSelector({
 
   useEffect(() => {
     if (value.departmentId) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect -- triggers async data fetch; loading flag set synchronously */
       setLoadingProvinces(true);
       getProvincesByDepartment(value.departmentId).then((r) => {
         if (r.success) setProvinces(r.data);
@@ -200,6 +201,7 @@ export default function LocationSelector({
 
   useEffect(() => {
     if (value.provinceId) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect -- triggers async data fetch; loading flag set synchronously */
       setLoadingDistricts(true);
       getDistrictsByProvince(value.provinceId).then((r) => {
         if (r.success) setDistricts(r.data);
@@ -223,26 +225,7 @@ export default function LocationSelector({
     ? districts.filter((d) => allowedDistrictCodes.includes(d.code))
     : districts;
 
-  // Auto-select when only one option is available
-  useEffect(() => {
-    if (!loadingDepartments && visibleDepts.length === 1 && !value.departmentId) {
-      handleDepartmentChange(visibleDepts[0].id);
-    }
-  }, [loadingDepartments, visibleDepts.length]);
-
-  useEffect(() => {
-    if (!loadingProvinces && visibleProvs.length === 1 && !value.provinceId) {
-      handleProvinceChange(visibleProvs[0].id);
-    }
-  }, [loadingProvinces, visibleProvs.length]);
-
-  useEffect(() => {
-    if (!loadingDistricts && visibleDists.length === 1 && !value.districtCode) {
-      handleDistrictChange(visibleDists[0].code);
-    }
-  }, [loadingDistricts, visibleDists.length]);
-
-  const handleDepartmentChange = (departmentId: string) => {
+  const handleDepartmentChange = useCallback((departmentId: string) => {
     const department = departments.find((d) => d.id === departmentId);
     onChange({
       departmentId,
@@ -252,9 +235,9 @@ export default function LocationSelector({
       provinceName: "",
       districtName: "",
     });
-  };
+  }, [departments, onChange]);
 
-  const handleProvinceChange = (provinceId: string) => {
+  const handleProvinceChange = useCallback((provinceId: string) => {
     const province = provinces.find((p) => p.id === provinceId);
     const department = departments.find((d) => d.id === value.departmentId);
     onChange({
@@ -265,9 +248,9 @@ export default function LocationSelector({
       provinceName: province?.name || "",
       districtName: "",
     });
-  };
+  }, [provinces, departments, value.departmentId, onChange]);
 
-  const handleDistrictChange = (districtCode: string) => {
+  const handleDistrictChange = useCallback((districtCode: string) => {
     const district = districts.find((d) => d.code === districtCode);
     const province = provinces.find((p) => p.id === value.provinceId);
     const department = departments.find((d) => d.id === value.departmentId);
@@ -279,7 +262,26 @@ export default function LocationSelector({
       provinceName: province?.name || "",
       districtName: district?.name || "",
     });
-  };
+  }, [districts, provinces, departments, value.departmentId, value.provinceId, onChange]);
+
+  // Auto-select when only one option is available
+  useEffect(() => {
+    if (!loadingDepartments && visibleDepts.length === 1 && !value.departmentId) {
+      handleDepartmentChange(visibleDepts[0].id);
+    }
+  }, [loadingDepartments, visibleDepts, value.departmentId, handleDepartmentChange]);
+
+  useEffect(() => {
+    if (!loadingProvinces && visibleProvs.length === 1 && !value.provinceId) {
+      handleProvinceChange(visibleProvs[0].id);
+    }
+  }, [loadingProvinces, visibleProvs, value.provinceId, handleProvinceChange]);
+
+  useEffect(() => {
+    if (!loadingDistricts && visibleDists.length === 1 && !value.districtCode) {
+      handleDistrictChange(visibleDists[0].code);
+    }
+  }, [loadingDistricts, visibleDists, value.districtCode, handleDistrictChange]);
 
   return (
     <div className="space-y-4">

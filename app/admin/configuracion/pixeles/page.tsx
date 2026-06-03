@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   getAllPixels,
   savePixel,
@@ -24,7 +24,6 @@ import {
   Loader2,
   Save,
   AlertCircle,
-  CheckCircle2,
   Eye,
   EyeOff,
   Trash2,
@@ -96,12 +95,7 @@ export default function PixelesPage() {
     googleAnalytics: false,
   });
 
-  // Cargar configuración al montar
-  useEffect(() => {
-    loadPixels();
-  }, []);
-
-  const loadPixels = async () => {
+  const loadPixels = useCallback(async () => {
     setLoading(true);
     const result = await getAllPixels();
 
@@ -145,7 +139,13 @@ export default function PixelesPage() {
     }
 
     setLoading(false);
-  };
+  }, []);
+
+  // Cargar configuración al montar
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadPixels(); // data fetch on mount; setState is async inside loadPixels
+  }, [loadPixels]);
 
   const handleSave = async (platform: PixelPlatform) => {
     setSaving(platform);
@@ -763,7 +763,7 @@ export default function PixelesPage() {
                 <strong>📖 Cómo obtener tus credenciales:</strong>
                 <ol className="list-decimal list-inside mt-2 space-y-1 ml-2">
                   <li>Ve a Google Ads → Herramientas → Conversiones</li>
-                  <li>Crea o selecciona una conversión de "Compra"</li>
+                  <li>Crea o selecciona una conversión de &quot;Compra&quot;</li>
                   <li>Copia el Conversion ID (AW-XXXXXXXXX)</li>
                   <li>Copia el Conversion Label de la etiqueta global</li>
                 </ol>

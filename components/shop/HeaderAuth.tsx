@@ -3,7 +3,6 @@
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { User } from "lucide-react";
-import Link from "next/link";
 import { UserMenu } from "./UserMenu";
 
 export function HeaderAuth() {

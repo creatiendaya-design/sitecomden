@@ -1,6 +1,7 @@
 "use client";
 
 import { SignIn, useAuth } from "@clerk/nextjs";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -92,16 +93,16 @@ export default function SignInPage() {
           marginTop: "20px", 
           textAlign: "center" 
         }}>
-          <a 
-            href="/" 
-            style={{ 
-              color: "#666", 
+          <Link
+            href="/"
+            style={{
+              color: "#666",
               textDecoration: "none",
               fontSize: "14px"
             }}
           >
             ← Volver a la tienda
-          </a>
+          </Link>
         </div>
       </div>
     </div>

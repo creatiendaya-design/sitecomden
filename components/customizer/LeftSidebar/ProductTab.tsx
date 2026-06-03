@@ -18,7 +18,6 @@ type SelectionMap = Record<string, string>; // optionId -> valueId
 export function ProductTab({ product }: Props) {
   const variantId = useBuilderStore((s) => s.variantId);
   const setVariantId = useBuilderStore((s) => s.setVariantId);
-  const template = useBuilderStore((s) => s.template);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   // Derive current selection map (optionId -> valueId) from the current variant

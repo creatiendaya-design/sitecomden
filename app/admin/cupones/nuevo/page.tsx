@@ -69,7 +69,7 @@ export default function NewCouponPage() {
 
       router.push("/admin/cupones");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al crear cupón");
     } finally {
       setLoading(false);

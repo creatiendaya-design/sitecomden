@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,7 +21,7 @@ interface Product {
   name: string;
   sku: string | null;
   basePrice: number;
-  images: any;
+  images: string[] | string | null;
   active: boolean;
 }
 
@@ -41,15 +41,8 @@ export default function ManualProductSelector({
   const [searchQuery, setSearchQuery] = useState("");
   const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
 
-  // Cargar productos seleccionados al montar
-  useEffect(() => {
-    if (selectedProductIds.length > 0) {
-      fetchSelectedProducts();
-    }
-  }, [selectedProductIds]);
-
   // Fetch productos seleccionados para mostrarlos
-  const fetchSelectedProducts = async () => {
+  const fetchSelectedProducts = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/products/by-ids", {
         method: "POST",
@@ -64,7 +57,14 @@ export default function ManualProductSelector({
     } catch (error) {
       console.error("Error fetching selected products:", error);
     }
-  };
+  }, [selectedProductIds]);
+
+  // Cargar productos seleccionados al montar
+  useEffect(() => {
+    if (selectedProductIds.length > 0) {
+      fetchSelectedProducts();
+    }
+  }, [selectedProductIds, fetchSelectedProducts]);
 
   // Cargar TODOS los productos cuando se abre el modal
   const fetchAllProducts = async () => {

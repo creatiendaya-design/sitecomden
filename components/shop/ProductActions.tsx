@@ -46,7 +46,7 @@ interface ProductData {
   compareAtPrice: number | null;
   sku: string | null;
   stock: number;
-  images: any;
+  images: unknown;
   hasVariants: boolean;
   weight: number | null;
   customizableTemplate?: { id: string; surcharge: number | null } | null;

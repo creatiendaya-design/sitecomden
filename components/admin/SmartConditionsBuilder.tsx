@@ -170,7 +170,7 @@ export default function SmartConditionsBuilder({
 
       {/* Conditions */}
       <div className="space-y-3">
-        {conditions.map((condition, index) => (
+        {conditions.map((condition, _index) => (
           <div key={condition.id} className="flex gap-2 items-start">
             {/* Field */}
             <div className="flex-1">

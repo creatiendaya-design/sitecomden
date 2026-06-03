@@ -7,13 +7,13 @@ interface ImageMetadata {
   name?: string;
 }
 
-export function getProductImageUrl(images: any, index: number = 0): string | null {
+export function getProductImageUrl(images: unknown, index: number = 0): string | null {
   if (!images || !Array.isArray(images) || images.length === 0) {
     return null;
   }
 
   const image = images[index];
-  
+
   if (!image) {
     return null;
   }
@@ -24,47 +24,48 @@ export function getProductImageUrl(images: any, index: number = 0): string | nul
   }
 
   // Si es objeto, retornar la propiedad url
-  if (typeof image === "object" && image.url) {
-    return image.url;
+  if (typeof image === "object" && image !== null && "url" in image && typeof (image as { url: unknown }).url === "string") {
+    return (image as { url: string }).url;
   }
 
   return null;
 }
 
-export function getProductImageAlt(images: any, productName: string, index: number = 0): string {
+export function getProductImageAlt(images: unknown, productName: string, index: number = 0): string {
   if (!images || !Array.isArray(images) || images.length === 0) {
     return productName;
   }
 
   const image = images[index];
-  
+
   if (!image) {
     return productName;
   }
 
   // Si es objeto con alt, retornar el alt
-  if (typeof image === "object" && image.alt) {
-    return image.alt;
+  if (typeof image === "object" && image !== null && "alt" in image && typeof (image as { alt: unknown }).alt === "string") {
+    return (image as { alt: string }).alt;
   }
 
   // Fallback al nombre del producto
   return productName;
 }
 
-export function getAllProductImages(images: any): ImageMetadata[] {
+export function getAllProductImages(images: unknown): ImageMetadata[] {
   if (!images || !Array.isArray(images)) {
     return [];
   }
 
-  return images.map((image, index) => {
+  return images.map((image) => {
     if (typeof image === "string") {
       return { url: image };
     }
-    if (typeof image === "object" && image.url) {
+    if (typeof image === "object" && image !== null && "url" in image) {
+      const img = image as { url?: unknown; alt?: unknown; name?: unknown };
       return {
-        url: image.url,
-        alt: image.alt,
-        name: image.name,
+        url: typeof img.url === "string" ? img.url : "",
+        alt: typeof img.alt === "string" ? img.alt : undefined,
+        name: typeof img.name === "string" ? img.name : undefined,
       };
     }
     return { url: "" };
@@ -73,7 +74,7 @@ export function getAllProductImages(images: any): ImageMetadata[] {
 
 // Función para normalizar imágenes antes de guardar en la base de datos
 // Convierte automáticamente strings a objetos con metadata
-export function normalizeImagesForSave(images: any): ImageMetadata[] {
+export function normalizeImagesForSave(images: unknown): ImageMetadata[] {
   if (!images || !Array.isArray(images)) {
     return [];
   }
@@ -81,14 +82,17 @@ export function normalizeImagesForSave(images: any): ImageMetadata[] {
   // ⭐ FIX: Separar en dos pasos para TypeScript
   const mapped = images.map((image): ImageMetadata | null => {
     // Si ya es un objeto con url, mantenerlo
-    if (typeof image === "object" && image.url) {
-      return {
-        url: image.url,
-        alt: image.alt || "",
-        name: image.name || "",
-      };
+    if (typeof image === "object" && image !== null && "url" in image) {
+      const img = image as { url?: unknown; alt?: unknown; name?: unknown };
+      if (typeof img.url === "string" && img.url) {
+        return {
+          url: img.url,
+          alt: typeof img.alt === "string" ? img.alt : "",
+          name: typeof img.name === "string" ? img.name : "",
+        };
+      }
     }
-    
+
     // Si es un string, convertirlo a objeto
     if (typeof image === "string") {
       return {
@@ -97,7 +101,7 @@ export function normalizeImagesForSave(images: any): ImageMetadata[] {
         name: "",
       };
     }
-    
+
     return null;
   });
 

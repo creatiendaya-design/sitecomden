@@ -1,4 +1,5 @@
 import { SignUp } from "@clerk/nextjs";
+import Link from "next/link";
 
 export default function SignUpPage() {
   return (
@@ -36,16 +37,16 @@ export default function SignUpPage() {
           marginTop: "20px", 
           textAlign: "center" 
         }}>
-          <a 
-            href="/" 
-            style={{ 
-              color: "#666", 
+          <Link
+            href="/"
+            style={{
+              color: "#666",
               textDecoration: "none",
               fontSize: "14px"
             }}
           >
             ← Volver a la tienda
-          </a>
+          </Link>
         </div>
       </div>
     </div>

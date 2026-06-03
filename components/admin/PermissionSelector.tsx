@@ -41,6 +41,7 @@ export default function PermissionSelector({
 
   // Sincronizar cuando cambian las props
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected(new Set(selectedPermissionIds));
   }, [selectedPermissionIds]);
 
@@ -73,6 +74,7 @@ export default function PermissionSelector({
   // Auto-expand modules that match the search query.
   useEffect(() => {
     if (search.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedModules(new Set(filteredEntries.map(([m]) => m)));
     }
   }, [search, filteredEntries]);
@@ -234,7 +236,7 @@ export default function PermissionSelector({
       {/* Empty state when search returns nothing */}
       {hasSearch && visibleEntries.length === 0 && (
         <div className="rounded-lg border border-dashed bg-muted/20 py-8 text-center text-sm text-muted-foreground">
-          Sin resultados para "{search}"
+          Sin resultados para &quot;{search}&quot;
         </div>
       )}
 

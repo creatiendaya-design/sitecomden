@@ -12,10 +12,30 @@ import { toast } from "sonner";
 import { getProductImageUrl } from "@/lib/image-utils";
 import { useTracking } from "@/hooks/useTracking";
 
+interface AddToCartButtonProduct {
+  id: string;
+  slug: string;
+  name: string;
+  images: unknown;
+  stock: number;
+  basePrice: number;
+  sku?: string | null;
+  hasVariants: boolean;
+}
+
+interface AddToCartButtonVariant {
+  id: string;
+  sku?: string | null;
+  stock: number;
+  price: number;
+  image?: string | null;
+  options: Record<string, string>;
+}
+
 interface AddToCartButtonProps {
-  product: any;
-  variants: any[];
-  selectedVariant?: any;
+  product: AddToCartButtonProduct;
+  variants: AddToCartButtonVariant[];
+  selectedVariant?: AddToCartButtonVariant | null;
   disabled?: boolean;
   quantity?: number;
   appliedPromotion?: AppliedPromotion;
@@ -24,7 +44,7 @@ interface AddToCartButtonProps {
 
 export default function AddToCartButton({
   product,
-  variants,
+  variants: _variants,
   selectedVariant,
   disabled,
   quantity = 1,

@@ -45,6 +45,7 @@ export default function GeneralCartDrawer() {
   useEffect(() => {
     const ids = idsKey ? idsKey.split(",") : [];
     if (!isOpen || ids.length === 0) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect -- resets recommendations when drawer closes or cart is empty */
       setRecs([]);
       return;
     }

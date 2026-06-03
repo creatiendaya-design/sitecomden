@@ -1,5 +1,6 @@
 "use server";
 
+import { ComplaintStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
@@ -276,7 +277,7 @@ export async function reorderFormFields(fieldIds: string[]) {
 // ==========================================
 
 export async function submitComplaint(data: {
-  formData: Record<string, any>;
+  formData: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
 }) {
@@ -412,7 +413,7 @@ export async function getComplaints(filters?: {
     await protectRoute("complaints:view");
     const complaints = await prisma.complaint.findMany({
       where: {
-        ...(filters?.status && { status: filters.status as any }),
+        ...(filters?.status && { status: filters.status as ComplaintStatus }),
         ...(filters?.search && {
           OR: [
             { complaintNumber: { contains: filters.search, mode: "insensitive" } },
@@ -478,7 +479,7 @@ export async function updateComplaintStatus(
     const complaint = await prisma.complaint.update({
       where: { id },
       data: {
-        status: status as any,
+        status: status as ComplaintStatus,
         ...(adminResponse && {
           adminResponse,
           respondedAt: new Date(),

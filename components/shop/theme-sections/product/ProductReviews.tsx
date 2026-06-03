@@ -69,8 +69,7 @@ function ReviewCard({ review }: { review: ProductReviewForRender }) {
       {review.images.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {review.images.map((src, i) => (
-            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded
-            // review photos; <img> avoids per-host next/image remotePatterns config.
+            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded review photos; <img> avoids per-host next/image remotePatterns config
             <img
               key={i}
               src={src}

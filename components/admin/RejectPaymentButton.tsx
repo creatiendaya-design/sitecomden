@@ -49,7 +49,7 @@ export default function RejectPaymentButton({
       }
 
       router.refresh();
-    } catch (error) {
+    } catch {
       alert("Error al rechazar el pago");
     } finally {
       setLoading(false);

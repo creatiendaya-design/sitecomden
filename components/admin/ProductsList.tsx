@@ -206,7 +206,7 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
           }
 
           const isSelected = selected.has(product.id);
-          const imgUrl = getProductImageUrl(product.images as any);
+          const imgUrl = getProductImageUrl(product.images);
           const categoryLine =
             product.categories.length > 0
               ? product.categories.map((pc) => pc.category.name).join(", ")
@@ -237,7 +237,7 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
                     {imgUrl ? (
                       <Image
                         src={imgUrl}
-                        alt={getProductImageAlt(product.images as any, product.name)}
+                        alt={getProductImageAlt(product.images, product.name)}
                         fill
                         className="object-cover"
                         sizes="56px"
@@ -343,7 +343,7 @@ export default function ProductsList({ products, canEdit, canDelete }: ProductsL
                   {imgUrl ? (
                     <Image
                       src={imgUrl}
-                      alt={getProductImageAlt(product.images as any, product.name)}
+                      alt={getProductImageAlt(product.images, product.name)}
                       fill
                       className="object-cover"
                     />

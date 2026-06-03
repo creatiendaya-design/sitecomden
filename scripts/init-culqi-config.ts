@@ -4,7 +4,7 @@
  * Ejecutar con: npx tsx scripts/init-culqi-config.ts
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -42,7 +42,7 @@ async function initCulqiConfig() {
     const newConfig = await prisma.setting.create({
       data: {
         key: "culqi_config",
-        value: defaultConfig as any,
+        value: defaultConfig as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de Culqi (claves y modo de operación)",
       },

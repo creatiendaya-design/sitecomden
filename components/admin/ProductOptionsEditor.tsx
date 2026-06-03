@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import NextImage from "next/image";
 import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Upload, ImagePlus } from "lucide-react";
 import {
   DndContext,
@@ -79,9 +80,9 @@ export default function ProductOptionsEditor({
     setExpandedOptions(new Set([...expandedOptions, newOption.id]));
   };
 
-  const updateOption = (index: number, field: keyof ProductOption, value: any) => {
+  const updateOption = (index: number, field: keyof ProductOption, value: ProductOption[keyof ProductOption]) => {
     const newOptions = [...options];
-    (newOptions[index] as any)[field] = value;
+    (newOptions[index] as unknown as Record<string, unknown>)[field] = value;
     onChange(newOptions);
   };
 
@@ -107,9 +108,9 @@ export default function ProductOptionsEditor({
     onChange(newOptions);
   };
 
-  const updateValue = (optionIndex: number, valueIndex: number, field: keyof OptionValue, value: any) => {
+  const updateValue = (optionIndex: number, valueIndex: number, field: keyof OptionValue, value: OptionValue[keyof OptionValue]) => {
     const newOptions = [...options];
-    (newOptions[optionIndex].values[valueIndex] as any)[field] = value;
+    (newOptions[optionIndex].values[valueIndex] as unknown as Record<string, unknown>)[field] = value;
     onChange(newOptions);
   };
 
@@ -240,10 +241,10 @@ interface SortableOptionProps {
   isExpanded: boolean;
   sensors: ReturnType<typeof useSensors>;
   onToggleExpanded: () => void;
-  onUpdateOption: (index: number, field: keyof ProductOption, value: any) => void;
+  onUpdateOption: (index: number, field: keyof ProductOption, value: ProductOption[keyof ProductOption]) => void;
   onDeleteOption: (index: number) => void;
   onAddValue: (optionIndex: number) => void;
-  onUpdateValue: (optionIndex: number, valueIndex: number, field: keyof OptionValue, value: any) => void;
+  onUpdateValue: (optionIndex: number, valueIndex: number, field: keyof OptionValue, value: OptionValue[keyof OptionValue]) => void;
   onDeleteValue: (optionIndex: number, valueIndex: number) => void;
   onReorderValues: (optionIndex: number, oldIdx: number, newIdx: number) => void;
   onUploadImage: (file: File) => Promise<string>;
@@ -435,7 +436,7 @@ interface SortableOptionValueProps {
   value: OptionValue;
   optionIndex: number;
   valueIndex: number;
-  onUpdateValue: (optionIndex: number, valueIndex: number, field: keyof OptionValue, value: any) => void;
+  onUpdateValue: (optionIndex: number, valueIndex: number, field: keyof OptionValue, value: OptionValue[keyof OptionValue]) => void;
   onDeleteValue: (optionIndex: number, valueIndex: number) => void;
   onUploadImage: (file: File) => Promise<string>;
 }
@@ -547,9 +548,11 @@ function SortableOptionValue({
       {hasSwatch && value.swatchType === "IMAGE" && (
         <div className="border-t bg-muted/30 px-2 py-2 flex items-center gap-2">
           {value.swatchImage ? (
-            <img
+            <NextImage
               src={value.swatchImage}
               alt="Preview"
+              width={36}
+              height={36}
               className="h-9 w-9 rounded-md border object-cover shrink-0"
             />
           ) : (

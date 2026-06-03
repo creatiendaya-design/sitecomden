@@ -39,7 +39,7 @@ export async function applySmartCollectionConditions(
       const dbField = FIELD_MAPPING[field] || field;
 
       // Convertir valor según el tipo de campo
-      let convertedValue: any = value;
+      let convertedValue: string | number | boolean = value;
       
       if (["price", "compareAtPrice", "weight", "stock"].includes(field)) {
         convertedValue = parseFloat(value);

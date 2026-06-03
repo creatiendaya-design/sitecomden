@@ -9,6 +9,8 @@ import ProductPrice from "@/components/shop/ProductPrice";
 import type { SizeGuideData } from "@/lib/size-guides/types";
 import type { ProductScopedPromotion } from "@/lib/promotions/types";
 
+// product/variant data comes from Prisma; full typing lives in ProductActions/ProductImageGallery
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface ProductStandardViewProps {
   product: any;
   serializedProduct: any;
@@ -21,6 +23,7 @@ interface ProductStandardViewProps {
   sizeGuide?: SizeGuideData | null;
   promotions?: ProductScopedPromotion[];
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export default function ProductStandardView({
   product,
@@ -46,6 +49,7 @@ export default function ProductStandardView({
             {/* Categories */}
             {product.categories && product.categories.length > 0 && (
               <div className="flex flex-wrap gap-2">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {product.categories.map((pc: any) => (
                   <Badge
                     key={pc.category.id}

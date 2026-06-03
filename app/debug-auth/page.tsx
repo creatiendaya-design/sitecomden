@@ -1,5 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 export default async function DebugAuthPage() {
   const { userId, sessionClaims } = await auth();
@@ -84,14 +85,14 @@ export default async function DebugAuthPage() {
           <h2 className="font-bold mb-2">5. Probar rutas</h2>
           <div className="space-y-2">
             <div>
-              <a href="/cuenta" className="text-blue-600 underline">
+              <Link href="/cuenta" className="text-blue-600 underline">
                 → Ir a /cuenta
-              </a>
+              </Link>
             </div>
             <div>
-              <a href="/iniciar-sesion" className="text-blue-600 underline">
+              <Link href="/iniciar-sesion" className="text-blue-600 underline">
                 → Ir a /iniciar-sesion
-              </a>
+              </Link>
             </div>
           </div>
         </div>

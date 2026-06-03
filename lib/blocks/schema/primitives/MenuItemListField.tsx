@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { Plus, Trash2, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,7 +21,10 @@ interface Props {
 }
 
 export function MenuItemListField({ field, value, onChange }: Props) {
-  const links: MenuLink[] = Array.isArray(value) ? (value as MenuLink[]) : []
+  const links: MenuLink[] = useMemo(
+    () => (Array.isArray(value) ? (value as MenuLink[]) : []),
+    [value],
+  )
   const maxLinks = field.maxLinks ?? 20
 
   const update = useCallback(

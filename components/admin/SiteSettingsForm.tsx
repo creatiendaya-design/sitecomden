@@ -12,7 +12,7 @@ import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface SiteSettingsFormProps {
-  initialSettings: Record<string, any>;
+  initialSettings: Record<string, string>;
 }
 
 export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormProps) {
@@ -43,7 +43,7 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
     order_prefix: initialSettings.order_prefix || "PED",
   });
 
-  const handleChange = (key: string, value: any) => {
+  const handleChange = (key: string, value: string) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -245,8 +245,8 @@ export default function SiteSettingsForm({ initialSettings }: SiteSettingsFormPr
               {/* Nota para el usuario */}
               <div className="rounded-lg border bg-blue-50 dark:bg-blue-950 p-3 sm:p-4">
                 <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
-                  💡 <strong>Nota:</strong> La imagen Open Graph se configura en la sección 
-                  "Imágenes del Sitio" al inicio de esta página.
+                  💡 <strong>Nota:</strong> La imagen Open Graph se configura en la sección
+                  &quot;Imágenes del Sitio&quot; al inicio de esta página.
                 </p>
               </div>
             </CardContent>

@@ -31,9 +31,9 @@ export async function PUT(
     // ✅ NORMALIZAR IMÁGENES
     let normalizedImages: string[] = [];
     if (data.images && Array.isArray(data.images)) {
-      normalizedImages = data.images.map((img: any) => {
-        if (typeof img === "object" && img.url) {
-          return img.url;
+      normalizedImages = data.images.map((img: unknown) => {
+        if (typeof img === "object" && img !== null && "url" in img && typeof (img as { url: unknown }).url === "string") {
+          return (img as { url: string }).url;
         }
         if (typeof img === "string") {
           return img;
@@ -67,10 +67,11 @@ export async function PUT(
 
     // ✅ Resolver plantilla COD: auto-asignar default cuando modo no es STANDARD
     //    y no se envía codFormTemplateId.
+    const validatedExtra = validatedData as Record<string, unknown>;
     const checkoutMode: string =
-      (validatedData as any).checkoutMode || "STANDARD";
+      (validatedExtra.checkoutMode as string | undefined) || "STANDARD";
     let resolvedTemplateId: string | null =
-      (validatedData as any).codFormTemplateId ?? null;
+      (validatedExtra.codFormTemplateId as string | null | undefined) ?? null;
     if (checkoutMode !== "STANDARD" && !resolvedTemplateId) {
       const defaultTpl = await prisma.codFormTemplate.findFirst({
         where: { isDefault: true },
@@ -82,19 +83,19 @@ export async function PUT(
     // ✅ Usar transacción
     const product = await prisma.$transaction(async (tx) => {
       // 1. Actualizar producto base
-      const productUpdate: any = {
+      const productUpdate: Prisma.ProductUncheckedUpdateInput = {
         name: validatedData.name,
         slug: validatedData.slug,
         description: validatedData.description || null,
         shortDescription: validatedData.shortDescription || null,
         basePrice: validatedData.basePrice,
         compareAtPrice: validatedData.compareAtPrice || null,
-        images: imagesToSave as any,
+        images: imagesToSave as unknown as Prisma.InputJsonValue,
         active: validatedData.active ?? true,
         featured: validatedData.featured ?? false,
         hasVariants: validatedData.hasVariants,
         template: validatedData.template || "STANDARD",
-        checkoutMode: checkoutMode as any,
+        checkoutMode: checkoutMode as Prisma.ProductUpdateInput["checkoutMode"],
         metaTitle: validatedData.metaTitle || null,
         metaDescription: validatedData.metaDescription || null,
         weight: validatedData.weight || null,
@@ -110,18 +111,18 @@ export async function PUT(
       // si checkoutMode != STANDARD (auto-asignación de default). Esto evita
       // que un PUT que no incluya codFormTemplateId borre el ya guardado.
       if (
-        "codFormTemplateId" in (validatedData as any) ||
+        "codFormTemplateId" in validatedExtra ||
         checkoutMode !== "STANDARD"
       ) {
         productUpdate.codFormTemplateId = resolvedTemplateId;
       }
 
       // Solo actualizar shippingRestriction si fue enviado en el payload.
-      if ("shippingRestriction" in (validatedData as any)) {
+      if ("shippingRestriction" in validatedExtra) {
         productUpdate.shippingRestriction =
-          (validatedData as any).shippingRestriction == null
+          validatedExtra.shippingRestriction == null
             ? Prisma.JsonNull
-            : ((validatedData as any).shippingRestriction as Prisma.InputJsonValue);
+            : (validatedExtra.shippingRestriction as Prisma.InputJsonValue);
       }
 
       if (!validatedData.hasVariants) {
@@ -173,21 +174,21 @@ export async function PUT(
         console.log(`📦 Variantes existentes: ${existingVariants.length}`);
 
         // ✅ FUNCIÓN AUXILIAR: Generar clave única de opciones
-        const getVariantKey = (options: any) => {
+        const getVariantKey = (options: Record<string, unknown>) => {
           return JSON.stringify(
             Object.keys(options)
               .sort()
-              .reduce((acc, key) => {
+              .reduce((acc: Record<string, unknown>, key) => {
                 acc[key] = options[key];
                 return acc;
-              }, {} as any)
+              }, {})
           );
         };
 
         // ✅ CREAR MAPA DE VARIANTES EXISTENTES
         const existingVariantsMap = new Map(
           existingVariants.map((v) => [
-            getVariantKey(v.options),
+            getVariantKey(v.options as Record<string, unknown>),
             v,
           ])
         );
@@ -220,13 +221,13 @@ export async function PUT(
           // 🆕 Crear valores con swatches
           if (option.values && option.values.length > 0) {
             await tx.productOptionValue.createMany({
-              data: option.values.map((value: any, j: number) => ({
+              data: option.values.map((value: string | { value: string; swatchType?: string; colorHex?: string; swatchImage?: string }, j: number) => ({
                 optionId: createdOption.id,
                 value: typeof value === 'string' ? value : value.value,
                 position: j,
-                swatchType: value.swatchType || "NONE", // 🆕 NONE, COLOR, IMAGE
-                colorHex: value.colorHex || null, // 🆕 #FF0000
-                swatchImage: value.swatchImage || null, // 🆕 URL de imagen
+                swatchType: (typeof value === 'string' ? null : value.swatchType) || "NONE", // 🆕 NONE, COLOR, IMAGE
+                colorHex: (typeof value === 'string' ? null : value.colorHex) || null, // 🆕 #FF0000
+                swatchImage: (typeof value === 'string' ? null : value.swatchImage) || null, // 🆕 URL de imagen
               }))
             });
           }
@@ -234,12 +235,12 @@ export async function PUT(
 
         // ✅ CREAR CONJUNTO DE VARIANTES NUEVAS
         const newVariantKeys = new Set(
-          data.variants.map((v: any) => getVariantKey(v.options))
+          data.variants.map((v: { options: Record<string, unknown> }) => getVariantKey(v.options))
         );
 
         // ✅ ELIMINAR VARIANTES QUE YA NO EXISTEN
         const variantsToDelete = existingVariants
-          .filter((v) => !newVariantKeys.has(getVariantKey(v.options)))
+          .filter((v) => !newVariantKeys.has(getVariantKey(v.options as Record<string, unknown>)))
           .map((v) => v.id);
 
         if (variantsToDelete.length > 0) {
@@ -270,7 +271,7 @@ export async function PUT(
           }
 
           const variantData = {
-            options: newVariant.options as any,
+            options: newVariant.options as Prisma.InputJsonValue,
             price: variantPrice,
             compareAtPrice: newVariant.compareAtPrice
               ? parseFloat(newVariant.compareAtPrice)

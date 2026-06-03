@@ -29,6 +29,18 @@ const eslintConfig = defineConfig([
     // green and the team can clean them up incrementally instead of in one
     // hostile PR. Errors are still listed in `npm run lint` output.
     rules: {
+      // Underscore prefix is the project convention for an intentionally
+      // unused binding (args, destructured values, caught errors). Honor it
+      // so `_next`, `_context`, `catch (_err)` etc. don't get flagged.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+        },
+      ],
       "@typescript-eslint/no-explicit-any": "warn",
       "react/no-unescaped-entities": "warn",
       "@next/next/no-html-link-for-pages": "warn",
@@ -39,6 +51,17 @@ const eslintConfig = defineConfig([
       "react-hooks/refs": "warn",
       "react-hooks/immutability": "warn",
       "react-hooks/static-components": "warn",
+    },
+  },
+  {
+    // React Email templates render to raw HTML for email clients, not the
+    // browser DOM. next/image, next/head, and next/link don't apply here —
+    // emails legitimately use <img>, <head>, and absolute <a href> links.
+    files: ["emails/**/*.{ts,tsx}"],
+    rules: {
+      "@next/next/no-img-element": "off",
+      "@next/next/no-head-element": "off",
+      "@next/next/no-html-link-for-pages": "off",
     },
   },
 ]);

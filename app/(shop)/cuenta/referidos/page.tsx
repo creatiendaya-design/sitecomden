@@ -17,13 +17,16 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { getCustomerByEmail, getLoyaltySettings } from "@/actions/loyalty";
+
+type CustomerData = NonNullable<Awaited<ReturnType<typeof getCustomerByEmail>>>;
+type SettingsData = NonNullable<Awaited<ReturnType<typeof getLoyaltySettings>>>;
 import { toast } from "sonner";
 
 const CUSTOMER_EMAIL = "cliente@example.com";
 
 export default function ReferidosPage() {
-  const [customer, setCustomer] = useState<any>(null);
-  const [settings, setSettings] = useState<any>(null);
+  const [customer, setCustomer] = useState<CustomerData | null>(null);
+  const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -283,7 +286,7 @@ export default function ReferidosPage() {
         <CardContent>
           {customer.referrals && customer.referrals.length > 0 ? (
             <div className="space-y-4">
-              {customer.referrals.map((referral: any, index: number) => (
+              {customer.referrals.map((referral, index: number) => (
                 <div
                   key={referral.id}
                   className="flex items-center justify-between border-b pb-3 last:border-0"

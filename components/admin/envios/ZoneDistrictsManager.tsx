@@ -334,6 +334,7 @@ function DistrictSearch({
 
   useEffect(() => {
     if (debounced.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       return;
     }
@@ -555,6 +556,7 @@ function ProvinceBulkPicker({
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProvinceId("");
     setDistricts([]);
     if (!departmentId) {
@@ -568,6 +570,7 @@ function ProvinceBulkPicker({
 
   useEffect(() => {
     if (!provinceId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDistricts([]);
       return;
     }

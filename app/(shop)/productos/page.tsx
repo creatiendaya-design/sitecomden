@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import ProductCard from "@/components/shop/ProductCard";
@@ -24,7 +25,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const { category, search, sort = "newest" } = params;
 
   // Construir filtros
-  const where: any = {
+  const where: Prisma.ProductWhereInput = {
     active: true,
   };
 
@@ -50,7 +51,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   }
 
   // Determinar ordenamiento
-  let orderBy: any = { createdAt: "desc" };
+  let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
   if (sort === "price-asc") {
     orderBy = { basePrice: "asc" };
   } else if (sort === "price-desc") {
@@ -252,11 +253,11 @@ function SortSelect({ currentSort, category }: { currentSort: string; category?:
 }
 
 // Selector de categorías para móvil
-function CategoryMobileSelect({ 
-  categories, 
-  currentCategory 
-}: { 
-  categories: any[]; 
+function CategoryMobileSelect({
+  categories,
+  currentCategory
+}: {
+  categories: { id: string; name: string; slug: string }[];
   currentCategory?: string;
 }) {
   return (

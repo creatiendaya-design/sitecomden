@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic"
 import type { BlockContentV2 } from "@/lib/blocks/types"
+import type { ColorsBlockContent } from "@/lib/types/landing-blocks"
 
 const ColorsBlockForm = dynamic(
   () => import("@/components/admin/landing-builder/block-forms/ColorsBlockForm"),
@@ -16,10 +17,10 @@ interface Props {
 export function ColorsContentForm({ content, onChange }: Props) {
   return (
     <ColorsBlockForm
-      content={content.data as any}
-      onChange={(newData: any) =>
+      content={content.data as unknown as ColorsBlockContent}
+      onChange={(newData: ColorsBlockContent) =>
         onChange({
-          data: newData,
+          data: newData as unknown as Record<string, unknown>,
           style: content.style,
           media: content.media,
         })

@@ -45,6 +45,7 @@ export default function PreviewPanel({
   // re-seleccionamos la primera disponible para que `total` siga siendo coherente.
   useEffect(() => {
     if (shippingOptions.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShipId(null)
       return
     }

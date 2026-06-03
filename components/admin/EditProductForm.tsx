@@ -22,6 +22,7 @@ import ShippingRestrictionCard from "@/components/admin/products/ShippingRestric
 import ProductPromotionsCard from "@/components/admin/products/ProductPromotionsCard";
 import ProductRelationsCard from "@/components/admin/products/ProductRelationsCard";
 import type { ShippingRestriction } from "@/lib/cod-forms/types";
+import type { CheckoutMode } from "@prisma/client";
 import type { ProductScopedPromotion } from "@/lib/promotions/types";
 import BulkEditModal from "@/components/admin/BulkEditModal";
 import VariantsTable from "@/components/admin/VariantsTable";
@@ -37,13 +38,6 @@ const RichTextEditor = dynamic(
   }
 );
 import ProductOptionsEditor from "@/components/admin/ProductOptionsEditor";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 // Tipos
 interface ProductOptionValue {
   id: string;
@@ -72,8 +66,47 @@ interface Variant {
   image?: string;
 }
 
+interface ProductData {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  shortDescription: string | null;
+  basePrice: number;
+  compareAtPrice: number | null;
+  sku: string | null;
+  stock: number;
+  images: string[];
+  active: boolean;
+  featured: boolean;
+  hasVariants: boolean;
+  template: string | null;
+  checkoutMode: string | null;
+  codFormTemplateId: string | null;
+  shippingRestriction: ShippingRestriction | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  weight: number | null;
+  customizableTemplateId: string | null;
+  customizableMockupOverrides: MockupOverrides | null;
+  sizeGuideId: string | null;
+  landingTemplateId?: string | null;
+  categories: Array<{ category: { id: string } }>;
+  options: ProductOption[];
+  variants: Array<{
+    id: string;
+    options: Record<string, string>;
+    price: number;
+    compareAtPrice: number | null;
+    stock: number;
+    sku: string | null;
+    image: string | null;
+  }>;
+  landingBlocks?: LandingBlock[];
+}
+
 interface EditProductFormProps {
-  product: any;
+  product: ProductData;
   categories: Array<{
     id: string;
     name: string;
@@ -134,10 +167,9 @@ export default function EditProductForm({ product, categories, showLegacyLanding
     featured: product.featured,
     hasVariants: product.hasVariants,
     template: product.template || "STANDARD",
-    checkoutMode: (product as any).checkoutMode || "STANDARD",
-    codFormTemplateId: ((product as any).codFormTemplateId as string | null) ?? null,
-    shippingRestriction:
-      ((product as any).shippingRestriction as ShippingRestriction | null) ?? null,
+    checkoutMode: product.checkoutMode || "STANDARD",
+    codFormTemplateId: product.codFormTemplateId ?? null,
+    shippingRestriction: product.shippingRestriction ?? null,
     metaTitle: product.metaTitle || "",
     metaDescription: product.metaDescription || "",
     weight: product.weight?.toString() || "",
@@ -156,12 +188,12 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   // Cargar opciones y variantes existentes
   useEffect(() => {
     if (product.hasVariants) {
-      const loadedOptions: ProductOption[] = product.options.map((opt: any) => ({
+      const loadedOptions: ProductOption[] = product.options.map((opt) => ({
         id: opt.id,
         name: opt.name,
         displayStyle: opt.displayStyle || "DROPDOWN",
         position: opt.position,
-        values: opt.values.map((v: any) => ({
+        values: opt.values.map((v) => ({
           id: v.id,
           value: v.value,
           position: v.position,
@@ -175,7 +207,7 @@ export default function EditProductForm({ product, categories, showLegacyLanding
       // 🆕 Guardar snapshot inicial
       setPreviousOptionsSnapshot(createOptionsSnapshot(loadedOptions));
 
-      const loadedVariants: Variant[] = product.variants.map((v: any) => ({
+      const loadedVariants: Variant[] = product.variants.map((v) => ({
         id: v.id,
         options: v.options as Record<string, string>,
         price: v.price.toString(),
@@ -317,7 +349,7 @@ export default function EditProductForm({ product, categories, showLegacyLanding
     value: string
   ) => {
     const newVariants = [...variants];
-    newVariants[index][field] = value as any;
+    newVariants[index][field] = value;
     setVariants(newVariants);
   };
 
@@ -379,7 +411,7 @@ export default function EditProductForm({ product, categories, showLegacyLanding
 
       router.push("/admin/productos");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al actualizar producto");
     } finally {
       setLoading(false);
@@ -519,7 +551,9 @@ export default function EditProductForm({ product, categories, showLegacyLanding
               <CardContent>
                 <ImageUpload
                   images={formData.images}
-                  onChange={(images) => setFormData({ ...formData, images })}
+                  onChange={(images) =>
+                    setFormData({ ...formData, images: images.map((img) => (typeof img === "string" ? img : img.url)) })
+                  }
                 />
               </CardContent>
             </Card>
@@ -781,7 +815,7 @@ export default function EditProductForm({ product, categories, showLegacyLanding
         <div className="border-t p-3">
           <LandingBlockList
             productId={product.id}
-            initialBlocks={((product as any).landingBlocks ?? []) as LandingBlock[]}
+            initialBlocks={(product.landingBlocks ?? []) as LandingBlock[]}
           />
         </div>
       </details>
@@ -809,9 +843,9 @@ export default function EditProductForm({ product, categories, showLegacyLanding
 <SizeGuideCard value={sizeGuideId} onChange={setSizeGuideId} />
 
 <CodFormTemplateCard
-  checkoutMode={formData.checkoutMode as any}
+  checkoutMode={formData.checkoutMode as CheckoutMode}
   templateId={formData.codFormTemplateId}
-  onChange={(patch) => setFormData({ ...formData, ...patch } as any)}
+  onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
 />
 <ShippingRestrictionCard
   value={formData.shippingRestriction}

@@ -1,13 +1,5 @@
 import Link from "next/link";
 import { getSiteSettings } from "@/lib/site-settings";
-import Image from "next/image";
-import { 
-  VisaIcon, 
-  MastercardIcon, 
-  YapeIcon, 
-  PlinIcon, 
-  PayPalIcon 
-} from "@/components/payment-icons";
 
 export default async function CheckoutFooter() {
   const settings = await getSiteSettings();

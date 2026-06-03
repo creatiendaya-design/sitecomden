@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   getShippingOptionsForCheckout,
   type ShippingRate,
@@ -57,11 +57,7 @@ export function ShippingOptions({
   const [error, setError] = useState<string | null>(null);
   const [zoneName, setZoneName] = useState<string>("");
 
-  useEffect(() => {
-    loadShippingOptions();
-  }, [districtCode, subtotal]);
-
-  const loadShippingOptions = async () => {
+  const loadShippingOptions = useCallback(async () => {
     if (!districtCode) {
       setLoading(false);
       return;
@@ -86,7 +82,12 @@ export function ShippingOptions({
     if (result.data.length === 1) {
       onSelect(result.data[0]);
     }
-  };
+  }, [districtCode, subtotal, onSelect]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadShippingOptions();
+  }, [loadShippingOptions]);
 
   const handleSelectRate = (rateId: string) => {
     const rate = rates.find((r) => r.id === rateId);

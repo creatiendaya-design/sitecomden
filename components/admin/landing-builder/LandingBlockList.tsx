@@ -40,6 +40,12 @@ import {
   type LandingBlock,
   type LandingBlockType,
   type BlockContent,
+  type HeroBlockContent,
+  type GalleryBlockContent,
+  type TestimonialsBlockContent,
+  type VideoBlockContent,
+  type ColorsBlockContent,
+  type TickerBlockContent,
 } from "@/lib/types/landing-blocks";
 
 const BLOCK_COLORS: Record<LandingBlockType, string> = {
@@ -86,14 +92,14 @@ function SortableBlockItem({
   };
 
   const renderForm = () => {
-    const c = block.content as any;
+    const c = block.content;
     switch (block.type) {
-      case "HERO":         return <HeroBlockForm content={c} onChange={onContentChange} />;
-      case "GALLERY":      return <GalleryBlockForm content={c} onChange={onContentChange} />;
-      case "TESTIMONIALS": return <TestimonialsBlockForm content={c} onChange={onContentChange} />;
-      case "VIDEO":        return <VideoBlockForm content={c} onChange={onContentChange} />;
-      case "COLORS":       return <ColorsBlockForm content={c} onChange={onContentChange} />;
-      case "TICKER":       return <TickerBlockForm content={c} onChange={onContentChange} />;
+      case "HERO":         return <HeroBlockForm content={c as unknown as HeroBlockContent} onChange={onContentChange} />;
+      case "GALLERY":      return <GalleryBlockForm content={c as unknown as GalleryBlockContent} onChange={onContentChange} />;
+      case "TESTIMONIALS": return <TestimonialsBlockForm content={c as unknown as TestimonialsBlockContent} onChange={onContentChange} />;
+      case "VIDEO":        return <VideoBlockForm content={c as unknown as VideoBlockContent} onChange={onContentChange} />;
+      case "COLORS":       return <ColorsBlockForm content={c as unknown as ColorsBlockContent} onChange={onContentChange} />;
+      case "TICKER":       return <TickerBlockForm content={c as unknown as TickerBlockContent} onChange={onContentChange} />;
     }
   };
 

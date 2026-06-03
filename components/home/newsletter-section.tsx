@@ -48,7 +48,7 @@ export function NewsletterSection({
         setStatus("error");
         setMessage(data.error || "Hubo un error. Intenta de nuevo.");
       }
-    } catch (error) {
+    } catch {
       setStatus("error");
       setMessage("Hubo un error. Intenta de nuevo.");
     }

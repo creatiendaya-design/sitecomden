@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   getCulqiSettings,
   saveCulqiSettings,
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { 
   Loader2, 
@@ -48,17 +47,18 @@ export default function CulqiSettingsPage() {
   const [showTestSecret, setShowTestSecret] = useState(false);
   const [showProdSecret, setShowProdSecret] = useState(false);
 
-  // Cargar configuración al montar
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoadingSettings(true);
     const loadedSettings = await getCulqiSettings();
     setSettings(loadedSettings);
     setLoadingSettings(false);
-  };
+  }, []);
+
+  // Cargar configuración al montar
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadSettings(); // data fetch on mount; setState is async inside loadSettings
+  }, [loadSettings]);
 
   const handleSave = async () => {
     setSaving(true);

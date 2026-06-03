@@ -1,5 +1,7 @@
 // lib/csv-generic.ts
 import Papa from "papaparse";
+import type { IgvType } from "@prisma/client";
+import type { Decimal } from "@prisma/client/runtime/library";
 
 export interface GenericProductRow {
   slug: string;
@@ -30,10 +32,58 @@ export const GENERIC_HEADERS: (keyof GenericProductRow)[] = [
   "sku_variante", "precio_variante", "stock_variante", "imagen_url",
 ];
 
+interface ProductVariantInput {
+  sku: string;
+  price: number;
+  stock: number;
+}
+
+interface ProductInput {
+  slug: string;
+  name: string;
+  description: string | null;
+  shortDescription: string | null;
+  basePrice: number;
+  compareAtPrice: number | null;
+  weight: number | null;
+  stock: number;
+  sku: string | null;
+  featured: boolean;
+  active: boolean;
+  igvType: IgvType;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  categorySlug: string | null;
+  imageUrl: string | null;
+  variants: ProductVariantInput[];
+}
+
+// Minimal shape of a Prisma Product row as returned by the import queries
+interface PrismaProductForCsv {
+  slug: string;
+  name: string;
+  description?: string | null;
+  shortDescription?: string | null;
+  basePrice: number | Decimal;
+  compareAtPrice?: number | Decimal | null;
+  weight?: number | Decimal | null;
+  stock: number;
+  sku?: string | null;
+  featured?: boolean;
+  active?: boolean;
+  igvType?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  images?: unknown;
+  hasVariants?: boolean;
+  categories?: Array<{ category: { slug: string } }>;
+  variants?: Array<{ sku: string; price: number | Decimal; stock: number }>;
+}
+
 /** Convierte un producto Prisma a filas CSV genéricas (una por variante, o una si no tiene variantes) */
-export function productToGenericRows(product: any): GenericProductRow[] {
+export function productToGenericRows(product: PrismaProductForCsv): GenericProductRow[] {
   const categorySlug = product.categories?.[0]?.category?.slug ?? "";
-  const images: string[] = Array.isArray(product.images) ? product.images : [];
+  const images: string[] = Array.isArray(product.images) ? (product.images as string[]) : [];
   const firstImage = images[0] ?? "";
 
   const base = {
@@ -41,9 +91,9 @@ export function productToGenericRows(product: any): GenericProductRow[] {
     nombre: product.name,
     descripcion: product.description ?? "",
     descripcion_corta: product.shortDescription ?? "",
-    precio: String(product.basePrice),
-    precio_comparacion: product.compareAtPrice ? String(product.compareAtPrice) : "",
-    peso: product.weight ? String(product.weight) : "",
+    precio: String(Number(product.basePrice)),
+    precio_comparacion: product.compareAtPrice ? String(Number(product.compareAtPrice)) : "",
+    peso: product.weight ? String(Number(product.weight)) : "",
     destacado: product.featured ? "true" : "false",
     categoria_slug: categorySlug,
     estado: product.active ? "ACTIVE" : "DRAFT",
@@ -64,19 +114,19 @@ export function productToGenericRows(product: any): GenericProductRow[] {
     }];
   }
 
-  return product.variants.map((v: any) => ({
+  return product.variants.map((v) => ({
     ...base,
     stock: "",
     sku: product.sku ?? "",
     sku_variante: v.sku,
-    precio_variante: String(v.price),
+    precio_variante: String(Number(v.price)),
     stock_variante: String(v.stock),
   }));
 }
 
 /** Parsea filas CSV genéricas y las agrupa por slug en ProductInput */
-export function genericRowsToProductInputs(rows: GenericProductRow[]): Map<string, any> {
-  const bySlug = new Map<string, any>();
+export function genericRowsToProductInputs(rows: GenericProductRow[]): Map<string, ProductInput> {
+  const bySlug = new Map<string, ProductInput>();
 
   for (const row of rows) {
     if (!row.slug || !row.nombre) continue;
@@ -94,19 +144,20 @@ export function genericRowsToProductInputs(rows: GenericProductRow[]): Map<strin
         sku: row.sku || null,
         featured: row.destacado === "true",
         active: row.estado !== "DRAFT",
-        igvType: (["GRAVADO","EXONERADO","INAFECTO"].includes(row.igv_tipo) ? row.igv_tipo : "GRAVADO") as any,
+        igvType: (["GRAVADO","EXONERADO","INAFECTO"].includes(row.igv_tipo) ? row.igv_tipo : "GRAVADO") as IgvType,
         metaTitle: row.meta_titulo || null,
         metaDescription: row.meta_descripcion || null,
         categorySlug: row.categoria_slug || null,
         imageUrl: row.imagen_url || null,
-        variants: [] as any[],
+        variants: [],
       });
     }
 
     if (row.sku_variante) {
-      bySlug.get(row.slug).variants.push({
+      const entry = bySlug.get(row.slug)!;
+      entry.variants.push({
         sku: row.sku_variante,
-        price: parseFloat(row.precio_variante) || bySlug.get(row.slug).basePrice,
+        price: parseFloat(row.precio_variante) || entry.basePrice,
         stock: parseInt(row.stock_variante) || 0,
       });
     }
@@ -116,7 +167,7 @@ export function genericRowsToProductInputs(rows: GenericProductRow[]): Map<strin
 }
 
 /** Genera un CSV genérico en memoria y retorna el string */
-export function generateGenericCsv(products: any[]): string {
+export function generateGenericCsv(products: PrismaProductForCsv[]): string {
   const rows: GenericProductRow[] = products.flatMap(productToGenericRows);
   return Papa.unparse(rows, { columns: GENERIC_HEADERS });
 }

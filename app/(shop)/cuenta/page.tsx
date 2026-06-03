@@ -1,5 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
+import type { LoyaltyTier, LoyaltyProgramSettings, PointTransaction } from "@prisma/client";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -103,7 +104,7 @@ export default async function CuentaPage() {
   let progressPercentage = 0;
   if (stats.stats.nextTier) {
     const currentThreshold = getTierThreshold(customer.loyaltyTier, settings);
-    const nextThreshold = getTierThreshold(stats.stats.nextTier as any, settings);
+    const nextThreshold = getTierThreshold(stats.stats.nextTier as LoyaltyTier, settings);
     const progress = customer.points - currentThreshold;
     const total = nextThreshold - currentThreshold;
     progressPercentage = Math.min((progress / total) * 100, 100);
@@ -146,7 +147,7 @@ export default async function CuentaPage() {
           {stats.stats.nextTier ? (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Progreso a {getTierName(stats.stats.nextTier as any)}</span>
+                <span>Progreso a {getTierName(stats.stats.nextTier as LoyaltyTier)}</span>
                 <span className="font-semibold">
                   {stats.stats.pointsToNextTier} puntos más
                 </span>
@@ -297,7 +298,7 @@ export default async function CuentaPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.recentTransactions.slice(0, 5).map((transaction: any) => (
+              {stats.recentTransactions.slice(0, 5).map((transaction: PointTransaction) => (
                 <div
                   key={transaction.id}
                   className="flex items-center justify-between border-b pb-3 last:border-0"
@@ -385,7 +386,7 @@ function getTierColor(tier: string): string {
   return colors[tier] || "text-gray-600";
 }
 
-function getTierBenefits(tier: string, settings: any): string {
+function getTierBenefits(tier: string, settings: LoyaltyProgramSettings | null): string {
   const benefits: Record<string, string> = {
     BRONZE: "Empieza a acumular puntos",
     SILVER: `${settings?.silverDiscount || 5}% de descuento en todas tus compras`,
@@ -395,7 +396,7 @@ function getTierBenefits(tier: string, settings: any): string {
   return benefits[tier] || "";
 }
 
-function getTierBenefitsList(tier: string, settings: any): string[] {
+function getTierBenefitsList(tier: string, settings: LoyaltyProgramSettings | null): string[] {
   const allBenefits: Record<string, string[]> = {
     BRONZE: [
       "1 punto por cada S/. 1 gastado",
@@ -425,7 +426,7 @@ function getTierBenefitsList(tier: string, settings: any): string[] {
   return allBenefits[tier] || [];
 }
 
-function getTierThreshold(tier: string, settings: any): number {
+function getTierThreshold(tier: string, settings: LoyaltyProgramSettings | null): number {
   const thresholds: Record<string, number> = {
     BRONZE: 0,
     SILVER: settings?.silverThreshold || 500,

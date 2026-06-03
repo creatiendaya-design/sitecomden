@@ -1,6 +1,6 @@
 // lib/customizer/__tests__/validate.test.ts
 import { describe, it, expect } from "vitest";
-import { validateCustomDesign, customDesignSchema } from "../validate";
+import { validateCustomDesign } from "../validate";
 import type { CustomDesign, CustomDesignSnapshot } from "../types";
 
 const baseSnapshot: CustomDesignSnapshot = {

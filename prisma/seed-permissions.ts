@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Permission, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -234,7 +234,7 @@ async function createPermissions() {
   return permissionsCreated;
 }
 
-async function createRoles(allPermissions: any[]) {
+async function createRoles(allPermissions: Permission[]) {
   console.log("👥 Creando roles...");
 
   const rolesCreated = [];
@@ -296,7 +296,7 @@ async function createRoles(allPermissions: any[]) {
   return rolesCreated;
 }
 
-async function createSuperAdmin(roles: any[]) {
+async function createSuperAdmin(roles: Role[]) {
   console.log("👑 Creando Super Admin...");
 
   const superAdminRole = roles.find((r) => r.slug === "super-admin");

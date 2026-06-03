@@ -233,7 +233,7 @@ export default function VariantsTable({
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">
                           {Object.entries(variant.options)
-                            .map(([key, value]) => value)
+                            .map(([_key, value]) => value)
                             .join(" / ")}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">

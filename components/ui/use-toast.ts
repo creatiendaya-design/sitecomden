@@ -13,6 +13,7 @@ type ToasterToast = ToastProps & {
   variant?: "default" | "destructive"  // ⬅️ AGREGADO: Esta es la ÚNICA línea nueva
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- only used as a type source via `typeof actionTypes`
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",

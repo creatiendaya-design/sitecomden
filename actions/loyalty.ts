@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma, LoyaltyProgramSettings } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { protectRoute } from "@/lib/protect-route";
@@ -42,7 +43,7 @@ function generateReferralCode(name: string): string {
 }
 
 // Calcular nivel VIP según puntos
-function calculateLoyaltyTier(points: number, settings: any): LoyaltyTier {
+function calculateLoyaltyTier(points: number, settings: LoyaltyProgramSettings): LoyaltyTier {
   if (points >= settings.platinumThreshold) return "PLATINUM";
   if (points >= settings.goldThreshold) return "GOLD";
   if (points >= settings.silverThreshold) return "SILVER";
@@ -423,7 +424,7 @@ async function deductPoints(
 }
 
 // Dar puntos por compra (internal — invoked from order/payment confirmation flows)
-async function awardPurchasePoints(orderId: string) {
+async function _awardPurchasePoints(orderId: string) {
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -755,7 +756,7 @@ export async function createReward(data: {
   }
 }
 
-export async function updateReward(id: string, data: any) {
+export async function updateReward(id: string, data: Prisma.RewardUpdateInput) {
   await protectRoute("loyalty:manage_rewards");
   try {
     const reward = await prisma.reward.update({
@@ -802,7 +803,7 @@ export async function getAllCustomers(params?: {
 }) {
   await protectRoute("customers:view");
   try {
-    const where: any = {};
+    const where: Prisma.CustomerWhereInput = {};
 
     if (params?.search) {
       where.OR = [

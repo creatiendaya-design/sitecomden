@@ -28,6 +28,7 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
 
   useEffect(() => {
     if (!zone.mockupImage) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setImg(null);
     const i = new window.Image();
     i.src = zone.mockupImage;
@@ -77,7 +78,7 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
     <div className="border rounded-lg overflow-hidden inline-block">
       <Stage width={stageSize.w} height={stageSize.h}>
         <Layer>
-          <Image image={img} width={stageSize.w} height={stageSize.h} />
+          <Image image={img} width={stageSize.w} height={stageSize.h} alt="" />
           <Rect
             ref={rectRef}
             x={pxBounds.x}

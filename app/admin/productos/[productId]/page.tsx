@@ -8,6 +8,9 @@ import { isPageBuilderV2Enabled } from "@/lib/blocks/feature-flag"
 import type { BlockInstance } from "@/lib/blocks/types"
 import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks"
 import { listPromotionsForProduct } from "@/actions/promotions"
+import type { ShippingRestriction } from "@/lib/cod-forms/types"
+import type { MockupOverrides } from "@/lib/customizer/types"
+import type React from "react"
 
 interface EditProductPageProps {
   params: Promise<{
@@ -51,6 +54,9 @@ export default async function EditProductPage({ params, searchParams }: EditProd
     basePrice: Number(product.basePrice),
     compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
     weight: product.weight ? Number(product.weight) : null,
+    images: (product.images ?? []) as string[],
+    shippingRestriction: product.shippingRestriction as ShippingRestriction | null,
+    customizableMockupOverrides: product.customizableMockupOverrides as MockupOverrides | null,
     variants: product.variants.map((v) => ({
       ...v,
       price: Number(v.price),
@@ -116,7 +122,7 @@ export default async function EditProductPage({ params, searchParams }: EditProd
   const resolvedBlockTypes = resolved.map((r) => r.type as string)
 
   return <EditProductForm
-    product={serializedProduct}
+    product={serializedProduct as unknown as React.ComponentProps<typeof EditProductForm>["product"]}
     categories={serializedCategories}
     showLegacyLandingEditor={!flagOn}
     resolvedBlockTypes={resolvedBlockTypes}

@@ -17,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -72,7 +71,7 @@ export default function PendingPaymentsPage() {
     setError(null);
     const result = await getPendingPayments();
     if (result.success && result.data) {
-      setPayments(result.data as any);
+      setPayments(result.data as PendingPayment[]);
     } else {
       setError(result.error || "Error al cargar pagos");
     }
@@ -80,7 +79,8 @@ export default function PendingPaymentsPage() {
   };
 
   useEffect(() => {
-    loadPayments();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadPayments(); // initial data load; no external subscription needed
   }, []);
 
   const handleApprove = async (paymentId: string) => {

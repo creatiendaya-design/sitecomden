@@ -12,6 +12,7 @@ import ProductsList from "@/components/admin/ProductsList";
 import { hasPermissions } from "@/lib/permissions";
 import { getCurrentUserId } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 
 const PAGE_SIZE = 50;
 
@@ -49,7 +50,7 @@ export default async function ProductsAdminPage({
 
   // Construir filtros. `deletedAt: null` oculta tombstones del soft-delete
   // (los productos eliminados siguen en la BD para preservar histórico).
-  const where: any = { deletedAt: null };
+  const where: Prisma.ProductWhereInput = { deletedAt: null };
 
   if (search) {
     where.OR = [

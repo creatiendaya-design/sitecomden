@@ -15,6 +15,7 @@ export function MockupImage({ src, width, height }: Props) {
 
   useEffect(() => {
     if (!src) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset image synchronously when src changes before async load
     setImg(null);
 
     const tryLoad = (withCors: boolean) => {

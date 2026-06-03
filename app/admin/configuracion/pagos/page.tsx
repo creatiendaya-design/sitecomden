@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   getPaymentMethodSettings,
   savePaymentMethodSettings,
@@ -14,26 +14,24 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Loader2, 
-  Save, 
-  Upload, 
-  CheckCircle2, 
-  AlertCircle, 
-  Smartphone,
+import {
+  Loader2,
+  Save,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
   CreditCard,
   Banknote
 } from "lucide-react";
 import Image from "next/image";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
-import { 
-  YapeIcon, 
-  PlinIcon, 
-  VisaIcon, 
-  MastercardIcon, 
+import Link from "next/link";
+import {
+  YapeIcon,
+  PlinIcon,
+  VisaIcon,
+  MastercardIcon,
   PayPalIcon,
-  MercadoPagoIcon 
 } from "@/components/payment-icons";
 
 export default function PaymentSettingsPage() {
@@ -70,17 +68,18 @@ export default function PaymentSettingsPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar configuración al montar
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoadingSettings(true);
     const loadedSettings = await getPaymentMethodSettings();
     setSettings(loadedSettings);
     setLoadingSettings(false);
-  };
+  }, []);
+
+  // Cargar configuración al montar
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadSettings(); // data fetch on mount; setState is async inside loadSettings
+  }, [loadSettings]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -473,9 +472,9 @@ export default function PaymentSettingsPage() {
                 <CreditCard className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-sm text-blue-800">
                   Las claves de Culqi se configuran en{" "}
-                  <a href="/admin/configuracion/culqi" className="underline font-medium">
+                  <Link href="/admin/configuracion/culqi" className="underline font-medium">
                     Configuración → Culqi
-                  </a>
+                  </Link>
                 </AlertDescription>
               </Alert>
 

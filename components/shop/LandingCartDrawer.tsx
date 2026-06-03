@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ShoppingCart, X, Minus, Plus, Trash2 } from "lucide-react";
-import { useCartStore } from "@/store/cart";
+import { useCartStore, type CartItem } from "@/store/cart";
 import { formatPrice } from "@/lib/utils";
 import { getProductImageUrl } from "@/lib/image-utils";
 import CodOrderModal, { type CodOrderItem } from "@/components/shop/CodOrderModal";
@@ -29,12 +29,14 @@ export default function LandingCartDrawer({ template, shippingRestriction }: Lan
   } = useCartStore();
 
   useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- client-only mount guard */
     setMounted(true);
   }, []);
 
   // Auto-open drawer when first item is added
   useEffect(() => {
     if (mounted && items.length > 0) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: opens drawer when cart becomes non-empty */
       setOpen(true);
     }
   }, [items.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -43,7 +45,7 @@ export default function LandingCartDrawer({ template, shippingRestriction }: Lan
 
   const totalItems = getTotalItems();
 
-  const getItemImage = (item: any): string | null => {
+  const getItemImage = (item: CartItem): string | null => {
     if (typeof item.image === "string") return item.image;
     if (item.image) return getProductImageUrl(item.image);
     return null;

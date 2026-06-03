@@ -21,7 +21,7 @@ const FIELD_MAPPING: Record<string, string> = {
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
-  const { user, response: authResponse } = await requirePermission("categories:view");
+  const { response: authResponse } = await requirePermission("categories:view");
   if (authResponse) return authResponse;
 
   try {
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       const dbField = FIELD_MAPPING[field] || field;
 
       // Convertir valor según el tipo de campo
-      let convertedValue: any = value;
+      let convertedValue: string | number | boolean = value;
       
       if (["price", "compareAtPrice", "weight", "stock"].includes(field)) {
         convertedValue = parseFloat(value);

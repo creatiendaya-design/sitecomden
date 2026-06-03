@@ -1,6 +1,7 @@
 // actions/cod-form-templates.ts
 "use server"
 
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { requirePermission } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
@@ -14,9 +15,26 @@ import {
   getDefaultContentForType,
 } from "@/lib/cod-forms/defaults"
 import type { CodFormTemplateData, ButtonStyle } from "@/lib/cod-forms/types"
-import type { CheckoutMode } from "@prisma/client"
+import type { CheckoutMode, CodFormBlockType, PostSubmitAction } from "@prisma/client"
 
-function serializeTemplate(t: any): CodFormTemplateData {
+type SerializableTemplate = {
+  id: string
+  name: string
+  isDefault: boolean
+  buttonText: string
+  buttonStyle: Prisma.JsonValue
+  postSubmitAction: PostSubmitAction
+  thankYouTitle: string | null
+  thankYouMessage: string | null
+  whatsappNumber: string | null
+  whatsappMessage: string | null
+  thankYouPageId: string | null
+  thankYouPage?: { slug: string } | null
+  blocks?: Array<{ id: string; position: number; type: string; content: Prisma.JsonValue; visible: boolean; required: boolean }>
+  shippingRates?: Array<{ id: string }>
+}
+
+function serializeTemplate(t: SerializableTemplate): CodFormTemplateData {
   return {
     id: t.id,
     name: t.name,
@@ -32,11 +50,11 @@ function serializeTemplate(t: any): CodFormTemplateData {
     thankYouPageSlug: t.thankYouPage?.slug ?? null,
     blocks: (t.blocks ?? [])
       .slice()
-      .sort((a: any, b: any) => a.position - b.position)
-      .map((b: any) => ({
+      .sort((a, b) => a.position - b.position)
+      .map((b) => ({
         id: b.id,
         position: b.position,
-        type: b.type,
+        type: b.type as CodFormBlockType,
         content: (b.content ?? {}) as Record<string, unknown>,
         visible: b.visible,
         required: b.required,
@@ -102,7 +120,7 @@ export async function createTemplate(name: string): Promise<{ id: string }> {
       name: trimmed,
       isDefault: false,
       buttonText: "Realizar Pedido y Pagar al Recibir - {total}",
-      buttonStyle: DEFAULT_BUTTON_STYLE as any,
+      buttonStyle: DEFAULT_BUTTON_STYLE as unknown as Prisma.InputJsonValue,
       postSubmitAction: "INLINE_THANK_YOU",
       thankYouTitle: "¡Gracias por tu pedido!",
       thankYouMessage:
@@ -113,7 +131,7 @@ export async function createTemplate(name: string): Promise<{ id: string }> {
           type: b.type,
           visible: b.visible,
           required: b.required,
-          content: getDefaultContentForType(b.type) as any,
+          content: getDefaultContentForType(b.type) as unknown as Prisma.InputJsonValue,
         })),
       },
     },
@@ -148,7 +166,7 @@ export async function duplicateTemplate(id: string): Promise<{ id: string }> {
       name: candidate,
       isDefault: false,
       buttonText: source.buttonText,
-      buttonStyle: source.buttonStyle as any,
+      buttonStyle: source.buttonStyle as unknown as Prisma.InputJsonValue,
       postSubmitAction: source.postSubmitAction,
       thankYouTitle: source.thankYouTitle,
       thankYouMessage: source.thankYouMessage,
@@ -161,7 +179,7 @@ export async function duplicateTemplate(id: string): Promise<{ id: string }> {
           type: b.type,
           visible: b.visible,
           required: b.required,
-          content: b.content as any,
+          content: b.content as unknown as Prisma.InputJsonValue,
         })),
       },
     },
@@ -206,7 +224,7 @@ export async function updateTemplate(
       data: {
         name: parsed.name,
         buttonText: parsed.buttonText,
-        buttonStyle: parsed.buttonStyle as any,
+        buttonStyle: parsed.buttonStyle as unknown as Prisma.InputJsonValue,
         postSubmitAction: parsed.postSubmitAction,
         thankYouTitle: parsed.thankYouTitle,
         thankYouMessage: parsed.thankYouMessage,
@@ -227,7 +245,7 @@ export async function updateTemplate(
         type: b.type,
         visible: b.visible,
         required: b.required,
-        content: b.content as any,
+        content: b.content as unknown as Prisma.InputJsonValue,
       })),
     })
   })

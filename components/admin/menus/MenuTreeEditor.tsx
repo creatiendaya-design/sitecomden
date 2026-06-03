@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -87,10 +87,12 @@ export function MenuTreeEditor({
   const [items, setItems] = useState<DraftItem[]>(() =>
     initialItems.map((i) => ({ ...i })),
   )
-  const originalRef = useRef(JSON.stringify(initialItems))
+  // Baseline snapshot kept in state (not a ref) so the `dirty` memo can read
+  // it during render without tripping react-hooks/refs; updated on save/discard.
+  const [original, setOriginal] = useState(() => JSON.stringify(initialItems))
   const dirty = useMemo(
-    () => JSON.stringify(items) !== originalRef.current,
-    [items],
+    () => JSON.stringify(items) !== original,
+    [items, original],
   )
 
   const [editing, setEditing] = useState<DraftItem | null>(null)
@@ -258,7 +260,7 @@ export function MenuTreeEditor({
         return { ...local, id: persisted.id, version: persisted.version }
       })
       setItems(remapped)
-      originalRef.current = JSON.stringify(remapped)
+      setOriginal(JSON.stringify(remapped))
       router.refresh()
       return
     }
@@ -314,7 +316,7 @@ export function MenuTreeEditor({
 
   const handleDiscard = () => {
     setItems(initialItems.map((i) => ({ ...i })))
-    originalRef.current = JSON.stringify(initialItems)
+    setOriginal(JSON.stringify(initialItems))
   }
 
   const ancestorsOf = (id: string): DraftItem[] => {

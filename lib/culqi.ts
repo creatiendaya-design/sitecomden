@@ -15,7 +15,7 @@ interface CulqiChargeData {
   email: string;
   source_id: string; // Token del frontend
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface CulqiChargeResponse {
@@ -54,7 +54,7 @@ interface CulqiChargeResponse {
       device_fingerprint: string | null;
       device_type: string | null;
     };
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
   };
   outcome: {
     type: string;
@@ -64,7 +64,7 @@ interface CulqiChargeResponse {
   };
   reference_code: string;
   authorization_code: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   total_fee: number;
   fee_details: {
     fixed_fee: {

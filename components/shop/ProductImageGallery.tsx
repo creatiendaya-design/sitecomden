@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 
 interface ProductImageGalleryProps {
-  images: any;
+  images: unknown;
   name: string;
 }
 

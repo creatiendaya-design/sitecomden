@@ -4,7 +4,7 @@
 //
 // Run once after deploying the schema:
 //   npx tsx scripts/seed-cod-form-default.ts
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient, Prisma } from "@prisma/client"
 import {
   DEFAULT_BUTTON_STYLE,
   DEFAULT_TEMPLATE_BLOCKS,
@@ -30,7 +30,7 @@ async function main() {
       name: DEFAULT_TEMPLATE_NAME,
       isDefault: true,
       buttonText: "Realizar Pedido y Pagar al Recibir - {total}",
-      buttonStyle: DEFAULT_BUTTON_STYLE as any,
+      buttonStyle: DEFAULT_BUTTON_STYLE as unknown as Prisma.InputJsonValue,
       postSubmitAction: "INLINE_THANK_YOU",
       thankYouTitle: "¡Gracias por tu pedido!",
       thankYouMessage:
@@ -41,7 +41,7 @@ async function main() {
           type: b.type,
           visible: b.visible,
           required: b.required,
-          content: getDefaultContentForType(b.type) as any,
+          content: getDefaultContentForType(b.type) as unknown as Prisma.InputJsonValue,
         })),
       },
     },

@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
@@ -138,7 +139,7 @@ export async function savePixel(
       await prisma.trackingPixel.update({
         where: { id: existing.id },
         data: {
-          config: validatedConfig as any,
+          config: validatedConfig as unknown as Prisma.InputJsonValue,
           enabled,
           testMode,
           description,
@@ -149,7 +150,7 @@ export async function savePixel(
       await prisma.trackingPixel.create({
         data: {
           platform,
-          config: validatedConfig as any,
+          config: validatedConfig as unknown as Prisma.InputJsonValue,
           enabled,
           testMode,
           description,

@@ -15,6 +15,8 @@ import type { LandingBlock } from "@/lib/types/landing-blocks";
 import type { SizeGuideData } from "@/lib/size-guides/types";
 import type { ProductScopedPromotion } from "@/lib/promotions/types";
 
+// product/variant data comes from Prisma; full typing lives in ProductActions/ProductImageGallery
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface ProductLandingViewProps {
   product: any;
   serializedProduct: any;
@@ -28,6 +30,7 @@ interface ProductLandingViewProps {
   sizeGuide?: SizeGuideData | null;
   promotions?: ProductScopedPromotion[];
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export default function ProductLandingView({
   product,

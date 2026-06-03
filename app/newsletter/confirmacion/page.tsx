@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,10 +106,10 @@ function ConfirmationContent() {
 
       <CardFooter className="flex flex-col gap-3 sm:flex-row">
         <Button className="flex-1" asChild>
-          <a href="/productos">Explorar Productos</a>
+          <Link href="/productos">Explorar Productos</Link>
         </Button>
         <Button variant="outline" className="flex-1" asChild>
-          <a href="/">Volver al Inicio</a>
+          <Link href="/">Volver al Inicio</Link>
         </Button>
       </CardFooter>
     </Card>

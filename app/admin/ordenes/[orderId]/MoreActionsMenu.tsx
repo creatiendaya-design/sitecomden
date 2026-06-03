@@ -26,6 +26,8 @@ import {
   canCancelOrder,
   canRefundPayment,
   canMarkPaymentAsFailed,
+  type OrderStatus,
+  type PaymentStatus,
 } from "@/lib/order-status-logic";
 
 interface MoreActionsMenuProps {
@@ -47,9 +49,9 @@ export default function MoreActionsMenu({
   const [refundOpen, setRefundOpen] = useState(false);
   const [failedOpen, setFailedOpen] = useState(false);
 
-  const showCancel = canCancelOrder(orderStatus as any);
-  const showRefund = canRefundPayment(paymentStatus as any);
-  const showFailed = canMarkPaymentAsFailed(paymentStatus as any);
+  const showCancel = canCancelOrder(orderStatus as OrderStatus);
+  const showRefund = canRefundPayment(paymentStatus as PaymentStatus);
+  const showFailed = canMarkPaymentAsFailed(paymentStatus as PaymentStatus);
 
   if (!showCancel && !showRefund && !showFailed) return null;
 
@@ -57,7 +59,7 @@ export default function MoreActionsMenu({
     setCancelLoading(true);
     setCancelOpen(false);
     try {
-      const result = await updateOrderStatus({ orderId, status: "CANCELLED" as any });
+      const result = await updateOrderStatus({ orderId, status: "CANCELLED" });
       if (result.success) {
         toast.success("Orden cancelada. Se envió email al cliente.");
         router.refresh();
@@ -73,7 +75,7 @@ export default function MoreActionsMenu({
     setRefundLoading(true);
     setRefundOpen(false);
     try {
-      const result = await updateOrderStatus({ orderId, paymentStatus: "REFUNDED" as any });
+      const result = await updateOrderStatus({ orderId, paymentStatus: "REFUNDED" as PaymentStatus });
       if (result.success) {
         toast.success("Reembolso procesado. Se envió email al cliente.");
         router.refresh();
@@ -89,7 +91,7 @@ export default function MoreActionsMenu({
     setFailedLoading(true);
     setFailedOpen(false);
     try {
-      const result = await updateOrderStatus({ orderId, paymentStatus: "FAILED" as any });
+      const result = await updateOrderStatus({ orderId, paymentStatus: "FAILED" as PaymentStatus });
       if (result.success) {
         toast.success("Pago marcado como fallido. Se envió email al cliente.");
         router.refresh();

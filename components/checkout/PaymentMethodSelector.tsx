@@ -100,7 +100,7 @@ export function PaymentMethodSelector({
   return (
     <RadioGroup
       value={selectedMethod}
-      onValueChange={(value) => onMethodChange(value as any)}
+      onValueChange={(value) => onMethodChange(value as PaymentMethodSelectorProps["selectedMethod"])}
       className="space-y-3 min-w-0"
       disabled={disabled}
     >

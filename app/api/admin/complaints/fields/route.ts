@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 // GET - Obtener todos los campos ← ESTO FALTABA ✨
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const fields = await prisma.complaintFormField.findMany({
       orderBy: { order: "asc" },

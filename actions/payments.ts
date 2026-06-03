@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { createCulqiCharge, solesToCents, formatCardInfo } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
@@ -86,7 +87,7 @@ export async function processCardPayment(data: {
           amount: charge.amount,
           currency: charge.currency_code,
           createdAt: new Date(charge.creation_date * 1000).toISOString(),
-        } as any,
+        } satisfies Prisma.InputJsonValue,
         paidAt: new Date(),
       },
     });
@@ -121,7 +122,7 @@ export async function processCardPayment(data: {
           image: item.image || undefined,
           customDesignImages: (item.customDesignImages as unknown as Array<{ zoneId: string; url: string }> | null) ?? undefined,
         })),
-        shippingAddress: order.shippingAddress as any,
+        shippingAddress: order.shippingAddress as unknown as { address: string; district: string; city: string; department: string },
       });
     } catch (emailError) {
       console.error("Error sending confirmation email:", emailError);

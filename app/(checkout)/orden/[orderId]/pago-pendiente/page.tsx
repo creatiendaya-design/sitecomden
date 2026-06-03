@@ -4,7 +4,7 @@ import { formatPrice } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
-import { Clock, CheckCircle2, Upload, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle2, Upload } from "lucide-react";
 import PaymentUploadForm from "./payment-upload-form";
 import { getPaymentMethodSettings } from "@/actions/payment-settings";
 import { canViewOrder } from "@/lib/orders/order-access";
@@ -63,7 +63,6 @@ export default async function PendingPaymentPage({ params, searchParams }: PageP
   const paymentSettings = await getPaymentMethodSettings();
 
   const isYape = order.paymentMethod === "YAPE";
-  const isPlin = order.paymentMethod === "PLIN";
   const paymentMethod = isYape ? "Yape" : "Plin";
 
   // Obtener configuración específica del método

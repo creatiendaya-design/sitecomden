@@ -33,11 +33,11 @@ const widthClasses: Record<string, string> = {
   "two-thirds": "w-full md:w-2/3",
 };
 
-export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) {
+export default function ComplaintsForm({ fields, config: _config }: ComplaintsFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, string | boolean | string[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Agrupar campos por sección
@@ -50,12 +50,17 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
     return acc;
   }, {} as Record<string, FormField[]>);
 
-  const validateField = (field: FormField, value: any): string | null => {
+  const validateField = (field: FormField, value: string | boolean | string[] | undefined): string | null => {
     if (field.required && (!value || value === "")) {
       return "Este campo es obligatorio";
     }
 
     if (!value || value === "") {
+      return null;
+    }
+
+    // String-only validations: booleans and arrays have no further rules
+    if (typeof value !== "string") {
       return null;
     }
 
@@ -203,7 +208,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
                 id={field.id}
                 type={field.fieldType}
                 placeholder={field.placeholder}
-                value={formData[field.id] || ""}
+                value={(formData[field.id] as string) || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, [field.id]: e.target.value })
                 }
@@ -226,7 +231,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
               <Textarea
                 id={field.id}
                 placeholder={field.placeholder}
-                value={formData[field.id] || ""}
+                value={(formData[field.id] as string) || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, [field.id]: e.target.value })
                 }
@@ -248,7 +253,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
                 {field.required && <span className="text-red-500 ml-1">*</span>}
               </Label>
               <Select
-                value={formData[field.id] || ""}
+                value={(formData[field.id] as string) || ""}
                 onValueChange={(value) =>
                   setFormData({ ...formData, [field.id]: value })
                 }
@@ -276,7 +281,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
         case "select_with_other":
           const showOtherInput = formData[field.id] === "__other__";
           const otherError = errors[`${field.id}_other`];
-          
+
           return (
             <>
               <Label htmlFor={field.id}>
@@ -284,7 +289,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
                 {field.required && <span className="text-red-500 ml-1">*</span>}
               </Label>
               <Select
-                value={formData[field.id] || ""}
+                value={(formData[field.id] as string) || ""}
                 onValueChange={(value) =>
                   setFormData({ ...formData, [field.id]: value })
                 }
@@ -310,7 +315,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
                 <Input
                   id={`${field.id}_other`}
                   placeholder="Especifique..."
-                  value={formData[`${field.id}_other`] || ""}
+                  value={(formData[`${field.id}_other`] as string) || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, [`${field.id}_other`]: e.target.value })
                   }
@@ -334,7 +339,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
                 {field.required && <span className="text-red-500 ml-1">*</span>}
               </Label>
               <RadioGroup
-                value={formData[field.id] || ""}
+                value={(formData[field.id] as string) || ""}
                 onValueChange={(value) =>
                   setFormData({ ...formData, [field.id]: value })
                 }
@@ -358,7 +363,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
             <div className="flex items-start space-x-2">
               <Checkbox
                 id={field.id}
-                checked={formData[field.id] || false}
+                checked={(formData[field.id] as boolean) || false}
                 onCheckedChange={(checked) =>
                   setFormData({ ...formData, [field.id]: checked })
                 }
@@ -386,7 +391,7 @@ export default function ComplaintsForm({ fields, config }: ComplaintsFormProps) 
               <Input
                 id={field.id}
                 type="date"
-                value={formData[field.id] || ""}
+                value={(formData[field.id] as string) || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, [field.id]: e.target.value })
                 }

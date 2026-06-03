@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Users, Shield, Power, Edit, Trash2, Mail, Calendar } from "lucide-react";
+import { Plus, Users, Shield, Power, Edit, Mail, Calendar } from "lucide-react";
 import DeleteUserButton from "@/components/admin/DeleteUserButton";
 import ToggleUserButton from "@/components/admin/ToggleUserButton";
 import { formatDistanceToNow } from "date-fns";

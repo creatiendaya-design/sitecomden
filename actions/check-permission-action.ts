@@ -18,7 +18,7 @@ export async function checkPermission(permission: string) {
       success: true,
       hasPermission: has,
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       hasPermission: false,

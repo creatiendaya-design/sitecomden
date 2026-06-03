@@ -1,6 +1,6 @@
 "use server";
 
-import { Prisma } from "@prisma/client";
+import { Prisma, OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
@@ -327,7 +327,7 @@ export async function createOrder(rawData: unknown) {
       const p = productsForRestriction.find((x) => x.id === item.productId);
       if (!p) continue;
       const err = validateShippingRestriction(
-        ((p as any).shippingRestriction as ShippingRestriction | null) ?? null,
+        (p.shippingRestriction as ShippingRestriction | null) ?? null,
         {
           departmentId: null,
           provinceId: null,
@@ -573,7 +573,7 @@ export async function createOrder(rawData: unknown) {
           price: Number(item.price) * item.quantity,
           customDesignImages: (item.customDesignImages as unknown as Array<{ zoneId: string; url: string }> | null) ?? undefined,
         })),
-        shippingAddress: order.shippingAddress as any,
+        shippingAddress: order.shippingAddress as unknown as { address: string; district: string; city: string; department: string },
         paymentMethod: order.paymentMethod,
         // Link para ver orden sin login
         viewOrderLink: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${encodeURIComponent(order.customerEmail)}`,
@@ -694,15 +694,15 @@ export async function getOrders(filters?: {
 }) {
   try {
     await protectRoute("orders:view");
-    const where: any = {};
+    const where: Prisma.OrderWhereInput = {};
 
     // Filtros
     if (filters?.status) {
-      where.status = filters.status;
+      where.status = filters.status as OrderStatus;
     }
 
     if (filters?.paymentStatus) {
-      where.paymentStatus = filters.paymentStatus;
+      where.paymentStatus = filters.paymentStatus as PaymentStatus;
     }
 
     if (filters?.search) {
@@ -837,7 +837,7 @@ export async function getOrderById(orderId: string) {
 export async function updateOrderStatus(input: UpdateOrderStatusInput) {
   try {
     await protectRoute("orders:update_status");
-    const updateData: any = {
+    const updateData: Prisma.OrderUpdateInput = {
       updatedAt: new Date(),
     };
 

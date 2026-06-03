@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, type ComponentType } from "react";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
@@ -42,7 +42,7 @@ import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
 
 interface NavItem {
   href?: string;
-  icon: any;
+  icon: ComponentType<{ className?: string }>;
   label: string;
   items?: NavItem[];
 }
@@ -107,7 +107,8 @@ function AdminLayoutInner({
 
   // Cerrar sidebar al cambiar de ruta en móvil
   useEffect(() => {
-    setSidebarOpen(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSidebarOpen(false); // reset-on-navigation: intentional sync setState
   }, [pathname]);
 
   // Prevenir scroll del body cuando el sidebar está abierto en móvil

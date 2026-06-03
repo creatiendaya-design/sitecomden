@@ -21,7 +21,7 @@ interface ProductCardProps {
     slug: string;
     basePrice: number;
     compareAtPrice: number | null;
-    images: any;
+    images: unknown;
     hasVariants: boolean;
     featured: boolean;
     stock?: number;
@@ -34,12 +34,12 @@ interface ProductCardProps {
       price: number;
       compareAtPrice: number | null;
       stock?: number;
-      options?: any;
-      [key: string]: any;
+      options?: unknown;
+      [key: string]: unknown;
     }>;
     averageRating?: number;
     reviewCount?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 

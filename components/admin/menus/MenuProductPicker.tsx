@@ -48,6 +48,7 @@ export function MenuProductPicker({
   // On open, reset the query and pre-load with an empty search.
   useEffect(() => {
     if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery("")
     let cancelled = false
     setLoading(true)

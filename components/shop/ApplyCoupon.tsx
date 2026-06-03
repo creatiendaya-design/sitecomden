@@ -61,7 +61,7 @@ export default function ApplyCoupon({
       onCouponApplied(data.coupon);
       setCode("");
       setError(null);
-    } catch (err) {
+    } catch {
       setError("Error al validar cupón");
     } finally {
       setLoading(false);

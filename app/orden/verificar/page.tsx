@@ -1,8 +1,19 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getOrderByToken } from "@/actions/orders";
+
+type GetOrderByTokenResult = Awaited<ReturnType<typeof getOrderByToken>>;
+type OrderData = Extract<GetOrderByTokenResult, { data: unknown }>["data"];
+
+interface ShippingAddress {
+  address: string;
+  district: string;
+  province: string;
+  department: string;
+  reference?: string | null;
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -32,7 +43,7 @@ function VerificarOrdenContent() {
 
   const [token, setToken] = useState(tokenFromUrl || "");
   const [email, setEmail] = useState(emailFromUrl || "");
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +77,7 @@ function VerificarOrdenContent() {
 
   // Estados visuales
   const getStatusInfo = (status: string) => {
-    const statusMap: Record<string, { label: string; color: string; icon: any }> = {
+    const statusMap: Record<string, { label: string; color: string; icon: React.ElementType }> = {
       PENDING: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800", icon: Clock },
       PAID: { label: "Pagado", color: "bg-green-100 text-green-800", icon: CheckCircle2 },
       PROCESSING: { label: "Procesando", color: "bg-blue-100 text-blue-800", icon: Package },
@@ -157,6 +168,7 @@ function VerificarOrdenContent() {
   const statusInfo = getStatusInfo(order.status);
   const paymentInfo = getPaymentStatusInfo(order.paymentStatus);
   const StatusIcon = statusInfo.icon;
+  const shippingAddress = order.shippingAddress as unknown as ShippingAddress;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -249,7 +261,7 @@ function VerificarOrdenContent() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {order.items.map((item: any) => (
+              {order.items.map((item) => (
                 <div key={item.id} className="flex gap-4">
                   {item.image && (
                     <div className="relative w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
@@ -318,14 +330,14 @@ function VerificarOrdenContent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
-              <p>{order.shippingAddress.address}</p>
-              <p>{order.shippingAddress.district}</p>
+              <p>{shippingAddress.address}</p>
+              <p>{shippingAddress.district}</p>
               <p>
-                {order.shippingAddress.province}, {order.shippingAddress.department}
+                {shippingAddress.province}, {shippingAddress.department}
               </p>
-              {order.shippingAddress.reference && (
+              {shippingAddress.reference && (
                 <p className="text-muted-foreground">
-                  Ref: {order.shippingAddress.reference}
+                  Ref: {shippingAddress.reference}
                 </p>
               )}
             </CardContent>
@@ -358,9 +370,9 @@ function TimelineItem({
   date,
   completed,
 }: {
-  icon: any;
+  icon: React.ElementType;
   title: string;
-  date?: string | null;
+  date?: string | Date | null;
   completed: boolean;
 }) {
   return (

@@ -51,7 +51,7 @@ export default function UpdateOrderStatus({
       }
 
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al actualizar estado");
     } finally {
       setLoading(false);

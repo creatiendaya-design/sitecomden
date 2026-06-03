@@ -93,7 +93,7 @@ export async function getUserById(userId: string) {
     }
 
     // No retornar password
-    const { password, ...userWithoutPassword } = user;
+    const { password: _password, ...userWithoutPassword } = user;
 
     return { success: true, user: userWithoutPassword };
   } catch (error) {
@@ -168,7 +168,7 @@ export async function createUser(data: UserFormData & { password: string }) {
       },
     });
 
-    const { password, ...userWithoutPassword } = user;
+    const { password: _password2, ...userWithoutPassword } = user;
     return { success: true, user: userWithoutPassword };
   } catch (error) {
     console.error("Error creating user:", error);
@@ -278,7 +278,7 @@ export async function updateUser(userId: string, data: UserFormData) {
       },
     });
 
-    const { password, ...userWithoutPassword } = user;
+    const { password: _password3, ...userWithoutPassword } = user;
     return { success: true, user: userWithoutPassword };
   } catch (error) {
     console.error("Error updating user:", error);
@@ -560,7 +560,7 @@ export async function checkPermission(permission: string) {
       success: true,
       hasPermission: has,
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       hasPermission: false,

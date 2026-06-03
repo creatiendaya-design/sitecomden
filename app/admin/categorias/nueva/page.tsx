@@ -84,7 +84,7 @@ export default function NewCategoryPage() {
 
       router.push("/admin/categorias");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al crear categoría");
     } finally {
       setLoading(false);

@@ -54,6 +54,7 @@ export function AdminThemeProvider({ children }: AdminThemeProviderProps) {
   // Hydrate from localStorage on mount
   useEffect(() => {
     const stored = readStoredTheme();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setThemeState(stored);
     setResolvedTheme(stored === "system" ? getSystemTheme() : stored);
     setMounted(true);

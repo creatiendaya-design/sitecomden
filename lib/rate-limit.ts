@@ -227,7 +227,7 @@ export async function checkRateLimit(
   context?: {
     action?: string;
     userId?: string;
-    details?: Record<string, any>;
+    details?: Record<string, unknown>;
   }
 ): Promise<RateLimitResult> {
   // Skip Redis call entirely if Upstash isn't configured (dev fallback).

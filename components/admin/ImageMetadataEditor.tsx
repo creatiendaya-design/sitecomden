@@ -135,7 +135,7 @@ export default function ImageMetadataEditor({
             <ul className="mt-2 list-inside list-disc space-y-1 text-blue-800">
               <li>Sé descriptivo pero conciso</li>
               <li>Incluye palabras clave relevantes</li>
-              <li>No uses "imagen de" o "foto de"</li>
+              <li>No uses &quot;imagen de&quot; o &quot;foto de&quot;</li>
               <li>Describe qué se ve en la imagen</li>
             </ul>
           </div>

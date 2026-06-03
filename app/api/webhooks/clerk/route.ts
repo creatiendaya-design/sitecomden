@@ -23,18 +23,31 @@ export async function POST(req: NextRequest) {
     const payload = await req.json();
     const body = JSON.stringify(payload);
 
+    interface ClerkEventData {
+      id?: string;
+      email_addresses: Array<{ email_address: string }>;
+      first_name?: string;
+      last_name?: string;
+      unsafe_metadata?: Record<string, unknown>;
+    }
+
+    interface ClerkEvent {
+      type: string;
+      data: ClerkEventData;
+    }
+
     const wh = new Webhook(webhookSecret);
     const evt = wh.verify(body, {
       "svix-id": svixId,
       "svix-timestamp": svixTimestamp,
       "svix-signature": svixSignature,
-    }) as any;
+    }) as ClerkEvent;
 
     const eventType = evt.type;
 
     // Usuario creado en Clerk
     if (eventType === "user.created") {
-      const { id, email_addresses, first_name, last_name, unsafe_metadata } = evt.data;
+      const { email_addresses, first_name, last_name, unsafe_metadata } = evt.data;
 
       const email = email_addresses[0]?.email_address;
       if (!email) {
@@ -42,7 +55,7 @@ export async function POST(req: NextRequest) {
       }
 
       const name = `${first_name || ""} ${last_name || ""}`.trim() || email.split("@")[0];
-      const referralCode = unsafe_metadata?.referralCode;
+      const referralCode = unsafe_metadata?.referralCode as string | undefined;
 
       console.log("🔔 Webhook: Usuario creado en Clerk:", email);
       console.log("📋 Código de referido:", referralCode || "Ninguno");
@@ -91,10 +104,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("❌ Error en webhook de Clerk:", error);
     return NextResponse.json(
-      { error: error.message || "Webhook error" },
+      { error: error instanceof Error ? error.message : "Webhook error" },
       { status: 400 }
     );
   }

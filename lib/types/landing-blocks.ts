@@ -40,7 +40,6 @@ export type KnownLandingBlockType =
   | "FAQ_TWO"
   | "CART_MAIN";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type LandingBlockType = KnownLandingBlockType | (string & {});
 
 /** Server-safe set of allowed block type ids — replaces the dropped

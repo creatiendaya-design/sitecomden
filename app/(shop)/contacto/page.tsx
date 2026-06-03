@@ -1,5 +1,6 @@
 import { getSiteSettings } from "@/lib/site-settings";
 import { Metadata } from "next";
+import Link from "next/link";
 import ContactForm from "@/components/shop/ContactForm";
 import { Mail, Phone, MapPin, Clock } from "lucide-react";
 
@@ -140,12 +141,12 @@ export default async function ContactPage() {
         <p className="text-muted-foreground mb-4">
           Revisa nuestra sección de preguntas frecuentes
         </p>
-        <a
+        <Link
           href="/preguntas"
           className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           Ver Preguntas Frecuentes
-        </a>
+        </Link>
       </div>
     </div>
   );

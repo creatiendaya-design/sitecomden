@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,12 +75,7 @@ export default function OrganizarCamposPage() {
   const [newSectionName, setNewSectionName] = useState("");
   const [deleteSection, setDeleteSection] = useState<string | null>(null);
 
-  // Cargar campos
-  useEffect(() => {
-    loadFields();
-  }, []);
-
-  const loadFields = async () => {
+  const loadFields = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/complaints/fields");
       const data = await response.json();
@@ -108,7 +103,12 @@ export default function OrganizarCamposPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  // Cargar campos
+  useEffect(() => {
+    loadFields();
+  }, [loadFields]);
 
   // Cambiar sección de un campo
   const handleChangeSection = (fieldId: string, newSection: string) => {
@@ -421,8 +421,8 @@ export default function OrganizarCamposPage() {
         <CardContent className="pt-4 md:pt-6">
           <p className="text-xs md:text-sm text-blue-900">
             💡 <strong>Tip:</strong> Usa secciones para organizar tu formulario
-            de manera lógica. Por ejemplo: "Datos Personales", "Dirección",
-            "Detalle de la Reclamación".
+            de manera lógica. Por ejemplo: &quot;Datos Personales&quot;, &quot;Dirección&quot;,
+            &quot;Detalle de la Reclamación&quot;.
           </p>
         </CardContent>
       </Card>
@@ -438,7 +438,7 @@ export default function OrganizarCamposPage() {
               ¿Eliminar sección?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-              Los campos de esta sección se moverán a "Sin sección". Podrás
+              Los campos de esta sección se moverán a &quot;Sin sección&quot;. Podrás
               asignarles una nueva sección después.
             </AlertDialogDescription>
           </AlertDialogHeader>

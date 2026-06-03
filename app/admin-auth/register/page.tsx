@@ -59,7 +59,7 @@ export default function AdminRegisterPage() {
       // ✅ Redirigir al login
       alert("Cuenta creada exitosamente. Ahora puedes iniciar sesión.");
       router.push("/admin-auth/login");
-    } catch (err) {
+    } catch {
       setError("Error de conexión");
     } finally {
       setLoading(false);

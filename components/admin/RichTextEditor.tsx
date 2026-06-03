@@ -40,7 +40,7 @@ interface RichTextEditorProps {
 export default function RichTextEditor({
   content,
   onChange,
-  placeholder = "Escribe la descripción del producto...",
+  placeholder: _placeholder = "Escribe la descripción del producto...",
 }: RichTextEditorProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);

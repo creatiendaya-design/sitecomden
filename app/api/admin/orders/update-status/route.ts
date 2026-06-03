@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth";
 import { updateOrderStatusSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     // Preparar datos de actualización
-    const updateData: any = { status: validatedData.status };
+    const updateData: Prisma.OrderUpdateInput = { status: validatedData.status };
 
     // Actualizar timestamps según el estado
     if (validatedData.status === "DELIVERED") {

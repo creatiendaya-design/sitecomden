@@ -87,7 +87,7 @@ export default function EditCouponForm({ coupon }: EditCouponFormProps) {
 
       router.push("/admin/cupones");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al actualizar cupón");
     } finally {
       setLoading(false);

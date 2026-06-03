@@ -239,7 +239,7 @@ export default function NewFieldPage() {
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription className="text-xs md:text-sm">
-                    Este tipo muestra un selector normal + una opción "Otro" que abre un campo de texto adicional
+                    Este tipo muestra un selector normal + una opción &quot;Otro&quot; que abre un campo de texto adicional
                   </AlertDescription>
                 </Alert>
               )}
@@ -335,7 +335,7 @@ export default function NewFieldPage() {
                 )}
                 {showOtherLabel && (
                   <p className="text-xs text-muted-foreground">
-                    La opción "Otro" se agregará automáticamente al final
+                    La opción &quot;Otro&quot; se agregará automáticamente al final
                   </p>
                 )}
               </div>
@@ -344,7 +344,7 @@ export default function NewFieldPage() {
             {/* Other Label (only for select_with_other) */}
             {showOtherLabel && (
               <div className="space-y-2">
-                <Label htmlFor="otherLabel">Texto para opción "Otro"</Label>
+                <Label htmlFor="otherLabel">Texto para opción &quot;Otro&quot;</Label>
                 <Input
                   id="otherLabel"
                   value={formData.otherLabel}

@@ -26,9 +26,9 @@ export async function POST(request: Request) {
     // ✅ NORMALIZAR IMÁGENES ANTES DE VALIDAR
     let normalizedImages: string[] = [];
     if (data.images && Array.isArray(data.images)) {
-      normalizedImages = data.images.map((img: any) => {
-        if (typeof img === "object" && img.url) {
-          return img.url;
+      normalizedImages = data.images.map((img: unknown) => {
+        if (typeof img === "object" && img !== null && "url" in img && typeof (img as { url: unknown }).url === "string") {
+          return (img as { url: string }).url;
         }
         if (typeof img === "string") {
           return img;
@@ -81,10 +81,11 @@ export async function POST(request: Request) {
     });
 
     // ✅ Auto-asignar plantilla COD por defecto si modo no es STANDARD y no se envió templateId
+    const validatedExtra = validatedData as Record<string, unknown>;
     let resolvedTemplateId: string | null =
-      (validatedData as any).codFormTemplateId ?? null;
+      (validatedExtra.codFormTemplateId as string | null | undefined) ?? null;
     const checkoutMode: string =
-      (validatedData as any).checkoutMode || "STANDARD";
+      (validatedExtra.checkoutMode as string | undefined) || "STANDARD";
     if (checkoutMode !== "STANDARD" && !resolvedTemplateId) {
       const defaultTpl = await prisma.codFormTemplate.findFirst({
         where: { isDefault: true },
@@ -106,17 +107,17 @@ export async function POST(request: Request) {
           compareAtPrice: validatedData.compareAtPrice || null,
           sku: validatedData.sku || null,
           stock: validatedData.stock || 0,
-          images: imagesToSave as any,
+          images: imagesToSave as unknown as Prisma.InputJsonValue,
           active: validatedData.active ?? true,
           featured: validatedData.featured ?? false,
           hasVariants: validatedData.hasVariants,
           template: validatedData.template || "STANDARD",
-          checkoutMode: checkoutMode as any,
+          checkoutMode: checkoutMode as Prisma.ProductCreateInput["checkoutMode"],
           codFormTemplateId: resolvedTemplateId,
           shippingRestriction:
-            (validatedData as any).shippingRestriction == null
+            validatedExtra.shippingRestriction == null
               ? Prisma.JsonNull
-              : ((validatedData as any).shippingRestriction as Prisma.InputJsonValue),
+              : (validatedExtra.shippingRestriction as Prisma.InputJsonValue),
           metaTitle: validatedData.metaTitle || null,
           metaDescription: validatedData.metaDescription || null,
           weight: validatedData.weight || null,
@@ -159,13 +160,13 @@ export async function POST(request: Request) {
           // 🆕 Crear valores con swatches
           if (option.values && option.values.length > 0) {
             await tx.productOptionValue.createMany({
-              data: option.values.map((value: any, j: number) => ({
+              data: option.values.map((value: string | { value: string; swatchType?: string; colorHex?: string; swatchImage?: string }, j: number) => ({
                 optionId: createdOption.id,
                 value: typeof value === 'string' ? value : value.value, // Soporte para string o objeto
                 position: j,
-                swatchType: value.swatchType || "NONE", // 🆕 NONE, COLOR, IMAGE
-                colorHex: value.colorHex || null, // 🆕 Color hex para swatches de color
-                swatchImage: value.swatchImage || null, // 🆕 URL de imagen para swatches de patrón
+                swatchType: (typeof value === 'string' ? null : value.swatchType) || "NONE", // 🆕 NONE, COLOR, IMAGE
+                colorHex: (typeof value === 'string' ? null : value.colorHex) || null, // 🆕 Color hex para swatches de color
+                swatchImage: (typeof value === 'string' ? null : value.swatchImage) || null, // 🆕 URL de imagen para swatches de patrón
               }))
             });
           }
@@ -193,7 +194,7 @@ export async function POST(request: Request) {
             data: {
               productId: newProduct.id,
               sku,
-              options: variant.options as any,
+              options: variant.options as Prisma.InputJsonValue,
               price: variantPrice,
               compareAtPrice: variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null,
               stock: variantStock,

@@ -213,6 +213,11 @@ export default async function ProductDetailPage({
       : null;
   }
 
+  // Cast once to access fields that the inferred Prisma include type doesn't expose
+  // (checkoutMode, codFormTemplate, shippingRestriction, landingTemplateId, landingBlocks)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p = product as any;
+
   // Serializar producto para componentes cliente
   const serializedProduct = {
     id: product.id,
@@ -229,23 +234,23 @@ export default async function ProductDetailPage({
     images: product.images,
     hasVariants: product.hasVariants,
     weight: product.weight ? Number(product.weight) : null,
-    checkoutMode: (product as any).checkoutMode ?? "STANDARD",
-    codFormTemplate: (product as any).codFormTemplate
+    checkoutMode: p.checkoutMode ?? "STANDARD",
+    codFormTemplate: p.codFormTemplate
       ? {
-          id: (product as any).codFormTemplate.id,
-          name: (product as any).codFormTemplate.name,
-          isDefault: (product as any).codFormTemplate.isDefault,
-          buttonText: (product as any).codFormTemplate.buttonText,
-          buttonStyle: (product as any).codFormTemplate.buttonStyle,
-          postSubmitAction: (product as any).codFormTemplate.postSubmitAction,
-          thankYouTitle: (product as any).codFormTemplate.thankYouTitle,
-          thankYouMessage: (product as any).codFormTemplate.thankYouMessage,
-          whatsappNumber: (product as any).codFormTemplate.whatsappNumber,
-          whatsappMessage: (product as any).codFormTemplate.whatsappMessage,
-          thankYouPageId: (product as any).codFormTemplate.thankYouPageId,
+          id: p.codFormTemplate.id,
+          name: p.codFormTemplate.name,
+          isDefault: p.codFormTemplate.isDefault,
+          buttonText: p.codFormTemplate.buttonText,
+          buttonStyle: p.codFormTemplate.buttonStyle,
+          postSubmitAction: p.codFormTemplate.postSubmitAction,
+          thankYouTitle: p.codFormTemplate.thankYouTitle,
+          thankYouMessage: p.codFormTemplate.thankYouMessage,
+          whatsappNumber: p.codFormTemplate.whatsappNumber,
+          whatsappMessage: p.codFormTemplate.whatsappMessage,
+          thankYouPageId: p.codFormTemplate.thankYouPageId,
           thankYouPageSlug:
-            (product as any).codFormTemplate.thankYouPage?.slug ?? null,
-          blocks: ((product as any).codFormTemplate.blocks ?? []).map((b: any) => ({
+            p.codFormTemplate.thankYouPage?.slug ?? null,
+          blocks: (p.codFormTemplate.blocks ?? []).map((b: { id: string; position: number; type: string; content: Record<string, unknown> | null; visible: boolean; required: boolean }) => ({
             id: b.id,
             position: b.position,
             type: b.type,
@@ -255,7 +260,7 @@ export default async function ProductDetailPage({
           })),
         }
       : null,
-    shippingRestriction: (product as any).shippingRestriction ?? null,
+    shippingRestriction: p.shippingRestriction ?? null,
     customizableTemplate: product.customizableTemplate
       ? {
           id: product.customizableTemplate.id,
@@ -294,8 +299,8 @@ export default async function ProductDetailPage({
   // Resolve blocks: merges template inheritance + detached overrides + locals.
   const resolvedBlocks = await resolveProductBlocksFromLoaded({
     id: product.id,
-    landingTemplateId: (product as any).landingTemplateId ?? null,
-    landingBlocks: ((product as any).landingBlocks ?? []).map((b: any) => ({
+    landingTemplateId: p.landingTemplateId ?? null,
+    landingBlocks: (p.landingBlocks ?? []).map((b: { id: string; type: string; position: number; content: unknown; sourceTemplateBlockId: string | null; detached: boolean }) => ({
       id: b.id,
       type: b.type,
       position: b.position,
@@ -428,9 +433,11 @@ export default async function ProductDetailPage({
   // Discounted offers must declare priceValidUntil. We don't track promo
   // end-dates yet, so default to +30 days — search engines re-crawl and
   // refresh well before then.
+  // eslint-disable-next-line react-hooks/purity -- server component, Date.now() is safe here
+  const nowMs = Date.now();
   const priceValidUntil =
     initialComparePrice !== null
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      ? new Date(nowMs + 30 * 24 * 60 * 60 * 1000)
           .toISOString()
           .slice(0, 10)
       : undefined;

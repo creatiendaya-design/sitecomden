@@ -10,10 +10,24 @@
 import { useEffect } from "react";
 import Script from "next/script";
 
+// Minimal typings for browser-injected tracking globals
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+    _fbq?: unknown;
+    ttq?: Record<string, unknown>;
+    TiktokAnalyticsObject?: string;
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
+  }
+}
+
+type PixelConfig = Record<string, unknown>;
+
 interface PixelScriptsProps {
   pixels: Array<{
     platform: string;
-    config: any;
+    config: PixelConfig;
     testMode: boolean;
   }>;
   nonce?: string;
@@ -44,14 +58,19 @@ export default function PixelScripts({ pixels, nonce }: PixelScriptsProps) {
 // FACEBOOK PIXEL
 // ============================================
 
-function FacebookPixel({ config, testMode }: { config: any; testMode: boolean }) {
+function FacebookPixel({ config, testMode }: { config: PixelConfig; testMode: boolean }) {
   useEffect(() => {
     if (typeof window !== "undefined" && config.pixelId) {
-      // Inicializar Facebook Pixel
+      // Inicializar Facebook Pixel — verbatim vendor snippet; param types intentionally loose
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (function (f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
         if (f.fbq) return;
         n = f.fbq = function () {
-          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+          if (n.callMethod) {
+            n.callMethod.apply(n, arguments);
+          } else {
+            n.queue.push(arguments);
+          }
         };
         if (!f._fbq) f._fbq = n;
         n.push = n;
@@ -65,7 +84,8 @@ function FacebookPixel({ config, testMode }: { config: any; testMode: boolean })
         s.parentNode.insertBefore(t, s);
       })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
 
-      const fbq = (window as any).fbq;
+      const fbq = window.fbq;
+      if (!fbq) return;
 
       // Init con o sin test event code
       if (testMode && config.testEventCode) {
@@ -81,11 +101,12 @@ function FacebookPixel({ config, testMode }: { config: any; testMode: boolean })
 
   return (
     <noscript>
+      {/* eslint-disable-next-line @next/next/no-img-element -- tracking pixel / noscript fallback */}
       <img
         height="1"
         width="1"
         style={{ display: "none" }}
-        src={`https://www.facebook.com/tr?id=${config.pixelId}&ev=PageView&noscript=1`}
+        src={`https://www.facebook.com/tr?id=${String(config.pixelId)}&ev=PageView&noscript=1`}
         alt=""
       />
     </noscript>
@@ -96,10 +117,11 @@ function FacebookPixel({ config, testMode }: { config: any; testMode: boolean })
 // TIKTOK PIXEL
 // ============================================
 
-function TikTokPixel({ config, testMode }: { config: any; testMode: boolean }) {
+function TikTokPixel({ config, testMode: _testMode }: { config: PixelConfig; testMode: boolean }) {
   useEffect(() => {
     if (typeof window !== "undefined" && config.pixelId) {
-      // Inicializar TikTok Pixel
+      // Inicializar TikTok Pixel — verbatim vendor snippet; param types intentionally loose
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (function (w: any, d: any, t: any) {
         w.TiktokAnalyticsObject = t;
         const ttq = (w[t] = w[t] || []);
@@ -118,17 +140,20 @@ function TikTokPixel({ config, testMode }: { config: any; testMode: boolean }) {
           "enableCookie",
           "disableCookie",
         ];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ttq.setAndDefer = function (t: any, e: any) {
           t[e] = function () {
             t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
           };
         };
         for (let i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ttq.instance = function (t: any) {
           for (var e = ttq._i[t] || [], n = 0; n < ttq.methods.length; n++)
             ttq.setAndDefer(e, ttq.methods[n]);
           return e;
         };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ttq.load = function (e: any, n: any) {
           const i = "https://analytics.tiktok.com/i18n/pixel/events.js";
           ttq._i = ttq._i || {};
@@ -150,7 +175,7 @@ function TikTokPixel({ config, testMode }: { config: any; testMode: boolean }) {
         ttq.page();
       })(window, document, "ttq");
     }
-  }, [config, testMode]);
+  }, [config]);
 
   return null;
 }
@@ -159,12 +184,12 @@ function TikTokPixel({ config, testMode }: { config: any; testMode: boolean }) {
 // GOOGLE ADS CONVERSION TRACKING
 // ============================================
 
-function GoogleAdsPixel({ config, nonce }: { config: any; nonce?: string }) {
+function GoogleAdsPixel({ config, nonce }: { config: PixelConfig; nonce?: string }) {
   return (
     <>
       <Script
         id="google-ads-script"
-        src={`https://www.googletagmanager.com/gtag/js?id=${config.conversionId}`}
+        src={`https://www.googletagmanager.com/gtag/js?id=${String(config.conversionId)}`}
         strategy="afterInteractive"
         nonce={nonce}
       />
@@ -173,7 +198,7 @@ function GoogleAdsPixel({ config, nonce }: { config: any; nonce?: string }) {
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${config.conversionId}');
+          gtag('config', '${String(config.conversionId)}');
         `}
       </Script>
     </>
@@ -184,12 +209,12 @@ function GoogleAdsPixel({ config, nonce }: { config: any; nonce?: string }) {
 // GOOGLE ANALYTICS 4
 // ============================================
 
-function GoogleAnalyticsPixel({ config, nonce }: { config: any; nonce?: string }) {
+function GoogleAnalyticsPixel({ config, nonce }: { config: PixelConfig; nonce?: string }) {
   return (
     <>
       <Script
         id="google-analytics-script"
-        src={`https://www.googletagmanager.com/gtag/js?id=${config.measurementId}`}
+        src={`https://www.googletagmanager.com/gtag/js?id=${String(config.measurementId)}`}
         strategy="afterInteractive"
         nonce={nonce}
       />
@@ -198,7 +223,7 @@ function GoogleAnalyticsPixel({ config, nonce }: { config: any; nonce?: string }
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${config.measurementId}', {
+          gtag('config', '${String(config.measurementId)}', {
             page_path: window.location.pathname,
           });
         `}

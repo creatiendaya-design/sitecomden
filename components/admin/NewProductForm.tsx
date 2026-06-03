@@ -21,6 +21,7 @@ import BulkEditModal from "@/components/admin/BulkEditModal";
 import CodFormTemplateCard from "@/components/admin/products/CodFormTemplateCard";
 import ShippingRestrictionCard from "@/components/admin/products/ShippingRestrictionCard";
 import type { ShippingRestriction } from "@/lib/cod-forms/types";
+import type { CheckoutMode } from "@prisma/client";
 import VariantsTable from "@/components/admin/VariantsTable";
 import ImageUpload from "@/components/admin/ImageUpload";
 import dynamic from "next/dynamic";
@@ -205,7 +206,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
     value: string
   ) => {
     const newVariants = [...variants];
-    newVariants[index][field] = value as any;
+    newVariants[index][field] = value;
     setVariants(newVariants);
   };
 
@@ -265,7 +266,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
 
       router.push("/admin/productos");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al crear producto");
     } finally {
       setLoading(false);
@@ -409,7 +410,7 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
                   images={formData.images}
                   onChange={(images) => {
                     const imageUrls = Array.isArray(images)
-                      ? images.map((img: any) => (typeof img === 'string' ? img : img.url || img))
+                      ? images.map((img: string | { url?: string }) => (typeof img === 'string' ? img : img.url ?? ""))
                       : [];
                     setFormData({ ...formData, images: imageUrls });
                   }}
@@ -651,9 +652,9 @@ export default function NewProductForm({ categories }: NewProductFormProps) {
 <SizeGuideCard value={sizeGuideId} onChange={setSizeGuideId} />
 
 <CodFormTemplateCard
-  checkoutMode={formData.checkoutMode as any}
+  checkoutMode={formData.checkoutMode as CheckoutMode}
   templateId={formData.codFormTemplateId}
-  onChange={(patch) => setFormData({ ...formData, ...patch } as any)}
+  onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
 />
 <ShippingRestrictionCard
   value={formData.shippingRestriction}

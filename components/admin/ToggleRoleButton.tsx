@@ -25,7 +25,7 @@ export default function ToggleRoleButton({ roleId, isActive }: ToggleRoleButtonP
       } else {
         toast.error(result.error || "Error al cambiar el estado");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al cambiar el estado");
     } finally {
       setLoading(false);

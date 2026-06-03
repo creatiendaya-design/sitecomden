@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,14 +55,7 @@ export default function EditFieldPage({ params }: EditFieldPageProps) {
   const [options, setOptions] = useState<string[]>([]);
   const [newOption, setNewOption] = useState("");
 
-  useEffect(() => {
-    params.then((p) => {
-      setFieldId(p.fieldId);
-      loadField(p.fieldId);
-    });
-  }, []);
-
-  const loadField = async (id: string) => {
+  const loadField = useCallback(async (id: string) => {
     setLoading(true);
     try {
       const response = await fetch(`/api/admin/complaints/fields/${id}`);
@@ -98,7 +91,14 @@ export default function EditFieldPage({ params }: EditFieldPageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router, toast]);
+
+  useEffect(() => {
+    params.then((p) => {
+      setFieldId(p.fieldId);
+      loadField(p.fieldId);
+    });
+  }, [params, loadField]);
 
   const needsOptions = ["select", "radio"].includes(formData.fieldType);
 

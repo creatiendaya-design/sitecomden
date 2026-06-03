@@ -89,6 +89,7 @@ function VideoSlider({
   }, []);
 
   useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- clamps page index when perSlide or video count changes */
     setPage((p) => Math.min(p, Math.max(0, Math.ceil(videos.length / perSlide) - 1)));
   }, [perSlide, videos.length]);
 

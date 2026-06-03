@@ -106,6 +106,7 @@ export function LinkUrlField({ value, onChange, label, helpText }: Props) {
   // Reset to main view whenever the popover closes so re-opening starts
   // fresh — matches Shopify's behavior and avoids stale browse state.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!open) setView("main")
   }, [open])
 
@@ -198,6 +199,7 @@ function MainPane({ currentUrl, onDrill, onPick }: MainPaneProps) {
   useEffect(() => {
     const q = query.trim()
     if (!q) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([])
       return
     }
@@ -372,11 +374,13 @@ function BrowsePane({ kind, currentUrl, onBack, onPick }: BrowsePaneProps) {
   // Reset paging whenever the search query changes — otherwise an admin
   // who paginates then searches keeps the larger page size for no reason.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLimit(BROWSE_PAGE_SIZE)
   }, [query])
 
   useEffect(() => {
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     const handle = setTimeout(() => {
       browseLinkTargets(kind, query, limit)

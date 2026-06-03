@@ -65,7 +65,6 @@ export default function HeroBlock({
           {bgImageDesktop && (
             <source media="(min-width: 768px)" srcSet={bgImageDesktop} />
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={bgImageMobile ?? bgImageDesktop}
             alt={title}

@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
           original: formData,
           mapped: dataByLabel,
           submittedAt: new Date().toISOString(),
-        } as any,
+        } as import("@prisma/client").Prisma.InputJsonValue,
         customerName: customerName || null,
         customerEmail: customerEmail || null,
         customerPhone: customerPhone || null,

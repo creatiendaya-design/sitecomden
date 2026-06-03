@@ -41,7 +41,7 @@ export default function DeleteUserButton({
       } else {
         toast.error(result.error || "Error al eliminar el usuario");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al eliminar el usuario");
     } finally {
       setLoading(false);
@@ -61,7 +61,7 @@ export default function DeleteUserButton({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Eliminar usuario "{userName}"?</AlertDialogTitle>
+          <AlertDialogTitle>¿Eliminar usuario &quot;{userName}&quot;?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción no se puede deshacer. El usuario perderá todo acceso al
             sistema de forma permanente.

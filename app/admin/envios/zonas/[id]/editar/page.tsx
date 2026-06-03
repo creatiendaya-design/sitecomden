@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import {
@@ -50,11 +50,7 @@ export default function EditZonePage() {
     rateCount: number;
   } | null>(null);
 
-  useEffect(() => {
-    loadZone();
-  }, [zoneId]);
-
-  const loadZone = async () => {
+  const loadZone = useCallback(async () => {
     setLoading(true);
     const result = await getShippingZoneById(zoneId);
 
@@ -77,7 +73,12 @@ export default function EditZonePage() {
     });
 
     setLoading(false);
-  };
+  }, [zoneId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadZone(); // data fetch on zoneId change; setState is async inside loadZone
+  }, [zoneId, loadZone]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -43,7 +44,7 @@ export async function getEmailSettings(): Promise<EmailSettings> {
     }
 
     // ✅ Validar que sea un objeto con las propiedades requeridas
-    const value = setting.value as any;
+    const value = setting.value as unknown as Record<string, unknown>;
     if (
       typeof value === "object" &&
       value.fromEmail &&
@@ -52,7 +53,7 @@ export async function getEmailSettings(): Promise<EmailSettings> {
       value.adminEmail &&
       value.companyName
     ) {
-      return value as EmailSettings;
+      return value as unknown as EmailSettings;
     }
 
     // Si no cumple la estructura, retornar defaults
@@ -109,13 +110,13 @@ export async function saveEmailSettings(settings: EmailSettings) {
     await prisma.setting.upsert({
       where: { key: "email_settings" },
       update: {
-        value: settings as any, // ✅ Cast a any para evitar error de tipos
+        value: settings as unknown as Prisma.InputJsonValue,
         category: "email",
         description: "Configuración de emails del sistema",
       },
       create: {
         key: "email_settings",
-        value: settings as any, // ✅ Cast a any para evitar error de tipos
+        value: settings as unknown as Prisma.InputJsonValue,
         category: "email",
         description: "Configuración de emails del sistema",
       },

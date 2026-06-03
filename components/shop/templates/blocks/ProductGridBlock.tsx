@@ -155,6 +155,7 @@ async function loadCategoryProducts({
         ...v,
         price: Number(v.price),
         compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
+        options: (v.options as Record<string, unknown> | null) ?? undefined,
       })),
     }
   })

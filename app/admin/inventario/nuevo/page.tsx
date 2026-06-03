@@ -269,8 +269,8 @@ function InventoryMovementFormContent() {
               <Label htmlFor="type">Tipo de Movimiento</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value: any) =>
-                  setFormData({ ...formData, type: value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, type: value as "PURCHASE" | "ADJUSTMENT" | "DAMAGE" | "RETURN" })
                 }
               >
                 <SelectTrigger>

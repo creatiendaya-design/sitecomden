@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   getEmailSettings,
   saveEmailSettings,
@@ -29,17 +29,18 @@ export default function EmailSettingsPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar configuración al montar
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoadingSettings(true);
     const loadedSettings = await getEmailSettings();
     setSettings(loadedSettings);
     setLoadingSettings(false);
-  };
+  }, []);
+
+  // Cargar configuración al montar
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadSettings(); // data fetch on mount; setState is async inside loadSettings
+  }, [loadSettings]);
 
   const handleSave = async () => {
     setSaving(true);

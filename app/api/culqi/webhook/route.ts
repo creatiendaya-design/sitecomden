@@ -10,6 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyCulqiCharge, getCulqiCharge } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
@@ -129,7 +130,7 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
         amount: data.amount,
         currency: data.currency_code,
         webhookProcessedAt: new Date().toISOString(),
-      } as any,
+      } as Prisma.InputJsonValue,
       paidAt: new Date(),
     },
   });
@@ -194,7 +195,7 @@ async function handleChargeFailed(event: CulqiWebhookEvent) {
         failureReason: data.outcome?.user_message,
         failureCode: data.outcome?.code,
         webhookProcessedAt: new Date().toISOString(),
-      } as any,
+      } as Prisma.InputJsonValue,
     },
   });
 

@@ -8,23 +8,67 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Settings, 
-  ChevronLeft, 
-  Save, 
+import {
+  Settings,
+  ChevronLeft,
+  Save,
   Trophy,
   Gift,
-  Users,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
 import { getLoyaltySettings, updateLoyaltySettings } from "@/actions/loyalty";
 import { toast } from "sonner";
+import type { LoyaltyProgramSettings } from "@prisma/client";
+
+/** Form state mirrors LoyaltyProgramSettings but numeric fields are strings
+ *  so controlled <Input type="number"> can hold intermediate/empty values. */
+interface SettingsFormState {
+  id: string;
+  pointsPerSol: string;
+  solsPerPoint: string;
+  welcomeBonus: string;
+  referralBonus: string;
+  referredBonus: string;
+  birthdayBonus: string;
+  silverThreshold: string;
+  goldThreshold: string;
+  platinumThreshold: string;
+  silverDiscount: string;
+  goldDiscount: string;
+  platinumDiscount: string;
+  platinumFreeShipping: boolean;
+  pointsExpireDays: string;
+  enabled: boolean;
+  updatedAt: Date;
+}
+
+function toFormState(s: LoyaltyProgramSettings): SettingsFormState {
+  return {
+    id: s.id,
+    pointsPerSol: String(s.pointsPerSol),
+    solsPerPoint: String(s.solsPerPoint),
+    welcomeBonus: String(s.welcomeBonus),
+    referralBonus: String(s.referralBonus),
+    referredBonus: String(s.referredBonus),
+    birthdayBonus: String(s.birthdayBonus),
+    silverThreshold: String(s.silverThreshold),
+    goldThreshold: String(s.goldThreshold),
+    platinumThreshold: String(s.platinumThreshold),
+    silverDiscount: String(s.silverDiscount),
+    goldDiscount: String(s.goldDiscount),
+    platinumDiscount: String(s.platinumDiscount),
+    platinumFreeShipping: s.platinumFreeShipping,
+    pointsExpireDays: String(s.pointsExpireDays),
+    enabled: s.enabled,
+    updatedAt: s.updatedAt,
+  };
+}
 
 export default function ConfiguracionLealtadPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<SettingsFormState | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -35,7 +79,7 @@ export default function ConfiguracionLealtadPage() {
     try {
       const data = await getLoyaltySettings();
       if (data) {
-        setSettings(data);
+        setSettings(toFormState(data));
       }
     } catch (error) {
       console.error("Error cargando configuración:", error);
@@ -46,6 +90,7 @@ export default function ConfiguracionLealtadPage() {
   }
 
   async function handleSave() {
+    if (!settings) return;
     setSaving(true);
     try {
       const result = await updateLoyaltySettings({
@@ -211,10 +256,10 @@ export default function ConfiguracionLealtadPage() {
               Ejemplo de Conversión:
             </p>
             <p className="text-xs sm:text-sm text-blue-800 mt-1 tabular-nums">
-              S/. 100 → {settings.pointsPerSol * 100} puntos
+              S/. 100 → {parseInt(settings.pointsPerSol) * 100} puntos
             </p>
             <p className="text-xs sm:text-sm text-blue-800 tabular-nums">
-              100 puntos → S/. {(settings.solsPerPoint * 100).toFixed(2)} descuento
+              100 puntos → S/. {(parseFloat(settings.solsPerPoint) * 100).toFixed(2)} descuento
             </p>
           </div>
         </CardContent>
@@ -430,7 +475,7 @@ export default function ConfiguracionLealtadPage() {
           <div className="flex justify-between items-center gap-2 text-xs sm:text-sm">
             <span className="text-muted-foreground">Gasta S/. 100</span>
             <span className="font-bold tabular-nums">
-              {settings.pointsPerSol * 100} pts
+              {parseInt(settings.pointsPerSol) * 100} pts
             </span>
           </div>
           <Separator />

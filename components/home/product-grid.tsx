@@ -13,7 +13,7 @@ interface Product {
   slug: string;
   basePrice: number;
   compareAtPrice?: number | null;
-  images: any;
+  images: unknown;
   featured?: boolean;
   stock?: number;
 }

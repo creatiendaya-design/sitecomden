@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import type { MultiSelectFieldDef } from "../types"
@@ -12,9 +12,13 @@ interface Props {
 }
 
 export function MultiSelectField({ field, value, onChange }: Props) {
-  const selected: string[] = Array.isArray(value)
-    ? (value as unknown[]).filter((v): v is string => typeof v === "string")
-    : []
+  const selected: string[] = useMemo(
+    () =>
+      Array.isArray(value)
+        ? (value as unknown[]).filter((v): v is string => typeof v === "string")
+        : [],
+    [value],
+  )
 
   const toggle = useCallback(
     (val: string) => {

@@ -28,10 +28,10 @@ export default function ProductPrice({
       setCurrentComparePrice(compareAtPrice);
     };
 
-    window.addEventListener("variant-changed" as any, handleVariantChange);
+    window.addEventListener("variant-changed", handleVariantChange as EventListener);
 
     return () => {
-      window.removeEventListener("variant-changed" as any, handleVariantChange);
+      window.removeEventListener("variant-changed", handleVariantChange as EventListener);
     };
   }, [hasVariants]);
 

@@ -46,7 +46,7 @@ export default function ApprovePaymentButton({
       }
 
       router.refresh();
-    } catch (error) {
+    } catch {
       alert("Error al aprobar el pago");
     } finally {
       setLoading(false);

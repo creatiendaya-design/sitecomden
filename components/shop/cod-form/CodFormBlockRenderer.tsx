@@ -128,6 +128,7 @@ export default function CodFormBlockRenderer({
           }
           if (LOCATION_TYPES.has(b.type)) {
             if (locationRendered) return null
+            // eslint-disable-next-line react-hooks/immutability -- deduplication flag: rendered once per .map() call, not persisted across renders
             locationRendered = true
             const restriction = ctx.shippingRestriction
             return (

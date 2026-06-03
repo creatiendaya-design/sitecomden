@@ -82,6 +82,7 @@ export function LinkPicker({
   // Hydrate the selected product card when targetId is set on mount/change.
   useEffect(() => {
     if (linkType !== "PRODUCT" || !targetId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedProduct(null)
       return
     }

@@ -12,6 +12,7 @@ import { ArrowLeft, Save, Copy } from "lucide-react";
 import Link from "next/link";
 import { updateRole, getRoleById, getAllPermissions, duplicateRole } from "@/actions/roles";
 import { toast } from "sonner";
+import type { Permission } from "@prisma/client";
 import PermissionSelector from "@/components/admin/PermissionSelector";
 import { Switch } from "@/components/ui/switch";
 
@@ -25,7 +26,7 @@ export default function EditRolePage({ params: paramsPromise }: EditRolePageProp
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
-  const [permissionsGrouped, setPermissionsGrouped] = useState<Record<string, any>>({});
+  const [permissionsGrouped, setPermissionsGrouped] = useState<Record<string, Permission[]>>({});
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -87,7 +88,7 @@ export default function EditRolePage({ params: paramsPromise }: EditRolePageProp
         });
 
         setPermissionsGrouped(permissionsResult.grouped);
-      } catch (error) {
+      } catch {
         toast.error("Error al cargar datos");
       } finally {
         setLoading(false);
@@ -112,7 +113,7 @@ export default function EditRolePage({ params: paramsPromise }: EditRolePageProp
       } else {
         toast.error(result.error || "Error al actualizar el rol");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al actualizar el rol");
     } finally {
       setSaving(false);
@@ -133,7 +134,7 @@ export default function EditRolePage({ params: paramsPromise }: EditRolePageProp
       } else {
         toast.error(result.error || "Error al duplicar el rol");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al duplicar el rol");
     } finally {
       setDuplicating(false);

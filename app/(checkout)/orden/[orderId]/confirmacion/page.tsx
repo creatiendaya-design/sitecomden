@@ -24,6 +24,13 @@ import { CustomDesignConfirmation } from "@/components/checkout/CustomDesignConf
 import type { CustomDesign, CustomDesignImage } from "@/lib/customizer/types";
 import { canViewOrder } from "@/lib/orders/order-access";
 
+interface ShippingAddressJson {
+  address?: string;
+  district?: string;
+  city?: string;
+  reference?: string;
+}
+
 interface PageProps {
   params: Promise<{
     orderId: string;
@@ -276,14 +283,14 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
                     </p>
                     <div className="bg-slate-50 rounded-lg p-3 md:p-4 border border-slate-200">
                       <p className="text-slate-900 font-medium">
-                        {typeof order.shippingAddress === 'object' && order.shippingAddress !== null 
-                          ? `${(order.shippingAddress as any).address}, ${(order.shippingAddress as any).district}, ${(order.shippingAddress as any).city}`
+                        {typeof order.shippingAddress === 'object' && order.shippingAddress !== null
+                          ? `${(order.shippingAddress as ShippingAddressJson).address}, ${(order.shippingAddress as ShippingAddressJson).district}, ${(order.shippingAddress as ShippingAddressJson).city}`
                           : order.shippingAddress}
                       </p>
-                      {typeof order.shippingAddress === 'object' && (order.shippingAddress as any).reference && (
+                      {typeof order.shippingAddress === 'object' && (order.shippingAddress as ShippingAddressJson).reference && (
                         <p className="text-sm text-slate-600 mt-2 flex items-start gap-2">
                           <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <span>Referencia: {(order.shippingAddress as any).reference}</span>
+                          <span>Referencia: {(order.shippingAddress as ShippingAddressJson).reference}</span>
                         </p>
                       )}
                     </div>

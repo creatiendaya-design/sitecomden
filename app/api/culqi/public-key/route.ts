@@ -5,7 +5,7 @@ import { getCulqiPublicKey } from "@/lib/culqi";
  * GET /api/culqi/public-key
  * Obtiene la clave pública activa de Culqi
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const publicKey = await getCulqiPublicKey();
     

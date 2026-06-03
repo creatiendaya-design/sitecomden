@@ -207,7 +207,7 @@ export default function SearchBar({ onResultClick, autoFocus = false }: SearchBa
       {showResults && results.length === 0 && debouncedQuery.length >= 2 && !loading && (
         <div className="absolute top-full mt-2 w-full rounded-lg border bg-background shadow-lg z-50 p-4">
           <p className="text-center text-sm text-muted-foreground">
-            No se encontraron productos para "{debouncedQuery}"
+            No se encontraron productos para &quot;{debouncedQuery}&quot;
           </p>
         </div>
       )}

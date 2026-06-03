@@ -54,7 +54,7 @@ export async function DELETE(request: Request) {
     });
 
     return NextResponse.json({ success: true, deleted: foundIds.length });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Error al eliminar productos" }, { status: 500 });
   }
 }

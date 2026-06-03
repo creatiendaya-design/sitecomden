@@ -9,8 +9,6 @@ import {
   Users,
   Gift,
   TrendingUp,
-  DollarSign,
-  Target,
   Star,
   Settings,
 } from "lucide-react";
@@ -29,15 +27,13 @@ export default async function AdminLealtadPage() {
   }
 
   // Calcular distribución de tiers
-  const tierDistribution = stats.tierCounts.reduce((acc: any, item: any) => {
+  const tierDistribution = stats.tierCounts.reduce((acc: Record<string, number>, item) => {
     acc[item.loyaltyTier] = item._count;
     return acc;
   }, {});
 
   const totalCustomers = stats.totalCustomers;
   const activePoints = stats.totalPointsGiven - stats.totalPointsSpent;
-  const redemptionRate =
-    totalCustomers > 0 ? (stats.totalRedemptions / totalCustomers) * 100 : 0;
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">

@@ -76,7 +76,7 @@ export function ArrayField({ field, value, onChange }: Props) {
 
       {items.length === 0 ? (
         <p className="text-[11px] text-muted-foreground text-center py-3 border border-dashed rounded">
-          Sin elementos. Click "{field.addButtonText ?? "Agregar"}" para comenzar.
+          Sin elementos. Click &quot;{field.addButtonText ?? "Agregar"}&quot; para comenzar.
         </p>
       ) : sortable ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

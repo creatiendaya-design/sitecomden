@@ -19,6 +19,7 @@ export default function GalleryLightbox({
   const [index, setIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   const isDragging = useRef(false);
 
@@ -54,11 +55,13 @@ export default function GalleryLightbox({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     dragStart.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
     isDragging.current = false;
+    setDragging(false);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!dragStart.current) return;
     isDragging.current = true;
+    setDragging(true);
     setOffset({
       x: e.clientX - dragStart.current.x,
       y: e.clientY - dragStart.current.y,
@@ -67,6 +70,8 @@ export default function GalleryLightbox({
 
   const handlePointerUp = () => {
     dragStart.current = null;
+    setDragging(false);
+    isDragging.current = false;
   };
 
   const portal = (
@@ -117,12 +122,12 @@ export default function GalleryLightbox({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        style={{ cursor: zoom > 1 ? (isDragging.current ? "grabbing" : "grab") : "default" }}
+        style={{ cursor: zoom > 1 ? (dragging ? "grabbing" : "grab") : "default" }}
       >
         <div
           style={{
             transform: `scale(${zoom}) translate(${offset.x / zoom}px, ${offset.y / zoom}px)`,
-            transition: isDragging.current ? "none" : "transform 0.15s ease",
+            transition: dragging ? "none" : "transform 0.15s ease",
           }}
           className="relative w-[min(80vw,80vh)] h-[min(80vw,80vh)]"
         >

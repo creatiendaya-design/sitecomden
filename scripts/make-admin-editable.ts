@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function makeAdminEditable() {
   try {
-    const role = await prisma.role.update({
+    await prisma.role.update({
       where: { name: "Admin" },
       data: { isSystem: false }
     });

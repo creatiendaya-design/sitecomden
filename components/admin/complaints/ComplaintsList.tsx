@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,11 +43,7 @@ export default function ComplaintsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  useEffect(() => {
-    loadComplaints();
-  }, [statusFilter]);
-
-  const loadComplaints = async () => {
+  const loadComplaints = useCallback(async () => {
     setLoading(true);
     const result = await getComplaints({
       status: statusFilter !== "all" ? statusFilter : undefined,
@@ -55,10 +51,15 @@ export default function ComplaintsList() {
     });
 
     if (result.success) {
-      setComplaints(result.data as any);
+      setComplaints(result.data as Complaint[]);
     }
     setLoading(false);
-  };
+  }, [statusFilter]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadComplaints();
+  }, [statusFilter, loadComplaints]);
 
   const filteredComplaints = complaints.filter((complaint) => {
     if (!search) return true;

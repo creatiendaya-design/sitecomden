@@ -41,7 +41,7 @@ export default function DeleteRoleButton({
       } else {
         toast.error(result.error || "Error al eliminar el rol");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al eliminar el rol");
     } finally {
       setLoading(false);
@@ -66,7 +66,7 @@ export default function DeleteRoleButton({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Eliminar rol "{roleName}"?</AlertDialogTitle>
+          <AlertDialogTitle>¿Eliminar rol &quot;{roleName}&quot;?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción no se puede deshacer. El rol será eliminado permanentemente.
           </AlertDialogDescription>

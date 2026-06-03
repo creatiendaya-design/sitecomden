@@ -1,5 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -158,11 +159,15 @@ export default async function OrdenesPage() {
                       className="flex items-center gap-3 text-sm"
                     >
                       {item.image && (
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-12 w-12 rounded object-cover"
-                        />
+                        <div className="relative h-12 w-12 flex-shrink-0">
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            className="rounded object-cover"
+                            sizes="48px"
+                          />
+                        </div>
                       )}
                       <div className="flex-1">
                         <p className="font-medium">{item.name}</p>

@@ -1,4 +1,3 @@
-import { LucideIcon } from "lucide-react";
 
 interface Feature {
   icon: React.ReactNode;

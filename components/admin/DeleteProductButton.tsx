@@ -55,7 +55,7 @@ export default function DeleteProductButton({
       // Cerrar modal y redirigir
       setOpen(false);
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Error al eliminar producto");
     } finally {
       setLoading(false);

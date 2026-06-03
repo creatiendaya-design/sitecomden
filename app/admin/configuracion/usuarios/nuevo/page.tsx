@@ -18,7 +18,7 @@ export default function NewUserPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [roles, setRoles] = useState<any[]>([]);
+  const [roles, setRoles] = useState<Awaited<ReturnType<typeof getRoles>>["roles"]>([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -56,7 +56,7 @@ export default function NewUserPage() {
       } else {
         toast.error(result.error || "Error al crear el usuario");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al crear el usuario");
     } finally {
       setLoading(false);

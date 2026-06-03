@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { X } from "lucide-react"
 import * as LucideIcons from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -86,7 +87,7 @@ export function ThemeSectionRightSidebar() {
     return (
       <aside className="w-[340px] shrink-0 border-l bg-background flex flex-col overflow-hidden">
         <div className="p-3 border-b flex items-center gap-2 shrink-0">
-          {HeaderIcon && <HeaderIcon className="h-4 w-4" />}
+          {HeaderIcon && React.createElement(HeaderIcon, { className: "h-4 w-4" })}
           <span className="text-sm font-medium truncate flex-1">
             {headerLabel}
           </span>

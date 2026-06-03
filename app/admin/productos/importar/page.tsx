@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Upload, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { checkExistingSlugs, importProductsBatch } from "@/actions/products-import";
+import { checkExistingSlugs, importProductsBatch, type ImportRow } from "@/actions/products-import";
 import { genericRowsToProductInputs, validateGenericRow, type GenericProductRow } from "@/lib/csv-generic";
 import { shopifyRowsToProductInputs, validateShopifyRow, type ShopifyProductRow } from "@/lib/csv-shopify";
 
@@ -21,7 +21,7 @@ interface ParsedProduct {
   name: string;
   status: "create" | "update" | "error";
   errorMessage?: string;
-  input: any;
+  input: unknown;
 }
 
 const BATCH_SIZE = 20;
@@ -67,7 +67,7 @@ export default function ImportProductsPage() {
         return clean;
       });
 
-      let productMap: Map<string, any>;
+      let productMap: ReturnType<typeof genericRowsToProductInputs> | ReturnType<typeof shopifyRowsToProductInputs>;
       const rowErrors: ParsedProduct[] = [];
 
       if (format === "generic") {
@@ -114,12 +114,12 @@ export default function ImportProductsPage() {
 
     const validProducts = parsedProducts.filter((p) => p.status !== "error");
     const inputs = validProducts.map((p) => p.input);
-    const totalResult = { created: 0, updated: 0, errors: [] as any[] };
+    const totalResult = { created: 0, updated: 0, errors: [] as { slug: string; message: string }[] };
 
     try {
       for (let i = 0; i < inputs.length; i += BATCH_SIZE) {
         const batch = inputs.slice(i, i + BATCH_SIZE);
-        const batchResult = await importProductsBatch(batch);
+        const batchResult = await importProductsBatch(batch as ImportRow[]);
         totalResult.created += batchResult.created;
         totalResult.updated += batchResult.updated;
         totalResult.errors.push(...batchResult.errors);

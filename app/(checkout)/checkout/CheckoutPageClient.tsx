@@ -152,6 +152,28 @@ export default function CheckoutPageClient({
 
   const processingRef = useRef(false);
 
+  const verifyStockBeforeCheckout = async () => {
+    setStockCheckLoading(true);
+    const stockItems = items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      variantId: item.variantId || null,
+      quantity: item.quantity,
+    }));
+
+    const result = await checkCartStock(stockItems);
+
+    if (!result.success) {
+      setError("Hay productos sin stock suficiente. Por favor revisa tu carrito.");
+      setStockVerified(false);
+    } else {
+      setStockVerified(true);
+      setError(null);
+    }
+
+    setStockCheckLoading(false);
+  };
+
   useEffect(() => {
     if (items.length > 0 && isLoaded) {
       verifyStockBeforeCheckout();
@@ -166,7 +188,8 @@ export default function CheckoutPageClient({
         })),
       });
     }
-  }, [items.length, isLoaded]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length, isLoaded]);
 
   useEffect(() => {
     if (formData.districtCode) {
@@ -241,34 +264,6 @@ export default function CheckoutPageClient({
 
     // Auto-ocultar la alerta después de 5 segundos
     setTimeout(() => setShowMissingAlert(false), 5000);
-  };
-
-  useEffect(() => {
-    if (culqiToken && !processingRef.current && formData.paymentMethod === "CARD") {
-      processPaymentAutomatically();
-    }
-  }, [culqiToken]);
-
-  const verifyStockBeforeCheckout = async () => {
-    setStockCheckLoading(true);
-    const stockItems = items.map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      variantId: item.variantId || null,
-      quantity: item.quantity,
-    }));
-
-    const result = await checkCartStock(stockItems);
-    
-    if (!result.success) {
-      setError("Hay productos sin stock suficiente. Por favor revisa tu carrito.");
-      setStockVerified(false);
-    } else {
-      setStockVerified(true);
-      setError(null);
-    }
-    
-    setStockCheckLoading(false);
   };
 
   const processPaymentAutomatically = async () => {
@@ -431,6 +426,13 @@ export default function CheckoutPageClient({
       setCulqiToken(null);
     }
   };
+
+  useEffect(() => {
+    if (culqiToken && !processingRef.current && formData.paymentMethod === "CARD") {
+      processPaymentAutomatically();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [culqiToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

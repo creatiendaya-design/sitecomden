@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,9 +15,9 @@ interface CulqiPaymentFormProps {
 }
 
 export default function CulqiPaymentForm({
-  amount,
+  amount: _amount,
   email,
-  orderId,
+  orderId: _orderId,
   onSuccess,
   onError,
 }: CulqiPaymentFormProps) {
@@ -33,12 +33,7 @@ export default function CulqiPaymentForm({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Cargar la clave pública al montar el componente
-  useEffect(() => {
-    loadPublicKey();
-  }, []);
-
-  const loadPublicKey = async () => {
+  const loadPublicKey = useCallback(async () => {
     try {
       setLoadingKey(true);
       const response = await fetch('/api/culqi/public-key');
@@ -55,7 +50,12 @@ export default function CulqiPaymentForm({
     } finally {
       setLoadingKey(false);
     }
-  };
+  }, [onError]);
+
+  // Cargar la clave pública al montar el componente
+  useEffect(() => {
+    loadPublicKey();
+  }, [loadPublicKey]);
 
   // Validaciones
   const validateCardNumber = (number: string) => {
@@ -215,7 +215,7 @@ export default function CulqiPaymentForm({
         setProcessing(false);
         onError('Error inesperado al procesar la tarjeta');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Error de red:', error);
       setProcessing(false);
       onError('Error de conexión. Por favor intenta nuevamente.');

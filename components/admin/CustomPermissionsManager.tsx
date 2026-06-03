@@ -10,11 +10,36 @@ import { assignCustomPermission, removeCustomPermission, getUserById } from "@/a
 import { toast } from "sonner";
 import { getActionLabel, getModuleInfo } from "@/lib/permissions-display";
 
+interface PermissionEntry {
+  id: string;
+  key: string;
+  module: string;
+  action: string;
+  name?: string;
+  description?: string;
+}
+
+interface RolePermissionEntry {
+  permission: PermissionEntry;
+}
+
+interface RoleEntry {
+  name: string;
+  permissions?: RolePermissionEntry[];
+}
+
+interface CustomPermissionEntry {
+  id: string;
+  permissionId: string;
+  type: "GRANT" | "DENY";
+  permission: PermissionEntry;
+}
+
 interface CustomPermissionsManagerProps {
   userId: string;
-  currentRole: any;
-  customPermissions: any[];
-  allPermissions: any[];
+  currentRole: RoleEntry | null;
+  customPermissions: CustomPermissionEntry[];
+  allPermissions: PermissionEntry[];
 }
 
 export default function CustomPermissionsManager({
@@ -36,7 +61,7 @@ export default function CustomPermissionsManager({
         }
         acc[perm.module].push(perm);
         return acc;
-      }, {} as Record<string, any[]>),
+      }, {} as Record<string, PermissionEntry[]>),
     [allPermissions],
   );
 
@@ -44,14 +69,11 @@ export default function CustomPermissionsManager({
   const filteredGrouped = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return permissionsGrouped;
-    const out: Record<string, any[]> = {};
-    for (const [module, perms] of Object.entries(permissionsGrouped) as [
-      string,
-      any[],
-    ][]) {
+    const out: Record<string, PermissionEntry[]> = {};
+    for (const [module, perms] of Object.entries(permissionsGrouped)) {
       const moduleLabel = getModuleInfo(module).name.toLowerCase();
       const moduleMatches = moduleLabel.includes(q);
-      const matched = perms.filter((p: any) => {
+      const matched = perms.filter((p) => {
         if (moduleMatches) return true;
         const action = getActionLabel(p.action).toLowerCase();
         return (
@@ -70,7 +92,7 @@ export default function CustomPermissionsManager({
   const visibleGroupedEntries = Object.entries(filteredGrouped);
 
   // Obtener permisos del rol
-  const rolePermissions = currentRole?.permissions?.map((rp: any) => rp.permission.id) || [];
+  const rolePermissions = currentRole?.permissions?.map((rp) => rp.permission.id) || [];
 
   // Verificar si un permiso está en el rol
   const hasRolePermission = (permissionId: string) => {
@@ -103,14 +125,14 @@ export default function CustomPermissionsManager({
           // Recargar permisos
           const userResult = await getUserById(userId);
           if (userResult.success && userResult.user) {
-            setLocalCustomPermissions(userResult.user.customPermissions);
+            setLocalCustomPermissions(userResult.user.customPermissions as unknown as CustomPermissionEntry[]);
           }
           toast.success("Permiso otorgado (GRANT)");
         } else {
           toast.error(result.error || "Error al asignar permiso");
         }
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al modificar permiso");
     } finally {
       setLoading(false);
@@ -127,13 +149,13 @@ export default function CustomPermissionsManager({
         // Recargar permisos
         const userResult = await getUserById(userId);
         if (userResult.success && userResult.user) {
-          setLocalCustomPermissions(userResult.user.customPermissions);
+          setLocalCustomPermissions(userResult.user.customPermissions as unknown as CustomPermissionEntry[]);
         }
         toast.success(`Permiso cambiado a ${newType}`);
       } else {
         toast.error(result.error || "Error al cambiar tipo");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al cambiar tipo");
     } finally {
       setLoading(false);
@@ -141,7 +163,7 @@ export default function CustomPermissionsManager({
   };
 
   // Formatear nombre de permiso (acción es-PE)
-  const formatPermissionName = (permission: any) => {
+  const formatPermissionName = (permission: PermissionEntry) => {
     return getActionLabel(permission.action);
   };
 
@@ -154,7 +176,7 @@ export default function CustomPermissionsManager({
       {currentRole && (
         <Card>
           <CardHeader>
-            <CardTitle>Permisos del Rol "{currentRole.name}"</CardTitle>
+            <CardTitle>Permisos del Rol &quot;{currentRole.name}&quot;</CardTitle>
             <CardDescription>
               El usuario hereda estos {currentRole.permissions?.length ?? 0} permisos de su rol.
               Los permisos personalizados sobrescriben el rol.
@@ -162,7 +184,7 @@ export default function CustomPermissionsManager({
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {(currentRole.permissions ?? []).map((rp: any) => (
+              {(currentRole.permissions ?? []).map((rp) => (
                 <Badge key={rp.permission.id} variant="secondary">
                   {moduleLabel(rp.permission.module)}:{" "}
                   {formatPermissionName(rp.permission)}
@@ -207,7 +229,7 @@ export default function CustomPermissionsManager({
           <CardTitle>Asignar Permisos Personalizados</CardTitle>
           <CardDescription>
             Click en ✓ para GRANT (otorgar), ✗ para DENY (bloquear). Los permisos del
-            rol aparecen marcados como "Del rol".
+            rol aparecen marcados como &quot;Del rol&quot;.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -237,7 +259,7 @@ export default function CustomPermissionsManager({
 
           {hasSearch && visibleGroupedEntries.length === 0 && (
             <div className="rounded-lg border border-dashed bg-muted/20 py-8 text-center text-sm text-muted-foreground">
-              Sin resultados para "{search}"
+              Sin resultados para &quot;{search}&quot;
             </div>
           )}
 
@@ -253,7 +275,7 @@ export default function CustomPermissionsManager({
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {(permissions as any[]).map((permission: any) => {
+                    {permissions.map((permission) => {
                       const customPerm = getCustomPermission(permission.id);
                       const inRole = hasRolePermission(permission.id);
 

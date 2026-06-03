@@ -66,14 +66,20 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
 
   if (!order) notFound();
 
-  const shippingAddress = order.shippingAddress as any;
+  const shippingAddress = order.shippingAddress as {
+    address: string;
+    district: string;
+    city: string;
+    department: string;
+    reference?: string;
+  };
   if (!shippingAddress || typeof shippingAddress !== "object") {
     return notFound();
   }
   const orderPrefix = siteSettings.order_prefix || "PED";
   const baseUrl = siteSettings.site_url || "http://localhost:3000";
-  const orderDisplayNumber = (order as any).orderSeq
-    ? formatOrderNumber((order as any).orderSeq, orderPrefix)
+  const orderDisplayNumber = order.orderSeq
+    ? formatOrderNumber(order.orderSeq, orderPrefix)
     : `#${order.orderNumber.slice(-8).toUpperCase()}`;
   const viewLink = order.viewToken
     ? `${baseUrl}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
@@ -111,8 +117,8 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusPillClass(order.paymentStatus)}`}>
             {PAYMENT_STATUS_LABELS[order.paymentStatus as keyof typeof PAYMENT_STATUS_LABELS] ?? order.paymentStatus}
           </span>
-          <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusPillClass((order as any).fulfillmentStatus)}`}>
-            {FULFILLMENT_STATUS_LABELS[(order as any).fulfillmentStatus as keyof typeof FULFILLMENT_STATUS_LABELS] ?? (order as any).fulfillmentStatus}
+          <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusPillClass(order.fulfillmentStatus)}`}>
+            {FULFILLMENT_STATUS_LABELS[order.fulfillmentStatus as keyof typeof FULFILLMENT_STATUS_LABELS] ?? order.fulfillmentStatus}
           </span>
           <MoreActionsMenu
             orderId={order.id}
@@ -233,9 +239,9 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           {/* Despacho — in main column */}
           <FulfillmentCard
             orderId={order.id}
-            currentFulfillmentStatus={(order as any).fulfillmentStatus}
+            currentFulfillmentStatus={order.fulfillmentStatus}
             currentTrackingNumber={order.trackingNumber || ""}
-            currentShippingCourier={(order as any).shippingCourier || ""}
+            currentShippingCourier={order.shippingCourier || ""}
           />
 
           {/* Cliente */}
@@ -411,7 +417,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                       <p className="text-sm text-muted-foreground">
                         {order.documentType === "BOLETA" ? "Boleta de Venta" : "Factura"}
                         {order.documentType === "FACTURA" && order.buyerRuc && (
-                          <> — RUC: {order.buyerRuc} ({(order as any).buyerRazonSocial})</>
+                          <> — RUC: {order.buyerRuc} ({order.buyerRazonSocial})</>
                         )}
                       </p>
                     </div>
@@ -424,7 +430,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                         {order.documentType === "BOLETA" ? "Boleta de Venta" : "Factura"}
                       </strong>
                       {order.documentType === "FACTURA" && order.buyerRuc && (
-                        <> — RUC: {order.buyerRuc} ({(order as any).buyerRazonSocial})</>
+                        <> — RUC: {order.buyerRuc} ({order.buyerRazonSocial})</>
                       )}
                     </p>
                   </div>
@@ -436,7 +442,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           {/* Notas internas */}
           <AdminNotesCard
             orderId={order.id}
-            currentAdminNotes={(order as any).adminNotes || ""}
+            currentAdminNotes={order.adminNotes || ""}
           />
 
           {/* Fechas importantes */}
@@ -459,19 +465,19 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                   </p>
                 </div>
               )}
-              {(order as any).shippedAt && (
+              {order.shippedAt && (
                 <div>
                   <p className="font-medium">Enviada</p>
                   <p className="text-muted-foreground">
-                    {new Date((order as any).shippedAt).toLocaleString("es-PE")}
+                    {new Date(order.shippedAt).toLocaleString("es-PE")}
                   </p>
                 </div>
               )}
-              {(order as any).deliveredAt && (
+              {order.deliveredAt && (
                 <div>
                   <p className="font-medium">Entregada</p>
                   <p className="text-muted-foreground">
-                    {new Date((order as any).deliveredAt).toLocaleString("es-PE")}
+                    {new Date(order.deliveredAt).toLocaleString("es-PE")}
                   </p>
                 </div>
               )}

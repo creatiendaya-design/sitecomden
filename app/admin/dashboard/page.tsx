@@ -13,7 +13,6 @@ import {
   Package,
   Clock,
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
   Users,
   ArrowUpRight,
@@ -51,7 +50,7 @@ export default async function AdminDashboardPage() {
 
   const [
     totalOrders,
-    pendingOrders,
+    _pendingOrders,
     paidOrders,
     totalRevenue,
     monthRevenue,

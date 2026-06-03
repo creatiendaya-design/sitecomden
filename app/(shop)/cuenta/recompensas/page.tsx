@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,30 +14,34 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Gift, 
-  Tag, 
-  Truck, 
-  Sparkles, 
+import {
+  Gift,
+  Tag,
+  Truck,
+  Sparkles,
   Check,
-  AlertCircle 
+  AlertCircle
 } from "lucide-react";
-import { 
-  getAvailableRewards, 
+import {
+  getAvailableRewards,
   redeemReward,
   getCustomerByEmail,
-  getCustomerRedemptions 
+  getCustomerRedemptions
 } from "@/actions/loyalty";
 import { toast } from "sonner";
+
+type RewardItem = Awaited<ReturnType<typeof getAvailableRewards>>[number];
+type RedemptionItem = Awaited<ReturnType<typeof getCustomerRedemptions>>[number];
+type CustomerData = NonNullable<Awaited<ReturnType<typeof getCustomerByEmail>>>;
 
 const CUSTOMER_EMAIL = "cliente@example.com";
 
 export default function RecompensasPage() {
-  const [rewards, setRewards] = useState<any[]>([]);
-  const [redemptions, setRedemptions] = useState<any[]>([]);
-  const [customer, setCustomer] = useState<any>(null);
+  const [rewards, setRewards] = useState<RewardItem[]>([]);
+  const [redemptions, setRedemptions] = useState<RedemptionItem[]>([]);
+  const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedReward, setSelectedReward] = useState<any>(null);
+  const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null);
   const [isRedeeming, setIsRedeeming] = useState(false);
 
   useEffect(() => {
@@ -131,7 +136,7 @@ export default function RecompensasPage() {
               </p>
             </div>
             <Button asChild>
-              <a href="/cuenta">Ver mi cuenta</a>
+              <Link href="/cuenta">Ver mi cuenta</Link>
             </Button>
           </div>
         </CardContent>
@@ -169,6 +174,7 @@ export default function RecompensasPage() {
                   <CardHeader>
                     <div className="mb-4 h-40 bg-gray-100 rounded-lg flex items-center justify-center">
                       {reward.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={reward.image}
                           alt={reward.name}
@@ -194,7 +200,7 @@ export default function RecompensasPage() {
 
                     {reward.minPurchase && (
                       <p className="text-xs text-muted-foreground">
-                        Compra mínima: S/. {reward.minPurchase}
+                        Compra mínima: S/. {reward.minPurchase.toString()}
                       </p>
                     )}
 
@@ -330,7 +336,7 @@ export default function RecompensasPage() {
 
               {selectedReward.minPurchase && (
                 <p className="text-sm text-muted-foreground">
-                  * Compra mínima de S/. {selectedReward.minPurchase}
+                  * Compra mínima de S/. {selectedReward.minPurchase.toString()}
                 </p>
               )}
 
@@ -372,7 +378,7 @@ function RewardIcon({ type, size = 48 }: { type: string; size?: number }) {
   return <Gift size={size} className="text-purple-500" />;
 }
 
-function getRewardDescription(reward: any): string {
+function getRewardDescription(reward: RewardItem): string {
   if (reward.rewardType === "DISCOUNT") {
     return `S/. ${reward.rewardValue} de descuento en tu compra`;
   }

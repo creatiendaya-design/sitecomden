@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -49,7 +50,7 @@ export async function getCulqiSettings(): Promise<CulqiSettings> {
       return DEFAULT_CULQI_SETTINGS;
     }
 
-    const value = setting.value as any;
+    const value = setting.value as unknown as Record<string, unknown>;
     
     // Validar estructura
     if (
@@ -60,7 +61,7 @@ export async function getCulqiSettings(): Promise<CulqiSettings> {
       typeof value.test === "object" &&
       typeof value.production === "object"
     ) {
-      return value as CulqiSettings;
+      return value as unknown as CulqiSettings;
     }
 
     return DEFAULT_CULQI_SETTINGS;
@@ -108,13 +109,13 @@ export async function saveCulqiSettings(settings: CulqiSettings) {
     await prisma.setting.upsert({
       where: { key: "culqi_config" },
       update: {
-        value: settings as any,
+        value: settings as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de Culqi (claves y modo de operación)",
       },
       create: {
         key: "culqi_config",
-        value: settings as any,
+        value: settings as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de Culqi (claves y modo de operación)",
       },

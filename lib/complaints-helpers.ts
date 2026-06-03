@@ -1,11 +1,12 @@
 // lib/complaints-helpers.ts
+import type { ComplaintFormField } from "@prisma/client";
 import { FormField } from "@/types/complaints";
 
 /**
  * Convierte un FormField de Prisma al tipo FormField esperado por el componente
  * Maneja la conversión de null a undefined y JsonValue a string[]
  */
-export function prismaFieldToFormField(field: any): FormField {
+export function prismaFieldToFormField(field: ComplaintFormField): FormField {
   return {
     id: field.id,
     label: field.label,

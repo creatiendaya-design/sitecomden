@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Shield, Users, Edit, Copy } from "lucide-react";
+import { Plus, Shield, Users, Edit } from "lucide-react";
 import DeleteRoleButton from "@/components/admin/DeleteRoleButton";
 import ToggleRoleButton from "@/components/admin/ToggleRoleButton";
 

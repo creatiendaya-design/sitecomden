@@ -4,10 +4,12 @@ import { useState, useEffect } from "react";
 import PixelScripts from "./PixelScripts";
 import { CONSENT_KEY } from "@/lib/consent";
 
+type PixelConfig = Record<string, unknown>;
+
 interface ConsentAwarePixelsProps {
   pixels: Array<{
     platform: string;
-    config: any;
+    config: PixelConfig;
     testMode: boolean;
   }>;
   nonce?: string;

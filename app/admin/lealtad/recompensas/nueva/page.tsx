@@ -371,7 +371,7 @@ function getValueHelpText(type: RewardType): string {
   }
 }
 
-function getPreviewText(formData: any): string {
+function getPreviewText(formData: { rewardValue: string; rewardType: RewardType }): string {
   if (!formData.rewardValue) return "Configura el valor para ver la vista previa";
 
   const value = parseFloat(formData.rewardValue);

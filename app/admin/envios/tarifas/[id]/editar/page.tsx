@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import {
@@ -61,11 +61,7 @@ export default function EditRatePage() {
     zoneId: string;
   } | null>(null);
 
-  useEffect(() => {
-    loadRate();
-  }, [rateId]);
-
-  const loadRate = async () => {
+  const loadRate = useCallback(async () => {
     setLoading(true);
     const result = await getShippingRateById(rateId);
 
@@ -99,7 +95,12 @@ export default function EditRatePage() {
     });
 
     setLoading(false);
-  };
+  }, [rateId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadRate(); // data fetch on rateId change; setState is async inside loadRate
+  }, [rateId, loadRate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

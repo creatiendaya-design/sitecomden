@@ -36,7 +36,7 @@ async function main() {
       WHERE t."sizeGuide" IS NOT NULL
       GROUP BY t.id;
     `;
-  } catch (err) {
+  } catch {
     console.warn(
       "⚠ CustomizableTemplate.sizeGuide column not found — migration already ran (or column was dropped). Nothing to do.",
     );

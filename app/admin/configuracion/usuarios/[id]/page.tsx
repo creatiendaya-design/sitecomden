@@ -14,9 +14,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Save, Eye, EyeOff, Shield, Key, Calendar } from "lucide-react";
 import Link from "next/link";
 import { updateUser, getUserById, changeUserPassword } from "@/actions/users";
-import { getRoles } from "@/actions/roles";
-import { getAllPermissions } from "@/actions/roles";
+import { getRoles, getAllPermissions } from "@/actions/roles";
 import { toast } from "sonner";
+import type { Permission } from "@prisma/client";
+
+interface RoleOption {
+  id: string;
+  name: string;
+  description: string | null;
+  slug: string;
+  level: number;
+  color: string | null;
+  active: boolean;
+  isSystem: boolean;
+  permissions: unknown[];
+}
 import CustomPermissionsManager from "@/components/admin/CustomPermissionsManager";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -31,8 +43,8 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [roles, setRoles] = useState<any[]>([]);
-  const [permissions, setPermissions] = useState<any[]>([]);
+  const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -43,7 +55,7 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
     newPassword: "",
     confirmPassword: "",
   });
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<Awaited<ReturnType<typeof getUserById>>["user"]>(null);
 
   // Resolver params
   useEffect(() => {
@@ -89,9 +101,9 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
           active: user.active,
         });
 
-        setRoles(rolesResult.roles.filter((r: any) => r.active));
+        setRoles(rolesResult.roles.filter((r) => r.active) as RoleOption[]);
         setPermissions(permissionsResult.permissions);
-      } catch (error) {
+      } catch {
         toast.error("Error al cargar datos");
       } finally {
         setLoading(false);
@@ -123,7 +135,7 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
       } else {
         toast.error(result.error || "Error al actualizar el usuario");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al actualizar el usuario");
     } finally {
       setSaving(false);
@@ -155,7 +167,7 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
       } else {
         toast.error(result.error || "Error al cambiar la contraseña");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al cambiar la contraseña");
     } finally {
       setSaving(false);
@@ -369,7 +381,7 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Los permisos personalizados (tab "Permisos") sobrescriben el rol
+                    Los permisos personalizados (tab &quot;Permisos&quot;) sobrescriben el rol
                   </p>
                 </div>
 
@@ -463,8 +475,8 @@ export default function EditUserPage({ params: paramsPromise }: EditUserPageProp
             <CustomPermissionsManager
               userId={params.id}
               currentRole={userData.role}
-              customPermissions={userData.customPermissions}
-              allPermissions={permissions}
+              customPermissions={userData.customPermissions as unknown as { id: string; permissionId: string; type: "GRANT" | "DENY"; permission: { id: string; key: string; module: string; action: string; name?: string; description?: string } }[]}
+              allPermissions={permissions as unknown as { id: string; key: string; module: string; action: string; name?: string; description?: string }[]}
             />
           )}
         </TabsContent>

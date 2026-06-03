@@ -42,6 +42,7 @@ export function useDebouncedCommit<T>(
   // onChange is captured per render so flush always uses the freshest
   // closure (which captures the block.id current at that render).
   const onChangeRef = useRef(onChange)
+  // eslint-disable-next-line react-hooks/refs -- intentional "latest-ref" pattern; only read inside effects/handlers, never during render
   onChangeRef.current = onChange
 
   useEffect(() => {
@@ -96,7 +97,6 @@ export function useDebouncedCommit<T>(
       }
     }
     // Cleanup-on-unmount only; dependencies intentionally empty.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { local, set, flush }

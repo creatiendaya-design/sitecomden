@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { updateTag } from "next/cache";
 import { requirePermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -24,7 +25,7 @@ export async function GET() {
     const settingsObject = settings.reduce((acc, setting) => {
       acc[setting.key] = setting.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, unknown>);
 
     return NextResponse.json({ settings: settingsObject });
   } catch (error) {
@@ -59,12 +60,12 @@ export async function POST(request: Request) {
         return prisma.setting.upsert({
           where: { key },
           update: {
-            value: value as any,
+            value: value as Prisma.InputJsonValue,
             category,
           },
           create: {
             key,
-            value: value as any,
+            value: value as Prisma.InputJsonValue,
             category,
           },
         });

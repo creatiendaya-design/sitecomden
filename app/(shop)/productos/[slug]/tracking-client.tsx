@@ -35,6 +35,7 @@ export default function ProductTracking({ product }: ProductTrackingProps) {
     });
 
     console.log("📊 ViewContent tracked:", product.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id]); // Solo ejecutar cuando cambia el producto
 
   return null; // Este componente solo hace tracking, no renderiza nada

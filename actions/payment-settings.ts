@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { put } from "@vercel/blob";
@@ -74,7 +75,7 @@ export async function getPaymentMethodSettings(): Promise<PaymentMethodSettings>
     }
 
     // ✅ Validar que sea un objeto con la estructura correcta
-    const value = setting.value as any;
+    const value = setting.value as unknown as Record<string, unknown>;
     if (
       typeof value === "object" &&
       value.yape &&
@@ -145,13 +146,13 @@ export async function savePaymentMethodSettings(
     await prisma.setting.upsert({
       where: { key: "payment_methods" },
       update: {
-        value: settings as any,
+        value: settings as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de métodos de pago",
       },
       create: {
         key: "payment_methods",
-        value: settings as any,
+        value: settings as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de métodos de pago",
       },

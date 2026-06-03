@@ -1,4 +1,5 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
+import Link from 'next/link';
 
 export default async function TestServerAuth() {
   // ⭐ CLERK v5+: auth() ahora es asíncrono, necesita await
@@ -27,9 +28,9 @@ export default async function TestServerAuth() {
       </div>
 
       <div style={{ marginTop: "20px" }}>
-        <a href="/diagnostico" style={{ color: "blue", textDecoration: "underline" }}>
+        <Link href="/diagnostico" style={{ color: "blue", textDecoration: "underline" }}>
           Ir a diagnóstico (client-side)
-        </a>
+        </Link>
       </div>
     </div>
   );

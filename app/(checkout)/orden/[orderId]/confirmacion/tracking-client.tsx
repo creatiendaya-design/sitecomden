@@ -38,14 +38,15 @@ export default function TrackingClient({
     });
 
     // También enviar a Google Ads si está configurado
-    if (typeof window !== "undefined" && (window as any).gtag) {
-      (window as any).gtag("event", "conversion", {
+    if (typeof window !== "undefined" && (window as Window & { gtag?: (...args: unknown[]) => void }).gtag) {
+      (window as Window & { gtag?: (...args: unknown[]) => void }).gtag!("event", "conversion", {
         send_to: "AW-CONVERSION_ID/CONVERSION_LABEL", // Se configurará dinámicamente
         value: total,
         currency: "PEN",
         transaction_id: orderNumber,
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Solo ejecutar una vez al montar
 
   return null; // Este componente solo hace tracking
