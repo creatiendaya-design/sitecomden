@@ -316,6 +316,9 @@ model Order {
   shippedAt          DateTime?
   deliveredAt        DateTime?
   cancelledAt        DateTime?
+  /// When the "leave a review" post-purchase email was sent for this order.
+  /// Null = not sent yet; set so the cron never emails the same order twice.
+  reviewRequestSentAt DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   /// Optimistic-locking version (Plan 18). Two admins updating the same
