@@ -664,6 +664,11 @@ model ProductReview {
   reply         String?  @db.Text
   repliedAt     DateTime?
   repliedBy     String?
+  /// Set when a reward coupon was issued for this review (Fase 4). Guarantees
+  /// at most one coupon per review — the approval flow checks this before
+  /// generating. Plain string (Coupon id), not a relation, to avoid cascade
+  /// coupling with coupon soft-deletes.
+  rewardCouponId String?
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

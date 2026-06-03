@@ -6,6 +6,7 @@ import { z } from "zod";
 import { protectRoute } from "@/lib/protect-route";
 import { logAudit } from "@/lib/audit-log";
 import { recomputeProductReviewAggregates } from "@/lib/reviews/recompute-aggregates";
+import { issueReviewRewardCoupon } from "@/lib/reviews/issue-reward-coupon";
 import {
   submitReviewSchema,
   moderateReviewSchema,
@@ -217,6 +218,12 @@ export async function moderateReview(input: unknown): Promise<ActionResult> {
     // rating. Only needed when `approved` was part of the update.
     if (updateData.approved !== undefined) {
       await recomputeProductReviewAggregates(review.productId);
+    }
+
+    // On approval, issue a reward coupon (best-effort; no-ops when the
+    // feature is off, the review isn't verified, or one was already issued).
+    if (updateData.approved === true) {
+      await issueReviewRewardCoupon(review.id);
     }
 
     await logAudit({
