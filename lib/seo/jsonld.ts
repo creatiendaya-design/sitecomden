@@ -57,7 +57,15 @@ export interface ReviewInput {
 export interface AggregateRatingInput {
   /** Average rating, 1–5. */
   ratingValue: number;
+  /** Number of written reviews (text + rating). Drives `reviewCount`. */
   reviewCount: number;
+  /**
+   * Total number of ratings (with or without text). When provided, emitted as
+   * schema.org `ratingCount` — Google distinguishes it from `reviewCount` and
+   * uses it for the star count shown in rich results. Defaults to
+   * `reviewCount` when omitted.
+   */
+  ratingCount?: number;
 }
 
 export interface ProductSchemaInput {
@@ -175,6 +183,8 @@ export function buildProductSchema(input: ProductSchemaInput) {
             "@type": "AggregateRating",
             ratingValue: aggregateRating.ratingValue.toFixed(1),
             reviewCount: aggregateRating.reviewCount,
+            ratingCount:
+              aggregateRating.ratingCount ?? aggregateRating.reviewCount,
             bestRating: "5",
             worstRating: "1",
           },

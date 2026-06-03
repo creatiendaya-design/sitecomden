@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import ProductCard from "@/components/shop/ProductCard";
+import Breadcrumbs from "@/components/shop/Breadcrumbs";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getCspNonce } from "@/lib/csp";
 import { Metadata } from "next";
@@ -85,11 +86,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   // use ItemList to understand which products belong to a collection so
   // they can cite the whole listing instead of guessing.
   const baseUrl = settings.site_url.replace(/\/$/, "");
-  const breadcrumbSchema = buildBreadcrumbList([
+  const breadcrumbItems = [
     { name: "Inicio", url: `${baseUrl}/` },
     { name: "Productos", url: `${baseUrl}/productos` },
     { name: category.name, url: `${baseUrl}/categoria/${category.slug}` },
-  ]);
+  ];
+  const breadcrumbSchema = buildBreadcrumbList(breadcrumbItems);
   const itemListSchema =
     serializedProducts.length > 0
       ? buildItemListSchema(
@@ -127,6 +129,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       <div className="container py-8 mx-auto">
         {showAutoHeader && (
           <div className="mb-8">
+            <Breadcrumbs
+              items={breadcrumbItems.map((i) => ({
+                name: i.name,
+                href: i.url,
+              }))}
+              className="mb-4"
+            />
             <h1 className="text-3xl font-bold">{category.name}</h1>
             {category.description && (
               <p className="mt-2 text-muted-foreground">{category.description}</p>
