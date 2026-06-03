@@ -55,12 +55,12 @@ export default function FrequentlyBoughtTogether({
     <section className="mt-10 border-t pt-8" aria-label={title}>
       <h2 className="mb-4 text-lg font-semibold sm:text-xl">{title}</h2>
       {showCombo ? (
-        // NOTE: `add_all_discount` behaves like `add_all` for now. The real
-        // bundle discount needs server-side validation — createOrder uses
-        // authoritative DB prices and ignores any client-set price, so applying
-        // a discount here would show the customer one total but charge the full
-        // price. It will be wired to the promotions engine in Fase E; until
-        // then we pass discountPercent={0} so shown == charged.
+        // Bundle discounts are owned by the BUNDLE promotion engine
+        // (server-validated in createOrder, shown via BundleSuggestion on the
+        // PDP) — NOT here. createOrder re-reads authoritative DB prices and
+        // ignores any client-set price, so this section always adds at full
+        // price (discountPercent=0). To discount a combo, create a Bundle
+        // promotion in /admin/promociones.
         <ComboView items={items} discountPercent={0} />
       ) : (
         <IndividualView items={items.filter((i) => !i.isCurrent)} />

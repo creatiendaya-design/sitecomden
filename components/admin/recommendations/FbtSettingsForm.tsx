@@ -12,19 +12,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save } from "lucide-react";
+import Link from "next/link";
+import { Save, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { saveFbtConfig } from "@/actions/fbt-settings";
 import type { FbtConfig, FbtAddMode } from "@/lib/recommendations/fbt-settings";
 
-const MODE_LABELS: Record<FbtAddMode, string> = {
+// Discounts are handled by the BUNDLE promotion engine (server-validated), not
+// by this section. Only the two no-discount add modes are offered here.
+const MODE_LABELS: Record<"individual" | "add_all", string> = {
   individual: "Sugerir (botón por producto)",
-  add_all: "Agregar todos (sin descuento)",
-  add_all_discount: "Agregar todos + descuento (próximamente)",
+  add_all: "Agregar todos",
 };
 
 export default function FbtSettingsForm({ initial }: { initial: FbtConfig }) {
-  const [config, setConfig] = useState<FbtConfig>(initial);
+  // Legacy configs may still hold "add_all_discount"; normalize to "add_all"
+  // (the section never applied a real discount — bundles do that now).
+  const [config, setConfig] = useState<FbtConfig>({
+    ...initial,
+    mode: initial.mode === "add_all_discount" ? "add_all" : initial.mode,
+  });
   const [saving, setSaving] = useState(false);
 
   const patch = (p: Partial<FbtConfig>) => setConfig((c) => ({ ...c, ...p }));
@@ -79,54 +86,47 @@ export default function FbtSettingsForm({ initial }: { initial: FbtConfig }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {(Object.keys(MODE_LABELS) as FbtAddMode[]).map((m) => (
-              <SelectItem key={m} value={m}>
-                {MODE_LABELS[m]}
-              </SelectItem>
-            ))}
+            {(Object.keys(MODE_LABELS) as Array<"individual" | "add_all">).map(
+              (m) => (
+                <SelectItem key={m} value={m}>
+                  {MODE_LABELS[m]}
+                </SelectItem>
+              ),
+            )}
           </SelectContent>
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="fbt-limit">Productos a mostrar</Label>
-          <Input
-            id="fbt-limit"
-            type="number"
-            min={1}
-            max={8}
-            value={config.limit}
-            onChange={(e) => patch({ limit: Number(e.target.value) })}
-          />
-        </div>
-
-        {config.mode === "add_all_discount" && (
-          <div className="space-y-2">
-            <Label htmlFor="fbt-discount">Descuento del combo (%)</Label>
-            <Input
-              id="fbt-discount"
-              type="number"
-              min={0}
-              max={90}
-              value={config.discountPercent}
-              onChange={(e) =>
-                patch({ discountPercent: Number(e.target.value) })
-              }
-            />
-          </div>
-        )}
+      <div className="space-y-2">
+        <Label htmlFor="fbt-limit">Productos a mostrar</Label>
+        <Input
+          id="fbt-limit"
+          type="number"
+          min={1}
+          max={8}
+          value={config.limit}
+          onChange={(e) => patch({ limit: Number(e.target.value) })}
+          className="w-32"
+        />
       </div>
 
-      {config.mode === "add_all_discount" && (
-        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-          <strong>Aún no aplica descuento.</strong> Por ahora este modo agrega
-          el combo a precio normal (igual que &quot;Agregar todos&quot;). El
-          descuento real se activará al integrarlo con el motor de promociones
-          (Fase E); no se aplica todavía para no cobrar un total distinto al
-          mostrado.
-        </p>
-      )}
+      <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+        <Tag className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <p className="font-medium">¿Quieres descuento en combos?</p>
+          <p className="mt-1 text-blue-700">
+            Crea una promoción tipo <strong>Bundle</strong> en{" "}
+            <Link
+              href="/admin/promociones"
+              className="underline underline-offset-2"
+            >
+              Promociones
+            </Link>
+            . El descuento se valida en el checkout y se muestra automáticamente
+            en la ficha del producto.
+          </p>
+        </div>
+      </div>
 
       <Button onClick={handleSave} disabled={saving}>
         <Save className="mr-2 h-4 w-4" />
