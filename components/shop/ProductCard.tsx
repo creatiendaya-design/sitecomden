@@ -10,6 +10,7 @@ import { ShoppingCart, Heart } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cart";
+import { useCartDrawer } from "@/store/cart-drawer";
 import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking"; // ✅ Importar tracking
 
@@ -47,6 +48,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
 
   const addToCart = useCartStore((state) => state.addItem);
+  const openCartDrawer = useCartDrawer((state) => state.open);
   const { trackEvent } = useTracking(); // ✅ Hook de tracking
 
   const checkoutMode = (product as { checkoutMode?: string }).checkoutMode ?? "STANDARD";
@@ -178,11 +180,9 @@ export default function ProductCard({ product }: ProductCardProps) {
 
     toast.success("¡Agregado al carrito!", {
       description: product.name,
-      action: {
-        label: "Ver carrito",
-        onClick: () => (window.location.href = "/carrito"),
-      },
     });
+
+    openCartDrawer();
   };
 
   const handleWishlist = (e: React.MouseEvent) => {

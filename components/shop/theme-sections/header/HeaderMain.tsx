@@ -1,10 +1,8 @@
 import Link from "next/link"
 import Image from "next/image"
-import { ShoppingCart } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { prisma } from "@/lib/db"
-import CartCounter from "@/components/shop/CartCounter"
+import CartButton from "@/components/shop/CartButton"
 import MobileMenu from "@/components/shop/MobileMenu"
 import SearchPill from "@/components/shop/SearchPill"
 import { HeaderAuth } from "@/components/shop/HeaderAuth"
@@ -164,23 +162,7 @@ export async function HeaderMain({ section }: Props) {
                 <HeaderAuth />
               </div>
             )}
-            {showCart && (
-              <Link href="/carrito" aria-label="Carrito">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "relative h-10 w-10 rounded-full",
-                    // Override the shadcn ghost hover so the icon stays
-                    // readable on a dark header.
-                    "text-current hover:bg-white/10 hover:text-current",
-                  )}
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  <CartCounter />
-                </Button>
-              </Link>
-            )}
+            {showCart && <CartButton />}
             <div className="md:hidden">
               <MobileMenu
                 menuItems={mobileMenuItems}

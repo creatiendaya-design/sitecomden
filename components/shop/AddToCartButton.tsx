@@ -7,9 +7,9 @@ import {
   type AppliedPromotion,
   type SubscriptionOptIn,
 } from "@/store/cart";
+import { useCartDrawer } from "@/store/cart-drawer";
 import { toast } from "sonner";
 import { getProductImageUrl } from "@/lib/image-utils";
-import { useRouter } from "next/navigation";
 import { useTracking } from "@/hooks/useTracking";
 
 interface AddToCartButtonProps {
@@ -31,7 +31,7 @@ export default function AddToCartButton({
   appliedPromotion,
   subscriptionOptIn,
 }: AddToCartButtonProps) {
-  const router = useRouter();
+  const openCartDrawer = useCartDrawer((state) => state.open);
   const addItem = useCartStore((state) => state.addItem);
   const { trackEvent } = useTracking();
 
@@ -110,7 +110,7 @@ export default function AddToCartButton({
           : "Producto agregado al carrito"
       );
 
-      router.push("/carrito");
+      openCartDrawer();
     } else {
       if (product.stock <= 0) {
         toast.error("Este producto está agotado");
@@ -169,7 +169,7 @@ export default function AddToCartButton({
           : "Producto agregado al carrito"
       );
 
-      router.push("/carrito");
+      openCartDrawer();
     }
   };
 

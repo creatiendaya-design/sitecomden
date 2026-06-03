@@ -1,8 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import CartCounter from "../CartCounter";
+import CartButton from "../CartButton";
 import MobileMenu from "../MobileMenu";
 import SearchBar from "../SearchBar";
 import { HeaderAuth } from "../HeaderAuth";
@@ -70,13 +68,8 @@ export default async function LegacyHeader() {
               <HeaderAuth />
             </div>
 
-            {/* Cart - Siempre visible */}
-            <Link href="/carrito">
-              <Button variant="ghost" size="icon" className="relative h-9 w-9 md:h-10 md:w-10">
-                <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
-                <CartCounter />
-              </Button>
-            </Link>
+            {/* Cart - Siempre visible. Abre el drawer general. */}
+            <CartButton className="h-9 w-9 md:h-10 md:w-10" />
 
             {/* Mobile Menu - Siempre visible */}
             <MobileMenu menuItems={menuItems} isAdmin={false} />

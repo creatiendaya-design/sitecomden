@@ -2,6 +2,7 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { getCspNonce } from "@/lib/csp";
 import Header from "@/components/shop/Header";
 import Footer from "@/components/shop/Footer";
+import GeneralCartDrawer from "@/components/shop/GeneralCartDrawer";
 import ThemePreviewBanner from "@/components/shop/ThemePreviewBanner";
 import { PreviewRefreshListener } from "@/components/shop/PreviewRefreshListener";
 import { getActivePixels } from "@/actions/tracking-pixels";
@@ -95,6 +96,7 @@ export default async function ShopLayout({
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+        <GeneralCartDrawer />
       </div>
     </>
   );
