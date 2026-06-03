@@ -9,6 +9,7 @@ import { recomputeProductReviewAggregates } from "@/lib/reviews/recompute-aggreg
 import {
   submitReviewSchema,
   moderateReviewSchema,
+  replyToReviewSchema,
 } from "@/lib/validations/admin";
 
 type ActionResult<T = undefined> =
@@ -100,6 +101,8 @@ export interface AdminReviewRow {
   images: string[];
   verified: boolean;
   approved: boolean;
+  reply: string | null;
+  repliedAt: string | null;
   createdAt: string;
 }
 
@@ -135,6 +138,8 @@ export async function getReviewsForAdmin(
         images: true,
         verified: true,
         approved: true,
+        reply: true,
+        repliedAt: true,
         createdAt: true,
         product: { select: { name: true, slug: true } },
       },
@@ -153,6 +158,8 @@ export async function getReviewsForAdmin(
       images: r.images,
       verified: r.verified,
       approved: r.approved,
+      reply: r.reply,
+      repliedAt: r.repliedAt ? r.repliedAt.toISOString() : null,
       createdAt: r.createdAt.toISOString(),
     }));
 
@@ -229,6 +236,51 @@ export async function moderateReview(input: unknown): Promise<ActionResult> {
   } catch (error) {
     console.error("Error moderating review:", error);
     return { success: false, error: "Error al moderar la reseña" };
+  }
+}
+
+/**
+ * Admin: set or clear the store's public reply to a review. An empty/blank
+ * `reply` clears it (reply=null, repliedAt=null).
+ */
+export async function replyToReview(input: unknown): Promise<ActionResult> {
+  try {
+    const userId = await protectRoute("reviews:moderate");
+
+    const parsed = replyToReviewSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: flattenZodError(parsed.error) };
+    }
+    const { id, reply } = parsed.data;
+    const trimmed = reply.trim();
+    const clearing = trimmed.length === 0;
+
+    const review = await prisma.productReview.update({
+      where: { id },
+      data: {
+        reply: clearing ? null : trimmed,
+        repliedAt: clearing ? null : new Date(),
+        repliedBy: clearing ? null : userId,
+      },
+      select: { id: true, product: { select: { slug: true } } },
+    });
+
+    await logAudit({
+      action: clearing ? "review.reply_cleared" : "review.replied",
+      userId,
+      entityType: "ProductReview",
+      entityId: review.id,
+    });
+
+    revalidatePath("/admin/resenas");
+    if (review.product?.slug) {
+      revalidatePath(`/productos/${review.product.slug}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error replying to review:", error);
+    return { success: false, error: "Error al guardar la respuesta" };
   }
 }
 

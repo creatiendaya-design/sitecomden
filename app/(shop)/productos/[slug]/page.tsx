@@ -411,6 +411,8 @@ export default async function ProductDetailPage({
     comment: r.comment,
     images: Array.isArray(r.images) ? (r.images as string[]) : [],
     verified: r.verified,
+    reply: r.reply ?? null,
+    repliedAt: r.repliedAt ? new Date(r.repliedAt).toISOString() : null,
     createdAt: new Date(r.createdAt).toISOString(),
   }));
 

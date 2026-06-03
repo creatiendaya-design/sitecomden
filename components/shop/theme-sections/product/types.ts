@@ -11,6 +11,8 @@ export interface ProductReviewForRender {
   comment: string | null
   images: string[]
   verified: boolean
+  reply: string | null
+  repliedAt: string | null
   createdAt: string
 }
 

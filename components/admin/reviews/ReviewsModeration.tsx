@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { StarRating } from "@/components/shop/StarRating";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -16,6 +17,7 @@ import {
   ExternalLink,
   Star,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -30,6 +32,7 @@ import {
 import {
   moderateReview,
   deleteReview,
+  replyToReview,
   type AdminReviewRow,
 } from "@/actions/reviews";
 import { formatDistanceToNow } from "date-fns";
@@ -59,6 +62,9 @@ export default function ReviewsModeration({
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // Review id whose reply editor is open, + its current draft text.
+  const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState("");
 
   const countFor = (f: Filter) =>
     f === "pending" ? counts.pending : f === "approved" ? counts.approved : counts.total;
@@ -67,21 +73,24 @@ export default function ReviewsModeration({
     id: string,
     fn: () => Promise<{ success: boolean; error?: string }>,
     successMsg: string
-  ) {
+  ): Promise<void> {
     setBusyId(id);
-    startTransition(async () => {
-      const result = await fn();
-      if (result.success) {
-        toast({ title: successMsg });
-        router.refresh();
-      } else {
-        toast({
-          title: "Error",
-          description: result.error || "Algo salió mal",
-          variant: "destructive",
-        });
-      }
-      setBusyId(null);
+    return new Promise<void>((resolve) => {
+      startTransition(async () => {
+        const result = await fn();
+        if (result.success) {
+          toast({ title: successMsg });
+          router.refresh();
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Algo salió mal",
+            variant: "destructive",
+          });
+        }
+        setBusyId(null);
+        resolve();
+      });
     });
   }
 
@@ -200,6 +209,63 @@ export default function ReviewsModeration({
                     </div>
                   )}
 
+                  {/* Existing store reply (read-only display) */}
+                  {review.reply && replyOpenId !== review.id && (
+                    <div className="rounded-md border-l-2 border-primary bg-muted/50 p-3">
+                      <p className="text-xs font-semibold text-primary mb-1">
+                        Respuesta de la tienda
+                      </p>
+                      <p className="text-sm whitespace-pre-wrap">
+                        {review.reply}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Reply editor */}
+                  {replyOpenId === review.id && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <Textarea
+                        value={replyDraft}
+                        onChange={(e) => setReplyDraft(e.target.value)}
+                        rows={3}
+                        maxLength={2000}
+                        placeholder="Escribe una respuesta pública a esta reseña..."
+                        className="text-sm"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() =>
+                            runAction(
+                              review.id,
+                              () =>
+                                replyToReview({
+                                  id: review.id,
+                                  reply: replyDraft,
+                                }),
+                              "Respuesta guardada"
+                            ).then(() => setReplyOpenId(null))
+                          }
+                        >
+                          {isBusy ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="mr-2 h-4 w-4" />
+                          )}
+                          Guardar respuesta
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setReplyOpenId(null)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-1">
                     {review.approved ? (
@@ -271,6 +337,21 @@ export default function ReviewsModeration({
                     >
                       <BadgeCheck className="mr-2 h-4 w-4" />
                       {review.verified ? "Quitar verificación" : "Marcar verificada"}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isBusy}
+                      onClick={() => {
+                        setReplyOpenId(
+                          replyOpenId === review.id ? null : review.id
+                        );
+                        setReplyDraft(review.reply ?? "");
+                      }}
+                    >
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      {review.reply ? "Editar respuesta" : "Responder"}
                     </Button>
 
                     <Button

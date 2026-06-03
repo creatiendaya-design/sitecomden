@@ -85,6 +85,20 @@ function ReviewCard({ review }: { review: ProductReviewForRender }) {
       <p className="mt-2 text-xs text-muted-foreground">
         {relativeDate(review.createdAt)}
       </p>
+
+      {review.reply && (
+        <div className="mt-3 ml-4 rounded-md border-l-2 border-[var(--theme-primary,theme(colors.primary.DEFAULT))] bg-muted/40 p-3">
+          <p className="text-xs font-semibold">Respuesta de la tienda</p>
+          <p className="mt-1 text-sm leading-relaxed opacity-90 whitespace-pre-wrap">
+            {review.reply}
+          </p>
+          {review.repliedAt && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {relativeDate(review.repliedAt)}
+            </p>
+          )}
+        </div>
+      )}
     </article>
   )
 }

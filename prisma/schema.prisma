@@ -658,6 +658,12 @@ model ProductReview {
   images        String[]
   verified      Boolean  @default(false)
   approved      Boolean  @default(false)
+  /// Optional public reply from the store, shown under the review on the
+  /// storefront. `repliedBy` is the admin User id (plain string, not a
+  /// relation, so deleting a user never cascades to review history).
+  reply         String?  @db.Text
+  repliedAt     DateTime?
+  repliedBy     String?
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

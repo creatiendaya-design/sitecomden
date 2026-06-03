@@ -240,6 +240,13 @@ export const moderateReviewSchema = z.object({
 });
 export type ModerateReviewInput = z.infer<typeof moderateReviewSchema>;
 
+/** Admin: public store reply to a review (empty string clears it). */
+export const replyToReviewSchema = z.object({
+  id: CUID,
+  reply: z.string().trim().max(2000),
+});
+export type ReplyToReviewInput = z.infer<typeof replyToReviewSchema>;
+
 // ===================================================================
 // MENUS
 // ===================================================================
