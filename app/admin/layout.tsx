@@ -33,6 +33,7 @@ import {
   Tag,
   ExternalLink,
   Images,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -136,6 +137,11 @@ function AdminLayoutInner({
       href: "/admin/clientes",
       icon: Users,
       label: "Clientes",
+    },
+    {
+      href: "/admin/resenas",
+      icon: Star,
+      label: "Reseñas",
     },
     {
       icon: Package,

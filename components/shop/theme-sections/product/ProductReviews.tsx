@@ -2,6 +2,7 @@ import { BadgeCheck, Star } from "lucide-react"
 import type { ResolvedThemeSection } from "@/lib/theme-sections/types"
 import { SectionWrapper } from "../_helpers"
 import { StarRating } from "@/components/shop/StarRating"
+import { WriteReviewButton } from "./WriteReviewButton"
 import type { ProductForRender, ProductReviewForRender } from "./types"
 
 interface ProductReviewsProps {
@@ -129,13 +130,10 @@ export function ProductReviews({ section, product }: ProductReviewsProps) {
             {heading}
           </h2>
           {showWriteButton && (
-            // TODO Fase 2: open the review submission form (client component).
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              {writeButtonText}
-            </button>
+            <WriteReviewButton
+              productId={product.id}
+              buttonText={writeButtonText}
+            />
           )}
         </div>
 

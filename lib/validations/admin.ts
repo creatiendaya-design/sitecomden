@@ -214,6 +214,33 @@ export const submitComplaintSchema = z.object({
 export type SubmitComplaintInput = z.infer<typeof submitComplaintSchema>;
 
 // ===================================================================
+// PRODUCT REVIEWS (Reseñas de producto)
+// ===================================================================
+
+/**
+ * Public review submission. The customer can only set rating + text + photos;
+ * `verified` / `approved` / `productId` resolution happens server-side.
+ */
+export const submitReviewSchema = z.object({
+  productId: CUID,
+  customerName: z.string().trim().min(2, "Nombre requerido").max(120),
+  customerEmail: z.email("Email inválido").max(255).trim().toLowerCase(),
+  rating: z.number().int().min(1, "Elige una puntuación").max(5),
+  title: z.string().trim().max(120).optional(),
+  comment: z.string().trim().max(2000).optional(),
+  images: z.array(z.string().url().max(2048)).max(5).optional(),
+});
+export type SubmitReviewInput = z.infer<typeof submitReviewSchema>;
+
+/** Admin moderation: flip approval / verified flags on a review. */
+export const moderateReviewSchema = z.object({
+  id: CUID,
+  approved: z.boolean().optional(),
+  verified: z.boolean().optional(),
+});
+export type ModerateReviewInput = z.infer<typeof moderateReviewSchema>;
+
+// ===================================================================
 // MENUS
 // ===================================================================
 
