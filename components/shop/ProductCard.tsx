@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getProductImageAlt } from "@/lib/image-utils";
+import { StarRating } from "@/components/shop/StarRating";
 import { ShoppingCart, Heart } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -35,6 +36,8 @@ interface ProductCardProps {
       options?: any;
       [key: string]: any;
     }>;
+    averageRating?: number;
+    reviewCount?: number;
     [key: string]: any;
   };
 }
@@ -290,6 +293,17 @@ export default function ProductCard({ product }: ProductCardProps) {
           <h3 className="mb-2 line-clamp-2 font-semibold text-foreground transition-colors group-hover:text-primary">
             {product.name}
           </h3>
+
+          {typeof product.reviewCount === "number" &&
+            product.reviewCount > 0 && (
+              <div className="mb-2">
+                <StarRating
+                  value={product.averageRating ?? 0}
+                  size="sm"
+                  count={product.reviewCount}
+                />
+              </div>
+            )}
 
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-bold text-foreground">

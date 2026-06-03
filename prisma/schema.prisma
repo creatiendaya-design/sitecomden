@@ -122,6 +122,12 @@ model Product {
   weight           Decimal?        @db.Decimal(8, 2)
   igvType          IgvType         @default(GRAVADO)
 
+  /// Denormalized review aggregates (Fase 4). Recomputed from APPROVED
+  /// reviews whenever a review is approved/unapproved/edited/deleted, so the
+  /// product grid can show stars without a per-card aggregate query.
+  averageRating    Float           @default(0)
+  reviewCount      Int             @default(0)
+
   categories ProductCategory[]
 
   variants                    ProductVariant[]

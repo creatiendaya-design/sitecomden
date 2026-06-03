@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { protectRoute } from "@/lib/protect-route";
 import { logAudit } from "@/lib/audit-log";
+import { recomputeProductReviewAggregates } from "@/lib/reviews/recompute-aggregates";
 import {
   submitReviewSchema,
   moderateReviewSchema,
@@ -205,6 +206,12 @@ export async function moderateReview(input: unknown): Promise<ActionResult> {
       select: { id: true, productId: true, product: { select: { slug: true } } },
     });
 
+    // Approval state may have changed → refresh the product's denormalized
+    // rating. Only needed when `approved` was part of the update.
+    if (updateData.approved !== undefined) {
+      await recomputeProductReviewAggregates(review.productId);
+    }
+
     await logAudit({
       action: "review.moderated",
       userId,
@@ -232,8 +239,11 @@ export async function deleteReview(id: string): Promise<ActionResult> {
 
     const review = await prisma.productReview.delete({
       where: { id },
-      select: { id: true, product: { select: { slug: true } } },
+      select: { id: true, productId: true, product: { select: { slug: true } } },
     });
+
+    // Deleting an approved review changes the average → recompute.
+    await recomputeProductReviewAggregates(review.productId);
 
     await logAudit({
       action: "review.deleted",
