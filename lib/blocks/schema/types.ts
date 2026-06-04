@@ -23,6 +23,7 @@ export type FormField =
   | ArrayFieldDef
   | IconFieldDef
   | ProductPickerFieldDef
+  | CategoryPickerFieldDef
   | GroupFieldDef
   | CustomFieldDef
   | MenuItemListFieldDef
@@ -149,6 +150,19 @@ export interface ProductPickerFieldDef extends BaseFieldDef {
    *  ids. If false, single product id. Default: true. */
   multiple?: boolean
   placeholder?: string
+}
+
+/**
+ * Dropdown that lists `Category` rows (collections) by id. Stores the selected
+ * category id (or null). Used by sections that render an existing collection
+ * (e.g. FEATURED_COLLECTION's "Colección específica" source) — the Shopify-style
+ * "pick a collection" experience. Mirrors `menu-picker`, fetching options at
+ * runtime from `/api/admin/categories/list-for-picker`.
+ */
+export interface CategoryPickerFieldDef extends BaseFieldDef {
+  type: "category-picker"
+  /** Placeholder for the empty/none option. Default "Selecciona una colección". */
+  emptyLabel?: string
 }
 
 export interface GroupFieldDef extends BaseFieldDef {

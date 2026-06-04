@@ -6,7 +6,7 @@ export const featuredCollectionDefinition: ThemeSectionDefinition = {
   groups: ["PRODUCT"],
   label: "Colección destacada",
   description:
-    "Lista de productos relacionados o destacados (misma categoría, elección manual, más vendidos, vistos recientemente).",
+    "Muestra una colección existente o un conjunto de productos relacionados, en cuadrícula o carrusel.",
   icon: Boxes,
   fields: [
     {
@@ -16,10 +16,26 @@ export const featuredCollectionDefinition: ThemeSectionDefinition = {
       placeholder: "También te puede interesar",
     },
     {
+      type: "text",
+      key: "subheading",
+      label: "Subtítulo",
+      placeholder: "Descripción breve (opcional)",
+    },
+    {
+      type: "select",
+      key: "headingAlign",
+      label: "Alineación del título",
+      options: [
+        { value: "left", label: "Izquierda" },
+        { value: "center", label: "Centrado" },
+      ],
+    },
+    {
       type: "select",
       key: "source",
       label: "Origen de los productos",
       options: [
+        { value: "collection", label: "Colección específica" },
         { value: "same_category", label: "Misma categoría" },
         { value: "manual_picks", label: "Selección manual" },
         { value: "best_sellers", label: "Más vendidos" },
@@ -27,12 +43,33 @@ export const featuredCollectionDefinition: ThemeSectionDefinition = {
       ],
     },
     {
+      type: "category-picker",
+      key: "categoryId",
+      label: "Colección",
+      showWhen: { field: "source", equals: "collection" },
+      helpText: "Elige una colección ya creada en tu tienda.",
+    },
+    {
       type: "product-picker",
       key: "productIds",
       label: "Productos a mostrar",
       multiple: true,
       showWhen: { field: "source", equals: "manual_picks" },
-      helpText: "Hasta 12 productos seleccionados manualmente.",
+      helpText: "Hasta 24 productos seleccionados manualmente.",
+    },
+    {
+      type: "switch",
+      key: "showViewAll",
+      label: "Mostrar enlace «Ver todo»",
+      showWhen: { field: "source", equals: "collection" },
+      helpText: "Enlaza al final de la sección con la página de la colección.",
+    },
+    {
+      type: "text",
+      key: "viewAllText",
+      label: "Texto del enlace",
+      placeholder: "Ver toda la colección",
+      showWhen: { field: "source", equals: "collection" },
     },
     {
       type: "number",
@@ -50,12 +87,64 @@ export const featuredCollectionDefinition: ThemeSectionDefinition = {
         { value: "carousel", label: "Carrusel" },
       ],
     },
+    {
+      type: "range",
+      key: "columnsDesktop",
+      label: "Columnas (escritorio)",
+      min: 2,
+      max: 6,
+      step: 1,
+      defaultValue: 4,
+      unit: "col",
+    },
+    {
+      type: "select",
+      key: "columnsMobile",
+      label: "Columnas (móvil)",
+      options: [
+        { value: 1, label: "1 columna" },
+        { value: 2, label: "2 columnas" },
+      ],
+    },
+    // ── Ajustes del carrusel (solo cuando layout = carousel) ──
+    {
+      type: "switch",
+      key: "showArrows",
+      label: "Mostrar flechas",
+      showWhen: { field: "layout", equals: "carousel" },
+    },
+    {
+      type: "switch",
+      key: "showDots",
+      label: "Mostrar puntos (dots)",
+      showWhen: { field: "layout", equals: "carousel" },
+    },
+    {
+      type: "select",
+      key: "controlsShape",
+      label: "Forma de flechas y puntos",
+      options: [
+        { value: "round", label: "Circular" },
+        { value: "square", label: "Cuadrado" },
+      ],
+      showWhen: { field: "layout", equals: "carousel" },
+    },
   ],
   defaultContent: {
     heading: "También te puede interesar",
-    source: "same_category",
+    subheading: "",
+    headingAlign: "left",
+    source: "collection",
+    categoryId: null,
     productIds: [],
+    showViewAll: true,
+    viewAllText: "Ver toda la colección",
     limit: 8,
-    layout: "grid",
+    layout: "carousel",
+    columnsDesktop: 4,
+    columnsMobile: 2,
+    showArrows: true,
+    showDots: true,
+    controlsShape: "round",
   },
 }

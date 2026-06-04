@@ -13,6 +13,7 @@ import { IconField } from "@/lib/blocks/schema/primitives/IconField"
 import { GroupField } from "@/lib/blocks/schema/primitives/GroupField"
 import { ArrayField } from "@/lib/blocks/schema/primitives/ArrayField"
 import { ProductPickerField } from "@/lib/blocks/schema/primitives/ProductPickerField"
+import { CategoryPickerField } from "@/lib/blocks/schema/primitives/CategoryPickerField"
 import { MenuItemListField } from "@/lib/blocks/schema/primitives/MenuItemListField"
 import { MenuPickerField } from "@/lib/blocks/schema/primitives/MenuPickerField"
 import { MultiSelectField } from "@/lib/blocks/schema/primitives/MultiSelectField"
@@ -87,6 +88,8 @@ function FieldRenderer({
       return <ArrayField field={field} value={fieldValue} onChange={onChangeField} />
     case "product-picker":
       return <ProductPickerField field={field} value={fieldValue} onChange={onChangeField} />
+    case "category-picker":
+      return <CategoryPickerField field={field} value={fieldValue} onChange={onChangeField} />
     case "menu-item-list":
       return <MenuItemListField field={field} value={fieldValue} onChange={onChangeField} />
     case "menu-picker":
