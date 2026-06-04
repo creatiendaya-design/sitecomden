@@ -23,7 +23,7 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { AlertTriangle, ChevronUp, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X, User, Mail, Phone, IdCard, Home, MapPin } from "lucide-react";
+import { AlertTriangle, ChevronUp, ChevronDown, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X, User, Mail, Phone, IdCard, Home, MapPin } from "lucide-react";
 import { useTracking } from "@/hooks/useTracking";
 import CulqiCheckoutButton from "@/components/shop/CulqiCheckoutButton";
 import {
@@ -121,6 +121,10 @@ export default function CheckoutPageClient({
   // visible squeezes the field being filled. We hide the pay bar on focus and
   // restore it on blur so the whole area above the keyboard is usable.
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  // Barra de pago móvil: la alerta "Falta completar" se muestra colapsada
+  // (una línea tocable) para mantener baja la barra fija; el usuario la
+  // expande si quiere ver el detalle de qué campos faltan.
+  const [missingAlertExpanded, setMissingAlertExpanded] = useState(false);
   useEffect(() => {
     const isTextField = (el: EventTarget | null): boolean => {
       if (!(el instanceof HTMLElement)) return false;
@@ -1340,6 +1344,21 @@ export default function CheckoutPageClient({
                     </Label>
                   </div>
                 </div>
+
+                {/* Sellos de pago — móvil. Viven en el flujo del contenido (no
+                    en la barra fija) para mantener el pay bar bajo y dejar más
+                    formulario visible en primera vista. En desktop los métodos
+                    se muestran junto al botón del resumen. */}
+                <div className="lg:hidden flex items-center justify-center gap-2 flex-wrap py-1">
+                  <span className="flex items-center gap-2" aria-hidden="true">
+                    <VisaIcon width={36} height={24} className="opacity-80" />
+                    <MastercardIcon width={32} height={20} className="opacity-80" />
+                    <YapeIcon width={28} height={28} className="opacity-80" />
+                    <PlinIcon width={28} height={28} className="opacity-80" />
+                    <PayPalIcon width={64} height={36} className="opacity-80" />
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">🔒 Pago seguro</span>
+                </div>
               </div>
 
               {/* Resumen Desktop */}
@@ -1510,20 +1529,33 @@ export default function CheckoutPageClient({
           {/* ✅ BOTÓN DE PAGO CON TARJETA - MÓVIL */}
           {formData.paymentMethod === "CARD" ? (
             <div className="space-y-2">
-              {/* Alertas compactas para móvil — ocultas mientras se escribe
-                  para dejar el footer en solo el botón de pago. */}
+              {/* Alerta compacta para móvil — una sola línea tocable que se
+                  expande para ver el detalle. Oculta mientras se escribe para
+                  dejar la barra fija en solo el botón de pago. */}
               {!keyboardOpen && (
                 missingRequirements.length > 0 ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-xs">
-                    <div className="flex gap-2">
-                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                      <div className="flex-1">
-                        <p className="font-bold text-amber-900 mb-1">Falta completar:</p>
-                        <p className="text-amber-800">
-                          {missingRequirements.join(', ')}
-                        </p>
-                      </div>
-                    </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setMissingAlertExpanded((v) => !v)}
+                      aria-expanded={missingAlertExpanded}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-left"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
+                      <span className="font-bold text-amber-900 flex-1">
+                        Falta completar ({missingRequirements.length})
+                      </span>
+                      {missingAlertExpanded ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
+                      ) : (
+                        <ChevronUp className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
+                      )}
+                    </button>
+                    {missingAlertExpanded && (
+                      <p className="text-amber-800 px-2.5 pb-2 -mt-0.5 pl-7">
+                        {missingRequirements.join(', ')}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-xs">
@@ -1583,19 +1615,6 @@ export default function CheckoutPageClient({
                 </span>
               )}
             </Button>
-          )}
-
-          {!keyboardOpen && (
-            <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
-              <span className="flex items-center gap-2" aria-hidden="true">
-                <VisaIcon width={36} height={24} className="opacity-80" />
-                <MastercardIcon width={32} height={20} className="opacity-80" />
-                <YapeIcon width={28} height={28} className="opacity-80" />
-                <PlinIcon width={28} height={28} className="opacity-80" />
-                <PayPalIcon width={64} height={36} className="opacity-80" />
-              </span>
-              <span className="text-xs text-muted-foreground ml-1">🔒 Pago seguro</span>
-            </div>
           )}
         </div>
       </div>
