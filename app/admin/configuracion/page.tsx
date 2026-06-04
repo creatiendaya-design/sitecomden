@@ -75,6 +75,14 @@ export default async function ConfiguracionPage() {
       bgColor: "bg-sky-100",
     },
     {
+      title: "PayPal",
+      description: "Configura credenciales de PayPal y divisa de cobro",
+      icon: Shield,
+      href: "/admin/configuracion/paypal",
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-100",
+    },
+    {
       title: "Gestión de Usuarios",
       description: "Administra usuarios del panel admin",
       icon: Users,

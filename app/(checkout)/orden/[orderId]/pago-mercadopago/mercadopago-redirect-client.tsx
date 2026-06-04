@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,16 +23,27 @@ export default function MercadoPagoRedirectClient({
   error,
 }: MercadoPagoRedirectClientProps) {
   const { clearCart } = useCartStore();
-  const [redirecting, setRedirecting] = useState(false);
+  const redirectedRef = useRef(false);
+  const [redirecting, setRedirecting] = useState(!error && !!redirectUrl);
 
-  const handlePay = () => {
-    if (!redirectUrl) return;
+  const goToMercadoPago = () => {
+    if (!redirectUrl || redirectedRef.current) return;
+    redirectedRef.current = true;
     setRedirecting(true);
-    // El cliente se compromete a pagar: limpiamos el carrito antes de salir
-    // del sitio hacia la pantalla segura de MercadoPago.
+    // El cliente sale hacia la pasarela: recién aquí limpiamos el carrito.
     clearCart();
     window.location.href = redirectUrl;
   };
+
+  // Redirección automática a MercadoPago: 1 solo clic ("Confirmar Pedido") en
+  // todo el flujo. El botón manual queda como respaldo si el navegador bloquea
+  // la navegación automática.
+  useEffect(() => {
+    if (error || !redirectUrl) return;
+    const t = setTimeout(goToMercadoPago, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="container py-16">
@@ -42,7 +53,9 @@ export default function MercadoPagoRedirectClient({
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
               <ShieldCheck className="h-8 w-8 text-sky-600" />
             </div>
-            <CardTitle className="text-2xl">Pago con Mercado Pago</CardTitle>
+            <CardTitle className="text-2xl">
+              {error ? "No se pudo iniciar el pago" : "Redirigiendo a Mercado Pago…"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-center">
@@ -66,24 +79,20 @@ export default function MercadoPagoRedirectClient({
               </>
             ) : (
               <>
-                <p className="text-center text-sm text-muted-foreground">
-                  Serás redirigido a la pantalla segura de Mercado Pago para completar tu
-                  pago. Puedes pagar con tarjeta, dinero en cuenta y otros medios.
-                </p>
+                <div className="flex flex-col items-center gap-3 py-2 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-sky-600" />
+                  <p className="text-sm text-muted-foreground">
+                    Te estamos llevando a la pantalla segura de Mercado Pago…
+                  </p>
+                </div>
+                {/* Respaldo si la redirección automática no ocurre. */}
                 <Button
                   className="w-full"
                   size="lg"
-                  onClick={handlePay}
-                  disabled={redirecting || !redirectUrl}
+                  onClick={goToMercadoPago}
+                  disabled={!redirectUrl}
                 >
-                  {redirecting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Redirigiendo...
-                    </>
-                  ) : (
-                    "Pagar con Mercado Pago"
-                  )}
+                  {redirecting ? "Continuar a Mercado Pago" : "Pagar con Mercado Pago"}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
                   🔒 El pago es procesado de forma segura por Mercado Pago.

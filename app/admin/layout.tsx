@@ -299,6 +299,11 @@ function AdminLayoutInner({
               icon: CreditCard,
               label: "Mercado Pago",
             },
+            {
+              href: "/admin/configuracion/paypal",
+              icon: CreditCard,
+              label: "PayPal",
+            },
           ],
         },
         {

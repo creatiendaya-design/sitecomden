@@ -666,8 +666,15 @@ export default function CheckoutPageClient({
         return;
       }
 
-      clearCart();
-      clearPersistedData();
+      // MercadoPago redirige FUERA del sitio para pagar. No vaciamos el carrito
+      // aquí: si la pasarela falla o el cliente vuelve atrás, conserva su
+      // carrito y sus datos. El carrito se limpia en el redirect-client justo
+      // antes de salir hacia MercadoPago.
+      const isExternalRedirect = result.paymentMethod === "MERCADOPAGO";
+      if (!isExternalRedirect) {
+        clearCart();
+        clearPersistedData();
+      }
 
       const tokenQs = `?token=${result.viewToken}`;
       if (result.paymentMethod === "YAPE" || result.paymentMethod === "PLIN") {
