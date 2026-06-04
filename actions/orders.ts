@@ -556,31 +556,41 @@ export async function createOrder(rawData: unknown) {
       await incrementPromotionUsage(promotionId, savedAmount);
     }
 
-    // Enviar email de confirmación con link para ver orden
-    try {
-      const { sendOrderConfirmationEmail } = await import("@/lib/email");
-      const emailSettings = await getSiteSettings();
-      const orderDisplayNumber = displayOrderNumber(order, emailSettings.order_prefix || "PED");
-      await sendOrderConfirmationEmail({
-        orderNumber: orderDisplayNumber,
-        customerName: order.customerName,
-        customerEmail: order.customerEmail,
-        total: Number(order.total),
-        items: order.items.map((item) => ({
-          name: item.name,
-          variantName: item.variantName || undefined,
-          quantity: item.quantity,
-          price: Number(item.price) * item.quantity,
-          customDesignImages: (item.customDesignImages as unknown as Array<{ zoneId: string; url: string }> | null) ?? undefined,
-        })),
-        shippingAddress: order.shippingAddress as unknown as { address: string; district: string; city: string; department: string },
-        paymentMethod: order.paymentMethod,
-        // Link para ver orden sin login
-        viewOrderLink: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${encodeURIComponent(order.customerEmail)}`,
-      });
-    } catch (emailError) {
-      // No fallar la orden si el email falla
-      console.error("Error sending confirmation email:", emailError);
+    // Email al CREAR la orden solo para pagos manuales (Yape/Plin): el cliente
+    // todavía debe transferir, así que recibe instrucciones de "pedido recibido".
+    // Para CARD / MERCADOPAGO / PAYPAL NO enviamos nada aquí: el pago aún no
+    // ocurre (la pasarela cobra después). El email correcto — confirmación de
+    // pago — se envía cuando el pago se aprueba (processCardPayment /
+    // confirmMercadoPagoPayment / confirmPaypalPayment). Enviar aquí hacía que
+    // el cliente recibiera "confirmación" antes de pagar en MercadoPago.
+    const manualPayment =
+      order.paymentMethod === "YAPE" || order.paymentMethod === "PLIN";
+    if (manualPayment) {
+      try {
+        const { sendOrderConfirmationEmail } = await import("@/lib/email");
+        const emailSettings = await getSiteSettings();
+        const orderDisplayNumber = displayOrderNumber(order, emailSettings.order_prefix || "PED");
+        await sendOrderConfirmationEmail({
+          orderNumber: orderDisplayNumber,
+          customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          total: Number(order.total),
+          items: order.items.map((item) => ({
+            name: item.name,
+            variantName: item.variantName || undefined,
+            quantity: item.quantity,
+            price: Number(item.price) * item.quantity,
+            customDesignImages: (item.customDesignImages as unknown as Array<{ zoneId: string; url: string }> | null) ?? undefined,
+          })),
+          shippingAddress: order.shippingAddress as unknown as { address: string; district: string; city: string; department: string },
+          paymentMethod: order.paymentMethod,
+          // Link para ver orden sin login
+          viewOrderLink: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${encodeURIComponent(order.customerEmail)}`,
+        });
+      } catch (emailError) {
+        // No fallar la orden si el email falla
+        console.error("Error sending confirmation email:", emailError);
+      }
     }
 
     // Revalidar cache
