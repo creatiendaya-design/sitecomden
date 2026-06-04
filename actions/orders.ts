@@ -663,9 +663,17 @@ export async function getOrderByToken(token: string, email: string) {
       };
     }
 
+    // Número de orden mostrado al cliente (mismo formato que el admin):
+    // secuencial con prefijo (PED-0001) o, para órdenes legacy sin orderSeq,
+    // los últimos 8 caracteres del cuid. Se calcula en el servidor porque el
+    // prefijo vive en site settings y la página es un Client Component.
+    const settings = await getSiteSettings();
+    const displayNumber = displayOrderNumber(order, settings.order_prefix || "PED");
+
     // Convertir Decimales a números para Client Components
     const orderData = {
       ...order,
+      displayNumber,
       subtotal: Number(order.subtotal),
       shipping: Number(order.shipping),
       discount: Number(order.discount),

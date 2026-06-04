@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getSiteSettings } from "@/lib/site-settings";
 import { notFound, redirect } from "next/navigation";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, displayOrderNumber } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { orderNumber: true },
+    select: { orderNumber: true, orderSeq: true },
   });
 
   if (!order) {
@@ -52,9 +52,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  const settings = await getSiteSettings();
+  const orderDisplayNumber = displayOrderNumber(order, settings.order_prefix || "PED");
+
   return {
-    title: `Confirmación de Pedido - ${order.orderNumber}`,
-    description: `Tu pedido ${order.orderNumber} ha sido confirmado exitosamente.`,
+    title: `Confirmación de Pedido - ${orderDisplayNumber}`,
+    description: `Tu pedido ${orderDisplayNumber} ha sido confirmado exitosamente.`,
     robots: {
       index: false,
       follow: false,
@@ -105,6 +108,9 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
 
   const isPaid = order.paymentStatus === "PAID";
   const whatsappNumber = siteSettings.contact_phone.replace(/\D/g, '');
+  // Número de orden mostrado al cliente (mismo formato que el admin / verificar):
+  // secuencial con prefijo (PED-0001) o, para órdenes legacy sin orderSeq, el cuid.
+  const orderDisplayNumber = displayOrderNumber(order, siteSettings.order_prefix || "PED");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
@@ -133,7 +139,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
                 <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-6 py-2.5 rounded-full border border-white/30">
                   <Package className="h-4 w-4 text-white" />
                   <span className="text-white font-semibold text-lg">
-                    Orden #{order.orderNumber}
+                    Orden {orderDisplayNumber}
                   </span>
                 </div>
 
@@ -471,7 +477,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
               className="h-12 md:h-14 text-base font-semibold border-2 border-green-600 text-green-700 hover:bg-green-50 sm:col-span-2 lg:col-span-1"
             >
               <a
-                href={`https://wa.me/${whatsappNumber}?text=Hola, tengo una consulta sobre mi orden ${order.orderNumber}`}
+                href={`https://wa.me/${whatsappNumber}?text=Hola, tengo una consulta sobre mi orden ${orderDisplayNumber}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2"
@@ -502,7 +508,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
                   
                   <div className="grid gap-3 sm:grid-cols-2">
                     <a
-                      href={`https://wa.me/${whatsappNumber}?text=Hola, tengo una consulta sobre mi orden ${order.orderNumber}`}
+                      href={`https://wa.me/${whatsappNumber}?text=Hola, tengo una consulta sobre mi orden ${orderDisplayNumber}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
@@ -512,7 +518,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
                     </a>
                     
                     <a
-                      href={`mailto:${siteSettings.contact_email}?subject=Consulta sobre orden ${order.orderNumber}`}
+                      href={`mailto:${siteSettings.contact_email}?subject=Consulta sobre orden ${orderDisplayNumber}`}
                       className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
                     >
                       <Mail className="h-4 w-4" />

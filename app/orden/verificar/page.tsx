@@ -178,7 +178,7 @@ function VerificarOrdenContent() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Orden #{order.orderNumber}</CardTitle>
+                <CardTitle>Orden {order.displayNumber}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   Realizada el {new Date(order.createdAt).toLocaleDateString("es-PE", {
                     year: "numeric",
