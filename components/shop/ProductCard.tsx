@@ -295,7 +295,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             </Link>
           )}
 
-          <h3 className="mb-2 line-clamp-2 font-semibold text-foreground transition-colors group-hover:text-primary">
+          <h3 className="mb-2 line-clamp-2 font-semibold text-foreground">
             {product.name}
           </h3>
 
