@@ -575,10 +575,13 @@ export default function PaymentSettingsPage() {
           
           {settings.mercadopago.enabled && (
             <CardContent className="space-y-4">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  <strong>En desarrollo:</strong> La integración con Mercado Pago estará disponible próximamente.
+              <Alert className="bg-blue-50 border-blue-200">
+                <CreditCard className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-sm text-blue-800">
+                  Las credenciales de Mercado Pago se configuran en{" "}
+                  <Link href="/admin/configuracion/mercadopago" className="underline font-medium">
+                    Configuración → Mercado Pago
+                  </Link>
                 </AlertDescription>
               </Alert>
 

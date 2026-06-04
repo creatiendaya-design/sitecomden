@@ -294,6 +294,11 @@ function AdminLayoutInner({
               icon: CreditCard,
               label: "Culqi",
             },
+            {
+              href: "/admin/configuracion/mercadopago",
+              icon: CreditCard,
+              label: "Mercado Pago",
+            },
           ],
         },
         {

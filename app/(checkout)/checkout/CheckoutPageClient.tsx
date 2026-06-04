@@ -674,6 +674,8 @@ export default function CheckoutPageClient({
         router.push(`/orden/${result.orderId}/pago-pendiente${tokenQs}`);
       } else if (result.paymentMethod === "PAYPAL") {
         router.push(`/orden/${result.orderId}/pago-paypal${tokenQs}`);
+      } else if (result.paymentMethod === "MERCADOPAGO") {
+        router.push(`/orden/${result.orderId}/pago-mercadopago${tokenQs}`);
       } else {
         router.push(`/orden/${result.orderId}/confirmacion${tokenQs}`);
       }
@@ -1043,7 +1045,7 @@ export default function CheckoutPageClient({
       </div>
 
       <div className="w-full bg-slate-50/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-40 lg:pb-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-8 lg:pb-12">
           <form onSubmit={handleSubmit} className="checkout-form w-full">
             {error && (
               <Alert variant="destructive" className="mb-6">
@@ -1524,7 +1526,7 @@ export default function CheckoutPageClient({
           para no robar espacio, pero el cliente siempre puede pagar sin tener
           que cerrar el teclado. El campo enfocado se desplaza por encima vía
           `interactive-widget=resizes-content` + scroll-margin. */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
+      <div data-checkout-paybar className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
         <div className="px-4 py-3 space-y-2.5">
           {/* ✅ BOTÓN DE PAGO CON TARJETA - MÓVIL */}
           {formData.paymentMethod === "CARD" ? (

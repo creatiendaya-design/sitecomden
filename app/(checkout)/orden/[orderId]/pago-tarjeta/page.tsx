@@ -46,6 +46,8 @@ export default async function PaymentCardPage({ params, searchParams }: PageProp
       redirect(`/orden/${order.id}/pago-pendiente`);
     } else if (order.paymentMethod === "PAYPAL") {
       redirect(`/orden/${order.id}/pago-paypal`);
+    } else if (order.paymentMethod === "MERCADOPAGO") {
+      redirect(`/orden/${order.id}/pago-mercadopago`);
     } else {
       redirect(`/orden/${order.id}/confirmacion`);
     }

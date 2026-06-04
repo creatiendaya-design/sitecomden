@@ -7,7 +7,11 @@ export default async function CheckoutFooter() {
 
   return (
     <footer className="border-t bg-muted/40">
-      <div className="container py-8">
+      {/* checkout-legal-footer: en móvil, cuando la página tiene la barra de
+          pago fija (data-checkout-paybar), checkout.css le añade padding-bottom
+          para que los links legales no queden tapados. En el resto de rutas no
+          hay barra fija y no se añade hueco. */}
+      <div className="checkout-legal-footer container py-8">
        
 
         {/* Separador */}

@@ -67,6 +67,14 @@ export default async function ConfiguracionPage() {
       bgColor: "bg-purple-100",
     },
     {
+      title: "Mercado Pago",
+      description: "Configura credenciales de Mercado Pago (Checkout Pro)",
+      icon: Shield,
+      href: "/admin/configuracion/mercadopago",
+      color: "text-sky-600",
+      bgColor: "bg-sky-100",
+    },
+    {
       title: "Gestión de Usuarios",
       description: "Administra usuarios del panel admin",
       icon: Users,

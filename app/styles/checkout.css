@@ -9,5 +9,13 @@
       scroll-margin-top: 5rem;
       scroll-margin-bottom: 7rem;
     }
+
+    /* On the main checkout page the fixed pay bar (data-checkout-paybar)
+       overlaps the bottom of the viewport. Pad the legal footer so its links
+       clear the bar. Scoped via :has() so other checkout routes (which have no
+       pay bar) keep their normal spacing. */
+    body:has([data-checkout-paybar]) .checkout-legal-footer {
+      padding-bottom: 10rem;
+    }
   }
 }
