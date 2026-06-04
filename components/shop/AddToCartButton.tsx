@@ -124,12 +124,7 @@ export default function AddToCartButton({
         ],
       });
 
-      toast.success(
-        appliedPromotion
-          ? `${safeQty} unidades agregadas con descuento aplicado`
-          : "Producto agregado al carrito"
-      );
-
+      // The cart drawer sliding in is the confirmation — no redundant toast.
       openCartDrawer();
     } else {
       if (product.stock <= 0) {
@@ -183,12 +178,7 @@ export default function AddToCartButton({
         ],
       });
 
-      toast.success(
-        appliedPromotion
-          ? `${safeQty} unidades agregadas con descuento aplicado`
-          : "Producto agregado al carrito"
-      );
-
+      // The cart drawer sliding in is the confirmation — no redundant toast.
       openCartDrawer();
     }
   };

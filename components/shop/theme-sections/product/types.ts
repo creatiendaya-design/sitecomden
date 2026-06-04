@@ -17,6 +17,22 @@ export interface ProductReviewForRender {
 }
 
 /**
+ * One recommended product for the FREQUENTLY_BOUGHT_TOGETHER section, resolved
+ * server-side by the hybrid recommender and serialized in page.tsx.
+ */
+export interface FbtRecommendationForRender {
+  id: string
+  slug: string
+  name: string
+  price: number
+  compareAtPrice: number | null
+  mainImage: string | null
+  hasVariants: boolean
+  inStock: boolean
+  stock: number
+}
+
+/**
  * Shape consumed by the product theme-section renderers. The data is the
  * already-serialized output of `app/(shop)/productos/[slug]/page.tsx` —
  * Decimals → numbers, Dates → strings — so client components can use it
@@ -46,4 +62,7 @@ export interface ProductForRender {
    *  page-level `take` (currently 20) until Fase 4 denormalizes the aggregate
    *  onto the Product row. */
   reviews?: ProductReviewForRender[]
+  /** Recommendations for the FREQUENTLY_BOUGHT_TOGETHER section (excludes the
+   *  current product). Optional so sections that don't need it stay compatible. */
+  frequentlyBoughtTogether?: FbtRecommendationForRender[]
 }

@@ -11,6 +11,7 @@ import { FeaturedCollection } from "./FeaturedCollection"
 import { Testimonials } from "./Testimonials"
 import { FaqSection } from "./FaqSection"
 import { ProductReviews } from "./ProductReviews"
+import { FrequentlyBoughtTogetherSection } from "./FrequentlyBoughtTogetherSection"
 import { LegacyBlockSection } from "./LegacyBlockSection"
 
 interface ProductSectionsRendererProps {
@@ -75,6 +76,14 @@ export function ProductSectionsRenderer({
           case "PRODUCT_REVIEWS":
             return (
               <ProductReviews
+                key={section.id}
+                section={section}
+                product={product}
+              />
+            )
+          case "FREQUENTLY_BOUGHT_TOGETHER":
+            return (
+              <FrequentlyBoughtTogetherSection
                 key={section.id}
                 section={section}
                 product={product}

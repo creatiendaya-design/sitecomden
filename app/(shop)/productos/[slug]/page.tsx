@@ -5,15 +5,12 @@ import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import ProductTracking from "./tracking-client";
 import Breadcrumbs from "@/components/shop/Breadcrumbs";
-import FrequentlyBoughtTogether, {
-  type FbtItem,
-} from "@/components/shop/FrequentlyBoughtTogether";
 import { getFrequentlyBoughtTogether } from "@/actions/recommendations";
-import { getFbtConfig } from "@/lib/recommendations/fbt-settings";
 import { getProductImageUrl, getAllProductImages } from "@/lib/image-utils";
 import ProductStandardView from "@/components/shop/templates/ProductStandardView";
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
 import { ProductSectionsRenderer } from "@/components/shop/theme-sections/product/ProductSectionsRenderer";
+import type { FbtRecommendationForRender } from "@/components/shop/theme-sections/product/types";
 import { getThemedSections } from "@/lib/theme-sections/resolve-active-sections";
 import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
@@ -500,33 +497,29 @@ export default async function ProductDetailPage({
   ];
   const breadcrumbSchema = buildBreadcrumbList(breadcrumbItems);
 
-  // "Comprados juntos" — hybrid recommendations (manual → co-purchase →
-  // category). Skipped for LANDING products (bespoke pages).
-  const fbtConfig = await getFbtConfig();
-  let fbtItems: FbtItem[] = [];
-  if (fbtConfig.enabled && product.template !== "LANDING") {
-    const recs = await getFrequentlyBoughtTogether(product.id, fbtConfig.limit);
-    if (recs.length > 0) {
-      // Include the current product in the combo only when it has no variants
-      // (otherwise an option must be chosen, which a one-click combo can't do).
-      const currentItem: FbtItem | null = product.hasVariants
-        ? null
-        : {
-            id: product.id,
-            slug: product.slug,
-            name: product.name,
-            price: initialPrice,
-            mainImage: getProductImageUrl(product.images),
-            hasVariants: false,
-            inStock: totalStock > 0,
-            stock: totalStock,
-            isCurrent: true,
-          };
-      fbtItems = [
-        ...(currentItem ? [currentItem] : []),
-        ...recs.map((r) => ({ ...r, isCurrent: false })),
-      ];
-    }
+  // "Comprados juntos" — resolve hybrid recommendations (manual → co-purchase
+  // → category) ONLY when the theme has an active FREQUENTLY_BOUGHT_TOGETHER
+  // section. The section (editable in the customizer) owns presentation; here
+  // we just fetch the data it renders. Skipped for LANDING products.
+  const fbtSection = productSections.find(
+    (s) => s.type === "FREQUENTLY_BOUGHT_TOGETHER" && s.enabled,
+  );
+  let fbtRecs: FbtRecommendationForRender[] = [];
+  if (fbtSection && product.template !== "LANDING") {
+    const rawLimit = (fbtSection.content as { limit?: number })?.limit;
+    const limit = typeof rawLimit === "number" ? rawLimit : 3;
+    const recs = await getFrequentlyBoughtTogether(product.id, limit);
+    fbtRecs = recs.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      name: r.name,
+      price: r.price,
+      compareAtPrice: r.compareAtPrice,
+      mainImage: r.mainImage,
+      hasVariants: r.hasVariants,
+      inStock: r.inStock,
+      stock: r.stock,
+    }));
   }
 
   return (
@@ -594,23 +587,13 @@ export default async function ProductDetailPage({
               },
             })),
             reviews: serializedReviews,
+            frequentlyBoughtTogether: fbtRecs,
           }}
           variants={serializedVariants}
           options={product.options}
         />
       ) : (
         <ProductStandardView {...templateProps} />
-      )}
-
-      {fbtItems.length > 0 && (
-        <div className="container mx-auto px-4 pb-12">
-          <FrequentlyBoughtTogether
-            items={fbtItems}
-            mode={fbtConfig.mode}
-            title={fbtConfig.title}
-            discountPercent={fbtConfig.discountPercent}
-          />
-        </div>
       )}
     </>
   );

@@ -88,6 +88,7 @@ export function ProductMain({
       <ProductProvider
         productId={product.id}
         productName={product.name}
+        productSlug={product.slug}
         basePrice={product.basePrice}
         baseComparePrice={product.compareAtPrice}
         baseStock={product.stock}

@@ -40,6 +40,9 @@ export interface ProductOption {
 export interface ProductContextValue {
   productId: string
   productName: string
+  /** Product slug, threaded so the BuyButton stores a valid cart-item slug
+   *  (the cart/drawer links to `/productos/<slug>`). */
+  productSlug: string
   basePrice: number
   baseComparePrice: number | null
   baseStock: number
@@ -67,6 +70,7 @@ const ProductCtx = createContext<ProductContextValue | null>(null)
 interface ProductProviderProps {
   productId: string
   productName: string
+  productSlug: string
   basePrice: number
   baseComparePrice: number | null
   baseStock: number
@@ -82,6 +86,7 @@ interface ProductProviderProps {
 export function ProductProvider({
   productId,
   productName,
+  productSlug,
   basePrice,
   baseComparePrice,
   baseStock,
@@ -108,6 +113,7 @@ export function ProductProvider({
     return {
       productId,
       productName,
+      productSlug,
       basePrice,
       baseComparePrice,
       baseStock,
@@ -129,6 +135,7 @@ export function ProductProvider({
   }, [
     productId,
     productName,
+    productSlug,
     basePrice,
     baseComparePrice,
     baseStock,

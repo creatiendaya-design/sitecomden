@@ -6,6 +6,7 @@ import type { ResolvedThemeSectionBlock } from "@/lib/theme-sections/types"
 import { applyThemeSectionStyle } from "@/lib/theme-sections/apply-style"
 import { Button } from "@/components/ui/button"
 import { useCartStore } from "@/store/cart"
+import { useCartDrawer } from "@/store/cart-drawer"
 import { useTracking } from "@/hooks/useTracking"
 import { SubBlockWrapper } from "../_helpers"
 import { useProductContext } from "./ProductContext"
@@ -27,6 +28,7 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
   const {
     productId,
     productName,
+    productSlug,
     hasVariants,
     selectedVariant,
     currentPrice,
@@ -46,6 +48,7 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
   const buttonBg = content.buttonBgColor?.trim() || ""
   const buttonText = content.buttonTextColor?.trim() || ""
   const addItem = useCartStore((s) => s.addItem)
+  const openCartDrawer = useCartDrawer((s) => s.open)
   const { trackEvent } = useTracking()
 
   // CTA button colors fall back to the active color scheme's `primary` /
@@ -91,7 +94,7 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
         variantId: selectedVariant?.id,
         name: productName,
         variantName,
-        slug: "",
+        slug: productSlug,
         price: currentPrice,
         originalUnitPrice: currentComparePrice ?? currentPrice,
         image: currentImage ?? undefined,
@@ -102,7 +105,8 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
     )
 
     if (ok) {
-      toast.success(`${productName} agregado al carrito`)
+      // The cart drawer sliding in is the confirmation — no redundant toast.
+      openCartDrawer()
       trackEvent("AddToCart", {
         value: currentPrice * safeQty,
         currency: "PEN",

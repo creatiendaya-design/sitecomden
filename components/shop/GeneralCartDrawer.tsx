@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -39,8 +40,17 @@ export default function GeneralCartDrawer() {
   const items = useCartStore((s) => s.items);
   const getTotalPrice = useCartStore((s) => s.getTotalPrice);
 
+  // On the full cart page the drawer would just mirror the page itself, so we
+  // suppress it there (covers every trigger: header button, cross-sell adds…).
+  const pathname = usePathname();
+  const onCartPage = pathname === "/carrito";
+
   const [recs, setRecs] = useState<RecommendationCard[]>([]);
   const idsKey = items.map((i) => i.productId).join(",");
+
+  useEffect(() => {
+    if (onCartPage && isOpen) close();
+  }, [onCartPage, isOpen, close]);
 
   useEffect(() => {
     const ids = idsKey ? idsKey.split(",") : [];
@@ -64,6 +74,8 @@ export default function GeneralCartDrawer() {
 
   const subtotal = getTotalPrice();
   const count = items.reduce((n, i) => n + i.quantity, 0);
+
+  if (onCartPage) return null;
 
   return (
     <Sheet open={isOpen} onOpenChange={setOpen}>

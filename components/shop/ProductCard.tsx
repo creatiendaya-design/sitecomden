@@ -176,12 +176,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       ],
     });
 
-    console.log("📊 AddToCart tracked from product card:", product.name);
-
-    toast.success("¡Agregado al carrito!", {
-      description: product.name,
-    });
-
+    // The cart drawer sliding in is the confirmation — no redundant toast.
     openCartDrawer();
   };
 

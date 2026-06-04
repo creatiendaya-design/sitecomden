@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Storefront "Comprados juntos" (frequently bought together) section.
- * Renders the hybrid recommendations resolved server-side and supports three
- * add modes (configured in admin): individual buttons, add-all, or add-all
- * with a bundle discount.
+ * Storefront "Comprados juntos" (frequently bought together) BODY. Renders the
+ * hybrid recommendations resolved server-side. The heading + section wrapper +
+ * style come from the `FREQUENTLY_BOUGHT_TOGETHER` theme section that hosts
+ * this component, so it's editable in the customizer.
  *
  * Variant products can't be added in one click (they need an option choice),
  * so they link to their product page instead of exposing an add control.
@@ -18,7 +18,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, ShoppingCart, Settings2 } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
-import type { FbtAddMode } from "@/lib/recommendations/fbt-settings";
+
+/**
+ * How products are added to the cart. `add_all_discount` is accepted for
+ * backward compatibility but behaves like `add_all` — real combo discounts are
+ * handled by the BUNDLE promotion engine (server-validated in createOrder).
+ */
+export type FbtAddMode = "individual" | "add_all" | "add_all_discount";
 
 export interface FbtItem {
   id: string;
@@ -35,37 +41,24 @@ export interface FbtItem {
 interface Props {
   items: FbtItem[];
   mode: FbtAddMode;
-  title: string;
-  discountPercent: number;
 }
 
 function formatPrice(value: number): string {
   return `S/ ${value.toFixed(2)}`;
 }
 
-export default function FrequentlyBoughtTogether({
-  items,
-  mode,
-  title,
-}: Props) {
+export default function FrequentlyBoughtTogether({ items, mode }: Props) {
   if (items.length === 0) return null;
   const showCombo = mode === "add_all" || mode === "add_all_discount";
 
-  return (
-    <section className="mt-10 border-t pt-8" aria-label={title}>
-      <h2 className="mb-4 text-lg font-semibold sm:text-xl">{title}</h2>
-      {showCombo ? (
-        // Bundle discounts are owned by the BUNDLE promotion engine
-        // (server-validated in createOrder, shown via BundleSuggestion on the
-        // PDP) — NOT here. createOrder re-reads authoritative DB prices and
-        // ignores any client-set price, so this section always adds at full
-        // price (discountPercent=0). To discount a combo, create a Bundle
-        // promotion in /admin/promociones.
-        <ComboView items={items} discountPercent={0} />
-      ) : (
-        <IndividualView items={items.filter((i) => !i.isCurrent)} />
-      )}
-    </section>
+  // Bundle discounts are owned by the BUNDLE promotion engine (server-validated
+  // in createOrder, shown via BundleSuggestion on the PDP) — NOT here, so we
+  // always add at full price (discountPercent=0). To discount a combo, create a
+  // Bundle promotion in /admin/promociones.
+  return showCombo ? (
+    <ComboView items={items} discountPercent={0} />
+  ) : (
+    <IndividualView items={items.filter((i) => !i.isCurrent)} />
   );
 }
 

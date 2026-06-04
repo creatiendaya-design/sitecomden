@@ -25,6 +25,7 @@ import { featuredCollectionDefinition } from "./schema/featured-collection"
 import { testimonialsDefinition } from "./schema/testimonials"
 import { faqSectionDefinition } from "./schema/faq-section"
 import { productReviewsDefinition } from "./schema/product-reviews"
+import { frequentlyBoughtTogetherDefinition } from "./schema/frequently-bought-together"
 // Shopify-style universal-block adapter — exposes every `scope: "universal"`
 // block from the page-builder registry as a PRODUCT-group section.
 import { legacyBlockDefinition } from "./schema/legacy-block"
@@ -44,6 +45,7 @@ const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   testimonialsDefinition,
   faqSectionDefinition,
   productReviewsDefinition,
+  frequentlyBoughtTogetherDefinition,
   legacyBlockDefinition,
 ]
 
