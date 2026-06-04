@@ -19,7 +19,7 @@ export default function CheckoutProgressBar() {
   })();
 
   return (
-    <div className="border-t bg-muted/30">
+    <div className="checkout-progress border-t bg-muted/30">
       <div className="container mx-auto flex items-center justify-center px-4 py-2.5">
         <ol className="flex items-center gap-0">
           {STEPS.map((step, i) => {

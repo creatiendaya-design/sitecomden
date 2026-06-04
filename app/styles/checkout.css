@@ -9,5 +9,24 @@
       scroll-margin-top: 5rem;
       scroll-margin-bottom: 7rem;
     }
+
+    /* While the soft keyboard is open (body tagged from CheckoutPageClient),
+       reclaim vertical space at the top: the step indicator is non-essential
+       mid-typing, and the logo bar's tall padding can shrink. Together with the
+       fixed pay bar sliding away, this widens the scroll window so the focused
+       field isn't pinned in a sliver between header and keyboard. */
+    body.checkout-keyboard-open .checkout-progress {
+      display: none;
+    }
+    body.checkout-keyboard-open .checkout-header-bar {
+      height: auto;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    /* Focused field no longer needs to clear the (now hidden) pay bar. */
+    body.checkout-keyboard-open .checkout-form :is(input, textarea) {
+      scroll-margin-top: 3.5rem;
+      scroll-margin-bottom: 1.5rem;
+    }
   }
 }

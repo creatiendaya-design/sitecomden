@@ -148,6 +148,16 @@ export default function CheckoutPageClient({
     };
   }, []);
 
+  // While the keyboard is open, tag <body> so the (server-rendered, shared)
+  // checkout header can collapse its step indicator + padding via CSS — that
+  // tall sticky header + the fixed pay bar were squeezing the focused field
+  // into a tiny scroll window. The pay bar itself slides away via `keyboardOpen`
+  // below; the header can't read React state so it keys off this body class.
+  useEffect(() => {
+    document.body.classList.toggle("checkout-keyboard-open", keyboardOpen);
+    return () => document.body.classList.remove("checkout-keyboard-open");
+  }, [keyboardOpen]);
+
   // Checkout upsell: recommend against the current basket. Re-fetches when the
   // basket changes (e.g. after the customer adds an upsell), excluding items
   // already in the cart.
@@ -1498,14 +1508,17 @@ export default function CheckoutPageClient({
         </div>
       </div>
 
-      {/* Botón flotante móvil. SIEMPRE visible — el CTA de pago nunca debe
-          desaparecer (best practice de checkout móvil). Cuando el teclado está
-          abierto se colapsa a solo el botón: se ocultan los elementos
-          decorativos (iconos de confianza y la alerta de validación de tarjeta)
-          para no robar espacio, pero el cliente siempre puede pagar sin tener
-          que cerrar el teclado. El campo enfocado se desplaza por encima vía
-          `interactive-widget=resizes-content` + scroll-margin. */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
+      {/* Botón flotante móvil. Mientras se escribe (teclado abierto) la barra se
+          desliza fuera de pantalla: estaba justo encima del teclado robando casi
+          todo el área visible y dejando el campo enfocado en una franja
+          minúscula para scrolear. El cliente está rellenando datos, no pagando;
+          al cerrar el teclado (blur) la barra reaparece para pagar. El campo
+          enfocado se centra vía `interactive-widget=resizes-content` +
+          scroll-margin. */}
+      <div
+        className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb transition-transform duration-200 ${keyboardOpen ? "translate-y-full" : "translate-y-0"}`}
+        aria-hidden={keyboardOpen}
+      >
         <div className="px-4 py-3 space-y-2.5">
           {/* ✅ BOTÓN DE PAGO CON TARJETA - MÓVIL */}
           {formData.paymentMethod === "CARD" ? (
