@@ -91,8 +91,18 @@ export default function CheckoutPageClient({
 }: CheckoutPageClientProps) {
   const router = useRouter();
   const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();
-  const { formData, setFormData, isLoaded, clearPersistedData } = 
+  const { formData, setFormData, isLoaded, clearPersistedData } =
     usePersistedCheckoutForm(initialFormData);
+
+  // The cart lives in localStorage (zustand persist) and rehydrates on the
+  // client after the first render. Without this gate the page flashes the
+  // "empty cart" view on reload before the persisted items load back in.
+  const [cartHydrated, setCartHydrated] = useState(false);
+  useEffect(() => {
+    setCartHydrated(useCartStore.persist.hasHydrated());
+    const unsub = useCartStore.persist.onFinishHydration(() => setCartHydrated(true));
+    return unsub;
+  }, []);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +115,38 @@ export default function CheckoutPageClient({
   
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [selectedShippingRate, setSelectedShippingRate] = useState<ShippingRate | null>(null);
+
+  // Mobile keyboard detection. While the user is typing in a text field the
+  // soft keyboard eats most of the viewport; keeping the tall fixed pay bar
+  // visible squeezes the field being filled. We hide the pay bar on focus and
+  // restore it on blur so the whole area above the keyboard is usable.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const isTextField = (el: EventTarget | null): boolean => {
+      if (!(el instanceof HTMLElement)) return false;
+      if (el.tagName === "TEXTAREA") return true;
+      if (el.tagName === "INPUT") {
+        const type = (el as HTMLInputElement).type;
+        return !["checkbox", "radio", "button", "submit", "file", "range"].includes(type);
+      }
+      return false;
+    };
+    const onFocusIn = (e: FocusEvent) => {
+      if (isTextField(e.target)) setKeyboardOpen(true);
+    };
+    const onFocusOut = () => {
+      // Defer so focus moving between fields doesn't flicker the bar.
+      window.setTimeout(() => {
+        if (!isTextField(document.activeElement)) setKeyboardOpen(false);
+      }, 120);
+    };
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
+    };
+  }, []);
 
   // Checkout upsell: recommend against the current basket. Re-fetches when the
   // basket changes (e.g. after the customer adds an upsell), excluding items
@@ -147,10 +189,22 @@ export default function CheckoutPageClient({
   const phoneRef = useRef<HTMLInputElement>(null);
   const addressRef = useRef<HTMLInputElement>(null);
   const termsRef = useRef<HTMLDivElement>(null);
+  const termsRefMobile = useRef<HTMLDivElement>(null);
   const locationRef = useRef<HTMLDivElement>(null);
   const shippingRef = useRef<HTMLDivElement>(null);
 
   const processingRef = useRef(false);
+
+  // Scrolls to the terms checkbox that's actually visible on the current
+  // breakpoint (desktop lives in the summary card, mobile in the form body).
+  // `offsetParent` is null when an ancestor is `display:none` (lg:hidden), so
+  // this reliably picks the rendered one.
+  const scrollToTerms = () => {
+    const el = termsRefMobile.current?.offsetParent
+      ? termsRefMobile.current
+      : termsRef.current;
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   const verifyStockBeforeCheckout = async () => {
     setStockCheckLoading(true);
@@ -259,7 +313,7 @@ export default function CheckoutPageClient({
       addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       addressRef.current?.focus();
     } else if (!formData.acceptTerms) {
-      termsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      scrollToTerms();
     }
 
     // Auto-ocultar la alerta después de 5 segundos
@@ -446,27 +500,8 @@ export default function CheckoutPageClient({
     setValidationErrors({});
 
     try {
-      if (!formData.districtCode) {
-        setError("Por favor selecciona departamento, provincia y distrito");
-        locationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setLoading(false);
-        return;
-      }
-
-      if (!selectedShippingRate) {
-        setError("Por favor selecciona un método de envío");
-        shippingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.acceptTerms) {
-        setError("Debes aceptar los términos y condiciones");
-        termsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setLoading(false);
-        return;
-      }
-
+      // Validation follows the visual top-to-bottom order of the form so the
+      // first error always points the customer to the earliest empty field.
       if (!formData.customerName || formData.customerName.trim().length < 3) {
         setError("El nombre debe tener al menos 3 caracteres");
         nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -487,6 +522,20 @@ export default function CheckoutPageClient({
         setError("Ingresa un teléfono válido");
         phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         phoneRef.current?.focus();
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.districtCode) {
+        setError("Por favor selecciona departamento, provincia y distrito");
+        locationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setLoading(false);
+        return;
+      }
+
+      if (!selectedShippingRate) {
+        setError("Por favor selecciona un método de envío");
+        shippingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setLoading(false);
         return;
       }
@@ -515,6 +564,15 @@ export default function CheckoutPageClient({
           setLoading(false);
           return;
         }
+      }
+
+      // Terms last — it sits at the bottom of the form (mobile card / desktop
+      // summary), so it's the final gate before placing the order.
+      if (!formData.acceptTerms) {
+        setError("Debes aceptar los términos y condiciones");
+        scrollToTerms();
+        setLoading(false);
+        return;
       }
 
       const stockItems = items.map((item) => ({
@@ -733,6 +791,19 @@ export default function CheckoutPageClient({
     ? subtotal + finalShippingCost - discount
     : subtotal + igvAmount + finalShippingCost - discount;
 
+  // Wait for both the cart store and the persisted form to rehydrate before
+  // deciding anything — otherwise a reload flashes "empty cart" while the
+  // localStorage items are still loading.
+  if (!cartHydrated || !isLoaded) {
+    return (
+      <div className="container py-16">
+        <div className="text-center">
+          <p>Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="container py-16">
@@ -746,17 +817,10 @@ export default function CheckoutPageClient({
     );
   }
 
-  if (!isLoaded) {
-    return (
-      <div className="container py-16">
-        <div className="text-center">
-          <p>Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const OrderSummaryContent = () => (
+  // A stable JSX element (NOT a nested component). Defining a component inside
+  // the render body creates a new type every render, which remounts the whole
+  // subtree — that stole focus from the coupon input the moment it was tapped.
+  const orderSummaryContent = (
     <>
       <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
         {items.map((item) => (
@@ -868,11 +932,16 @@ export default function CheckoutPageClient({
     <>
       {/* OVERLAY DE PROCESAMIENTO */}
       {isProcessingPayment && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+        <div
+          role="status"
+          aria-live="assertive"
+          aria-busy="true"
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center"
+        >
           <Card className="w-[90%] max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <Loader2 className="h-12 w-12 animate-spin text-primary" aria-hidden="true" />
                 <div>
                   <h3 className="text-lg font-semibold">Procesando tu pago...</h3>
                   <p className="text-sm text-muted-foreground mt-2">
@@ -888,11 +957,15 @@ export default function CheckoutPageClient({
 
       {/* ✅ ALERTA FLOTANTE CON REQUISITOS FALTANTES */}
       {showMissingAlert && missingRequirements.length > 0 && formData.paymentMethod === "CARD" && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-lg animate-in slide-in-from-top-5">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-lg animate-in slide-in-from-top-5"
+        >
           <div className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-2xl border border-red-700 backdrop-blur-sm">
             <div className="p-4 flex gap-3">
               <div className="flex-shrink-0 mt-0.5">
-                <AlertCircle className="h-6 w-6" />
+                <AlertCircle className="h-6 w-6" aria-hidden="true" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-base mb-2.5">Completa estos campos para continuar:</p>
@@ -920,7 +993,7 @@ export default function CheckoutPageClient({
                 className="flex-shrink-0 text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded"
                 aria-label="Cerrar"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -930,10 +1003,14 @@ export default function CheckoutPageClient({
       <div className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-sm">
         <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
           <SheetTrigger asChild>
-            <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-accent/50 active:bg-accent transition-colors">
+            <button
+              type="button"
+              aria-label="Ver resumen del pedido"
+              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-accent/50 active:bg-accent transition-colors"
+            >
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 rounded-md bg-primary/10">
-                  <ShoppingBag className="h-4 w-4 text-primary" />
+                  <ShoppingBag className="h-4 w-4 text-primary" aria-hidden="true" />
                 </div>
                 <div className="text-left">
                   <span className="text-xs text-muted-foreground block">
@@ -946,27 +1023,27 @@ export default function CheckoutPageClient({
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-lg">{formatPrice(total)}</span>
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <ChevronUp className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </div>
             </button>
           </SheetTrigger>
-          <SheetContent side="top" className="h-[85vh] overflow-y-auto px-4 sm:px-6">
+          <SheetContent side="top" className="max-h-[85vh] overflow-y-auto px-4 sm:px-6">
             <SheetHeader className="text-left mb-6">
               <SheetTitle>Resumen del Pedido</SheetTitle>
             </SheetHeader>
             <div className="space-y-4 pb-6">
-              <OrderSummaryContent />
+              {orderSummaryContent}
             </div>
           </SheetContent>
         </Sheet>
       </div>
 
       <div className="w-full bg-slate-50/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-32 lg:pb-12">
-          <form onSubmit={handleSubmit} className="w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-40 lg:pb-12">
+          <form onSubmit={handleSubmit} className="checkout-form w-full">
             {error && (
               <Alert variant="destructive" className="mb-6">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
@@ -1234,6 +1311,35 @@ export default function CheckoutPageClient({
                     />
                   </CardContent>
                 </Card>
+
+                {/* Términos — móvil. Vive en el flujo del formulario (no en la
+                    barra fija) para mantener el pay bar bajo y dejar más espacio
+                    al teclado. En desktop los términos están en el resumen. */}
+                <div ref={termsRefMobile} className="lg:hidden">
+                  <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
+                    <Checkbox
+                      id="acceptTermsMobile"
+                      checked={formData.acceptTerms}
+                      onCheckedChange={(checked) => {
+                        setFormData({ ...formData, acceptTerms: checked === true });
+                        if (checked && showMissingAlert) {
+                          setShowMissingAlert(false);
+                        }
+                      }}
+                      className="mt-1 flex-shrink-0"
+                    />
+                    <Label
+                      htmlFor="acceptTermsMobile"
+                      className="text-sm font-normal cursor-pointer leading-relaxed flex-1 block"
+                    >
+                      He leído y acepto los <TermsAndConditions>
+                        <span className="text-primary underline font-medium">
+                          términos y condiciones
+                        </span>
+                      </TermsAndConditions> de compra <span className="text-destructive">*</span>
+                    </Label>
+                  </div>
+                </div>
               </div>
 
               {/* Resumen Desktop */}
@@ -1243,7 +1349,7 @@ export default function CheckoutPageClient({
                     <CardTitle>Resumen del Pedido</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <OrderSummaryContent />
+                    {orderSummaryContent}
 
                     <div ref={termsRef} className="pt-2">
                       <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
@@ -1278,9 +1384,9 @@ export default function CheckoutPageClient({
                       <div className="space-y-3 pt-2">
                         {/* Alertas de validación */}
                         {missingRequirements.length > 0 ? (
-                          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg p-3 shadow-md">
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                             <div className="flex gap-2">
-                              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
                               <div className="flex-1 min-w-0">
                                 <p className="font-bold text-amber-900 text-sm mb-1.5">Para continuar:</p>
                                 <ul className="space-y-0.5 text-xs text-amber-800">
@@ -1304,9 +1410,9 @@ export default function CheckoutPageClient({
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-3 shadow-md">
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
                             <div className="flex gap-2 items-start">
-                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
                               <div className="flex-1">
                                 <p className="font-bold text-green-900 text-sm">¡Todo listo!</p>
                                 <p className="text-xs text-green-800 mt-1">
@@ -1375,7 +1481,7 @@ export default function CheckoutPageClient({
                       </p>
                       <div className="flex items-center justify-center gap-2 flex-wrap">
                         <span className="text-xs text-muted-foreground">Aceptamos:</span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" aria-hidden="true">
                           <VisaIcon width={28} height={18} className="opacity-70" />
                           <MastercardIcon width={26} height={16} className="opacity-70" />
                           <YapeIcon width={24} height={24} className="opacity-70" />
@@ -1392,58 +1498,43 @@ export default function CheckoutPageClient({
         </div>
       </div>
 
-      {/* Botón flotante móvil */}
+      {/* Botón flotante móvil. SIEMPRE visible — el CTA de pago nunca debe
+          desaparecer (best practice de checkout móvil). Cuando el teclado está
+          abierto se colapsa a solo el botón: se ocultan los elementos
+          decorativos (iconos de confianza y la alerta de validación de tarjeta)
+          para no robar espacio, pero el cliente siempre puede pagar sin tener
+          que cerrar el teclado. El campo enfocado se desplaza por encima vía
+          `interactive-widget=resizes-content` + scroll-margin. */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
-        <div className="px-4 py-3 space-y-3">
-          <div ref={termsRef} className="flex items-start space-x-2 py-1">
-            <Checkbox
-              id="acceptTermsMobile"
-              checked={formData.acceptTerms}
-              onCheckedChange={(checked) => {
-                setFormData({ ...formData, acceptTerms: checked === true });
-                if (checked && showMissingAlert) {
-                  setShowMissingAlert(false);
-                }
-              }}
-              className="mt-1 flex-shrink-0"
-            />
-            <Label
-              htmlFor="acceptTermsMobile"
-              className="text-xs leading-relaxed cursor-pointer flex-1 block"
-            >
-              He leído y acepto los <TermsAndConditions>
-                <span className="text-primary underline font-medium">
-                  términos y condiciones
-                </span>
-              </TermsAndConditions> de compra <span className="text-destructive">*</span>
-            </Label>
-          </div>
-
+        <div className="px-4 py-3 space-y-2.5">
           {/* ✅ BOTÓN DE PAGO CON TARJETA - MÓVIL */}
           {formData.paymentMethod === "CARD" ? (
             <div className="space-y-2">
-              {/* Alertas compactas para móvil */}
-              {missingRequirements.length > 0 ? (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-lg p-2.5 text-xs">
-                  <div className="flex gap-2">
-                    <AlertCircle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-bold text-amber-900 mb-1">Falta completar:</p>
-                      <p className="text-amber-800">
-                        {missingRequirements.join(', ')}
-                      </p>
+              {/* Alertas compactas para móvil — ocultas mientras se escribe
+                  para dejar el footer en solo el botón de pago. */}
+              {!keyboardOpen && (
+                missingRequirements.length > 0 ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-xs">
+                    <div className="flex gap-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                      <div className="flex-1">
+                        <p className="font-bold text-amber-900 mb-1">Falta completar:</p>
+                        <p className="text-amber-800">
+                          {missingRequirements.join(', ')}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-300 rounded-lg p-2.5 text-xs">
-                  <div className="flex gap-2 items-center">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
-                    <p className="font-bold text-green-900">¡Listo para pagar!</p>
+                ) : (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-xs">
+                    <div className="flex gap-2 items-center">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                      <p className="font-bold text-green-900">¡Listo para pagar!</p>
+                    </div>
                   </div>
-                </div>
+                )
               )}
-              
+
               <CulqiCheckoutButton
                 key={`culqi-mobile-${formData.customerEmail}-${formData.acceptTerms}`}
                 amount={Math.round(total * 100)}
@@ -1494,14 +1585,18 @@ export default function CheckoutPageClient({
             </Button>
           )}
 
-          <div className="flex items-center justify-center gap-1.5 flex-wrap pt-1">
-            <VisaIcon width={24} height={16} className="opacity-60" />
-            <MastercardIcon width={22} height={14} className="opacity-60" />
-            <YapeIcon width={20} height={20} className="opacity-60" />
-            <PlinIcon width={20} height={20} className="opacity-60" />
-            <PayPalIcon width={52} height={30} className="opacity-60" />
-            <span className="text-[10px] text-muted-foreground ml-1">🔒 Seguro</span>
-          </div>
+          {!keyboardOpen && (
+            <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
+              <span className="flex items-center gap-2" aria-hidden="true">
+                <VisaIcon width={36} height={24} className="opacity-80" />
+                <MastercardIcon width={32} height={20} className="opacity-80" />
+                <YapeIcon width={28} height={28} className="opacity-80" />
+                <PlinIcon width={28} height={28} className="opacity-80" />
+                <PayPalIcon width={64} height={36} className="opacity-80" />
+              </span>
+              <span className="text-xs text-muted-foreground ml-1">🔒 Pago seguro</span>
+            </div>
+          )}
         </div>
       </div>
     </>

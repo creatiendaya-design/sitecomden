@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,10 @@ export default function ApplyCoupon({
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Unique per instance — the checkout renders this twice (mobile sheet +
+  // desktop summary), so a hardcoded id would collide and make the label focus
+  // the wrong (hidden) input.
+  const couponId = useId();
 
   const handleApply = async () => {
     if (!code.trim()) {
@@ -104,13 +108,13 @@ export default function ApplyCoupon({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="coupon" className="flex items-center gap-2">
+      <Label htmlFor={couponId} className="flex items-center gap-2">
         <Tag className="h-4 w-4" />
         ¿Tienes un cupón de descuento?
       </Label>
       <div className="flex gap-2">
         <Input
-          id="coupon"
+          id={couponId}
           value={code}
           onChange={(e) => {
             setCode(e.target.value.toUpperCase());

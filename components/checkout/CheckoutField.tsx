@@ -84,12 +84,21 @@ export function CheckoutField({
       )}
       {children}
       {error ? (
-        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-destructive">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+        <p
+          id={htmlFor ? `${htmlFor}-error` : undefined}
+          role="alert"
+          className="mt-1.5 flex items-center gap-1 text-xs font-medium text-destructive"
+        >
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>{error}</span>
         </p>
       ) : hint ? (
-        <p className="mt-1.5 text-xs text-slate-500">{hint}</p>
+        <p
+          id={htmlFor ? `${htmlFor}-hint` : undefined}
+          className="mt-1.5 text-xs text-slate-500"
+        >
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -114,6 +123,10 @@ export const CheckoutInput = React.forwardRef<HTMLInputElement, CheckoutInputPro
     ref
   ) {
     const showValid = !!valid && !error;
+    const describedBy =
+      [error && id ? `${id}-error` : null, !error && hint && id ? `${id}-hint` : null]
+        .filter(Boolean)
+        .join(" ") || undefined;
     return (
       <CheckoutField
         label={label}
@@ -125,7 +138,10 @@ export const CheckoutInput = React.forwardRef<HTMLInputElement, CheckoutInputPro
       >
         <div className="relative">
           {icon && (
-            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 [&_svg]:h-5 [&_svg]:w-5">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 [&_svg]:h-5 [&_svg]:w-5"
+            >
               {icon}
             </span>
           )}
@@ -133,6 +149,7 @@ export const CheckoutInput = React.forwardRef<HTMLInputElement, CheckoutInputPro
             ref={ref}
             id={id}
             aria-invalid={!!error || undefined}
+            aria-describedby={describedBy}
             className={cn(
               checkoutControlClass({ hasIcon: !!icon, error: !!error, valid: showValid }),
               showValid && "pr-10",
@@ -141,7 +158,10 @@ export const CheckoutInput = React.forwardRef<HTMLInputElement, CheckoutInputPro
             {...props}
           />
           {showValid && (
-            <CheckCircle2 className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+            <CheckCircle2
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500"
+            />
           )}
         </div>
       </CheckoutField>
@@ -181,7 +201,10 @@ export function CheckoutSelect({
     <SelectPrimitive.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <div className="relative">
         {icon && (
-          <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-slate-400 [&_svg]:h-5 [&_svg]:w-5">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-slate-400 [&_svg]:h-5 [&_svg]:w-5"
+          >
             {icon}
           </span>
         )}
@@ -196,7 +219,7 @@ export function CheckoutSelect({
         >
           <SelectValue placeholder={placeholder} />
           <SelectPrimitive.Icon asChild>
-            <ChevronDownIcon className="size-4 opacity-50" />
+            <ChevronDownIcon className="size-4 opacity-50" aria-hidden="true" />
           </SelectPrimitive.Icon>
         </SelectPrimitive.Trigger>
       </div>

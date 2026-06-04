@@ -1,14 +1,22 @@
+"use client";
+
+import { useId } from "react";
+
 interface MercadoPagoIconProps {
   className?: string;
   width?: number;
   height?: number;
 }
 
-export default function MercadoPagoIcon({ 
-  className = "", 
-  width = 50, 
-  height = 50 
+export default function MercadoPagoIcon({
+  className = "",
+  width = 50,
+  height = 50
 }: MercadoPagoIconProps) {
+  // Unique per instance to avoid duplicate mask/gradient ids across the page.
+  const uid = useId().replace(/:/g, "");
+  const maskId = `mp-mask-${uid}`;
+  const gradientId = `mp-gradient-${uid}`;
   return (
     <svg 
       width={width} 
@@ -19,7 +27,7 @@ export default function MercadoPagoIcon({
       className={className}
     >
       <mask 
-        id="mask0_mp" 
+        id={maskId}
         style={{ maskType: "luminance" }} 
         maskUnits="userSpaceOnUse" 
         x="0" 
@@ -32,10 +40,10 @@ export default function MercadoPagoIcon({
           fill="white"
         />
       </mask>
-      <g mask="url(#mask0_mp)">
+      <g mask={`url(#${maskId})`}>
         <path 
           d="M25.0008 -25.0005L-24.9995 24.9998L25.0008 75L75.0011 24.9998L25.0008 -25.0005Z" 
-          fill="url(#paint0_linear_mp)"
+          fill={`url(#${gradientId})`}
         />
       </g>
       <path 
@@ -48,7 +56,7 @@ export default function MercadoPagoIcon({
       />
       <defs>
         <linearGradient 
-          id="paint0_linear_mp" 
+          id={gradientId} 
           x1="2.46535" 
           y1="48.2422" 
           x2="43.0335" 

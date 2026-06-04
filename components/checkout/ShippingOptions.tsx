@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   getShippingOptionsForCheckout,
   type ShippingRate,
@@ -57,6 +57,16 @@ export function ShippingOptions({
   const [error, setError] = useState<string | null>(null);
   const [zoneName, setZoneName] = useState<string>("");
 
+  // Keep the latest onSelect without making it a fetch dependency. The parent
+  // recreates onSelect every render; if it drove the load effect, auto-selecting
+  // a single rate would re-trigger the fetch → re-select → infinite refetch
+  // loop (the cause of "Calculando opciones de envío..." never finishing for
+  // districts that have exactly one rate).
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
+
   const loadShippingOptions = useCallback(async () => {
     if (!districtCode) {
       setLoading(false);
@@ -80,9 +90,9 @@ export function ShippingOptions({
     setLoading(false);
 
     if (result.data.length === 1) {
-      onSelect(result.data[0]);
+      onSelectRef.current(result.data[0]);
     }
-  }, [districtCode, subtotal, onSelect]);
+  }, [districtCode, subtotal]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

@@ -1,14 +1,24 @@
+"use client";
+
+import { useId } from "react";
+
 interface PlinIconProps {
   className?: string;
   width?: number;
   height?: number;
 }
 
-export default function PlinIcon({ 
-  className = "", 
-  width = 50, 
-  height = 50 
+export default function PlinIcon({
+  className = "",
+  width = 50,
+  height = 50
 }: PlinIconProps) {
+  // Unique per instance — avoids duplicate mask/gradient ids when several Plin
+  // logos render on one page (the dup makes refs resolve to a possibly-hidden
+  // first instance, leaving the logo blank).
+  const uid = useId().replace(/:/g, "");
+  const maskId = `plin-mask-${uid}`;
+  const gradientId = `plin-gradient-${uid}`;
   return (
     <svg 
       width={width} 
@@ -19,7 +29,7 @@ export default function PlinIcon({
       className={className}
     >
       <mask 
-        id="mask0_plin" 
+        id={maskId}
         style={{ maskType: "luminance" }} 
         maskUnits="userSpaceOnUse" 
         x="0" 
@@ -32,10 +42,10 @@ export default function PlinIcon({
           fill="white"
         />
       </mask>
-      <g mask="url(#mask0_plin)">
+      <g mask={`url(#${maskId})`}>
         <path 
           d="M25.0008 -25.0005L-24.9995 24.9998L25.0008 75L75.0011 24.9998L25.0008 -25.0005Z" 
-          fill="url(#paint0_linear_plin)"
+          fill={`url(#${gradientId})`}
         />
       </g>
       <path 
@@ -48,7 +58,7 @@ export default function PlinIcon({
       />
       <defs>
         <linearGradient 
-          id="paint0_linear_plin" 
+          id={gradientId}
           x1="2.46535" 
           y1="48.2422" 
           x2="43.0335" 

@@ -685,6 +685,12 @@ body.is-landing-page footer {
   .hero-anim-in { animation: none; }
 }
 
+/* Adds the iOS/Android home-indicator inset below fixed bottom bars
+   (checkout pay bar, cookie banner). Additive to any inner padding. */
+@utility safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Neutralize Chrome's autofill blue/lavender background on COD form inputs.
    The browser injects a high-specificity style; we override it with an
    inset white shadow large enough to cover the input area. */

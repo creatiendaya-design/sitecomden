@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Rubik, Nunito_Sans, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
@@ -22,6 +22,15 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// `interactive-widget=resizes-content` makes mobile browsers reflow the layout
+// when the on-screen keyboard opens, so focused inputs scroll above sticky
+// bars / fixed footers (e.g. the checkout pay bar) instead of being covered.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();

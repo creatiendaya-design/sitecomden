@@ -78,8 +78,9 @@ export function PaymentMethodSelector({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center p-8" role="status">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden="true"></div>
+        <span className="sr-only">Cargando métodos de pago…</span>
       </div>
     );
   }
@@ -89,7 +90,7 @@ export function PaymentMethodSelector({
   if (!hasAnyMethod) {
     return (
       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
+        <AlertCircle className="h-4 w-4" aria-hidden="true" />
         <AlertDescription>
           No hay métodos de pago habilitados. Por favor contacta al administrador.
         </AlertDescription>
@@ -111,7 +112,7 @@ export function PaymentMethodSelector({
           className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
         >
           <RadioGroupItem value="YAPE" id="yape" className="flex-shrink-0" />
-          <div className="flex-shrink-0 w-7 h-7">
+          <div className="flex-shrink-0 w-7 h-7" aria-hidden="true">
             <YapeIcon width={28} height={28} />
           </div>
           <div className="flex-1 min-w-0">
@@ -133,7 +134,7 @@ export function PaymentMethodSelector({
           className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
         >
           <RadioGroupItem value="PLIN" id="plin" className="flex-shrink-0" />
-          <div className="flex-shrink-0 w-7 h-7">
+          <div className="flex-shrink-0 w-7 h-7" aria-hidden="true">
             <PlinIcon width={28} height={28} />
           </div>
           <div className="flex-1 min-w-0">
@@ -152,7 +153,7 @@ export function PaymentMethodSelector({
           className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
         >
           <RadioGroupItem value="CARD" id="card" className="flex-shrink-0" />
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0" aria-hidden="true">
             <VisaIcon width={36} height={24} />
             <MastercardIcon width={28} height={18} />
           </div>
@@ -174,7 +175,7 @@ export function PaymentMethodSelector({
           className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
         >
           <RadioGroupItem value="PAYPAL" id="paypal" className="flex-shrink-0" />
-          <div className="flex-shrink-0 w-7 h-7">
+          <div className="flex-shrink-0 w-7 h-7" aria-hidden="true">
             <PayPalIcon width={28} height={18} />
           </div>
           <div className="flex-1 min-w-0">
@@ -193,7 +194,7 @@ export function PaymentMethodSelector({
           className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
         >
           <RadioGroupItem value="MERCADOPAGO" id="mercadopago" className="flex-shrink-0" />
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0" aria-hidden="true">
             <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center">
               <span className="text-xs font-bold text-blue-600">MP</span>
             </div>
