@@ -3,12 +3,13 @@ import Image from "next/image";
 import { Phone, ShieldCheck } from "lucide-react";
 import { getSiteSettings } from "@/lib/site-settings";
 import CheckoutProgressBar from "@/components/checkout/CheckoutProgressBar";
+import CheckoutHeaderShell from "@/components/shop/CheckoutHeaderShell";
 
 export default async function CheckoutHeader() {
   const settings = await getSiteSettings();
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+    <CheckoutHeaderShell>
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
@@ -49,6 +50,6 @@ export default async function CheckoutHeader() {
         </div>
       </div>
       <CheckoutProgressBar />
-    </header>
+    </CheckoutHeaderShell>
   );
 }
