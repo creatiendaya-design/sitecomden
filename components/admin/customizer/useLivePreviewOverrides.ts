@@ -74,13 +74,15 @@ export function useLivePreviewOverrides(
       const builderState = useBuilderStore.getState()
 
       // Plan 17 — `product` joins header/footer as a live-previewable group.
-      // Without including it here, every Plan 17 section/sub-block edit
+      // Plan 19 — `collection` (products-index template) joins them too.
+      // Without including these here, every section/sub-block edit
       // (color scheme switch, padding, alignment, scheme rebind, etc.)
       // waited on the ~500-1000ms autosave + revalidate round-trip.
       const allSections = [
         ...themeState.header,
         ...themeState.footer,
         ...themeState.product,
+        ...themeState.collection,
       ]
 
       // Shopify-style LEGACY_BLOCK adapter — a theme section that wraps a
@@ -371,9 +373,11 @@ function applyInlineColors(el: HTMLElement, style: BlockStyle | undefined) {
 }
 
 /**
- * Rebind the eight `--theme-*` custom properties on a section wrapper to
- * a specific color scheme's palette (or clear them when no scheme is
- * picked, letting the ancestor `.theme-<id>` defaults inherit).
+ * Rebind every `--theme-*` custom property on a section wrapper to a
+ * specific color scheme's palette (or clear them when no scheme is
+ * picked, letting the ancestor `.theme-<id>` defaults inherit). The set
+ * of properties is derived dynamically from `scheme.colors`, so new
+ * tokens (e.g. price / badge colors) are picked up without changes here.
  *
  * Tracks via WeakMap so we only clear properties WE set — never touches
  * `--theme-*` values the SSR may have written for its own purposes

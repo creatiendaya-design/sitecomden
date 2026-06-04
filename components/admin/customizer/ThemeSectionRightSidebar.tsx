@@ -32,7 +32,8 @@ export function ThemeSectionRightSidebar() {
   const select = useThemeSectionsStore((s) => s.select)
 
   // Pull the actual draft for whichever target is selected. Searches all
-  // three group slots (Plan 17 added `product` alongside header/footer).
+  // group slots (Plan 17 added `product`, Plan 19 added `collection`,
+  // alongside header/footer).
   const sectionDraft = useThemeSectionsStore((s) => {
     if (!s.selected) return null
     const sectionId =
@@ -46,6 +47,7 @@ export function ThemeSectionRightSidebar() {
       s.header.find((x) => x.id === sectionId) ??
       s.footer.find((x) => x.id === sectionId) ??
       s.product.find((x) => x.id === sectionId) ??
+      s.collection.find((x) => x.id === sectionId) ??
       null
     )
   })
@@ -57,6 +59,7 @@ export function ThemeSectionRightSidebar() {
       s.header.find((x) => x.id === target.sectionId) ??
       s.footer.find((x) => x.id === target.sectionId) ??
       s.product.find((x) => x.id === target.sectionId) ??
+      s.collection.find((x) => x.id === target.sectionId) ??
       null
     return section?.blocks.find((b) => b.id === target.blockId) ?? null
   })

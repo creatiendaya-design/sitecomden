@@ -151,4 +151,7 @@ export interface ThemeSectionCatalog {
   header?: string[]
   footer?: string[]
   product?: string[]
+  /** Plan 19 — allowed section types for the products-index (collection)
+   *  template (`/productos`). Empty/missing → permissive default. */
+  collection?: string[]
 }

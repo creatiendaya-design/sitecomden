@@ -3,7 +3,7 @@ import type { ThemeSectionDefinition } from "../types"
 
 export const richTextSectionDefinition: ThemeSectionDefinition = {
   type: "RICH_TEXT_SECTION",
-  groups: ["PRODUCT", "FOOTER"],
+  groups: ["PRODUCT", "FOOTER", "COLLECTION"],
   label: "Texto enriquecido",
   description: "Bloque libre con Tiptap (encabezados, listas, enlaces).",
   icon: FileText,

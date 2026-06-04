@@ -30,10 +30,10 @@ interface Props {
   onBlocksSaved?: () => void
   /** Plan 16 — per-theme catalog (allowed section types per group). */
   sectionCatalog: ThemeSectionCatalog
-  /** Plan 17 — when "product", the Plantilla zone renders a PRODUCT-group
-   *  theme-sections editor instead of the page/category block editor.
-   *  Defaults to "page-or-category" for backwards-compat. */
-  templateMode?: "product" | "page-or-category"
+  /** Plan 17/19 — when "product" / "collection", the Plantilla zone renders
+   *  a PRODUCT- / COLLECTION-group theme-sections editor instead of the
+   *  page/category block editor. Defaults to "page-or-category". */
+  templateMode?: "product" | "collection" | "page-or-category"
 }
 
 /**
@@ -75,6 +75,8 @@ export function ZoneList({
       >
         {templateMode === "product" ? (
           <ThemeSectionGroupEditor group="PRODUCT" catalog={sectionCatalog} />
+        ) : templateMode === "collection" ? (
+          <ThemeSectionGroupEditor group="COLLECTION" catalog={sectionCatalog} />
         ) : editorKey ? (
           <EmbeddedBlocksEditor
             editorKey={editorKey}

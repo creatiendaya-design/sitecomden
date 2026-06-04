@@ -39,13 +39,19 @@ export type SidebarTarget =
 /** Single source of truth for the list of editable groups in the store.
  *  Adding a new ThemeSectionGroup value should only require appending it
  *  here (plus the matching slot in the initial state below). */
-const GROUPS: readonly ThemeSectionGroup[] = ["HEADER", "FOOTER", "PRODUCT"]
+const GROUPS: readonly ThemeSectionGroup[] = [
+  "HEADER",
+  "FOOTER",
+  "PRODUCT",
+  "COLLECTION",
+]
 
 interface Store {
   themeId: string | null
   header: SectionDraft[]
   footer: SectionDraft[]
   product: SectionDraft[]
+  collection: SectionDraft[]
   selected: SidebarTarget
   /** Group-level dirty flags. Set true on every mutation that affects a
    *  group's section list (add / remove / reorder / toggle / content edit
@@ -55,12 +61,18 @@ interface Store {
   headerDirty: boolean
   footerDirty: boolean
   productDirty: boolean
+  collectionDirty: boolean
 
   /** Replace local state with what came from the server. Called on first
    *  mount and after every successful save (so persisted ids replace tmp- ids). */
   hydrate: (
     themeId: string,
-    rows: { header: ThemeSectionRow[]; footer: ThemeSectionRow[]; product: ThemeSectionRow[] },
+    rows: {
+      header: ThemeSectionRow[]
+      footer: ThemeSectionRow[]
+      product: ThemeSectionRow[]
+      collection: ThemeSectionRow[]
+    },
   ) => void
 
   /** Called by the autosave hook after `saveThemeSectionGroup` resolves
@@ -135,18 +147,24 @@ interface Store {
 let counter = 0
 const tmpId = (kind: "s" | "b") => `tmp-${kind}-${++counter}-${Date.now()}`
 
-type SlotKey = "header" | "footer" | "product"
-type DirtyKey = "headerDirty" | "footerDirty" | "productDirty"
+type SlotKey = "header" | "footer" | "product" | "collection"
+type DirtyKey =
+  | "headerDirty"
+  | "footerDirty"
+  | "productDirty"
+  | "collectionDirty"
 
 function slotKey(group: ThemeSectionGroup): SlotKey {
   if (group === "HEADER") return "header"
   if (group === "FOOTER") return "footer"
+  if (group === "COLLECTION") return "collection"
   return "product"
 }
 
 function dirtyKey(group: ThemeSectionGroup): DirtyKey {
   if (group === "HEADER") return "headerDirty"
   if (group === "FOOTER") return "footerDirty"
+  if (group === "COLLECTION") return "collectionDirty"
   return "productDirty"
 }
 
@@ -222,17 +240,28 @@ function rowToDraft(row: ThemeSectionRow): SectionDraft {
 
 /** Find which group owns a given section id, scanning all known slots. */
 function findGroupBySection(
-  state: { header: SectionDraft[]; footer: SectionDraft[]; product: SectionDraft[] },
+  state: {
+    header: SectionDraft[]
+    footer: SectionDraft[]
+    product: SectionDraft[]
+    collection: SectionDraft[]
+  },
   sectionId: string,
 ): ThemeSectionGroup | null {
   if (state.header.some((x) => x.id === sectionId)) return "HEADER"
   if (state.footer.some((x) => x.id === sectionId)) return "FOOTER"
   if (state.product.some((x) => x.id === sectionId)) return "PRODUCT"
+  if (state.collection.some((x) => x.id === sectionId)) return "COLLECTION"
   return null
 }
 
 function findGroupByBlock(
-  state: { header: SectionDraft[]; footer: SectionDraft[]; product: SectionDraft[] },
+  state: {
+    header: SectionDraft[]
+    footer: SectionDraft[]
+    product: SectionDraft[]
+    collection: SectionDraft[]
+  },
   blockId: string,
 ): ThemeSectionGroup | null {
   for (const g of GROUPS) {
@@ -249,10 +278,12 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
   header: [],
   footer: [],
   product: [],
+  collection: [],
   selected: null,
   headerDirty: false,
   footerDirty: false,
   productDirty: false,
+  collectionDirty: false,
 
   hydrate(themeId, rows) {
     set({
@@ -260,11 +291,13 @@ export const useThemeSectionsStore = create<Store>((set, get) => ({
       header: rows.header.map(rowToDraft),
       footer: rows.footer.map(rowToDraft),
       product: rows.product.map(rowToDraft),
+      collection: rows.collection.map(rowToDraft),
       // Reset selection on hydrate to avoid pointing at a stale id.
       selected: null,
       headerDirty: false,
       footerDirty: false,
       productDirty: false,
+      collectionDirty: false,
     })
   },
 

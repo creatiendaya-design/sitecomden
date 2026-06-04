@@ -41,6 +41,14 @@ export interface ThemeTokens {
     cardButtonBg?: string
     /** Text color of the product card action button. */
     cardButtonText?: string
+    /** Regular (current) price color — product cards + product main. */
+    regularPrice?: string
+    /** Compare-at (struck-through) price color. */
+    comparePrice?: string
+    /** Sale/discount badge background color. */
+    badgeBg?: string
+    /** Sale/discount badge text color. */
+    badgeText?: string
   }
   fonts?: {
     /** Headings font stack. */
@@ -83,6 +91,12 @@ export const DEFAULT_THEME_TOKENS: Required<{
     // themes that don't customize the card button look unchanged.
     cardButtonBg: "#ea6a2a",
     cardButtonText: "#1c1108",
+    // Pricing + sale badge. Defaults track the current hardcoded look:
+    // bold dark price, muted compare-at, red sale badge with white text.
+    regularPrice: "#0f172a", // slate-900
+    comparePrice: "#64748b", // slate-500
+    badgeBg: "#dc2626", // red-600
+    badgeText: "#ffffff",
   },
   fonts: {
     heading: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif',

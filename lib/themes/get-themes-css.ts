@@ -125,7 +125,7 @@ function themeRule(
     .split("\n")
     // Drop legacy color lines so the scheme owns them — avoids double
     // declarations and keeps the rule deterministic.
-    .filter((line) => !/--theme-(primary|primary-foreground|accent|accent-foreground|bg|text|muted|border|drawer-bg|drawer-text|card-bg|card-text|card-button-bg|card-button-text):/.test(line))
+    .filter((line) => !/--theme-(primary|primary-foreground|accent|accent-foreground|bg|text|muted|border|drawer-bg|drawer-text|card-bg|card-text|card-button-bg|card-button-text|regular-price|compare-price|badge-bg|badge-text):/.test(line))
 
   const schemeLines = schemeToCssLines(scheme)
   return `${selector} {\n${[...tokenLines, ...schemeLines].join("\n")}\n}`

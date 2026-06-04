@@ -44,16 +44,30 @@ export function ProductPrice({ block }: ProductPriceProps) {
       colorScheme={dataColorScheme}
     >
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-3xl font-bold product-price-current">
+        <span
+          className="text-3xl font-bold product-price-current"
+          style={{ color: "var(--theme-regular-price, inherit)" }}
+        >
           {formatPrice(currentPrice)}
         </span>
         {hasCompare && (
           <>
-            <span className="text-xl line-through opacity-60 product-price-compare">
+            <span
+              className="text-xl line-through opacity-60 product-price-compare"
+              style={{ color: "var(--theme-compare-price, inherit)" }}
+            >
               {formatPrice(currentComparePrice)}
             </span>
             {showSavings && discountPct > 0 && (
-              <Badge variant="secondary">{discountPct}% OFF</Badge>
+              <Badge
+                className="border-transparent"
+                style={{
+                  backgroundColor: "var(--theme-badge-bg, #dc2626)",
+                  color: "var(--theme-badge-text, #ffffff)",
+                }}
+              >
+                {discountPct}% OFF
+              </Badge>
             )}
           </>
         )}

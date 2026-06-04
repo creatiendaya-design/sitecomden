@@ -1676,6 +1676,7 @@ enum ThemeSectionGroup {
   HEADER
   FOOTER
   PRODUCT
+  COLLECTION
 }
 
 model CustomizableTemplate {

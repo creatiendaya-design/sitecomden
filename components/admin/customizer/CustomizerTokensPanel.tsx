@@ -533,6 +533,30 @@ function SchemeEditor({
               }
               disabled={pending}
             />
+            <ColorField
+              label="Precio regular"
+              value={colors.regularPrice}
+              onChange={(v) => setColors((p) => ({ ...p, regularPrice: v }))}
+              disabled={pending}
+            />
+            <ColorField
+              label="Precio de comparación"
+              value={colors.comparePrice}
+              onChange={(v) => setColors((p) => ({ ...p, comparePrice: v }))}
+              disabled={pending}
+            />
+            <ColorField
+              label="Fondo de badge"
+              value={colors.badgeBg}
+              onChange={(v) => setColors((p) => ({ ...p, badgeBg: v }))}
+              disabled={pending}
+            />
+            <ColorField
+              label="Texto de badge"
+              value={colors.badgeText}
+              onChange={(v) => setColors((p) => ({ ...p, badgeText: v }))}
+              disabled={pending}
+            />
           </div>
         </fieldset>
 

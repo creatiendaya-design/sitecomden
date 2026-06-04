@@ -45,7 +45,7 @@ const testimonialItemDefinition: ThemeSectionBlockDefinition = {
 
 export const testimonialsDefinition: ThemeSectionDefinition = {
   type: "TESTIMONIALS",
-  groups: ["PRODUCT"],
+  groups: ["PRODUCT", "COLLECTION"],
   label: "Testimonios",
   description: "Citas de clientes con foto opcional.",
   icon: MessageSquareQuote,

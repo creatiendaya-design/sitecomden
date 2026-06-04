@@ -18,7 +18,7 @@ const faqItemDefinition: ThemeSectionBlockDefinition = {
 
 export const faqSectionDefinition: ThemeSectionDefinition = {
   type: "FAQ_SECTION",
-  groups: ["PRODUCT"],
+  groups: ["PRODUCT", "COLLECTION"],
   label: "Preguntas frecuentes",
   description: "Lista colapsable de preguntas y respuestas.",
   icon: HelpCircle,

@@ -3,7 +3,7 @@ import type { ThemeSectionDefinition } from "../types"
 
 export const imageWithTextDefinition: ThemeSectionDefinition = {
   type: "IMAGE_WITH_TEXT",
-  groups: ["PRODUCT"],
+  groups: ["PRODUCT", "COLLECTION"],
   label: "Imagen con texto",
   description: "Imagen a un lado y texto al otro, con CTA opcional.",
   icon: ImageIcon,

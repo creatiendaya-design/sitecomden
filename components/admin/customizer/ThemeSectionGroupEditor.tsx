@@ -60,7 +60,13 @@ interface Props {
 
 export function ThemeSectionGroupEditor({ group, catalog }: Props) {
   const sections = useThemeSectionsStore((s) =>
-    group === "HEADER" ? s.header : group === "FOOTER" ? s.footer : s.product,
+    group === "HEADER"
+      ? s.header
+      : group === "FOOTER"
+        ? s.footer
+        : group === "COLLECTION"
+          ? s.collection
+          : s.product,
   )
   const reorderSections = useThemeSectionsStore((s) => s.reorderSections)
   const addSection = useThemeSectionsStore((s) => s.addSection)
@@ -151,10 +157,18 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
   // Plan 17 — PRODUCT_MAIN is the obligatory backbone of the product
   // template. We lock it against drag-reorder and deletion so the admin
   // can't end up with a product page that has no main section at all.
-  const isLocked = section.type === "PRODUCT_MAIN"
+  //
+  // Plan 19 — COLLECTION_GRID is the obligatory backbone of the
+  // products-index template, but unlike PRODUCT_MAIN it CAN be reordered
+  // (so banners / rich text can sit above or below the product grid). It's
+  // only protected against deletion.
+  const isUnmovable = section.type === "PRODUCT_MAIN"
+  const isUndeletable =
+    section.type === "PRODUCT_MAIN" || section.type === "COLLECTION_GRID"
+  const isLocked = isUnmovable
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: section.id, disabled: isLocked })
+    useSortable({ id: section.id, disabled: isUnmovable })
 
   const def = getThemeSectionDefinition(section.type)
   const select = useThemeSectionsStore((s) => s.select)
@@ -226,10 +240,10 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
           )}
         </button>
         <button
-          disabled={isLocked}
+          disabled={isUndeletable}
           onClick={(e) => {
             e.stopPropagation()
-            if (isLocked) return
+            if (isUndeletable) return
             if (
               window.confirm(
                 `¿Eliminar la sección "${displayLabel}"?`,
@@ -239,11 +253,11 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
             }
           }}
           className={`text-muted-foreground ${
-            isLocked ? "opacity-30 cursor-not-allowed" : "hover:text-destructive"
+            isUndeletable ? "opacity-30 cursor-not-allowed" : "hover:text-destructive"
           }`}
           aria-label="Eliminar"
           title={
-            isLocked
+            isUndeletable
               ? "La sección principal no se puede eliminar"
               : undefined
           }

@@ -36,6 +36,14 @@ export interface ColorScheme {
     cardButtonBg: string
     /** Action button text color inside a product card. */
     cardButtonText: string
+    /** Regular (current) price color — product cards + product main. */
+    regularPrice: string
+    /** Compare-at (struck-through) price color. */
+    comparePrice: string
+    /** Sale/discount badge background color. */
+    badgeBg: string
+    /** Sale/discount badge text color. */
+    badgeText: string
   }
 }
 
@@ -101,6 +109,10 @@ function normalizeScheme(
       cardText: c.cardText || def.cardText,
       cardButtonBg: c.cardButtonBg || def.cardButtonBg,
       cardButtonText: c.cardButtonText || def.cardButtonText,
+      regularPrice: c.regularPrice || def.regularPrice,
+      comparePrice: c.comparePrice || def.comparePrice,
+      badgeBg: c.badgeBg || def.badgeBg,
+      badgeText: c.badgeText || def.badgeText,
     },
   }
 }

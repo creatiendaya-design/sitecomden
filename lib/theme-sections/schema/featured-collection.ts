@@ -3,7 +3,7 @@ import type { ThemeSectionDefinition } from "../types"
 
 export const featuredCollectionDefinition: ThemeSectionDefinition = {
   type: "FEATURED_COLLECTION",
-  groups: ["PRODUCT"],
+  groups: ["PRODUCT", "COLLECTION"],
   label: "Colección destacada",
   description:
     "Muestra una colección existente o un conjunto de productos relacionados, en cuadrícula o carrusel.",

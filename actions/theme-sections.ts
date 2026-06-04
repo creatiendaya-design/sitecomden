@@ -130,7 +130,7 @@ export interface ThemeSectionBlockRow {
 
 const addThemeSectionSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT", "COLLECTION"]),
   type: z.string().min(1),
 })
 
@@ -240,7 +240,7 @@ export async function removeThemeSection(sectionId: string): Promise<void> {
 
 const reorderSectionsSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT", "COLLECTION"]),
   orderedIds: z.array(z.string().min(1)),
 })
 
@@ -450,7 +450,7 @@ const batchSectionSchema = z.object({
 
 const saveGroupSchema = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT", "COLLECTION"]),
   sections: z.array(batchSectionSchema),
 })
 
@@ -477,7 +477,7 @@ const batchSectionSchemaVersioned = z.object({
 
 const saveGroupSchemaVersioned = z.object({
   themeId: z.string().min(1),
-  group: z.enum(["HEADER", "FOOTER", "PRODUCT"]),
+  group: z.enum(["HEADER", "FOOTER", "PRODUCT", "COLLECTION"]),
   sections: z.array(batchSectionSchemaVersioned),
 })
 

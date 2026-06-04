@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PackageSearch, SearchX } from "lucide-react";
+import { getThemedSections } from "@/lib/theme-sections/resolve-active-sections";
+import { CollectionSectionsRenderer } from "@/components/shop/theme-sections/collection/CollectionSectionsRenderer";
 
 interface ProductsPageProps {
   searchParams: Promise<{
@@ -100,6 +102,23 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       },
     },
   });
+
+  // Plan 19 — products-index template via COLLECTION theme sections. When
+  // the active theme has any COLLECTION section, render the editable
+  // template (the COLLECTION_GRID section reuses the products/categories
+  // fetched above). Otherwise fall back to the legacy hardcoded layout so
+  // nothing breaks for themes that haven't been seeded yet.
+  const collectionSections = await getThemedSections("COLLECTION", "desktop");
+  if (collectionSections.length > 0) {
+    return (
+      <CollectionSectionsRenderer
+        sections={collectionSections}
+        products={serializedProducts}
+        categories={categories}
+        filters={{ category, search, sort }}
+      />
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">

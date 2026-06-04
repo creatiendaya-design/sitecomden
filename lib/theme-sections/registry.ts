@@ -26,6 +26,8 @@ import { testimonialsDefinition } from "./schema/testimonials"
 import { faqSectionDefinition } from "./schema/faq-section"
 import { productReviewsDefinition } from "./schema/product-reviews"
 import { frequentlyBoughtTogetherDefinition } from "./schema/frequently-bought-together"
+// Plan 19 — Products-index (collection) template main section.
+import { collectionGridDefinition } from "./schema/collection-grid"
 // Shopify-style universal-block adapter — exposes every `scope: "universal"`
 // block from the page-builder registry as a PRODUCT-group section.
 import { legacyBlockDefinition } from "./schema/legacy-block"
@@ -46,6 +48,7 @@ const ALL_DEFINITIONS: ThemeSectionDefinition[] = [
   faqSectionDefinition,
   productReviewsDefinition,
   frequentlyBoughtTogetherDefinition,
+  collectionGridDefinition,
   legacyBlockDefinition,
 ]
 
@@ -79,7 +82,9 @@ export function getAvailableSectionDefinitions(
       ? catalog?.header
       : group === "FOOTER"
         ? catalog?.footer
-        : catalog?.product
+        : group === "COLLECTION"
+          ? catalog?.collection
+          : catalog?.product
   if (!allowed || allowed.length === 0) return all
   return all.filter((d) => allowed.includes(d.type))
 }

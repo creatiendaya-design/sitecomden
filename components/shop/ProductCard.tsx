@@ -207,7 +207,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           </Badge>
         )}
         {discount > 0 && (
-          <Badge variant="destructive" className="shadow-md">
+          <Badge
+            className="shadow-md border-transparent"
+            style={{
+              backgroundColor: "var(--theme-badge-bg, #dc2626)",
+              color: "var(--theme-badge-text, #ffffff)",
+            }}
+          >
             -{discount}%
           </Badge>
         )}
@@ -311,11 +317,19 @@ export default function ProductCard({ product }: ProductCardProps) {
             )}
 
           <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-foreground">
+            <span
+              className="text-xl font-bold text-foreground"
+              style={{ color: "var(--theme-regular-price, var(--foreground))" }}
+            >
               S/ {displayPrice.toFixed(2)}
             </span>
             {comparePrice && comparePrice > displayPrice && (
-              <span className="text-sm text-muted-foreground line-through">
+              <span
+                className="text-sm text-muted-foreground line-through"
+                style={{
+                  color: "var(--theme-compare-price, var(--muted-foreground))",
+                }}
+              >
                 S/ {comparePrice.toFixed(2)}
               </span>
             )}
