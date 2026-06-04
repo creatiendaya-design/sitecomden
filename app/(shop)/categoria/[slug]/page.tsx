@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 import ProductCard from "@/components/shop/ProductCard";
 import Breadcrumbs from "@/components/shop/Breadcrumbs";
 import { getSiteSettings } from "@/lib/site-settings";
+import { getProductImageUrl } from "@/lib/image-utils";
 import { getCspNonce } from "@/lib/csp";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -95,14 +96,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const itemListSchema =
     serializedProducts.length > 0
       ? buildItemListSchema(
-          serializedProducts.map((p) => {
-            const images = Array.isArray(p.images) ? (p.images as string[]) : [];
-            return {
-              url: `${baseUrl}/productos/${p.slug}`,
-              name: p.name,
-              image: images[0] ?? null,
-            };
-          }),
+          serializedProducts.map((p) => ({
+            url: `${baseUrl}/productos/${p.slug}`,
+            name: p.name,
+            // Normalize legacy string[] / current object[] image formats to a URL.
+            image: getProductImageUrl(p.images),
+          })),
         )
       : null;
 

@@ -10,7 +10,7 @@ import FrequentlyBoughtTogether, {
 } from "@/components/shop/FrequentlyBoughtTogether";
 import { getFrequentlyBoughtTogether } from "@/actions/recommendations";
 import { getFbtConfig } from "@/lib/recommendations/fbt-settings";
-import { getProductImageUrl } from "@/lib/image-utils";
+import { getProductImageUrl, getAllProductImages } from "@/lib/image-utils";
 import ProductStandardView from "@/components/shop/templates/ProductStandardView";
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
 import { ProductSectionsRenderer } from "@/components/shop/theme-sections/product/ProductSectionsRenderer";
@@ -126,10 +126,12 @@ export async function generateMetadata({
       ? rawDescription.slice(0, 160)
       : settings.seo_home_description;
 
-  const images = Array.isArray(product.images)
-    ? (product.images as string[])
-    : [];
-  const image = images[0] ?? settings.seo_home_og_image;
+  // `product.images` can be either the legacy `string[]` or the current
+  // `{ url, alt, name }[]` object format. `getProductImageUrl` normalizes both
+  // to a plain string URL — passing the raw object straight into the OG/Twitter
+  // `images` field makes Next.js' metadata URL resolver call `path.join` with an
+  // object and throw "The 'path' argument must be of type string."
+  const image = getProductImageUrl(product.images) ?? settings.seo_home_og_image;
   const url = `${settings.site_url.replace(/\/$/, "")}/productos/${product.slug}`;
 
   return {
@@ -395,9 +397,9 @@ export default async function ProductDetailPage({
   // ratings, shipping, returns) in search and AI answers.
   const baseUrl = settings.site_url.replace(/\/$/, "");
   const productUrl = `${baseUrl}/productos/${product.slug}`;
-  const productImages = Array.isArray(product.images)
-    ? (product.images as string[])
-    : [];
+  // Normalize both image formats (legacy string[] / current object[]) to plain
+  // URL strings for the Product JSON-LD `image` array.
+  const productImages = getAllProductImages(product.images).map((img) => img.url);
   const primaryCategory = product.categories[0]?.category;
 
   // Aggregate rating from the denormalized product columns, which reflect
