@@ -32,6 +32,10 @@ export interface ColorScheme {
     cardBg: string
     /** Text color inside cards. */
     cardText: string
+    /** Action button background inside a product card ("Agregar al carrito"). */
+    cardButtonBg: string
+    /** Action button text color inside a product card. */
+    cardButtonText: string
   }
 }
 
@@ -95,6 +99,8 @@ function normalizeScheme(
       drawerText: c.drawerText || def.drawerText,
       cardBg: c.cardBg || def.cardBg,
       cardText: c.cardText || def.cardText,
+      cardButtonBg: c.cardButtonBg || def.cardButtonBg,
+      cardButtonText: c.cardButtonText || def.cardButtonText,
     },
   }
 }

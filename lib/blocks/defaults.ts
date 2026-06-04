@@ -250,6 +250,29 @@ export const DEFAULT_CONTENT_V2: Record<LandingBlockType, BlockContentV2> = {
     media: {},
   },
 
+  FEATURED_COLLECTION: {
+    data: {
+      title: "Colección destacada",
+      subtitle: "",
+      headingAlign: "left",
+      source: "collection",
+      categoryId: null,
+      productIds: [],
+      sort: "newest",
+      showViewAll: true,
+      viewAllText: "Ver toda la colección",
+      limit: 8,
+      layout: "carousel",
+      columnsDesktop: 4,
+      columnsMobile: 2,
+      showArrows: true,
+      showDots: true,
+      controlsShape: "round",
+    },
+    style: { ...DEFAULT_STYLE, paddingY: "md", alignment: "left" },
+    media: {},
+  },
+
   COMPARISON: {
     data: {
       title: "BENEFICIOS INIGUALABLES",

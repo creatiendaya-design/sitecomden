@@ -59,6 +59,7 @@ const BLOCK_COLORS: Record<LandingBlockType, string> = {
   ICON_TEXT: "border-l-cyan-500",
   RELATED_PRODUCTS: "border-l-orange-500",
   PRODUCT_GRID: "border-l-emerald-500",
+  FEATURED_COLLECTION: "border-l-emerald-600",
   COMPARISON: "border-l-rose-500",
   FRIENDLY: "border-l-red-600",
   CAROUSEL: "border-l-pink-500",

@@ -36,6 +36,11 @@ export interface ThemeTokens {
     cardBg?: string
     /** Text inside cards. */
     cardText?: string
+    /** Background for the action button inside a product card
+     *  ("Agregar al carrito" / "Comprar ahora"). */
+    cardButtonBg?: string
+    /** Text color of the product card action button. */
+    cardButtonText?: string
   }
   fonts?: {
     /** Headings font stack. */
@@ -74,6 +79,10 @@ export const DEFAULT_THEME_TOKENS: Required<{
     drawerText: "#0f172a",
     cardBg: "#ffffff",
     cardText: "#0f172a",
+    // Faithful to the existing brand CTA (--cta orange / dark on it) so
+    // themes that don't customize the card button look unchanged.
+    cardButtonBg: "#ea6a2a",
+    cardButtonText: "#1c1108",
   },
   fonts: {
     heading: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif',

@@ -24,6 +24,7 @@ const ImageTextBlock = dynamic(() => import("@/components/shop/templates/blocks/
 const IconTextBlock = dynamic(() => import("@/components/shop/templates/blocks/IconTextBlock"))
 const RelatedProductsBlockEditorWrapper = dynamic(() => import("@/components/shop/templates/blocks/RelatedProductsBlockEditorWrapper"))
 const ProductGridBlockEditor = dynamic(() => import("@/components/shop/templates/blocks/ProductGridBlockEditor"))
+const FeaturedCollectionBlock = dynamic(() => import("@/components/shop/templates/blocks/FeaturedCollectionBlock"))
 const ComparisonBlock = dynamic(() => import("@/components/shop/templates/blocks/ComparisonBlock"))
 const FriendlyBlock = dynamic(() => import("@/components/shop/templates/blocks/FriendlyBlock"))
 const CarouselBlock = dynamic(() => import("@/components/shop/templates/blocks/CarouselBlock"))
@@ -2076,6 +2077,150 @@ const existing: BlockDefinition[] = [
           { value: "price_asc", label: "Precio: menor a mayor" },
           { value: "price_desc", label: "Precio: mayor a menor" },
         ],
+      },
+    ],
+    styleSupport: { textColor: false, alignment: false },
+  },
+  {
+    type: "FEATURED_COLLECTION",
+    label: "Colección destacada",
+    icon: "Boxes",
+    description:
+      "Muestra una colección existente o productos seleccionados, en cuadrícula o carrusel. Disponible en inicio, páginas y categorías.",
+    scope: "universal",
+    category: "commerce",
+    defaultContent: DEFAULT_CONTENT_V2.FEATURED_COLLECTION,
+    renderer: FeaturedCollectionBlock as BlockRenderer,
+    contentSchema: [
+      {
+        type: "text",
+        key: "title",
+        label: "Título",
+        placeholder: "Colección destacada",
+      },
+      {
+        type: "text",
+        key: "subtitle",
+        label: "Subtítulo",
+        placeholder: "Descripción breve (opcional)",
+      },
+      {
+        type: "select",
+        key: "headingAlign",
+        label: "Alineación del título",
+        options: [
+          { value: "left", label: "Izquierda" },
+          { value: "center", label: "Centrado" },
+        ],
+      },
+      {
+        type: "select",
+        key: "source",
+        label: "Origen de los productos",
+        options: [
+          { value: "collection", label: "Colección específica" },
+          { value: "manual_picks", label: "Selección manual" },
+          { value: "newest", label: "Más recientes" },
+          { value: "featured", label: "Destacados" },
+          { value: "best_sellers", label: "Más vendidos (90 días)" },
+        ],
+      },
+      {
+        type: "category-picker",
+        key: "categoryId",
+        label: "Colección",
+        showWhen: { field: "source", equals: "collection" },
+        helpText: "Elige una colección ya creada en tu tienda.",
+      },
+      {
+        type: "select",
+        key: "sort",
+        label: "Orden",
+        showWhen: { field: "source", equals: "collection" },
+        options: [
+          { value: "newest", label: "Más recientes" },
+          { value: "featured", label: "Destacados primero" },
+          { value: "price_asc", label: "Precio: menor a mayor" },
+          { value: "price_desc", label: "Precio: mayor a menor" },
+        ],
+      },
+      {
+        type: "product-picker",
+        key: "productIds",
+        label: "Productos a mostrar",
+        multiple: true,
+        showWhen: { field: "source", equals: "manual_picks" },
+        helpText: "Hasta 24 productos en el orden que elijas.",
+      },
+      {
+        type: "switch",
+        key: "showViewAll",
+        label: "Mostrar enlace «Ver todo»",
+        showWhen: { field: "source", equals: "collection" },
+      },
+      {
+        type: "text",
+        key: "viewAllText",
+        label: "Texto del enlace",
+        placeholder: "Ver toda la colección",
+        showWhen: { field: "source", equals: "collection" },
+      },
+      {
+        type: "number",
+        key: "limit",
+        label: "Cantidad máxima",
+        min: 1,
+        max: 24,
+      },
+      {
+        type: "select",
+        key: "layout",
+        label: "Diseño",
+        options: [
+          { value: "grid", label: "Cuadrícula" },
+          { value: "carousel", label: "Carrusel" },
+        ],
+      },
+      {
+        type: "range",
+        key: "columnsDesktop",
+        label: "Columnas (escritorio)",
+        min: 2,
+        max: 6,
+        step: 1,
+        defaultValue: 4,
+        unit: "col",
+      },
+      {
+        type: "select",
+        key: "columnsMobile",
+        label: "Columnas (móvil)",
+        options: [
+          { value: 1, label: "1 columna" },
+          { value: 2, label: "2 columnas" },
+        ],
+      },
+      {
+        type: "switch",
+        key: "showArrows",
+        label: "Mostrar flechas",
+        showWhen: { field: "layout", equals: "carousel" },
+      },
+      {
+        type: "switch",
+        key: "showDots",
+        label: "Mostrar puntos (dots)",
+        showWhen: { field: "layout", equals: "carousel" },
+      },
+      {
+        type: "select",
+        key: "controlsShape",
+        label: "Forma de flechas y puntos",
+        options: [
+          { value: "round", label: "Circular" },
+          { value: "square", label: "Cuadrado" },
+        ],
+        showWhen: { field: "layout", equals: "carousel" },
       },
     ],
     styleSupport: { textColor: false, alignment: false },

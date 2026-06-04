@@ -519,6 +519,20 @@ function SchemeEditor({
               onChange={(v) => setColors((p) => ({ ...p, cardText: v }))}
               disabled={pending}
             />
+            <ColorField
+              label="Color del botón de card"
+              value={colors.cardButtonBg}
+              onChange={(v) => setColors((p) => ({ ...p, cardButtonBg: v }))}
+              disabled={pending}
+            />
+            <ColorField
+              label="Texto del botón de card"
+              value={colors.cardButtonText}
+              onChange={(v) =>
+                setColors((p) => ({ ...p, cardButtonText: v }))
+              }
+              disabled={pending}
+            />
           </div>
         </fieldset>
 

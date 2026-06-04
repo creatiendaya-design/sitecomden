@@ -87,6 +87,12 @@ export function FeaturedCollectionCarousel({
 
   const shapeClass = controlsShape === "square" ? "rounded-md" : "rounded-full"
 
+  // Theme-token colors so the controls follow the section's color scheme
+  // (inside `[data-color-scheme]`, shadcn tokens map to `--theme-*`). No
+  // hardcoded white/gray that would ignore the chosen palette.
+  const arrowBase =
+    "absolute top-1/2 z-10 -translate-y-1/2 hidden sm:flex h-10 w-10 items-center justify-center bg-background text-foreground border border-border shadow-md transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-0"
+
   const trackStyle: CSSProperties = {
     // Consumed by the arbitrary grid-auto-columns utilities below.
     ["--cols-d" as string]: String(columnsDesktop),
@@ -101,10 +107,7 @@ export function FeaturedCollectionCarousel({
           aria-label="Anterior"
           onClick={() => scrollByPage(-1)}
           disabled={!canPrev}
-          className={cn(
-            "absolute left-0 top-1/2 z-10 -translate-y-1/2 -translate-x-1/2 hidden sm:flex h-10 w-10 items-center justify-center bg-white text-foreground shadow-md ring-1 ring-black/5 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-0",
-            shapeClass,
-          )}
+          className={cn(arrowBase, "left-0 -translate-x-1/2", shapeClass)}
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -133,10 +136,7 @@ export function FeaturedCollectionCarousel({
           aria-label="Siguiente"
           onClick={() => scrollByPage(1)}
           disabled={!canNext}
-          className={cn(
-            "absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 hidden sm:flex h-10 w-10 items-center justify-center bg-white text-foreground shadow-md ring-1 ring-black/5 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-0",
-            shapeClass,
-          )}
+          className={cn(arrowBase, "right-0 translate-x-1/2", shapeClass)}
         >
           <ChevronRight className="h-5 w-5" />
         </button>

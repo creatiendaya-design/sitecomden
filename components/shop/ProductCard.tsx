@@ -14,6 +14,15 @@ import { useCartDrawer } from "@/store/cart-drawer";
 import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking"; // ✅ Importar tracking
 
+/**
+ * Product-card action button colors come from the active color scheme's
+ * dedicated card-button tokens (`--theme-card-button-bg` / `-text`), so admins
+ * can style "Agregar al carrito" per scheme from the customizer. Falls back to
+ * the brand CTA color when no theme/scheme is in scope (e.g. admin previews).
+ */
+const CARD_BUTTON_CLASS =
+  "w-full bg-[var(--theme-card-button-bg,var(--cta))] text-[var(--theme-card-button-text,var(--cta-foreground))] hover:bg-[var(--theme-card-button-bg,var(--cta))] hover:opacity-90";
+
 interface ProductCardProps {
   product: {
     id: string;
@@ -264,7 +273,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="absolute inset-x-0 bottom-0 hidden translate-y-full bg-gradient-to-t from-black/60 to-transparent p-4 transition-transform duration-300 group-hover:translate-y-0 sm:block">
             <Button
               size="sm"
-              className="w-full bg-white text-black hover:bg-gray-100"
+              variant="cta"
+              className={CARD_BUTTON_CLASS}
               onClick={handleAddToCart}
               disabled={outOfStock}
             >
@@ -328,7 +338,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <Button
             variant="cta"
             size="sm"
-            className="w-full"
+            className={CARD_BUTTON_CLASS}
             onClick={handleAddToCart}
             disabled={outOfStock}
           >

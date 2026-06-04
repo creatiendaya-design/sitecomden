@@ -12,6 +12,7 @@ import ImageTextBlock from "./ImageTextBlock";
 import IconTextBlock from "./IconTextBlock";
 import RelatedProductsBlockEditorWrapper from "./RelatedProductsBlockEditorWrapper";
 import ProductGridBlock from "./ProductGridBlock";
+import FeaturedCollectionBlock from "./FeaturedCollectionBlock";
 import ComparisonBlock from "./ComparisonBlock";
 import FriendlyBlock from "./FriendlyBlock";
 import CarouselBlock from "./CarouselBlock";
@@ -162,6 +163,9 @@ export default function LandingBlockRenderer({ blocks, onCtaClick, currentProduc
             break;
           case "PRODUCT_GRID":
             inner = <ProductGridBlock content={c} categoryId={currentCategoryId ?? null} />;
+            break;
+          case "FEATURED_COLLECTION":
+            inner = <FeaturedCollectionBlock content={c} />;
             break;
           case "COMPARISON":
             inner = <ComparisonBlock content={c} />;

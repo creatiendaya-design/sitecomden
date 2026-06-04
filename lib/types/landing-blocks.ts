@@ -32,6 +32,7 @@ export type KnownLandingBlockType =
   | "ICON_TEXT"
   | "RELATED_PRODUCTS"
   | "PRODUCT_GRID"
+  | "FEATURED_COLLECTION"
   | "COMPARISON"
   | "FRIENDLY"
   | "CAROUSEL"
@@ -59,6 +60,7 @@ export const KNOWN_BLOCK_TYPES: ReadonlySet<KnownLandingBlockType> = new Set<Kno
   "ICON_TEXT",
   "RELATED_PRODUCTS",
   "PRODUCT_GRID",
+  "FEATURED_COLLECTION",
   "COMPARISON",
   "FRIENDLY",
   "CAROUSEL",
@@ -745,6 +747,7 @@ export const BLOCK_TYPE_LABELS: Record<LandingBlockType, string> = {
   ICON_TEXT: "Icono + Texto (cards)",
   RELATED_PRODUCTS: "Productos relacionados",
   PRODUCT_GRID: "Grid de productos",
+  FEATURED_COLLECTION: "Colección destacada",
   COMPARISON: "Tabla comparativa",
   FRIENDLY: "Friendly (beneficios + imagen)",
   CAROUSEL: "Carrusel (imagen / video)",
@@ -797,6 +800,9 @@ export const BLOCK_DEFAULT_CONTENT: Record<LandingBlockType, BlockContent> = {
     maxItems: 12,
     sort: "manual",
   },
+  // v2-only block — legacy v1 builder never renders it; entry exists only to
+  // satisfy the exhaustive Record. Real defaults live in DEFAULT_CONTENT_V2.
+  FEATURED_COLLECTION: {},
   COMPARISON: {
     title: "BENEFICIOS INIGUALABLES",
     description: "Una comparación honesta frente a la competencia.",
