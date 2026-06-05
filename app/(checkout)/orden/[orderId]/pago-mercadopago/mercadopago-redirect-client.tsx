@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
-import { useCartStore } from "@/store/cart";
 
 interface MercadoPagoRedirectClientProps {
   orderDisplayNumber: string;
@@ -22,7 +21,6 @@ export default function MercadoPagoRedirectClient({
   redirectUrl,
   error,
 }: MercadoPagoRedirectClientProps) {
-  const { clearCart } = useCartStore();
   const redirectedRef = useRef(false);
   const [redirecting, setRedirecting] = useState(!error && !!redirectUrl);
 
@@ -30,8 +28,8 @@ export default function MercadoPagoRedirectClient({
     if (!redirectUrl || redirectedRef.current) return;
     redirectedRef.current = true;
     setRedirecting(true);
-    // El cliente sale hacia la pasarela: recién aquí limpiamos el carrito.
-    clearCart();
+    // NO vaciamos el carrito al salir: el cliente aún no pagó. Se vacía recién
+    // en la confirmación, cuando ya volvió de pagar (como Shopify).
     window.location.href = redirectUrl;
   };
 

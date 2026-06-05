@@ -23,6 +23,7 @@ import type { Metadata } from "next";
 import { CustomDesignConfirmation } from "@/components/checkout/CustomDesignConfirmation";
 import type { CustomDesign, CustomDesignImage } from "@/lib/customizer/types";
 import { canViewOrder } from "@/lib/orders/order-access";
+import ClearCartOnConfirmation from "./ClearCartOnConfirmation";
 
 interface ShippingAddressJson {
   address?: string;
@@ -114,6 +115,13 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+      {/* MP/PayPal no vacían el carrito al salir a la pasarela (para preservarlo
+          si el cliente vuelve atrás sin pagar). Recién aquí, ya de vuelta, lo
+          limpiamos. Los demás métodos ya lo vaciaron al confirmar el pedido. */}
+      {(order.paymentMethod === "MERCADOPAGO" || order.paymentMethod === "PAYPAL") && (
+        <ClearCartOnConfirmation />
+      )}
+
       {/* Decorative Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100/20 rounded-full blur-3xl" />

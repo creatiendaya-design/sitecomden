@@ -8,7 +8,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import { PayPalIcon } from "@/components/payment-icons";
 import { formatPrice } from "@/lib/utils";
-import { useCartStore } from "@/store/cart";
 
 interface PaypalRedirectClientProps {
   orderDisplayNumber: string;
@@ -29,13 +28,13 @@ export default function PaypalRedirectClient({
   canceled,
   error,
 }: PaypalRedirectClientProps) {
-  const { clearCart } = useCartStore();
   const [redirecting, setRedirecting] = useState(false);
 
   const handlePay = () => {
     if (!approveUrl) return;
     setRedirecting(true);
-    clearCart();
+    // NO vaciamos el carrito al salir: el cliente aún no pagó. Se vacía recién
+    // en la confirmación, cuando ya volvió de pagar (como Shopify).
     window.location.href = approveUrl;
   };
 

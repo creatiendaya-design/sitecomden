@@ -104,6 +104,23 @@ export default function CheckoutPageClient({
     const unsub = useCartStore.persist.onFinishHydration(() => setCartHydrated(true));
     return unsub;
   }, []);
+
+  // Botón "Atrás" desde la pasarela: si el navegador restaura el checkout desde
+  // el bfcache, los flags de navegación quedarían en true y mostraríamos la
+  // pantalla "Redirigiendo…" (o el botón en "Procesando…") pegada. Los
+  // reseteamos al volver para que el carrito se vea normal, como en Shopify.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setIsRedirecting(false);
+        setLoading(false);
+        setIsProcessingPayment(false);
+        processingRef.current = false;
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -687,12 +704,11 @@ export default function CheckoutPageClient({
         // error con opción de reintento (no perdemos el manejo de errores).
         const gateway = await startGatewayCheckout(result.orderId!, result.viewToken);
         if (gateway.success && gateway.redirectUrl) {
-          // Mostramos la pantalla "Redirigiendo…" ANTES de vaciar el carrito,
-          // para que el render no caiga en la vista de "carrito vacío" mientras
-          // el navegador todavía está saliendo hacia la pasarela.
+          // NO vaciamos el carrito aquí: el cliente todavía no pagó. Si se
+          // arrepiente y vuelve atrás desde la pasarela, conserva su carrito y
+          // sus datos (igual que Shopify). El carrito se vacía recién en la
+          // página de confirmación, cuando ya volvió de pagar.
           setIsRedirecting(true);
-          clearCart();
-          clearPersistedData();
           window.location.href = gateway.redirectUrl;
           return; // navegando fuera del sitio: no reseteamos loading
         }
