@@ -10,24 +10,38 @@ import { cn } from "@/lib/utils";
  * Checkout-only form primitives.
  *
  * These intentionally do NOT reuse the shadcn `Input`/`Select` chrome used by
- * the admin panel. The storefront checkout uses a fixed graphite (#0f172a)
- * accent — deliberately independent of the per-store theme so the buy flow
- * always reads as the same trustworthy, neutral surface:
+ * the admin panel. The buy flow keeps its own taller, mobile-first chrome:
  *   - taller touch target (h-12) for mobile,
  *   - 16px text (text-base) so iOS doesn't auto-zoom on focus,
- *   - graphite focus ring + optional leading icon + valid/error states.
+ *   - focus ring + optional leading icon + valid/error states.
+ *
+ * Colors/border/radius of the resting + focus states are theme-editable via
+ * the `--theme-checkout-input-*` custom properties (customizer → "Checkout").
+ * The fallbacks below reproduce the historical fixed graphite (slate-200
+ * border, slate-900 focus, white bg, rounded-xl) so anything rendered outside
+ * a `.theme-<id>` scope still looks identical.
  *
  * Error red and success green stay semantic (universal validation signals).
- * The accent is centralized in ACCENT_* below — change it in one place to
- * retheme every checkout field.
  */
 
-// Fixed checkout accent = graphite (slate-900 ≈ #0f172a). To retheme every
-// checkout field, change the literal classes in DEFAULT_STATE below. They MUST
-// be written as complete literal strings (no template concatenation) — Tailwind
-// only generates classes it can see verbatim in the source.
+// Resting + hover + focus chrome, driven by `--theme-checkout-input-*` with
+// graphite fallbacks. Hover/ring derive from the focus color via color-mix so
+// a single token edit recolors the whole interaction. These MUST be complete
+// literal strings (no template concatenation) — Tailwind only generates classes
+// it can see verbatim in the source.
 const DEFAULT_STATE =
-  "border-slate-200 hover:border-slate-400 focus-visible:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/20";
+  "border-[var(--theme-checkout-input-border,#e2e8f0)] hover:border-[color-mix(in_oklab,var(--theme-checkout-input-border-focus,#0f172a)_45%,var(--theme-checkout-input-border,#e2e8f0))] focus-visible:border-[var(--theme-checkout-input-border-focus,#0f172a)] focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklab,var(--theme-checkout-input-border-focus,#0f172a)_20%,transparent)]";
+
+/**
+ * Pay-button chrome for the checkout CTA, driven by `--theme-checkout-button-*`
+ * (customizer → "Checkout") with a fallback to the global brand `--cta`.
+ * Applied ON TOP of the Button `cta` variant; tailwind-merge lets these win
+ * over the variant's bg/text/radius (including the variant's `hover:bg-cta/90`,
+ * which we override with an explicit darken so a custom color hovers correctly).
+ * Literal string — no concatenation — so Tailwind emits the classes.
+ */
+export const checkoutPayButtonClass =
+  "bg-[var(--theme-checkout-button-bg,var(--cta))] text-[var(--theme-checkout-button-text,var(--cta-foreground))] rounded-[var(--theme-checkout-button-radius,0.375rem)] hover:bg-[color-mix(in_oklab,var(--theme-checkout-button-bg,var(--cta))_90%,black)]";
 
 type ControlState = {
   hasIcon?: boolean;
@@ -38,7 +52,7 @@ type ControlState = {
 /** Shared chrome so <input> and the Select trigger render identically. */
 export function checkoutControlClass({ hasIcon, error, valid }: ControlState = {}) {
   return cn(
-    "h-12 w-full rounded-xl border bg-white text-base text-slate-900",
+    "h-12 w-full rounded-[var(--theme-checkout-input-radius,0.75rem)] border bg-[var(--theme-checkout-input-bg,#fff)] text-base text-slate-900",
     "px-4 shadow-sm transition-[color,box-shadow,border-color] outline-none",
     "placeholder:text-slate-400",
     "disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-slate-50",

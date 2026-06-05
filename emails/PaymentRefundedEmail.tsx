@@ -1,4 +1,14 @@
 import * as React from "react";
+import {
+  EmailLayout,
+  EmailText,
+  EmailHeroIcon,
+  OrderNumberBadge,
+  EmailButton,
+  EmailPanel,
+  Text,
+  type EmailSiteSettings,
+} from "./_components/EmailLayout";
 
 interface PaymentRefundedEmailProps {
   orderNumber: string;
@@ -6,11 +16,7 @@ interface PaymentRefundedEmailProps {
   refundAmount: number;
   refundReason?: string;
   viewOrderLink: string;
-  siteSettings?: {
-    storeName?: string;
-    logoUrl?: string;
-    primaryColor?: string;
-  };
+  siteSettings?: EmailSiteSettings;
 }
 
 export default function PaymentRefundedEmail({
@@ -21,139 +27,50 @@ export default function PaymentRefundedEmail({
   viewOrderLink,
   siteSettings,
 }: PaymentRefundedEmailProps) {
-  const storeName = siteSettings?.storeName || "ShopGood Perú";
-  const logoUrl = siteSettings?.logoUrl;
-  const primaryColor = siteSettings?.primaryColor || "#6366f1";
-  const currentYear = new Date().getFullYear();
+  const accent = siteSettings?.primaryColor || "#4f46e5";
 
   return (
-    <html>
-      <head>
-        <style>{`
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            background: ${primaryColor};
-            color: #fff;
-            padding: 20px;
-            text-align: center;
-            border-radius: 8px 8px 0 0;
-          }
-          .header img {
-            max-width: 200px;
-            max-height: 60px;
-            object-fit: contain;
-          }
-          .header h1 {
-            margin: 10px 0 0 0;
-            font-size: 24px;
-          }
-          .content {
-            background: #f9f9f9;
-            padding: 30px;
-            border: 1px solid #e0e0e0;
-          }
-          .icon {
-            font-size: 60px;
-            text-align: center;
-            margin: 20px 0;
-          }
-          .order-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #000;
-            text-align: center;
-            margin: 20px 0;
-          }
-          .button {
-            display: inline-block;
-            background: ${primaryColor};
-            color: #fff;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 6px;
-            margin: 20px 0;
-          }
-          .footer {
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-          }
-          .highlight {
-            background: #e0e7ff;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin: 20px 0;
-          }
-        `}</style>
-      </head>
-      <body>
-        <div className="header">
-          {logoUrl ? (
-            <>
-              <img src={logoUrl} alt={storeName} />
-              <h1>Reembolso Procesado</h1>
-            </>
-          ) : (
-            <h1>{storeName} - Reembolso Procesado</h1>
-          )}
-        </div>
+    <EmailLayout
+      preview={`Reembolso procesado de tu orden ${orderNumber}`}
+      accent={accent}
+      settings={siteSettings}
+    >
+      <EmailHeroIcon>💰</EmailHeroIcon>
+      <EmailText style={{ textAlign: "center", fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>
+        Reembolso procesado
+      </EmailText>
+      <EmailText>Hola {customerName},</EmailText>
+      <EmailText>Te informamos que hemos procesado el reembolso de tu orden.</EmailText>
 
-        <div className="content">
-          <div className="icon">💰</div>
+      <OrderNumberBadge orderNumber={orderNumber} accent={accent} />
 
-          <p>Hola {customerName},</p>
+      <EmailPanel style={{ textAlign: "center", backgroundColor: "#eef2ff", borderColor: "#c7d2fe" }}>
+        <Text style={{ margin: 0, fontSize: "14px", color: "#3730a3" }}>Monto reembolsado</Text>
+        <Text style={{ margin: "4px 0 0", fontSize: "24px", fontWeight: 700, color: "#3730a3" }}>
+          S/ {refundAmount.toFixed(2)}
+        </Text>
+      </EmailPanel>
 
-          <p>
-            Te informamos que hemos procesado el reembolso de tu orden.
-          </p>
+      {refundReason ? (
+        <EmailPanel>
+          <Text style={{ margin: 0, fontSize: "14px" }}>
+            <strong>Motivo:</strong> {refundReason}
+          </Text>
+        </EmailPanel>
+      ) : null}
 
-          <div className="order-number">
-            Orden #{orderNumber}
-          </div>
+      <EmailText>
+        El reembolso será acreditado en los próximos <strong>5-7 días hábiles</strong>,
+        dependiendo de tu banco o método de pago original.
+      </EmailText>
 
-          <div className="highlight">
-            <p style={{ margin: "0", fontSize: "18px" }}>
-              Monto reembolsado: <strong>S/ {refundAmount.toFixed(2)}</strong>
-            </p>
-          </div>
+      <EmailButton href={viewOrderLink} accent={accent}>
+        Ver detalles de la orden
+      </EmailButton>
 
-          {refundReason && (
-            <p style={{ background: "#f3f4f6", padding: "15px", borderRadius: "6px" }}>
-              <strong>Motivo:</strong> {refundReason}
-            </p>
-          )}
-
-          <p>
-            El reembolso será acreditado en los próximos <strong>5-7 días hábiles</strong>, 
-            dependiendo de tu banco o método de pago original.
-          </p>
-
-          <div style={{ textAlign: "center" }}>
-            <a href={viewOrderLink} className="button">
-              Ver detalles de la orden
-            </a>
-          </div>
-
-          <p style={{ marginTop: "30px", fontSize: "14px", color: "#666" }}>
-            Lamentamos los inconvenientes. Si tienes alguna pregunta, no dudes en contactarnos.
-          </p>
-        </div>
-
-        <div className="footer">
-          <p>© {currentYear} {storeName}. Todos los derechos reservados.</p>
-        </div>
-      </body>
-    </html>
+      <EmailText muted style={{ marginTop: "24px", marginBottom: 0 }}>
+        Lamentamos los inconvenientes. Si tienes alguna pregunta, no dudes en contactarnos.
+      </EmailText>
+    </EmailLayout>
   );
 }

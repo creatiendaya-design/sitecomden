@@ -1,15 +1,14 @@
+import * as React from "react";
 import {
-  Html,
-  Head,
-  Body,
-  Container,
-  Section,
+  EmailLayout,
+  EmailText,
+  EmailSectionTitle,
+  OrderNumberBadge,
+  EmailButton,
+  EmailPanel,
   Text,
-  Heading,
-  Button,
-  Hr,
-  Preview,
-} from "@react-email/components";
+  type EmailSiteSettings,
+} from "./_components/EmailLayout";
 
 interface ComprobanteEmitidoProps {
   customerName: string;
@@ -17,6 +16,7 @@ interface ComprobanteEmitidoProps {
   documentNumber: string;
   total: number;
   pdfUrl: string;
+  siteSettings?: EmailSiteSettings;
 }
 
 export default function ComprobanteEmitido({
@@ -25,52 +25,41 @@ export default function ComprobanteEmitido({
   documentNumber,
   total,
   pdfUrl,
+  siteSettings,
 }: ComprobanteEmitidoProps) {
+  const accent = siteSettings?.primaryColor || "#2563eb";
+
   return (
-    <Html>
-      <Head />
-      <Preview>Tu comprobante de pago {documentNumber} está listo</Preview>
-      <Body style={{ backgroundColor: "#f6f9fc", fontFamily: "Arial, sans-serif" }}>
-        <Container style={{ maxWidth: "600px", margin: "0 auto", padding: "20px" }}>
-          <Heading style={{ color: "#1a1a1a" }}>Tu comprobante está listo</Heading>
-          <Text>Hola {customerName},</Text>
-          <Text>
-            Adjuntamos tu comprobante electrónico por tu orden <strong>#{orderNumber}</strong>.
-          </Text>
-          <Section
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "8px",
-              padding: "20px",
-              margin: "20px 0",
-            }}
-          >
-            <Text style={{ margin: 0 }}>
-              <strong>Comprobante:</strong> {documentNumber}
-            </Text>
-            <Text style={{ margin: "8px 0 0" }}>
-              <strong>Total:</strong> S/. {total.toFixed(2)}
-            </Text>
-          </Section>
-          <Button
-            href={pdfUrl}
-            style={{
-              backgroundColor: "#0070f3",
-              color: "#fff",
-              padding: "12px 24px",
-              borderRadius: "6px",
-              textDecoration: "none",
-              display: "inline-block",
-            }}
-          >
-            Descargar Comprobante PDF
-          </Button>
-          <Hr style={{ margin: "24px 0" }} />
-          <Text style={{ color: "#666", fontSize: "13px" }}>
-            Este comprobante fue emitido electrónicamente y es válido ante SUNAT.
-          </Text>
-        </Container>
-      </Body>
-    </Html>
+    <EmailLayout
+      preview={`Tu comprobante ${documentNumber} está listo`}
+      accent={accent}
+      settings={siteSettings}
+    >
+      <EmailText style={{ textAlign: "center", fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>
+        Tu comprobante está listo
+      </EmailText>
+      <EmailText>Hola {customerName},</EmailText>
+      <EmailText>Adjuntamos tu comprobante electrónico por tu compra.</EmailText>
+
+      <OrderNumberBadge orderNumber={orderNumber} accent={accent} />
+
+      <EmailSectionTitle>Detalle del comprobante</EmailSectionTitle>
+      <EmailPanel>
+        <Text style={{ margin: 0, fontSize: "15px" }}>
+          <strong>Comprobante:</strong> {documentNumber}
+        </Text>
+        <Text style={{ margin: "8px 0 0", fontSize: "15px" }}>
+          <strong>Total:</strong> S/ {total.toFixed(2)}
+        </Text>
+      </EmailPanel>
+
+      <EmailButton href={pdfUrl} accent={accent}>
+        Descargar comprobante PDF
+      </EmailButton>
+
+      <EmailText muted style={{ marginTop: "24px", marginBottom: 0 }}>
+        Este comprobante fue emitido electrónicamente y es válido ante SUNAT.
+      </EmailText>
+    </EmailLayout>
   );
 }

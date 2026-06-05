@@ -18,6 +18,9 @@
 /playwright-report
 /test-results
 /blob-report
+
+# email template previews (scripts/preview-emails.tsx)
+/.email-preview
 /playwright/.cache
 
 # next.js

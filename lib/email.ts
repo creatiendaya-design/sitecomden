@@ -1,6 +1,7 @@
 import { resend } from "./resend";
 import { getFromEmail } from "@/actions/email-settings";
 import { prisma } from "@/lib/db";
+import { resolveEmailLogoUrl, resolveEmailImageUrl } from "@/lib/email/image-url";
 import OrderConfirmationEmail from "@/emails/OrderConfirmationEmail";
 import PaymentApprovedEmail from "@/emails/PaymentApprovedEmail";
 import OrderShippedEmail from "@/emails/OrderShippedEmail";
@@ -20,6 +21,7 @@ interface OrderData {
     variantName?: string;
     quantity: number;
     price: number;
+    image?: string;
     customDesignImages?: Array<{ zoneId: string; url: string }>;
   }>;
   shippingAddress: {
@@ -53,8 +55,10 @@ async function getSiteSettings() {
 
     return {
       storeName: (siteName?.value as string) || "ShopGood Perú",
-      // ⭐ FIX: Convertir null a undefined
-      logoUrl: ((siteLogo?.value as string) ?? undefined),
+      // Absolutiza la URL del logo (las rutas relativas no cargan en correos)
+      // y descarta SVG (no soportado por los clientes de correo); en ese caso
+      // las plantillas muestran el nombre de la tienda como respaldo.
+      logoUrl: resolveEmailLogoUrl(siteLogo?.value as string | undefined),
       primaryColor: (primaryColor?.value as string) || "#000000",
     };
   } catch (error) {
@@ -82,7 +86,10 @@ export async function sendOrderConfirmationEmail(orderData: OrderData) {
         orderNumber: orderData.orderNumber,
         customerName: orderData.customerName,
         total: orderData.total,
-        items: orderData.items,
+        items: orderData.items.map((item) => ({
+          ...item,
+          image: resolveEmailImageUrl(item.image),
+        })),
         shippingAddress: orderData.shippingAddress,
         paymentMethod: orderData.paymentMethod,
         viewOrderLink: orderData.viewOrderLink,
@@ -344,7 +351,10 @@ export async function sendComprobanteEmail(params: {
   pdfUrl: string;
 }) {
   try {
-    const fromEmail = await getFromEmail();
+    const [fromEmail, siteSettings] = await Promise.all([
+      getFromEmail(),
+      getSiteSettings(),
+    ]);
 
     const { data, error } = await resend.emails.send({
       from: fromEmail,
@@ -356,6 +366,7 @@ export async function sendComprobanteEmail(params: {
         documentNumber: params.documentNumber,
         total: params.total,
         pdfUrl: params.pdfUrl,
+        siteSettings,
       }),
     });
 

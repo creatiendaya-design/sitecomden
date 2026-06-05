@@ -6,10 +6,11 @@ import { formatPrice } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { createOrder } from "@/actions/orders";
 import { processCardPayment } from "@/actions/payments";
+import { startGatewayCheckout } from "@/actions/payment-redirect";
 import { checkCartStock } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { CheckoutInput } from "@/components/checkout/CheckoutField";
+import { CheckoutInput, checkoutPayButtonClass } from "@/components/checkout/CheckoutField";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -666,24 +667,35 @@ export default function CheckoutPageClient({
         return;
       }
 
-      // MercadoPago redirige FUERA del sitio para pagar. No vaciamos el carrito
-      // aquí: si la pasarela falla o el cliente vuelve atrás, conserva su
-      // carrito y sus datos. El carrito se limpia en el redirect-client justo
-      // antes de salir hacia MercadoPago.
-      const isExternalRedirect = result.paymentMethod === "MERCADOPAGO";
-      if (!isExternalRedirect) {
+      const tokenQs = `?token=${result.viewToken}`;
+
+      if (result.paymentMethod === "YAPE" || result.paymentMethod === "PLIN") {
         clearCart();
         clearPersistedData();
-      }
-
-      const tokenQs = `?token=${result.viewToken}`;
-      if (result.paymentMethod === "YAPE" || result.paymentMethod === "PLIN") {
         router.push(`/orden/${result.orderId}/pago-pendiente${tokenQs}`);
-      } else if (result.paymentMethod === "PAYPAL") {
-        router.push(`/orden/${result.orderId}/pago-paypal${tokenQs}`);
-      } else if (result.paymentMethod === "MERCADOPAGO") {
-        router.push(`/orden/${result.orderId}/pago-mercadopago${tokenQs}`);
+      } else if (
+        result.paymentMethod === "MERCADOPAGO" ||
+        result.paymentMethod === "PAYPAL"
+      ) {
+        // Redirección DIRECTA a la pasarela — sin página intermedia. Creamos la
+        // preferencia (MP) / orden (PayPal) en el servidor y saltamos a su
+        // pantalla segura. Si falla, caemos a la página puente que muestra el
+        // error con opción de reintento (no perdemos el manejo de errores).
+        const gateway = await startGatewayCheckout(result.orderId!, result.viewToken);
+        if (gateway.success && gateway.redirectUrl) {
+          // El cliente sale del sitio: recién aquí limpiamos el carrito (si la
+          // pasarela falla o vuelve atrás, conserva su carrito y sus datos).
+          clearCart();
+          clearPersistedData();
+          window.location.href = gateway.redirectUrl;
+          return; // navegando fuera del sitio: no reseteamos loading
+        }
+        const bridge =
+          result.paymentMethod === "MERCADOPAGO" ? "pago-mercadopago" : "pago-paypal";
+        router.push(`/orden/${result.orderId}/${bridge}${tokenQs}`);
       } else {
+        clearCart();
+        clearPersistedData();
         router.push(`/orden/${result.orderId}/confirmacion${tokenQs}`);
       }
     } catch (err) {
@@ -1478,7 +1490,7 @@ export default function CheckoutPageClient({
                         type="submit"
                         variant="cta"
                         size="lg"
-                        className="w-full"
+                        className={`w-full ${checkoutPayButtonClass}`}
                         disabled={
                           loading ||
                           !stockVerified ||
@@ -1602,7 +1614,7 @@ export default function CheckoutPageClient({
               type="submit"
               variant="cta"
               size="lg"
-              className="w-full text-base font-semibold h-12"
+              className={`w-full text-base font-semibold h-12 ${checkoutPayButtonClass}`}
               disabled={
                 loading ||
                 !stockVerified ||

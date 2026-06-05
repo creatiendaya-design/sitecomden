@@ -1,13 +1,16 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Check, ClipboardList, CreditCard, PackageCheck } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Indicador de progreso minimal (breadcrumb de texto). No son pasos/páginas
+// separadas: el checkout es de una sola página; esta barra solo refleja en qué
+// momento del flujo está el cliente (formulario → pasarela → gracias).
 const STEPS = [
-  { label: "Tus datos", icon: ClipboardList, pattern: /^\/checkout/ },
-  { label: "Pago", icon: CreditCard, pattern: /\/pago-/ },
-  { label: "Confirmado", icon: PackageCheck, pattern: /\/confirmacion/ },
+  { label: "Datos", pattern: /^\/checkout/ },
+  { label: "Pago", pattern: /\/pago-/ },
+  { label: "Confirmado", pattern: /\/confirmacion/ },
 ];
 
 export default function CheckoutProgressBar() {
@@ -20,49 +23,31 @@ export default function CheckoutProgressBar() {
 
   return (
     <div className="border-t bg-muted/30">
-      <div className="container mx-auto flex items-center justify-center px-4 py-2.5">
-        <ol className="flex items-center gap-0">
+      <nav
+        aria-label="Progreso del checkout"
+        className="container mx-auto flex items-center justify-center px-4 py-2"
+      >
+        <ol className="flex items-center gap-1.5 text-xs sm:text-sm">
           {STEPS.map((step, i) => {
             const completed = i < activeIndex;
             const active = i === activeIndex;
-            const Icon = step.icon;
 
             return (
-              <li key={step.label} className="flex items-center">
-                <div className="flex flex-col items-center gap-1 min-w-[72px]">
-                  <div
-                    className={cn(
-                      "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-                      completed && "bg-green-500 text-white",
-                      active && "bg-primary text-primary-foreground ring-4 ring-primary/20",
-                      !completed && !active && "bg-border text-muted-foreground"
-                    )}
-                    aria-current={active ? "step" : undefined}
-                  >
-                    {completed ? (
-                      <Check className="h-3.5 w-3.5 stroke-[3]" />
-                    ) : (
-                      <Icon className="h-3.5 w-3.5" />
-                    )}
-                  </div>
-                  <span
-                    className={cn(
-                      "text-[11px] font-medium leading-none",
-                      active && "text-primary",
-                      completed && "text-green-600",
-                      !completed && !active && "text-muted-foreground"
-                    )}
-                  >
-                    {step.label}
-                  </span>
-                </div>
-
+              <li key={step.label} className="flex items-center gap-1.5">
+                <span
+                  aria-current={active ? "step" : undefined}
+                  className={cn(
+                    "font-medium transition-colors",
+                    active && "text-primary",
+                    completed && "text-green-600",
+                    !active && !completed && "text-muted-foreground"
+                  )}
+                >
+                  {step.label}
+                </span>
                 {i < STEPS.length - 1 && (
-                  <div
-                    className={cn(
-                      "mb-4 mx-1 h-px w-10 sm:w-16 shrink-0 transition-colors",
-                      i < activeIndex ? "bg-green-500" : "bg-border"
-                    )}
+                  <ChevronRight
+                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50"
                     aria-hidden
                   />
                 )}
@@ -70,7 +55,7 @@ export default function CheckoutProgressBar() {
             );
           })}
         </ol>
-      </div>
+      </nav>
     </div>
   );
 }

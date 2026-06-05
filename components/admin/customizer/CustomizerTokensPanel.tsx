@@ -11,6 +11,7 @@ import {
   Trash2,
   ChevronRight,
   ListChecks,
+  CreditCard,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -70,6 +71,7 @@ type View =
   | { kind: "schemes" }
   | { kind: "scheme"; schemeId: string }
   | { kind: "typography" }
+  | { kind: "checkout" }
   | { kind: "catalog" }
 
 /**
@@ -138,9 +140,11 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
             ? "Editar esquema"
             : view.kind === "typography"
               ? "Tipografía y escala"
-              : view.kind === "catalog"
-                ? "Catálogo de secciones"
-                : "Tema"}
+              : view.kind === "checkout"
+                ? "Checkout"
+                : view.kind === "catalog"
+                  ? "Catálogo de secciones"
+                  : "Tema"}
         </span>
       </div>
 
@@ -150,6 +154,7 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
             theme={theme}
             onPickScheme={(id) => setView({ kind: "scheme", schemeId: id })}
             onPickTypography={() => setView({ kind: "typography" })}
+            onPickCheckout={() => setView({ kind: "checkout" })}
             onPickCatalog={() => setView({ kind: "catalog" })}
             save={save}
             saving={saveState.saving}
@@ -166,6 +171,13 @@ export function CustomizerTokensPanel({ theme, onBack, onSaved }: Props) {
         )}
         {view.kind === "typography" && (
           <TypographyEditor
+            theme={theme}
+            save={save}
+            saving={saveState.saving}
+          />
+        )}
+        {view.kind === "checkout" && (
+          <CheckoutEditor
             theme={theme}
             save={save}
             saving={saveState.saving}
@@ -223,6 +235,7 @@ interface SchemesIndexProps {
   theme: ThemeRow
   onPickScheme: (schemeId: string) => void
   onPickTypography: () => void
+  onPickCheckout: () => void
   onPickCatalog: () => void
   save: ThemeSave
   saving: boolean
@@ -232,6 +245,7 @@ function SchemesIndex({
   theme,
   onPickScheme,
   onPickTypography,
+  onPickCheckout,
   onPickCatalog,
   save,
   saving,
@@ -302,6 +316,18 @@ function SchemesIndex({
         className="w-full flex items-center justify-between gap-2 rounded-md border bg-card px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
       >
         <span className="font-medium">Tipografía y escala</span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </button>
+
+      <button
+        type="button"
+        onClick={onPickCheckout}
+        className="w-full flex items-center justify-between gap-2 rounded-md border bg-card px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
+      >
+        <span className="inline-flex items-center gap-2 font-medium">
+          <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+          Checkout
+        </span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </button>
 
@@ -642,6 +668,10 @@ function TypographyEditor({ theme, save, saving }: TypographyEditorProps) {
       colors: theme.tokens.colors,
       fonts: {},
       scale: {},
+      // Each editor persists the whole `tokens` object, so carry the
+      // checkout slice through untouched (else editing typography would
+      // wipe checkout customizations).
+      ...(theme.tokens.checkout ? { checkout: theme.tokens.checkout } : {}),
     }
     for (const k of Object.keys(fonts) as (keyof typeof fonts)[]) {
       if (fonts[k] !== DEFAULT_THEME_TOKENS.fonts[k]) {
@@ -729,6 +759,148 @@ function TypographyEditor({ theme, save, saving }: TypographyEditorProps) {
                 disabled={pending}
                 className="h-9 text-sm"
                 placeholder="16px"
+              />
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div className="border-t px-3 py-2 flex items-center justify-end gap-2 bg-card sticky bottom-0">
+        <Button size="sm" onClick={handleSave} disabled={pending}>
+          {pending ? (
+            <>
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              Guardando…
+            </>
+          ) : (
+            "Guardar"
+          )}
+        </Button>
+      </div>
+    </>
+  )
+}
+
+// ============================================================
+// Checkout editor (input + pay button chrome)
+// ============================================================
+
+interface CheckoutEditorProps {
+  theme: ThemeRow
+  save: ThemeSave
+  saving: boolean
+}
+
+/**
+ * Edits the `tokens.checkout` slice — colors / border / radius of the
+ * checkout inputs and the pay button. Saves the whole `tokens` object (like
+ * the other editors), preserving the other slices and storing only the
+ * checkout fields that differ from the system defaults.
+ */
+function CheckoutEditor({ theme, save, saving }: CheckoutEditorProps) {
+  const initial = resolveTokens(theme.tokens).checkout
+  const [checkout, setCheckout] = useState(initial)
+  const pending = saving
+
+  const set = (key: keyof typeof checkout, value: string) =>
+    setCheckout((p) => ({ ...p, [key]: value }))
+
+  const handleSave = async () => {
+    if (saving) return
+    // Preserve sibling slices verbatim (raw stored deltas), and persist only
+    // the checkout fields that differ from defaults to keep the JSON minimal.
+    const checkoutDelta: NonNullable<ThemeTokens["checkout"]> = {}
+    for (const k of Object.keys(checkout) as (keyof typeof checkout)[]) {
+      if (checkout[k] !== DEFAULT_THEME_TOKENS.checkout[k]) {
+        checkoutDelta[k] = checkout[k]
+      }
+    }
+    const minimal: ThemeTokens = {
+      colors: theme.tokens.colors,
+      fonts: theme.tokens.fonts,
+      scale: theme.tokens.scale,
+      checkout: checkoutDelta,
+    }
+    const result = await save({ tokens: minimal })
+    if (result.ok) toast.success("Checkout guardado")
+  }
+
+  return (
+    <>
+      <div className="p-4 space-y-5">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Personaliza el color, borde y radio de los campos del formulario y
+          del botón de pago. Los valores por defecto reproducen el estilo
+          actual.
+        </p>
+
+        <fieldset className="space-y-3">
+          <legend className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Campos del formulario
+          </legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <ColorField
+              label="Fondo del campo"
+              value={checkout.inputBg}
+              onChange={(v) => set("inputBg", v)}
+              disabled={pending}
+            />
+            <ColorField
+              label="Borde"
+              value={checkout.inputBorder}
+              onChange={(v) => set("inputBorder", v)}
+              disabled={pending}
+            />
+            <ColorField
+              label="Borde al enfocar"
+              value={checkout.inputBorderFocus}
+              onChange={(v) => set("inputBorderFocus", v)}
+              disabled={pending}
+            />
+            <div className="space-y-1.5">
+              <Label htmlFor="checkout-input-radius" className="text-xs">
+                Radio de esquinas
+              </Label>
+              <Input
+                id="checkout-input-radius"
+                value={checkout.inputRadius}
+                onChange={(e) => set("inputRadius", e.target.value)}
+                disabled={pending}
+                className="h-9 text-sm"
+                placeholder="0.75rem"
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset className="space-y-3">
+          <legend className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Botón de pagar
+          </legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <ColorField
+              label="Fondo del botón"
+              value={checkout.buttonBg}
+              onChange={(v) => set("buttonBg", v)}
+              disabled={pending}
+            />
+            <ColorField
+              label="Texto del botón"
+              value={checkout.buttonText}
+              onChange={(v) => set("buttonText", v)}
+              disabled={pending}
+            />
+            <div className="space-y-1.5">
+              <Label htmlFor="checkout-button-radius" className="text-xs">
+                Radio de esquinas
+              </Label>
+              <Input
+                id="checkout-button-radius"
+                value={checkout.buttonRadius}
+                onChange={(e) => set("buttonRadius", e.target.value)}
+                disabled={pending}
+                className="h-9 text-sm"
+                placeholder="0.375rem"
               />
             </div>
           </div>
