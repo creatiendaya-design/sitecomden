@@ -112,6 +112,10 @@ export default function CheckoutPageClient({
   const [stockCheckLoading, setStockCheckLoading] = useState(false);
   const [culqiToken, setCulqiToken] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  // Saliendo hacia una pasarela externa (MP/PayPal). Mientras navega el
+  // navegador, vaciamos el carrito; sin este flag el render mostraría
+  // "Tu carrito está vacío" por una fracción de segundo (parpadeo feo).
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const { trackEvent } = useTracking(); 
   
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
@@ -683,8 +687,10 @@ export default function CheckoutPageClient({
         // error con opción de reintento (no perdemos el manejo de errores).
         const gateway = await startGatewayCheckout(result.orderId!, result.viewToken);
         if (gateway.success && gateway.redirectUrl) {
-          // El cliente sale del sitio: recién aquí limpiamos el carrito (si la
-          // pasarela falla o vuelve atrás, conserva su carrito y sus datos).
+          // Mostramos la pantalla "Redirigiendo…" ANTES de vaciar el carrito,
+          // para que el render no caiga en la vista de "carrito vacío" mientras
+          // el navegador todavía está saliendo hacia la pasarela.
+          setIsRedirecting(true);
           clearCart();
           clearPersistedData();
           window.location.href = gateway.redirectUrl;
@@ -824,6 +830,22 @@ export default function CheckoutPageClient({
       <div className="container py-16">
         <div className="text-center">
           <p>Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Saliendo hacia la pasarela: pantalla de transición. Va ANTES del check de
+  // carrito vacío porque ya vaciamos el carrito justo antes de navegar.
+  if (isRedirecting) {
+    return (
+      <div className="container py-16">
+        <div className="mx-auto max-w-md text-center">
+          <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" aria-hidden="true" />
+          <h1 className="mt-4 text-xl font-semibold">Redirigiendo al pago seguro…</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Te estamos llevando a la pasarela. No cierres esta ventana.
+          </p>
         </div>
       </div>
     );
