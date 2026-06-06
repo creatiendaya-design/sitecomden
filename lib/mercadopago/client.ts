@@ -118,10 +118,13 @@ export async function createCheckoutPreference(
       },
     });
 
-    const redirectUrl =
-      mp.mode === "production"
-        ? preference.init_point
-        : preference.sandbox_init_point ?? preference.init_point;
+    // Con credenciales de prueba (TEST-) MercadoPago redirige automáticamente al
+    // entorno de pruebas usando el `init_point` normal. El `sandbox_init_point`
+    // (dominio legacy sandbox.mercadopago.com.pe) está roto: provoca
+    // ERR_TOO_MANY_REDIRECTS y challenges de validación de email en bucle. Por eso
+    // usamos SIEMPRE init_point — el modo lo determinan las credenciales, no la URL.
+    // Docs: https://github.com/mercadopago/sdk-js/discussions/60
+    const redirectUrl = preference.init_point ?? preference.sandbox_init_point;
 
     if (!redirectUrl) {
       log.error({ preferenceId: preference.id }, "Preference created without init_point");
