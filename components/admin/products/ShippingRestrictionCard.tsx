@@ -30,8 +30,12 @@ export default function ShippingRestrictionCard({
 }) {
   const restriction = value ?? EMPTY
   const [allDepts, setAllDepts] = useState<{ id: string; name: string }[]>([])
-  const [allProvs, setAllProvs] = useState<{ id: string; name: string }[]>([])
-  const [allDists, setAllDists] = useState<{ code: string; name: string }[]>([])
+  const [allProvs, setAllProvs] = useState<
+    { id: string; name: string; departmentId: string }[]
+  >([])
+  const [allDists, setAllDists] = useState<
+    { code: string; name: string; provinceId: string }[]
+  >([])
   const [loadingProvs, setLoadingProvs] = useState(false)
   const [loadingDists, setLoadingDists] = useState(false)
 
@@ -78,13 +82,30 @@ export default function ShippingRestrictionCard({
     onChange({ ...restriction, ...patch })
 
   const toggleDept = (id: string) => {
-    const next = restriction.allowedDepartmentIds.includes(id)
-      ? restriction.allowedDepartmentIds.filter((x) => x !== id)
-      : [...restriction.allowedDepartmentIds, id]
+    const isRemoving = restriction.allowedDepartmentIds.includes(id)
+    if (!isRemoving) {
+      // Agregar: conservar las selecciones de provincias / distritos previas.
+      update({
+        allowedDepartmentIds: [...restriction.allowedDepartmentIds, id],
+      })
+      return
+    }
+    // Quitar: podar solo las provincias del departamento removido y los
+    // distritos de esas provincias.
+    const removedProvinceIds = allProvs
+      .filter((p) => p.departmentId === id)
+      .map((p) => p.id)
     update({
-      allowedDepartmentIds: next,
-      allowedProvinceIds: [],
-      allowedDistrictCodes: [],
+      allowedDepartmentIds: restriction.allowedDepartmentIds.filter(
+        (x) => x !== id,
+      ),
+      allowedProvinceIds: restriction.allowedProvinceIds.filter(
+        (pid) => !removedProvinceIds.includes(pid),
+      ),
+      allowedDistrictCodes: restriction.allowedDistrictCodes.filter((code) => {
+        const dist = allDists.find((d) => d.code === code)
+        return !dist || !removedProvinceIds.includes(dist.provinceId)
+      }),
     })
   }
 
@@ -151,12 +172,25 @@ export default function ShippingRestrictionCard({
               all={allProvs}
               selected={restriction.allowedProvinceIds}
               onToggle={(id) => {
-                const next = restriction.allowedProvinceIds.includes(id)
-                  ? restriction.allowedProvinceIds.filter((x) => x !== id)
-                  : [...restriction.allowedProvinceIds, id]
+                const isRemoving = restriction.allowedProvinceIds.includes(id)
+                if (!isRemoving) {
+                  // Agregar: conservar los distritos ya seleccionados.
+                  update({
+                    allowedProvinceIds: [...restriction.allowedProvinceIds, id],
+                  })
+                  return
+                }
+                // Quitar: podar solo los distritos de la provincia removida.
+                const removedDistrictCodes = allDists
+                  .filter((d) => d.provinceId === id)
+                  .map((d) => d.code)
                 update({
-                  allowedProvinceIds: next,
-                  allowedDistrictCodes: [],
+                  allowedProvinceIds: restriction.allowedProvinceIds.filter(
+                    (x) => x !== id,
+                  ),
+                  allowedDistrictCodes: restriction.allowedDistrictCodes.filter(
+                    (code) => !removedDistrictCodes.includes(code),
+                  ),
                 })
               }}
             />
