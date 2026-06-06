@@ -6,7 +6,7 @@ import { revalidatePath, updateTag } from "next/cache"
 import { protectRoute } from "@/lib/protect-route"
 import { getCurrentUserIdOrNull } from "@/lib/auth"
 import { hasPermission } from "@/lib/permissions"
-import type { ThemeSectionGroup } from "@prisma/client"
+import type { Prisma, ThemeSectionGroup } from "@prisma/client"
 import {
   getThemeSectionDefinition,
   getSectionBlockDefinition,
@@ -89,15 +89,76 @@ function assertLegacyBlockContent(
   }
 }
 
-function invalidateSectionGroup(themeId: string, group: ThemeSectionGroup) {
-  updateTag(`theme-sections-${themeId}-${group}`)
-  // Plan 17: PRODUCT-group sections drive every `/productos/[slug]` page,
-  // which caches under the `products` tag (see app/(shop)/productos/[slug]/page.tsx).
-  // Without this invalidation a customizer save would render stale until the
-  // 60s revalidate window expires.
+/**
+ * Plan 19 — PRODUCT-group sections no longer cache under
+ * `theme-sections-<themeId>-PRODUCT`; each product template caches under
+ * `theme-product-template-<templateId>` (see resolve-active-sections.ts).
+ * Pass the owning `productTemplateId` so we invalidate the right read.
+ * `products` is still bumped because every `/productos/[slug]` page caches
+ * under it.
+ */
+function invalidateSectionGroup(
+  themeId: string,
+  group: ThemeSectionGroup,
+  productTemplateId?: string | null,
+  productId?: string | null,
+) {
   if (group === "PRODUCT") {
+    // Fase 3 — an override row (productId set) invalidates only that
+    // product; a shared template row invalidates the template.
+    if (productId) {
+      updateTag(`product-overrides-${productId}`)
+    } else if (productTemplateId) {
+      updateTag(`theme-product-template-${productTemplateId}`)
+    }
     updateTag("products")
+    return
   }
+  updateTag(`theme-sections-${themeId}-${group}`)
+}
+
+/**
+ * Plan 19 — resolve the effective product template id for a PRODUCT-group
+ * write. When the caller doesn't pass one (Fase 1: the customizer still
+ * edits "the theme's product sections"), fall back to the theme's default
+ * template. Throws if the theme has no default (pre-backfill / corrupt).
+ */
+async function resolveProductTemplateScopeId(
+  themeId: string,
+  productTemplateId?: string | null,
+): Promise<string> {
+  if (productTemplateId) {
+    const tpl = await prisma.themeProductTemplate.findFirst({
+      where: { id: productTemplateId, themeId },
+      select: { id: true },
+    })
+    if (!tpl) throw new Error("Plantilla de producto no encontrada para este tema")
+    return tpl.id
+  }
+  const def = await prisma.themeProductTemplate.findFirst({
+    where: { themeId, isDefault: true },
+    select: { id: true },
+  })
+  if (!def) {
+    throw new Error("El tema no tiene una plantilla de producto predeterminada")
+  }
+  return def.id
+}
+
+/**
+ * Plan 19 — build the Prisma `where` that scopes a section group read/diff.
+ * PRODUCT sections live under a template; the other groups stay theme+group
+ * scoped (and exclude any stray template rows defensively).
+ */
+function sectionGroupWhere(
+  themeId: string,
+  group: ThemeSectionGroup,
+  effectiveTemplateId: string | null,
+) {
+  if (group === "PRODUCT") {
+    return { productTemplateId: effectiveTemplateId, productId: null }
+  }
+  return { themeId, group, productTemplateId: null }
 }
 
 // ---------- Row types ----------
@@ -138,9 +199,16 @@ export async function addThemeSection(
   themeId: string,
   group: ThemeSectionGroup,
   type: string,
+  productTemplateId?: string | null,
 ): Promise<ThemeSectionRow> {
   await protectRoute("themes:update")
   const input = addThemeSectionSchema.parse({ themeId, group, type })
+
+  // Plan 19 — PRODUCT sections belong to a template (default unless given).
+  const effectiveTemplateId =
+    input.group === "PRODUCT"
+      ? await resolveProductTemplateScopeId(input.themeId, productTemplateId)
+      : null
 
   const def = getThemeSectionDefinition(input.type)
   if (!def) throw new Error(`Section type "${input.type}" not registered`)
@@ -158,9 +226,11 @@ export async function addThemeSection(
     )
   }
 
+  const scopeWhere = sectionGroupWhere(input.themeId, input.group, effectiveTemplateId)
+
   if (def.maxPerGroup !== undefined) {
     const count = await prisma.themeSection.count({
-      where: { themeId: input.themeId, group: input.group, type: input.type },
+      where: { ...scopeWhere, type: input.type },
     })
     if (count >= def.maxPerGroup) {
       throw new Error(
@@ -170,7 +240,7 @@ export async function addThemeSection(
   }
 
   const last = await prisma.themeSection.findFirst({
-    where: { themeId: input.themeId, group: input.group },
+    where: scopeWhere,
     orderBy: { position: "desc" },
     select: { position: true },
   })
@@ -180,6 +250,7 @@ export async function addThemeSection(
     data: {
       themeId: input.themeId,
       group: input.group,
+      productTemplateId: effectiveTemplateId,
       type: input.type,
       position,
       content: def.defaultContent as object,
@@ -198,7 +269,7 @@ export async function addThemeSection(
     include: { blocks: { orderBy: { position: "asc" } } },
   })
 
-  invalidateSectionGroup(input.themeId, input.group)
+  invalidateSectionGroup(input.themeId, input.group, effectiveTemplateId)
 
   return {
     id: created.id,
@@ -227,13 +298,18 @@ export async function removeThemeSection(sectionId: string): Promise<void> {
   await protectRoute("themes:update")
   const section = await prisma.themeSection.findUnique({
     where: { id: sectionId },
-    select: { themeId: true, group: true },
+    select: { themeId: true, group: true, productTemplateId: true, productId: true },
   })
   if (!section) return
 
   await prisma.themeSection.delete({ where: { id: sectionId } })
 
-  invalidateSectionGroup(section.themeId, section.group)
+  invalidateSectionGroup(
+    section.themeId,
+    section.group,
+    section.productTemplateId,
+    section.productId,
+  )
 }
 
 // ---------- Reorder sections ----------
@@ -252,6 +328,19 @@ export async function reorderThemeSections(
   await protectRoute("themes:update")
   const input = reorderSectionsSchema.parse({ themeId, group, orderedIds })
 
+  // Plan 19 — for PRODUCT, derive the owning template/product from the first
+  // row so we invalidate the right cache tag.
+  let productTemplateId: string | null = null
+  let productId: string | null = null
+  if (input.group === "PRODUCT" && input.orderedIds.length > 0) {
+    const first = await prisma.themeSection.findUnique({
+      where: { id: input.orderedIds[0] },
+      select: { productTemplateId: true, productId: true },
+    })
+    productTemplateId = first?.productTemplateId ?? null
+    productId = first?.productId ?? null
+  }
+
   await prisma.$transaction(
     input.orderedIds.map((id, idx) =>
       prisma.themeSection.update({
@@ -261,7 +350,7 @@ export async function reorderThemeSections(
     ),
   )
 
-  invalidateSectionGroup(input.themeId, input.group)
+  invalidateSectionGroup(input.themeId, input.group, productTemplateId, productId)
 }
 
 // ---------- Update section content ----------
@@ -281,10 +370,15 @@ export async function updateThemeSectionContent(
   const section = await prisma.themeSection.update({
     where: { id: input.sectionId },
     data: { content: input.content as object },
-    select: { themeId: true, group: true },
+    select: { themeId: true, group: true, productTemplateId: true, productId: true },
   })
 
-  invalidateSectionGroup(section.themeId, section.group)
+  invalidateSectionGroup(
+    section.themeId,
+    section.group,
+    section.productTemplateId,
+    section.productId,
+  )
 }
 
 // ---------- Toggle enabled ----------
@@ -297,9 +391,14 @@ export async function toggleThemeSectionEnabled(
   const section = await prisma.themeSection.update({
     where: { id: sectionId },
     data: { enabled },
-    select: { themeId: true, group: true },
+    select: { themeId: true, group: true, productTemplateId: true, productId: true },
   })
-  invalidateSectionGroup(section.themeId, section.group)
+  invalidateSectionGroup(
+    section.themeId,
+    section.group,
+    section.productTemplateId,
+    section.productId,
+  )
 }
 
 // ---------- Sub-block CRUD ----------
@@ -322,6 +421,8 @@ export async function addThemeSectionBlock(
       type: true,
       themeId: true,
       group: true,
+      productTemplateId: true,
+      productId: true,
       blocks: { select: { type: true } },
     },
   })
@@ -355,7 +456,12 @@ export async function addThemeSectionBlock(
     },
   })
 
-  invalidateSectionGroup(parent.themeId, parent.group)
+  invalidateSectionGroup(
+    parent.themeId,
+    parent.group,
+    parent.productTemplateId,
+    parent.productId,
+  )
 
   return {
     id: created.id,
@@ -372,11 +478,25 @@ export async function removeThemeSectionBlock(blockId: string): Promise<void> {
   await protectRoute("themes:update")
   const block = await prisma.themeSectionBlock.findUnique({
     where: { id: blockId },
-    select: { section: { select: { themeId: true, group: true } } },
+    select: {
+      section: {
+        select: {
+          themeId: true,
+          group: true,
+          productTemplateId: true,
+          productId: true,
+        },
+      },
+    },
   })
   if (!block) return
   await prisma.themeSectionBlock.delete({ where: { id: blockId } })
-  invalidateSectionGroup(block.section.themeId, block.section.group)
+  invalidateSectionGroup(
+    block.section.themeId,
+    block.section.group,
+    block.section.productTemplateId,
+    block.section.productId,
+  )
 }
 
 const reorderBlocksSchema = z.object({
@@ -402,10 +522,15 @@ export async function reorderThemeSectionBlocks(
 
   const section = await prisma.themeSection.findUnique({
     where: { id: input.sectionId },
-    select: { themeId: true, group: true },
+    select: { themeId: true, group: true, productTemplateId: true, productId: true },
   })
   if (section) {
-    invalidateSectionGroup(section.themeId, section.group)
+    invalidateSectionGroup(
+      section.themeId,
+      section.group,
+      section.productTemplateId,
+      section.productId,
+    )
   }
 }
 
@@ -424,9 +549,23 @@ export async function updateThemeSectionBlockContent(
   const block = await prisma.themeSectionBlock.update({
     where: { id: input.blockId },
     data: { content: input.content as object },
-    select: { section: { select: { themeId: true, group: true } } },
+    select: {
+      section: {
+        select: {
+          themeId: true,
+          group: true,
+          productTemplateId: true,
+          productId: true,
+        },
+      },
+    },
   })
-  invalidateSectionGroup(block.section.themeId, block.section.group)
+  invalidateSectionGroup(
+    block.section.themeId,
+    block.section.group,
+    block.section.productTemplateId,
+    block.section.productId,
+  )
 }
 
 // ---------- Batch save (for autosave) ----------
@@ -496,9 +635,21 @@ export async function saveThemeSectionGroup(
   themeId: string,
   group: ThemeSectionGroup,
   sections: z.infer<typeof batchSectionSchema>[],
+  productTemplateId?: string | null,
 ): Promise<{ success: true; sections: ThemeSectionRow[] }> {
   await protectRoute("themes:update")
   const input = saveGroupSchema.parse({ themeId, group, sections })
+
+  // Plan 19 — PRODUCT sections are scoped to a template (default unless given).
+  const effectiveTemplateId =
+    input.group === "PRODUCT"
+      ? await resolveProductTemplateScopeId(input.themeId, productTemplateId)
+      : null
+  const scopeWhere = sectionGroupWhere(
+    input.themeId,
+    input.group,
+    effectiveTemplateId,
+  )
 
   // Validate LEGACY_BLOCK adapter sections up-front so the transaction
   // can't open with a half-baked row to insert. Runs before any DB writes
@@ -509,7 +660,7 @@ export async function saveThemeSectionGroup(
 
   const persisted = await prisma.$transaction(async (tx) => {
     const existing = await tx.themeSection.findMany({
-      where: { themeId: input.themeId, group: input.group },
+      where: scopeWhere,
       select: { id: true, blocks: { select: { id: true } } },
     })
     const existingSectionIds = new Set(existing.map((s) => s.id))
@@ -530,6 +681,7 @@ export async function saveThemeSectionGroup(
           data: {
             themeId: input.themeId,
             group: input.group,
+            productTemplateId: effectiveTemplateId,
             type: section.type,
             position: section.position,
             content: section.content as object,
@@ -597,13 +749,13 @@ export async function saveThemeSectionGroup(
     // Return the freshly-persisted snapshot in the SAME transaction so
     // the client doesn't need a second round-trip to learn the new ids.
     return tx.themeSection.findMany({
-      where: { themeId: input.themeId, group: input.group },
+      where: scopeWhere,
       orderBy: { position: "asc" },
       include: { blocks: { orderBy: { position: "asc" } } },
     })
   }, NEON_TX_OPTS)
 
-  invalidateSectionGroup(input.themeId, input.group)
+  invalidateSectionGroup(input.themeId, input.group, effectiveTemplateId)
 
   return {
     success: true,
@@ -670,10 +822,15 @@ export async function updateThemeSectionCatalog(
 export async function listThemeSections(
   themeId: string,
   group: ThemeSectionGroup,
+  productTemplateId?: string | null,
 ): Promise<ThemeSectionRow[]> {
   await protectRoute("themes:update")
+  const effectiveTemplateId =
+    group === "PRODUCT"
+      ? await resolveProductTemplateScopeId(themeId, productTemplateId)
+      : null
   const rows = await prisma.themeSection.findMany({
-    where: { themeId, group },
+    where: sectionGroupWhere(themeId, group, effectiveTemplateId),
     orderBy: { position: "asc" },
     include: { blocks: { orderBy: { position: "asc" } } },
   })
@@ -720,6 +877,7 @@ export async function saveThemeSectionGroupVersioned(
   themeId: string,
   group: ThemeSectionGroup,
   sections: z.infer<typeof batchSectionSchemaVersioned>[],
+  productTemplateId?: string | null,
 ): Promise<BatchSaveResult<{ sections: ThemeSectionRow[] }, ThemeSectionRow>> {
   const userId = await getCurrentUserIdOrNull()
   if (!userId) return batchUnauthorized()
@@ -727,6 +885,17 @@ export async function saveThemeSectionGroupVersioned(
   if (!allowed) return batchUnauthorized()
 
   const input = saveGroupSchemaVersioned.parse({ themeId, group, sections })
+
+  // Plan 19 — PRODUCT sections are scoped to a template (default unless given).
+  const effectiveTemplateId =
+    input.group === "PRODUCT"
+      ? await resolveProductTemplateScopeId(input.themeId, productTemplateId)
+      : null
+  const scopeWhere = sectionGroupWhere(
+    input.themeId,
+    input.group,
+    effectiveTemplateId,
+  )
 
   // Validate LEGACY_BLOCK adapter sections up-front. Mirrors the
   // non-versioned path. Failing here returns a hard error response so
@@ -828,7 +997,7 @@ export async function saveThemeSectionGroupVersioned(
   try {
     const persisted = await prisma.$transaction(async (tx) => {
       const existing = await tx.themeSection.findMany({
-        where: { themeId: input.themeId, group: input.group },
+        where: scopeWhere,
         select: { id: true, blocks: { select: { id: true } } },
       })
       const existingSectionIds = new Set(existing.map((s) => s.id))
@@ -852,6 +1021,7 @@ export async function saveThemeSectionGroupVersioned(
             data: {
               themeId: input.themeId,
               group: input.group,
+              productTemplateId: effectiveTemplateId,
               type: section.type,
               position: section.position,
               content: section.content as object,
@@ -933,13 +1103,13 @@ export async function saveThemeSectionGroupVersioned(
       }
 
       return tx.themeSection.findMany({
-        where: { themeId: input.themeId, group: input.group },
+        where: scopeWhere,
         orderBy: { position: "asc" },
         include: { blocks: { orderBy: { position: "asc" } } },
       })
     }, NEON_TX_OPTS)
 
-    invalidateSectionGroup(input.themeId, input.group)
+    invalidateSectionGroup(input.themeId, input.group, effectiveTemplateId)
 
     return batchOk<{ sections: ThemeSectionRow[] }, ThemeSectionRow>({
       sections: persisted.map((r) => ({
@@ -1039,6 +1209,413 @@ export async function saveThemeSectionGroupVersioned(
     }
     return batchErrored(
       err instanceof Error ? err.message : "Error al guardar secciones",
+    )
+  }
+}
+
+// ===========================================================================
+// Plan 19 (Fase 3) — per-product section overrides (detach / restore / edit)
+// ===========================================================================
+
+/** A merged product section row tagged with where it comes from. */
+export interface ProductSectionRow extends ThemeSectionRow {
+  origin: "inherited" | "detached"
+  sourceSectionId: string | null
+}
+
+type SectionWithBlocks = Prisma.ThemeSectionGetPayload<{
+  include: { blocks: true }
+}>
+
+function sectionRowOf(r: SectionWithBlocks): ThemeSectionRow {
+  return {
+    id: r.id,
+    themeId: r.themeId,
+    group: r.group,
+    type: r.type,
+    position: r.position,
+    enabled: r.enabled,
+    content: r.content,
+    version: r.version,
+    blocks: r.blocks
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((b) => ({
+        id: b.id,
+        sectionId: b.sectionId,
+        type: b.type,
+        position: b.position,
+        enabled: b.enabled,
+        content: b.content,
+        version: b.version,
+      })),
+  }
+}
+
+/** Resolve which template a product renders (assigned, else theme default). */
+async function resolveProductTemplateForProduct(
+  productId: string,
+): Promise<{ templateId: string; themeId: string; slug: string }> {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { slug: true, themeProductTemplateId: true },
+  })
+  if (!product) throw new Error("Producto no encontrado")
+
+  const theme = await prisma.theme.findFirst({
+    where: { active: true },
+    select: { id: true },
+  })
+  if (!theme) throw new Error("No hay un tema activo")
+
+  let templateId = product.themeProductTemplateId
+  if (templateId) {
+    // Validate it still belongs to the active theme.
+    const ok = await prisma.themeProductTemplate.findFirst({
+      where: { id: templateId, themeId: theme.id },
+      select: { id: true },
+    })
+    if (!ok) templateId = null
+  }
+  if (!templateId) {
+    const def = await prisma.themeProductTemplate.findFirst({
+      where: { themeId: theme.id, isDefault: true },
+      select: { id: true },
+    })
+    if (!def) throw new Error("El tema no tiene plantilla predeterminada")
+    templateId = def.id
+  }
+  return { templateId, themeId: theme.id, slug: product.slug }
+}
+
+/**
+ * Read a product's sections for the override editor: the template's sections
+ * with any per-product overrides overlaid, each tagged with its origin.
+ */
+export async function listProductSectionsForEditor(
+  productId: string,
+): Promise<{ templateId: string; sections: ProductSectionRow[] }> {
+  await protectRoute("themes:update")
+  const { templateId } = await resolveProductTemplateForProduct(productId)
+
+  const [templateSections, overrides] = await Promise.all([
+    prisma.themeSection.findMany({
+      where: { productTemplateId: templateId, productId: null },
+      orderBy: { position: "asc" },
+      include: { blocks: { orderBy: { position: "asc" } } },
+    }),
+    prisma.themeSection.findMany({
+      where: { productId, detached: true },
+      orderBy: { position: "asc" },
+      include: { blocks: { orderBy: { position: "asc" } } },
+    }),
+  ])
+
+  const bySource = new Map<string, (typeof overrides)[number]>()
+  const pureLocals: typeof overrides = []
+  for (const o of overrides) {
+    if (o.sourceSectionId) bySource.set(o.sourceSectionId, o)
+    else pureLocals.push(o)
+  }
+
+  const merged: ProductSectionRow[] = templateSections.map((t) => {
+    const ov = bySource.get(t.id)
+    if (ov) {
+      return {
+        ...sectionRowOf(ov),
+        origin: "detached",
+        sourceSectionId: t.id,
+      }
+    }
+    return { ...sectionRowOf(t), origin: "inherited", sourceSectionId: null }
+  })
+  for (const local of pureLocals) {
+    merged.push({
+      ...sectionRowOf(local),
+      origin: "detached",
+      sourceSectionId: null,
+    })
+  }
+  merged.sort((a, b) => a.position - b.position)
+
+  return { templateId, sections: merged }
+}
+
+/**
+ * Detach a template section for a single product: copy it (with sub-blocks)
+ * into a per-product override row. Idempotent — returns the existing
+ * override if already detached.
+ */
+export async function detachProductSection(
+  productId: string,
+  sourceSectionId: string,
+): Promise<ProductSectionRow> {
+  await protectRoute("themes:update")
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { slug: true },
+  })
+  if (!product) throw new Error("Producto no encontrado")
+
+  const existing = await prisma.themeSection.findFirst({
+    where: { productId, sourceSectionId, detached: true },
+    include: { blocks: { orderBy: { position: "asc" } } },
+  })
+  if (existing) {
+    return {
+      ...sectionRowOf(existing),
+      origin: "detached",
+      sourceSectionId,
+    }
+  }
+
+  const source = await prisma.themeSection.findUnique({
+    where: { id: sourceSectionId },
+    include: { blocks: { orderBy: { position: "asc" } } },
+  })
+  if (!source) throw new Error("Sección de plantilla no encontrada")
+  if (source.group !== "PRODUCT") {
+    throw new Error("Solo se pueden personalizar secciones de producto")
+  }
+
+  const created = await prisma.themeSection.create({
+    data: {
+      themeId: source.themeId,
+      group: "PRODUCT",
+      productId,
+      sourceSectionId,
+      detached: true,
+      productTemplateId: null,
+      type: source.type,
+      position: source.position,
+      content: source.content as object,
+      enabled: source.enabled,
+      blocks: {
+        create: source.blocks.map((b) => ({
+          type: b.type,
+          position: b.position,
+          content: b.content as object,
+          enabled: b.enabled,
+        })),
+      },
+    },
+    include: { blocks: { orderBy: { position: "asc" } } },
+  })
+
+  invalidateSectionGroup(source.themeId, "PRODUCT", null, productId)
+  updateTag(`product:${product.slug}`)
+
+  return { ...sectionRowOf(created), origin: "detached", sourceSectionId }
+}
+
+/**
+ * Restore a per-product override: delete the override row so the product
+ * re-inherits the template section.
+ */
+export async function restoreProductSection(overrideId: string): Promise<void> {
+  await protectRoute("themes:update")
+  const ov = await prisma.themeSection.findUnique({
+    where: { id: overrideId },
+    select: { themeId: true, productId: true },
+  })
+  if (!ov || !ov.productId) return
+
+  await prisma.themeSection.delete({ where: { id: overrideId } })
+
+  const product = await prisma.product.findUnique({
+    where: { id: ov.productId },
+    select: { slug: true },
+  })
+  invalidateSectionGroup(ov.themeId, "PRODUCT", null, ov.productId)
+  if (product) updateTag(`product:${product.slug}`)
+}
+
+/**
+ * Versioned batch save for a product's section OVERRIDES only. Mirrors
+ * `saveThemeSectionGroupVersioned` but scoped to `{ productId, detached:true }`.
+ * Inherited sections are never sent here. New rows (tmp- ids) become
+ * pure-local override sections for the product.
+ */
+export async function saveProductSectionOverrides(
+  productId: string,
+  sections: z.infer<typeof batchSectionSchemaVersioned>[],
+): Promise<BatchSaveResult<{ sections: ThemeSectionRow[] }, ThemeSectionRow>> {
+  const userId = await getCurrentUserIdOrNull()
+  if (!userId) return batchUnauthorized()
+  const allowed = await hasPermission(userId, "themes:update")
+  if (!allowed) return batchUnauthorized()
+
+  const parsed = z
+    .array(batchSectionSchemaVersioned)
+    .safeParse(sections)
+  if (!parsed.success) return batchErrored("Datos de secciones inválidos")
+  const incoming = parsed.data
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { slug: true },
+  })
+  if (!product) return batchErrored("Producto no encontrado")
+  const { themeId } = await resolveProductTemplateForProduct(productId)
+
+  try {
+    for (const section of incoming) {
+      assertLegacyBlockContent(section.type, section.content)
+    }
+  } catch (err) {
+    return batchErrored(
+      err instanceof Error ? err.message : "LEGACY_BLOCK inválido",
+    )
+  }
+
+  // Pre-check versions for existing override rows.
+  const sectionConflicts = await precheckBatchConflicts({
+    model: prisma.themeSection,
+    rows: incoming.map((s) => ({ id: s.id, version: s.version })),
+    refetchForConflict: async (id) => {
+      const fresh = await prisma.themeSection.findUnique({
+        where: { id },
+        include: { blocks: { orderBy: { position: "asc" } } },
+      })
+      return fresh ? sectionRowOf(fresh) : null
+    },
+  })
+  if (sectionConflicts.length > 0) return batchConflict(sectionConflicts)
+
+  try {
+    const persisted = await prisma.$transaction(async (tx) => {
+      const existing = await tx.themeSection.findMany({
+        where: { productId, detached: true },
+        select: { id: true, sourceSectionId: true, blocks: { select: { id: true } } },
+      })
+      const existingIds = new Set(existing.map((s) => s.id))
+      const incomingIds = new Set(incoming.map((s) => s.id))
+      const toDelete = [...existingIds].filter((id) => !incomingIds.has(id))
+      if (toDelete.length > 0) {
+        await tx.themeSection.deleteMany({ where: { id: { in: toDelete } } })
+      }
+
+      for (const section of incoming) {
+        const isNew =
+          section.id.startsWith("tmp-") || !existingIds.has(section.id)
+        if (isNew) {
+          const created = await tx.themeSection.create({
+            data: {
+              themeId,
+              group: "PRODUCT",
+              productId,
+              detached: true,
+              productTemplateId: null,
+              type: section.type,
+              position: section.position,
+              content: section.content as object,
+              enabled: section.enabled,
+            },
+          })
+          for (const block of section.blocks) {
+            await tx.themeSectionBlock.create({
+              data: {
+                sectionId: created.id,
+                type: block.type,
+                position: block.position,
+                content: block.content as object,
+                enabled: block.enabled,
+              },
+            })
+          }
+        } else {
+          if (typeof section.version !== "number") {
+            throw new BatchRaceError(section.id)
+          }
+          const upd = await tx.themeSection.updateMany({
+            where: { id: section.id, version: section.version },
+            data: {
+              type: section.type,
+              position: section.position,
+              content: section.content as object,
+              enabled: section.enabled,
+              version: { increment: 1 },
+            },
+          })
+          if (upd.count === 0) throw new BatchRaceError(section.id)
+
+          const existingBlockIds = new Set(
+            existing.find((s) => s.id === section.id)?.blocks.map((b) => b.id) ??
+              [],
+          )
+          const incomingBlockIds = new Set(section.blocks.map((b) => b.id))
+          const blocksToDelete = [...existingBlockIds].filter(
+            (id) => !incomingBlockIds.has(id),
+          )
+          if (blocksToDelete.length > 0) {
+            await tx.themeSectionBlock.deleteMany({
+              where: { id: { in: blocksToDelete } },
+            })
+          }
+          for (const block of section.blocks) {
+            const blockIsNew =
+              block.id.startsWith("tmp-") || !existingBlockIds.has(block.id)
+            if (blockIsNew) {
+              await tx.themeSectionBlock.create({
+                data: {
+                  sectionId: section.id,
+                  type: block.type,
+                  position: block.position,
+                  content: block.content as object,
+                  enabled: block.enabled,
+                },
+              })
+            } else {
+              if (typeof block.version !== "number") {
+                throw new BatchRaceError(block.id)
+              }
+              const bUpd = await tx.themeSectionBlock.updateMany({
+                where: { id: block.id, version: block.version },
+                data: {
+                  type: block.type,
+                  position: block.position,
+                  content: block.content as object,
+                  enabled: block.enabled,
+                  version: { increment: 1 },
+                },
+              })
+              if (bUpd.count === 0) throw new BatchRaceError(block.id)
+            }
+          }
+        }
+      }
+
+      return tx.themeSection.findMany({
+        where: { productId, detached: true },
+        orderBy: { position: "asc" },
+        include: { blocks: { orderBy: { position: "asc" } } },
+      })
+    }, NEON_TX_OPTS)
+
+    invalidateSectionGroup(themeId, "PRODUCT", null, productId)
+    updateTag(`product:${product.slug}`)
+
+    return batchOk<{ sections: ThemeSectionRow[] }, ThemeSectionRow>({
+      sections: persisted.map(sectionRowOf),
+    })
+  } catch (err) {
+    if (isBatchRaceError(err)) {
+      const racingId = err.rowId
+      const fresh = await prisma.themeSection.findUnique({
+        where: { id: racingId },
+        include: { blocks: { orderBy: { position: "asc" } } },
+      })
+      return batchConflict<ThemeSectionRow>([
+        {
+          rowId: racingId,
+          current: fresh ? sectionRowOf(fresh) : null,
+          serverVersion: fresh?.version ?? null,
+        },
+      ])
+    }
+    return batchErrored(
+      err instanceof Error ? err.message : "Error al guardar personalizaciones",
     )
   }
 }

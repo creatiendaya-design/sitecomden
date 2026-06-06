@@ -20,8 +20,10 @@ import type { TemplateRow } from "@/actions/landing-templates"
 import { type PageRow } from "@/actions/pages"
 import {
   saveThemeSectionGroupVersioned,
+  saveProductSectionOverrides,
   type ThemeSectionRow,
 } from "@/actions/theme-sections"
+import type { ProductTemplateRow } from "@/actions/theme-product-templates"
 import { savePageBlocksVersioned } from "@/actions/pages"
 import { saveCategoryBlocksVersioned } from "@/actions/categories-blocks"
 import { BatchConflictDialog } from "@/components/admin/concurrency/BatchConflictDialog"
@@ -87,6 +89,16 @@ interface Props {
   productSections: ThemeSectionRow[]
   /** Plan 19 — server-fetched ordered COLLECTION theme sections (with blocks). */
   collectionSections: ThemeSectionRow[]
+  /** Plan 19 — all product templates of this theme (for the PRODUCT zone picker). */
+  productTemplates: ProductTemplateRow[]
+  /** Plan 19 — which product template the PRODUCT zone is currently editing.
+   *  `productSections` above are scoped to this id. */
+  activeProductTemplateId: string | null
+  /** Plan 19 (Fase 3) — when set, the PRODUCT zone edits a single product's
+   *  section OVERRIDES (not a shared template). `productSections` are then the
+   *  merged inherited+detached rows for this product, and the iframe previews
+   *  this product. */
+  productOverride: { productId: string; productSlug: string } | null
   /** Plan 16 — per-theme allowed section types per group. */
   sectionCatalog: ThemeSectionCatalog
 }
@@ -115,6 +127,9 @@ export function CustomizerShell({
   footerSections,
   productSections,
   collectionSections,
+  productTemplates,
+  activeProductTemplateId,
+  productOverride,
   sectionCatalog,
 }: Props) {
   const router = useRouter()
@@ -319,10 +334,15 @@ export function CustomizerShell({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   useEffect(() => {
     if (!currentTarget) return
-    const url = new URL(currentTarget.path, window.location.origin)
+    // Fase 3 — in per-product override mode, preview the real product page
+    // instead of the theme's sample product.
+    const path = productOverride
+      ? `/productos/${productOverride.productSlug}`
+      : currentTarget.path
+    const url = new URL(path, window.location.origin)
     url.searchParams.set("theme-preview", theme.id)
     setPreviewUrl(url.toString())
-  }, [currentTarget, theme.id])
+  }, [currentTarget, theme.id, productOverride])
 
   const [device, setDevice] = useState<DeviceMode>("desktop")
 
@@ -425,6 +445,29 @@ export function CustomizerShell({
   const collectionDirty = useThemeSectionsStore((s) => s.collectionDirty)
   const themeSectionsSelected = useThemeSectionsStore((s) => s.selected)
   const selectThemeSection = useThemeSectionsStore((s) => s.select)
+  const replaceThemeGroup = useThemeSectionsStore((s) => s.replaceGroup)
+
+  // Plan 19 — re-hydrate ONLY the PRODUCT group (not header/footer) when its
+  // server data changes, WITHOUT re-running the once-per-theme hydrate:
+  //  - template switch (?productTemplate=<id>) → new scoped sections, or
+  //  - Fase 3 override mode: detach/restore call router.refresh(), which
+  //    delivers freshly-merged inherited+detached sections.
+  // Seeded refs skip the first render so it only fires on a real change.
+  const activeProductTemplateIdRef = useRef(activeProductTemplateId)
+  const productSectionsRef = useRef(productSections)
+  useEffect(() => {
+    if (activeProductTemplateIdRef.current !== activeProductTemplateId) {
+      activeProductTemplateIdRef.current = activeProductTemplateId
+      productSectionsRef.current = productSections
+      replaceThemeGroup("PRODUCT", productSections)
+      return
+    }
+    if (productOverride && productSectionsRef.current !== productSections) {
+      productSectionsRef.current = productSections
+      replaceThemeGroup("PRODUCT", productSections)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProductTemplateId, productSections, productOverride, replaceThemeGroup])
 
   // Coordinate selection between the two zones so only ONE thing is selected
   // at a time. The right sidebar's conditional gives priority to theme-section
@@ -496,27 +539,35 @@ export function CustomizerShell({
       })),
     }))
     setSectionsConflict(null)
+    const overrideId =
+      sectionsConflict.group === "PRODUCT"
+        ? (productOverride?.productId ?? null)
+        : null
+    const forcedPayload = forced.map((s) => ({
+      id: s.id,
+      type: s.type,
+      position: s.position,
+      content: s.content,
+      enabled: s.enabled,
+      version: s.version,
+      blocks: s.blocks.map((b) => ({
+        id: b.id,
+        type: b.type,
+        position: b.position,
+        content: b.content,
+        enabled: b.enabled,
+        version: b.version,
+      })),
+    }))
     try {
-      const result = await saveThemeSectionGroupVersioned(
-        theme.id,
-        sectionsConflict.group,
-        forced.map((s) => ({
-          id: s.id,
-          type: s.type,
-          position: s.position,
-          content: s.content,
-          enabled: s.enabled,
-          version: s.version,
-          blocks: s.blocks.map((b) => ({
-            id: b.id,
-            type: b.type,
-            position: b.position,
-            content: b.content,
-            enabled: b.enabled,
-            version: b.version,
-          })),
-        })),
-      )
+      const result = overrideId
+        ? await saveProductSectionOverrides(overrideId, forcedPayload)
+        : await saveThemeSectionGroupVersioned(
+            theme.id,
+            sectionsConflict.group,
+            forcedPayload,
+            sectionsConflict.group === "PRODUCT" ? activeProductTemplateId : null,
+          )
       if (result.ok) {
         mergeSavedIds(sectionsConflict.group, forced, result.data.sections)
         handleAnySaved()
@@ -535,7 +586,7 @@ export function CustomizerShell({
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al forzar guardado")
     }
-  }, [sectionsConflict, theme.id, mergeSavedIds, handleAnySaved])
+  }, [sectionsConflict, theme.id, mergeSavedIds, handleAnySaved, activeProductTemplateId, productOverride])
 
   useDebouncedSaveGroup(
     theme.id,
@@ -566,6 +617,8 @@ export function CustomizerShell({
     handleAnySaved,
     handleSectionsConflict,
     sectionsConflict !== null || reloadPending,
+    activeProductTemplateId,
+    productOverride?.productId ?? null,
   )
   useDebouncedSaveGroup(
     theme.id,
@@ -642,6 +695,9 @@ export function CustomizerShell({
                     onBlocksSaved={handleAnySaved}
                     sectionCatalog={sectionCatalog}
                     templateMode={templateMode}
+                    productTemplates={productTemplates}
+                    activeProductTemplateId={activeProductTemplateId}
+                    productOverride={productOverride}
                   />
                 ) : (
                   <BlocksUnavailable
@@ -831,15 +887,26 @@ function useDebouncedSaveGroup(
    *  the user clicks Recargar (which refetches + resets) or Forzar (which
    *  retries via the parent). */
   frozen: boolean,
+  /** Plan 19 — for the PRODUCT group, the template the edits belong to.
+   *  Ignored for other groups. */
+  productTemplateId?: string | null,
+  /** Plan 19 (Fase 3) — for the PRODUCT group in per-product override mode,
+   *  the product whose overrides are being saved. When set, only `detached`
+   *  drafts are persisted (via saveProductSectionOverrides). */
+  overrideProductId?: string | null,
 ) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savingRef = useRef(false)
   const draftsRef = useRef(drafts)
   const dirtyRef = useRef(groupDirty)
   const frozenRef = useRef(frozen)
+  const productTemplateIdRef = useRef(productTemplateId)
+  const overrideProductIdRef = useRef(overrideProductId)
   draftsRef.current = drafts
   dirtyRef.current = groupDirty
   frozenRef.current = frozen
+  productTemplateIdRef.current = productTemplateId
+  overrideProductIdRef.current = overrideProductId
 
   useEffect(() => {
     if (!groupDirty) return
@@ -849,28 +916,39 @@ function useDebouncedSaveGroup(
 
     const fire = async () => {
       savingRef.current = true
-      const sent = draftsRef.current
+      // Fase 3 — in override mode persist ONLY this product's detached
+      // overrides; inherited rows stay shared with the template.
+      const overrideId =
+        group === "PRODUCT" ? overrideProductIdRef.current : null
+      const allDrafts = draftsRef.current
+      const sent = overrideId
+        ? allDrafts.filter((s) => s.origin === "detached")
+        : allDrafts
+      const payload = sent.map((s) => ({
+        id: s.id,
+        type: s.type,
+        position: s.position,
+        content: s.content,
+        enabled: s.enabled,
+        version: s.version,
+        blocks: s.blocks.map((b) => ({
+          id: b.id,
+          type: b.type,
+          position: b.position,
+          content: b.content,
+          enabled: b.enabled,
+          version: b.version,
+        })),
+      }))
       try {
-        const result = await saveThemeSectionGroupVersioned(
-          themeId,
-          group,
-          sent.map((s) => ({
-            id: s.id,
-            type: s.type,
-            position: s.position,
-            content: s.content,
-            enabled: s.enabled,
-            version: s.version,
-            blocks: s.blocks.map((b) => ({
-              id: b.id,
-              type: b.type,
-              position: b.position,
-              content: b.content,
-              enabled: b.enabled,
-              version: b.version,
-            })),
-          })),
-        )
+        const result = overrideId
+          ? await saveProductSectionOverrides(overrideId, payload)
+          : await saveThemeSectionGroupVersioned(
+              themeId,
+              group,
+              payload,
+              productTemplateIdRef.current,
+            )
         if (result.ok) {
           mergeSavedIds(group, sent, result.data.sections)
           onSaved()

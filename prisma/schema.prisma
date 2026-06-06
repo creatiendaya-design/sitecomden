@@ -139,6 +139,14 @@ model Product {
   landingBlocks               LandingBlock[]
   landingTemplateId           String?
   landingTemplate             LandingTemplate?      @relation(fields: [landingTemplateId], references: [id], onDelete: SetNull)
+  /// Plan 19 — per-product theme-section template (Shopify OS 2.0 style).
+  /// Null = render with the theme's default product template. Non-null =
+  /// render the assigned `ThemeProductTemplate`'s PRODUCT sections.
+  themeProductTemplateId      String?
+  themeProductTemplate        ThemeProductTemplate? @relation(fields: [themeProductTemplateId], references: [id], onDelete: SetNull)
+  /// Plan 19 — per-product section overrides (detached from the assigned
+  /// template). Inverse of `ThemeSection.product`.
+  productSectionOverrides     ThemeSection[]        @relation("ProductSectionOverrides")
   customizableTemplateId      String?
   customizableTemplate        CustomizableTemplate? @relation(fields: [customizableTemplateId], references: [id], onDelete: SetNull)
   customizableMockupOverrides Json?
@@ -171,6 +179,7 @@ model Product {
   @@index([customizableTemplateId])
   @@index([sizeGuideId])
   @@index([codFormTemplateId])
+  @@index([themeProductTemplateId])
   @@index([deletedAt])
 }
 
@@ -1601,6 +1610,10 @@ model Theme {
   /// header and footer. Replaces the legacy single-Menu reference model
   /// (Phase E dropped the legacy headerMenuId/footerMenuId columns).
   sections                        ThemeSection[]
+  /// Plan 19 — per-product theme-section templates (Shopify OS 2.0 style).
+  /// Each theme owns one default template plus any number of named ones;
+  /// products without their own assignment render the default.
+  productTemplates                ThemeProductTemplate[]
   createdBy                       String?
   createdAt                       DateTime         @default(now())
   updatedAt                       DateTime         @updatedAt
@@ -1610,6 +1623,31 @@ model Theme {
   version                         Int              @default(0)
 
   @@index([active])
+}
+
+/// Plan 19 — a named set of PRODUCT-group theme sections (Shopify OS 2.0
+/// "product templates"). A theme has exactly one `isDefault` template plus
+/// any number of named ones. Products point at one via
+/// `Product.themeProductTemplateId`; null falls back to the default.
+model ThemeProductTemplate {
+  id        String         @id @default(cuid())
+  themeId   String
+  theme     Theme          @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  name      String
+  /// Exactly one per theme is true (enforced in code, like Theme.active).
+  /// Cannot be deleted.
+  isDefault Boolean        @default(false)
+  position  Int            @default(0)
+  /// The PRODUCT-group sections that make up this template. Override rows
+  /// (ThemeSection.productId set) do NOT belong here — they hang off Product.
+  sections  ThemeSection[]
+  products  Product[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  /// Optimistic-locking version (Plan 18).
+  version   Int            @default(0)
+
+  @@index([themeId, position])
 }
 
 /// Custom uploaded fonts (typography picker — Fase 3).
@@ -1666,12 +1704,30 @@ model ThemeSection {
   /// Toggle visibility from the customizer eye icon without destroying content.
   enabled   Boolean             @default(true)
   blocks    ThemeSectionBlock[]
+  /// Plan 19 — PRODUCT-group sections belong to a ThemeProductTemplate.
+  /// Null for HEADER/FOOTER/COLLECTION groups and for per-product override
+  /// rows (which hang off `productId` instead).
+  productTemplateId String?
+  productTemplate   ThemeProductTemplate? @relation(fields: [productTemplateId], references: [id], onDelete: Cascade)
+  /// Plan 19 — when set, this row is a per-product OVERRIDE (detached from
+  /// its template), not a shared template section. Mutually exclusive with
+  /// `productTemplateId`.
+  productId String?
+  product   Product? @relation("ProductSectionOverrides", fields: [productId], references: [id], onDelete: Cascade)
+  /// Plan 19 — for override rows, the template section this one replaces.
+  /// Null = a pure-local section interleaved only for this product.
+  sourceSectionId String?
+  /// Plan 19 — marks an active per-product override.
+  detached  Boolean             @default(false)
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
   /// Optimistic-locking version (Plan 18).
   version   Int                 @default(0)
 
   @@index([themeId, group, position])
+  @@index([productTemplateId, position])
+  @@index([productId, position])
+  @@index([sourceSectionId])
 }
 
 /// Plan 16 — sub-block inside a ThemeSection (e.g. a LINK_COLUMN inside

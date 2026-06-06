@@ -11,9 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import ImageUpload from "@/components/admin/ImageUpload";
-import LandingBlockList from "@/components/admin/landing-builder/LandingBlockList";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
-import { TemplateSelector } from "@/components/admin/products/TemplateSelector";
+import { ProductThemeTemplateSelector } from "@/components/admin/products/ProductThemeTemplateSelector";
 import { CustomizationCard } from "@/components/admin/products/CustomizationCard";
 import { SizeGuideCard } from "@/components/admin/products/SizeGuideCard";
 import type { MockupOverrides } from "@/lib/customizer/types";
@@ -91,6 +90,8 @@ interface ProductData {
   customizableMockupOverrides: MockupOverrides | null;
   sizeGuideId: string | null;
   landingTemplateId?: string | null;
+  /** Plan 19 — assigned product template (null = theme default). */
+  themeProductTemplateId?: string | null;
   categories: Array<{ category: { id: string } }>;
   options: ProductOption[];
   variants: Array<{
@@ -111,30 +112,14 @@ interface EditProductFormProps {
     id: string;
     name: string;
   }>;
+  /** @deprecated Plan 19 — legacy LandingTemplate props kept for prop
+   *  compatibility with the page; no longer rendered. */
   showLegacyLandingEditor?: boolean;
-  /** Tipos de bloque que el storefront va a renderizar para este producto,
-   *  ya resueltos (template + detached + locales). Se usa solo para el
-   *  resumen visual de la card "Presentación". */
   resolvedBlockTypes?: string[];
   initialPromotions?: ProductScopedPromotion[];
 }
 
-const BLOCK_TYPE_LABELS: Record<string, string> = {
-  HERO: "Hero",
-  GALLERY: "Galería",
-  TESTIMONIALS: "Testimonios",
-  VIDEO: "Video",
-  COLORS: "Colores",
-  TICKER: "Banner",
-  RICH_TEXT: "Texto",
-  FAQ: "FAQ",
-  IMAGE_TEXT: "Imagen + Texto",
-  RELATED_PRODUCTS: "Productos relacionados",
-  TRUST_BADGES: "Sellos de confianza",
-  PRODUCT_GRID: "Grid de productos",
-};
-
-export default function EditProductForm({ product, categories, showLegacyLandingEditor = true, resolvedBlockTypes = [], initialPromotions = [] }: EditProductFormProps) {
+export default function EditProductForm({ product, categories, initialPromotions = [] }: EditProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -766,63 +751,26 @@ export default function EditProductForm({ product, categories, showLegacyLanding
   <CardHeader>
     <CardTitle>Presentación</CardTitle>
     <p className="text-sm text-muted-foreground">
-      Elige la plantilla que define cómo se mostrará este producto en la tienda
+      Elige la plantilla de producto que define cómo se muestra este producto en la tienda
     </p>
   </CardHeader>
   <CardContent className="space-y-4">
-    <TemplateSelector
+    {/* Plan 19 — per-product theme template (Shopify OS 2.0). Replaces the
+        legacy LandingTemplate selector, which no longer drives the
+        storefront once the theme has PRODUCT sections. */}
+    <ProductThemeTemplateSelector
       productId={product.id}
-      productSlug={product.slug}
-      currentTemplateId={product.landingTemplateId ?? null}
-      currentBlockCount={resolvedBlockTypes.length}
+      currentTemplateId={product.themeProductTemplateId ?? null}
     />
 
-    {/* Resumen dinámico de lo que renderizará el storefront */}
-    {resolvedBlockTypes.length > 0 ? (
-      <div className="rounded-lg border p-3 bg-muted/30">
-        <p className="text-xs font-medium mb-2">
-          Vista previa — {resolvedBlockTypes.length} bloque
-          {resolvedBlockTypes.length === 1 ? "" : "s"} se renderizarán:
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {resolvedBlockTypes.map((t, i) => (
-            <span
-              key={`${t}-${i}`}
-              className="inline-flex items-center rounded-md border bg-background px-2 py-0.5 text-xs"
-            >
-              {BLOCK_TYPE_LABELS[t] ?? t}
-            </span>
-          ))}
-        </div>
-      </div>
-    ) : (
-      <div className="rounded-lg border p-3 bg-muted/30">
-        <p className="text-xs text-muted-foreground">
-          Sin plantilla vinculada — se mostrará la vista estándar:
-          galería de imágenes + información básica + descripción.
-        </p>
-      </div>
-    )}
-
-    {/* Editor legacy (v1) — accesible cuando el flag v2 está OFF y el
-        producto no tiene plantilla vinculada. Colapsado por defecto para
-        no competir con el flujo principal del selector de plantillas. */}
-    {showLegacyLandingEditor && !product.landingTemplateId && (
-      <details className="rounded-lg border bg-muted/30 group">
-        <summary className="cursor-pointer px-3 py-2 text-xs font-medium select-none hover:bg-muted/50 rounded-lg">
-          Bloques personalizados (avanzado)
-          <span className="ml-2 text-muted-foreground font-normal">
-            — edita bloques locales sin usar plantilla
-          </span>
-        </summary>
-        <div className="border-t p-3">
-          <LandingBlockList
-            productId={product.id}
-            initialBlocks={(product.landingBlocks ?? []) as LandingBlock[]}
-          />
-        </div>
-      </details>
-    )}
+    <div className="rounded-lg border p-3 bg-muted/30">
+      <p className="text-xs text-muted-foreground">
+        La plantilla define las secciones (galería, precio, descripción,
+        secciones extra…) que se muestran en la ficha. Edítalas en el
+        personalizador del tema. Sin plantilla propia, este producto usa la
+        plantilla predeterminada del tema.
+      </p>
+    </div>
   </CardContent>
 </Card>
 

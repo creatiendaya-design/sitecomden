@@ -181,20 +181,26 @@ export default async function ProductDetailPage({
 }: ProductDetailPageProps) {
   const { slug } = await params;
 
-  const [product, settings, nonce, productSections] = await Promise.all([
+  const [product, settings, nonce] = await Promise.all([
     getProductBySlug(slug),
     getSiteSettings(),
     getCspNonce(),
-    // Plan 17 — Theme-level PRODUCT sections drive the page when present.
-    // Tagged via `theme-sections-<themeId>-PRODUCT` + invalidated as part
-    // of the `products` tag (see actions/theme-sections.ts:45-54), so an
-    // admin save in the customizer triggers a re-render here.
-    getThemedSections("PRODUCT", "desktop"),
   ]);
 
   if (!product) {
     notFound();
   }
+
+  // Plan 19 — resolve the PRODUCT sections for THIS product's template.
+  // A product assigned to a template renders it; an unassigned product
+  // (themeProductTemplateId = null) renders the theme's default template.
+  // Resolved after the product load because it depends on the assignment.
+  // Each template read is cached via `theme-product-template-<id>`, so an
+  // admin save in the customizer triggers a re-render here.
+  const productSections = await getThemedSections("PRODUCT", "desktop", {
+    productId: product.id,
+    productTemplateId: product.themeProductTemplateId,
+  });
 
   // Calcular stock total
   const totalStock = product.hasVariants

@@ -21,6 +21,14 @@ export interface SectionDraft
   /** Plan 18 — optimistic-locking version. Undefined for `isNew` drafts (they
    *  don't have a server version until the first save creates them). */
   version?: number
+  /** Plan 19 (Fase 3) — only meaningful for PRODUCT sections in per-product
+   *  override mode: "inherited" rows come from the template (read-only until
+   *  detached), "detached" rows are this product's own overrides. Undefined
+   *  in normal (template-editing) mode. */
+  origin?: "inherited" | "detached"
+  /** Plan 19 (Fase 3) — for a detached override, the template section it
+   *  replaces (null = a pure-local override section). */
+  sourceSectionId?: string | null
 }
 
 export interface BlockDraft extends Omit<ThemeSectionBlockRow, "content" | "version"> {
@@ -212,7 +220,12 @@ function remapSelectedAcrossReplace(
   }
 }
 
-function rowToDraft(row: ThemeSectionRow): SectionDraft {
+function rowToDraft(
+  row: ThemeSectionRow & {
+    origin?: "inherited" | "detached"
+    sourceSectionId?: string | null
+  },
+): SectionDraft {
   return {
     id: row.id,
     themeId: row.themeId,
@@ -222,6 +235,8 @@ function rowToDraft(row: ThemeSectionRow): SectionDraft {
     enabled: row.enabled,
     content: (row.content ?? {}) as Record<string, unknown>,
     version: row.version,
+    origin: row.origin,
+    sourceSectionId: row.sourceSectionId ?? null,
     blocks: row.blocks.map<BlockDraft>((b) => ({
       id: b.id,
       sectionId: b.sectionId,

@@ -4,7 +4,11 @@ import { prisma } from "@/lib/db"
 import { getTheme } from "@/actions/themes"
 import { listLandingTemplates } from "@/actions/landing-templates"
 import { listPagesForThemePicker } from "@/actions/pages"
-import { listThemeSections } from "@/actions/theme-sections"
+import {
+  listThemeSections,
+  listProductSectionsForEditor,
+} from "@/actions/theme-sections"
+import { listProductTemplates } from "@/actions/theme-product-templates"
 import { ensureCartMainBlock } from "@/lib/themes/ensure-cart-main-block"
 import {
   CustomizerShell,
@@ -20,7 +24,11 @@ export const dynamic = "force-dynamic"
 
 interface RouteParams {
   params: Promise<{ themeId: string }>
-  searchParams: Promise<{ target?: string }>
+  searchParams: Promise<{
+    target?: string
+    productTemplate?: string
+    productId?: string
+  }>
 }
 
 /**
@@ -42,8 +50,10 @@ export default async function CustomizeThemePage({
   searchParams,
 }: RouteParams) {
   await protectRoute("themes:update")
-  const [{ themeId }, { target }] = await Promise.all([params, searchParams])
-  const targetKey = target ?? "home"
+  const [{ themeId }, { target, productTemplate, productId }] =
+    await Promise.all([params, searchParams])
+  // Fase 3 — a productId forces the PRODUCT target (per-product override mode).
+  const targetKey = productId ? "product" : (target ?? "home")
 
   const [
     theme,
@@ -78,17 +88,49 @@ export default async function CustomizeThemePage({
 
   if (!theme) notFound()
 
+  // Plan 19 — product templates: resolve which one the customizer edits.
+  // `?productTemplate=<id>` selects a named template; default is the theme's
+  // isDefault template. PRODUCT sections are then fetched scoped to it.
+  const productTemplates = await listProductTemplates(theme.id)
+  const activeProductTemplateId =
+    (productTemplate &&
+      productTemplates.find((t) => t.id === productTemplate)?.id) ||
+    productTemplates.find((t) => t.isDefault)?.id ||
+    productTemplates[0]?.id ||
+    null
+
+  // Fase 3 — per-product override mode: when `?productId=<id>` is present we
+  // edit one product's section overrides (merged inherited + detached rows)
+  // and preview that product. Otherwise we edit a shared template.
+  let productOverride: { productId: string; productSlug: string } | null = null
+  let overrideSections: Awaited<
+    ReturnType<typeof listProductSectionsForEditor>
+  >["sections"] | null = null
+  if (productId) {
+    const overrideProduct = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { slug: true },
+    })
+    if (overrideProduct) {
+      const data = await listProductSectionsForEditor(productId)
+      overrideSections = data.sections
+      productOverride = { productId, productSlug: overrideProduct.slug }
+    }
+  }
+
   // Plan 16 — Fetch the ordered HEADER / FOOTER theme sections + the
   // per-theme section catalog. The customizer hydrates its zustand store
   // from these on mount; autosave round-trips replace tmp- ids on next
   // server render via router.refresh().
-  const [headerSections, footerSections, productSections, collectionSections] =
+  const [headerSections, footerSections, templateProductSections, collectionSections] =
     await Promise.all([
       listThemeSections(theme.id, "HEADER"),
       listThemeSections(theme.id, "FOOTER"),
-      listThemeSections(theme.id, "PRODUCT"),
+      listThemeSections(theme.id, "PRODUCT", activeProductTemplateId),
       listThemeSections(theme.id, "COLLECTION"),
     ])
+  // In override mode the PRODUCT zone shows the product's merged sections.
+  const productSections = overrideSections ?? templateProductSections
   const sectionCatalog = theme.sectionCatalog
 
   // ---------- Resolve which surface (Page or Category) the target maps to ----------
@@ -159,6 +201,9 @@ export default async function CustomizeThemePage({
       footerSections={footerSections}
       productSections={productSections}
       collectionSections={collectionSections}
+      productTemplates={productTemplates}
+      activeProductTemplateId={activeProductTemplateId}
+      productOverride={productOverride}
       sectionCatalog={sectionCatalog}
     />
   )

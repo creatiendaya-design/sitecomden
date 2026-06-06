@@ -7,8 +7,10 @@ import {
   type SaveBlocksResult,
 } from "./EmbeddedBlocksEditor"
 import { ThemeSectionGroupEditor } from "./ThemeSectionGroupEditor"
+import { ProductTemplatePicker } from "./ProductTemplatePicker"
 import type { BlockInstance } from "@/lib/blocks/types"
 import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
+import type { ProductTemplateRow } from "@/actions/theme-product-templates"
 
 interface Props {
   themeId: string
@@ -34,6 +36,12 @@ interface Props {
    *  a PRODUCT- / COLLECTION-group theme-sections editor instead of the
    *  page/category block editor. Defaults to "page-or-category". */
   templateMode?: "product" | "collection" | "page-or-category"
+  /** Plan 19 — product templates + active one (only used in product mode). */
+  productTemplates?: ProductTemplateRow[]
+  activeProductTemplateId?: string | null
+  /** Plan 19 (Fase 3) — per-product override mode (editing one product's
+   *  section overrides instead of a shared template). */
+  productOverride?: { productId: string; productSlug: string } | null
 }
 
 /**
@@ -54,6 +62,7 @@ interface Props {
  * ThemeSectionRightSidebar.
  */
 export function ZoneList({
+  themeId,
   editorKey,
   initialBlocks,
   saveBlocks,
@@ -61,6 +70,9 @@ export function ZoneList({
   onBlocksSaved,
   sectionCatalog,
   templateMode = "page-or-category",
+  productTemplates = [],
+  activeProductTemplateId = null,
+  productOverride = null,
 }: Props) {
   return (
     <div className="flex flex-col">
@@ -74,7 +86,29 @@ export function ZoneList({
         sublabel={targetLabel}
       >
         {templateMode === "product" ? (
-          <ThemeSectionGroupEditor group="PRODUCT" catalog={sectionCatalog} />
+          productOverride ? (
+            <>
+              <div className="px-3 py-2 border-b bg-amber-50 dark:bg-amber-950/30 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">
+                Editando solo este producto. Las secciones{" "}
+                <strong>heredadas</strong> vienen de la plantilla; pulsa{" "}
+                <strong>Personalizar</strong> para editarlas solo aquí.
+              </div>
+              <ThemeSectionGroupEditor
+                group="PRODUCT"
+                catalog={sectionCatalog}
+                productOverride={productOverride}
+              />
+            </>
+          ) : (
+            <>
+              <ProductTemplatePicker
+                themeId={themeId}
+                templates={productTemplates}
+                activeTemplateId={activeProductTemplateId}
+              />
+              <ThemeSectionGroupEditor group="PRODUCT" catalog={sectionCatalog} />
+            </>
+          )
         ) : templateMode === "collection" ? (
           <ThemeSectionGroupEditor group="COLLECTION" catalog={sectionCatalog} />
         ) : editorKey ? (

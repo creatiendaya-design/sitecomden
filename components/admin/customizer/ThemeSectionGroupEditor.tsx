@@ -1,7 +1,17 @@
 "use client"
 
-import { useMemo } from "react"
-import { Eye, EyeOff, GripVertical, Plus, Trash2 } from "lucide-react"
+import { useMemo, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import {
+  Eye,
+  EyeOff,
+  GripVertical,
+  Link2,
+  Plus,
+  SplitSquareHorizontal,
+  Trash2,
+} from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -33,6 +43,10 @@ import {
 } from "./theme-sections-store"
 import { AddSectionPanel } from "./AddSectionPanel"
 import {
+  detachProductSection,
+  restoreProductSection,
+} from "@/actions/theme-sections"
+import {
   getThemeSectionDefinition,
   getSectionBlockDefinition,
 } from "@/lib/theme-sections/registry"
@@ -56,9 +70,17 @@ registerExistingBlocks()
 interface Props {
   group: ThemeSectionGroup
   catalog: ThemeSectionCatalog
+  /** Plan 19 (Fase 3) — when set, the PRODUCT editor is in per-product
+   *  override mode: inherited rows are read-only with a "Personalizar"
+   *  (detach) action; detached rows are editable with "Volver a heredar". */
+  productOverride?: { productId: string; productSlug: string } | null
 }
 
-export function ThemeSectionGroupEditor({ group, catalog }: Props) {
+export function ThemeSectionGroupEditor({
+  group,
+  catalog,
+  productOverride = null,
+}: Props) {
   const sections = useThemeSectionsStore((s) =>
     group === "HEADER"
       ? s.header
@@ -139,21 +161,99 @@ export function ThemeSectionGroupEditor({ group, catalog }: Props) {
           strategy={verticalListSortingStrategy}
         >
           {sections.map((section) => (
-            <SortableSectionRow key={section.id} section={section} />
+            <SortableSectionRow
+              key={section.id}
+              section={section}
+              productOverride={productOverride}
+            />
           ))}
         </SortableContext>
       </DndContext>
-      <AddSectionPanel
-        group={group}
-        catalog={catalog}
-        counts={counts}
-        onAdd={handleAdd}
-      />
+      {/* Fase 3 — adding brand-new sections is disabled in per-product
+          override mode; the admin personalizes existing template sections. */}
+      {!productOverride && (
+        <AddSectionPanel
+          group={group}
+          catalog={catalog}
+          counts={counts}
+          onAdd={handleAdd}
+        />
+      )}
     </div>
   )
 }
 
-function SortableSectionRow({ section }: { section: SectionDraft }) {
+function SortableSectionRow({
+  section,
+  productOverride,
+}: {
+  section: SectionDraft
+  productOverride: { productId: string; productSlug: string } | null
+}) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const isOverrideMode = !!productOverride
+  const isInherited = isOverrideMode && section.origin === "inherited"
+
+  const handleDetach = () => {
+    if (!productOverride) return
+    startTransition(async () => {
+      try {
+        await detachProductSection(productOverride.productId, section.id)
+        toast.success("Sección personalizada para este producto")
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al personalizar")
+      }
+    })
+  }
+
+  const handleRestore = () => {
+    if (!productOverride) return
+    if (
+      !window.confirm(
+        "¿Volver a heredar esta sección de la plantilla? Se perderán los cambios hechos solo para este producto.",
+      )
+    )
+      return
+    startTransition(async () => {
+      try {
+        await restoreProductSection(section.id)
+        toast.success("Sección restaurada a la plantilla")
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al restaurar")
+      }
+    })
+  }
+
+  return (
+    <SectionRowInner
+      section={section}
+      isOverrideMode={isOverrideMode}
+      isInherited={isInherited}
+      isPending={isPending}
+      onDetach={handleDetach}
+      onRestore={handleRestore}
+    />
+  )
+}
+
+function SectionRowInner({
+  section,
+  isOverrideMode,
+  isInherited,
+  isPending,
+  onDetach,
+  onRestore,
+}: {
+  section: SectionDraft
+  isOverrideMode: boolean
+  isInherited: boolean
+  isPending: boolean
+  onDetach: () => void
+  onRestore: () => void
+}) {
   // Plan 17 — PRODUCT_MAIN is the obligatory backbone of the product
   // template. We lock it against drag-reorder and deletion so the admin
   // can't end up with a product page that has no main section at all.
@@ -165,10 +265,12 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
   const isUnmovable = section.type === "PRODUCT_MAIN"
   const isUndeletable =
     section.type === "PRODUCT_MAIN" || section.type === "COLLECTION_GRID"
-  const isLocked = isUnmovable
+  // Fase 3 — in override mode the section order is owned by the template, so
+  // drag is disabled; only detach/restore + content edits are allowed.
+  const isLocked = isUnmovable || isOverrideMode
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: section.id, disabled: isUnmovable })
+    useSortable({ id: section.id, disabled: isLocked })
 
   const def = getThemeSectionDefinition(section.type)
   const select = useThemeSectionsStore((s) => s.select)
@@ -199,13 +301,24 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
   const acceptsBlocks =
     def?.acceptedBlockTypes && def.acceptedBlockTypes.length > 0
 
+  // In override mode, inherited rows are read-only: clicking doesn't open the
+  // editor (the content belongs to the shared template). The admin detaches
+  // first to edit. Detached rows behave like normal sections.
+  const rowClickable = !isInherited
+  const handleRowClick = () => {
+    if (!rowClickable) return
+    select({ kind: "section", sectionId: section.id })
+  }
+
   return (
     <div ref={setNodeRef} style={style} className="border-b">
       <div
-        className={`flex items-center gap-2 px-3 py-2 transition-colors cursor-pointer ${
-          isSelected ? "bg-muted/50" : "hover:bg-muted/30"
-        } ${section.enabled ? "" : "opacity-60"}`}
-        onClick={() => select({ kind: "section", sectionId: section.id })}
+        className={`flex items-center gap-2 px-3 py-2 transition-colors ${
+          rowClickable ? "cursor-pointer" : "cursor-default"
+        } ${isSelected ? "bg-muted/50" : "hover:bg-muted/30"} ${
+          section.enabled ? "" : "opacity-60"
+        }`}
+        onClick={handleRowClick}
       >
         <button
           {...attributes}
@@ -222,50 +335,95 @@ function SortableSectionRow({ section }: { section: SectionDraft }) {
         >
           <GripVertical className="h-4 w-4" />
         </button>
-        <span className="flex-1 text-sm truncate">
-          {displayLabel}
-        </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            toggleEnabled(section.id)
-          }}
-          className="text-muted-foreground hover:text-foreground"
-          aria-label={section.enabled ? "Ocultar" : "Mostrar"}
-        >
-          {section.enabled ? (
-            <Eye className="h-3.5 w-3.5" />
+        <span className="flex-1 text-sm truncate">{displayLabel}</span>
+
+        {/* Fase 3 — origin badge */}
+        {isOverrideMode && (
+          <span
+            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+              isInherited
+                ? "bg-muted text-muted-foreground"
+                : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+            }`}
+          >
+            {isInherited ? "Heredada" : "Personalizada"}
+          </span>
+        )}
+
+        {/* Enabled toggle — hidden for inherited (read-only) rows */}
+        {!isInherited && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleEnabled(section.id)
+            }}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label={section.enabled ? "Ocultar" : "Mostrar"}
+          >
+            {section.enabled ? (
+              <Eye className="h-3.5 w-3.5" />
+            ) : (
+              <EyeOff className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
+
+        {isOverrideMode ? (
+          isInherited ? (
+            <button
+              disabled={isPending}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDetach()
+              }}
+              className="shrink-0 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] text-foreground hover:bg-muted disabled:opacity-50"
+              title="Editar esta sección solo para este producto"
+            >
+              <SplitSquareHorizontal className="h-3 w-3" />
+              Personalizar
+            </button>
           ) : (
-            <EyeOff className="h-3.5 w-3.5" />
-          )}
-        </button>
-        <button
-          disabled={isUndeletable}
-          onClick={(e) => {
-            e.stopPropagation()
-            if (isUndeletable) return
-            if (
-              window.confirm(
-                `¿Eliminar la sección "${displayLabel}"?`,
-              )
-            ) {
-              removeSection(section.id)
+            <button
+              disabled={isPending}
+              onClick={(e) => {
+                e.stopPropagation()
+                onRestore()
+              }}
+              className="shrink-0 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted disabled:opacity-50"
+              title="Volver a heredar de la plantilla"
+            >
+              <Link2 className="h-3 w-3" />
+              Heredar
+            </button>
+          )
+        ) : (
+          <button
+            disabled={isUndeletable}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (isUndeletable) return
+              if (window.confirm(`¿Eliminar la sección "${displayLabel}"?`)) {
+                removeSection(section.id)
+              }
+            }}
+            className={`text-muted-foreground ${
+              isUndeletable
+                ? "opacity-30 cursor-not-allowed"
+                : "hover:text-destructive"
+            }`}
+            aria-label="Eliminar"
+            title={
+              isUndeletable
+                ? "La sección principal no se puede eliminar"
+                : undefined
             }
-          }}
-          className={`text-muted-foreground ${
-            isUndeletable ? "opacity-30 cursor-not-allowed" : "hover:text-destructive"
-          }`}
-          aria-label="Eliminar"
-          title={
-            isUndeletable
-              ? "La sección principal no se puede eliminar"
-              : undefined
-          }
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
-      {acceptsBlocks && <SectionBlocksList section={section} />}
+      {/* Inherited rows don't expose their sub-block editor (read-only). */}
+      {acceptsBlocks && !isInherited && <SectionBlocksList section={section} />}
     </div>
   )
 }
