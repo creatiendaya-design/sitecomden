@@ -1,27 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Rubik, Nunito_Sans, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
 import { Toaster } from "sonner";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getCspNonce } from "@/lib/csp";
+import { fontVariables } from "@/app/fonts";
 import "./globals.css";
 import "@/app/styles/prose-content.css";
-
-const rubik = Rubik({
-  variable: "--font-rubik",
-  subsets: ["latin"],
-});
-
-const nunitoSans = Nunito_Sans({
-  variable: "--font-nunito-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 // `interactive-widget=resizes-content` makes mobile browsers reflow the layout
 // when the on-screen keyboard opens, so focused inputs scroll above sticky
@@ -99,9 +84,7 @@ export default async function RootLayout({
   return (
     <ClerkProvider localization={esES} nonce={nonce}>
       <html lang="es" suppressHydrationWarning>
-        <body
-          className={`${rubik.variable} ${nunitoSans.variable} ${geistMono.variable} antialiased`}
-        >
+        <body className={`${fontVariables} antialiased`}>
           {children}
           <Toaster position="top-right" richColors />
         </body>

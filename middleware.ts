@@ -82,8 +82,9 @@ function buildCsp(nonce: string, allowSameOriginEmbed: boolean): string {
     // Imágenes: CDNs de productos
     "img-src 'self' data: https: blob:",
 
-    // Fuentes: data URIs para fonts opcionales
-    "font-src 'self' data:",
+    // Fuentes: next/font self-hosted ('self'), data URIs, y fuentes propias
+    // subidas por el admin a Vercel Blob (typography picker).
+    "font-src 'self' data: https://*.public.blob.vercel-storage.com",
 
     // Conexiones: APIs necesarias (incluye subida directa de video a Cloudflare Stream)
     "connect-src 'self' https://api.culqi.com https://*.vercel-insights.com https://*.vercel-analytics.com https://*.vercel.app https://*.clerk.accounts.dev https://*.clerk.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com https://connect.facebook.net https://www.facebook.com https://upload.videodelivery.net https://*.cloudflarestream.com",

@@ -10,6 +10,7 @@ import {
   schemeToCssLines,
   type ColorScheme,
 } from "./color-schemes"
+import { customFontsToCss, parseCustomFontFiles } from "@/lib/fonts/custom"
 
 export interface ThemesCssBundle {
   /** Final CSS body. Stable hash → safe to serve with immutable cache. */
@@ -43,6 +44,21 @@ const fetchThemesForCss = unstable_cache(
 )
 
 /**
+ * Custom (uploaded) fonts feed global `@font-face` rules into the same bundle.
+ * Tagged `active-theme-tokens` so an upload/delete (which calls
+ * `updateTag("active-theme-tokens")`) invalidates this alongside the themes.
+ */
+const fetchCustomFontsForCss = unstable_cache(
+  () =>
+    prisma.customFont.findMany({
+      orderBy: { family: "asc" },
+      select: { id: true, family: true, files: true, updatedAt: true },
+    }),
+  ["custom-fonts-for-css"],
+  { tags: ["active-theme-tokens"] },
+)
+
+/**
  * Generates the storefront's themes stylesheet. Two layers per theme:
  *
  *   1. Default tokens scoped to `.theme-<id>` — colors of the theme's
@@ -56,10 +72,32 @@ const fetchThemesForCss = unstable_cache(
  * Shopify-style schemes that any block can pick.
  */
 export async function getThemesCssBundle(): Promise<ThemesCssBundle> {
-  const themes = await fetchThemesForCss()
+  const [themes, customFonts] = await Promise.all([
+    fetchThemesForCss(),
+    fetchCustomFontsForCss(),
+  ])
+
+  // Global @font-face rules for admin-uploaded fonts — prepended so any theme
+  // referencing the family in its tokens can resolve it.
+  const fontFaceCss = customFontsToCss(
+    customFonts.map((f) => ({
+      id: f.id,
+      family: f.family,
+      files: parseCustomFontFiles(f.files),
+    })),
+  )
+
+  // Newest custom-font edit also busts the cache hash (uploads change the CSS).
+  const customFontsMaxTs = customFonts.reduce(
+    (acc, f) => Math.max(acc, new Date(f.updatedAt).getTime()),
+    0,
+  )
 
   if (themes.length === 0) {
-    return { css: "/* no themes installed */\n", hash: "fallback" }
+    return {
+      css: fontFaceCss ? `${fontFaceCss}\n` : "/* no themes installed */\n",
+      hash: `fallback-${customFontsMaxTs.toString(36)}`,
+    }
   }
 
   const rules: string[] = []
@@ -100,10 +138,14 @@ export async function getThemesCssBundle(): Promise<ThemesCssBundle> {
     (acc, t) => Math.max(acc, new Date(t.updatedAt).getTime()),
     0,
   )
-  const hash = `${maxTs.toString(36)}-${active?.id ?? "none"}`
+  // Custom-font edits must also bust the hash so the storefront re-fetches the
+  // stylesheet with the new @font-face rules.
+  const hash = `${Math.max(maxTs, customFontsMaxTs).toString(36)}-${active?.id ?? "none"}`
+
+  const themeCss = rules.join("\n\n")
 
   return {
-    css: rules.join("\n\n"),
+    css: fontFaceCss ? `${fontFaceCss}\n\n${themeCss}` : themeCss,
     hash,
   }
 }

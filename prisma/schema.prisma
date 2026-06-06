@@ -1612,6 +1612,27 @@ model Theme {
   @@index([active])
 }
 
+/// Custom uploaded fonts (typography picker — Fase 3).
+///
+/// Admin-uploaded third-party font files (woff2/woff/ttf/otf) stored on
+/// Vercel Blob. Global, not per-theme: once uploaded, a font appears in every
+/// theme's font picker. The themes stylesheet (/api/themes/tokens.css) emits
+/// one @font-face per variant; the theme token stores `"<family>", <fallback>`
+/// to apply it. `updatedAt` feeds the tokens.css cache hash so uploading a
+/// font invalidates the storefront stylesheet.
+model CustomFont {
+  id        String   @id @default(cuid())
+  /// font-family name used in @font-face and in the stored token stack.
+  family    String   @unique
+  /// Weight/style variants: [{ url, weight, style, format }].
+  files     Json     @default("[]")
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
 model TemplateBlock {
   id         String          @id @default(cuid())
   templateId String

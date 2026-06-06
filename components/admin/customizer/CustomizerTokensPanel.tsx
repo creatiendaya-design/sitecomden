@@ -45,7 +45,10 @@ import {
   type ColorSchemeArray,
 } from "@/lib/themes/color-schemes"
 import { ThemeCatalogPanel } from "./ThemeCatalogPanel"
+import { FontPicker } from "./FontPicker"
 import type { ThemeSectionCatalog } from "@/lib/theme-sections/types"
+import { listCustomFonts } from "@/actions/fonts"
+import type { CustomFontRecord } from "@/lib/fonts/custom"
 
 interface Props {
   theme: ThemeRow
@@ -658,7 +661,20 @@ function TypographyEditor({ theme, save, saving }: TypographyEditorProps) {
   const initial = resolveTokens(theme.tokens)
   const [fonts, setFonts] = useState(initial.fonts)
   const [scale, setScale] = useState(initial.scale)
+  const [customFonts, setCustomFonts] = useState<CustomFontRecord[]>([])
   const pending = saving
+
+  const refreshCustomFonts = () => {
+    listCustomFonts()
+      .then(setCustomFonts)
+      .catch(() => {
+        /* non-fatal — picker still shows curated fonts */
+      })
+  }
+
+  useEffect(() => {
+    refreshCustomFonts()
+  }, [])
 
   const handleSave = async () => {
     if (saving) return
@@ -695,34 +711,24 @@ function TypographyEditor({ theme, save, saving }: TypographyEditorProps) {
             Tipografía
           </legend>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="font-heading" className="text-xs">
-                Fuente para títulos
-              </Label>
-              <Input
-                id="font-heading"
-                value={fonts.heading}
-                onChange={(e) =>
-                  setFonts((p) => ({ ...p, heading: e.target.value }))
-                }
-                disabled={pending}
-                className="h-9 text-sm font-mono"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="font-body" className="text-xs">
-                Fuente para cuerpo
-              </Label>
-              <Input
-                id="font-body"
-                value={fonts.body}
-                onChange={(e) =>
-                  setFonts((p) => ({ ...p, body: e.target.value }))
-                }
-                disabled={pending}
-                className="h-9 text-sm font-mono"
-              />
-            </div>
+            <FontPicker
+              label="Fuente para títulos"
+              value={fonts.heading}
+              onChange={(stack) =>
+                setFonts((p) => ({ ...p, heading: stack }))
+              }
+              customFonts={customFonts}
+              onFontsChanged={refreshCustomFonts}
+              disabled={pending}
+            />
+            <FontPicker
+              label="Fuente para cuerpo"
+              value={fonts.body}
+              onChange={(stack) => setFonts((p) => ({ ...p, body: stack }))}
+              customFonts={customFonts}
+              onFontsChanged={refreshCustomFonts}
+              disabled={pending}
+            />
           </div>
         </fieldset>
 
