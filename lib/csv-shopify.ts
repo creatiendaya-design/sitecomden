@@ -183,8 +183,11 @@ export function shopifyRowsToProductInputs(rows: ShopifyProductRow[]): Map<strin
         active: row.Published?.toUpperCase() === "TRUE",
         featured: false,
         igvType: "GRAVADO" as IgvType,
-        metaTitle: row["SEO Title"] || row.Title || null,
-        metaDescription: row["SEO Description"] || null,
+        // Truncar a los límites del schema (metaTitle 60 / metaDescription 160):
+        // row.Title suele exceder 60 chars y no pasa por updateProductSchema al
+        // importar, lo que dejaba productos que luego fallaban al editarse.
+        metaTitle: (row["SEO Title"] || row.Title || "").slice(0, 60) || null,
+        metaDescription: (row["SEO Description"] || "").slice(0, 160) || null,
         categorySlug: null,
         imageUrls: row["Image Src"] ? [row["Image Src"]] : [],
         variants: [],

@@ -145,8 +145,9 @@ export function genericRowsToProductInputs(rows: GenericProductRow[]): Map<strin
         featured: row.destacado === "true",
         active: row.estado !== "DRAFT",
         igvType: (["GRAVADO","EXONERADO","INAFECTO"].includes(row.igv_tipo) ? row.igv_tipo : "GRAVADO") as IgvType,
-        metaTitle: row.meta_titulo || null,
-        metaDescription: row.meta_descripcion || null,
+        // Truncar a los límites del schema (metaTitle 60 / metaDescription 160).
+        metaTitle: (row.meta_titulo || "").slice(0, 60) || null,
+        metaDescription: (row.meta_descripcion || "").slice(0, 160) || null,
         categorySlug: row.categoria_slug || null,
         imageUrl: row.imagen_url || null,
         variants: [],

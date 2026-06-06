@@ -170,8 +170,11 @@ export default function EditProductForm({ product, categories, showLegacyLanding
     checkoutMode: product.checkoutMode || "STANDARD",
     codFormTemplateId: product.codFormTemplateId ?? null,
     shippingRestriction: product.shippingRestriction ?? null,
-    metaTitle: product.metaTitle || "",
-    metaDescription: product.metaDescription || "",
+    // Recortar datos legacy (p. ej. importados de CSV) que excedan los límites
+    // del schema, para que el form refleje lo que realmente se guardará y no
+    // falle la validación al reenviar un valor heredado demasiado largo.
+    metaTitle: (product.metaTitle || "").slice(0, 60),
+    metaDescription: (product.metaDescription || "").slice(0, 160),
     weight: product.weight?.toString() || "",
   });
 
