@@ -11,7 +11,10 @@ import ProductStandardView from "@/components/shop/templates/ProductStandardView
 import ProductLandingView from "@/components/shop/templates/ProductLandingView";
 import { ProductSectionsRenderer } from "@/components/shop/theme-sections/product/ProductSectionsRenderer";
 import type { FbtRecommendationForRender } from "@/components/shop/theme-sections/product/types";
-import { getThemedSections } from "@/lib/theme-sections/resolve-active-sections";
+import {
+  getThemedSections,
+  getProductTemplateChrome,
+} from "@/lib/theme-sections/resolve-active-sections";
 import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
 import type { CheckoutMode } from "@/lib/types/cod-form";
@@ -206,14 +209,17 @@ export default async function ProductDetailPage({
   // When previewing a specific template from the customizer, render it PURE
   // (no per-product overlays). Otherwise render the product's own template +
   // its detached overrides.
-  const productSections = previewTemplateId
-    ? await getThemedSections("PRODUCT", "desktop", {
-        productTemplateId: previewTemplateId,
-      })
-    : await getThemedSections("PRODUCT", "desktop", {
+  const sectionOpts = previewTemplateId
+    ? { productTemplateId: previewTemplateId }
+    : {
         productId: product.id,
         productTemplateId: product.themeProductTemplateId,
-      });
+      };
+  const [productSections, chrome] = await Promise.all([
+    getThemedSections("PRODUCT", "desktop", sectionOpts),
+    // Plan 19 — landing-style: a template can hide the global header/footer.
+    getProductTemplateChrome(sectionOpts),
+  ]);
 
   // Calcular stock total
   const totalStock = product.hasVariants
@@ -553,6 +559,26 @@ export default async function ProductDetailPage({
 
   return (
     <>
+      {/* Plan 19 — landing-style: hide the global header/footer when this
+          product's template requests it. Server-rendered CSS so there's no
+          flash of the header before it disappears. */}
+      {(chrome.hideHeader || chrome.hideFooter) && (
+        <style
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `${
+              chrome.hideHeader
+                ? "[data-site-header]{display:none!important}"
+                : ""
+            }${
+              chrome.hideFooter
+                ? "[data-site-footer]{display:none!important}"
+                : ""
+            }`,
+          }}
+        />
+      )}
+
       {/* Tracking */}
       <ProductTracking product={trackingData} />
 

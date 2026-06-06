@@ -105,6 +105,7 @@ export function ZoneList({
                 themeId={themeId}
                 templates={productTemplates}
                 activeTemplateId={activeProductTemplateId}
+                onChanged={onBlocksSaved}
               />
               <ThemeSectionGroupEditor group="PRODUCT" catalog={sectionCatalog} />
             </>

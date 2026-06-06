@@ -93,9 +93,15 @@ export default async function ShopLayout({
       <div className={`flex min-h-screen flex-col${themeClass ? ` ${themeClass}` : ""}`}>
         <ThemePreviewBanner />
         <PreviewRefreshListener />
-        <Header />
+        {/* Plan 19 — wrappers let a product template hide the global header /
+            footer via CSS (landing-style pages). See product page. */}
+        <div data-site-header>
+          <Header />
+        </div>
         <main className="flex-1">{children}</main>
-        <Footer />
+        <div data-site-footer>
+          <Footer />
+        </div>
         <GeneralCartDrawer />
       </div>
     </>

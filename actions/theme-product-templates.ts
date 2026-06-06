@@ -25,6 +25,9 @@ export interface ProductTemplateRow {
   name: string
   isDefault: boolean
   position: number
+  /** Plan 19 — hide the global header/footer for products on this template. */
+  hideHeader: boolean
+  hideFooter: boolean
   /** Count of PRODUCT sections in this template (for the picker UI). */
   sectionCount: number
 }
@@ -45,6 +48,8 @@ function toRow(t: {
   name: string
   isDefault: boolean
   position: number
+  hideHeader: boolean
+  hideFooter: boolean
   _count: { sections: number }
 }): ProductTemplateRow {
   return {
@@ -53,6 +58,8 @@ function toRow(t: {
     name: t.name,
     isDefault: t.isDefault,
     position: t.position,
+    hideHeader: t.hideHeader,
+    hideFooter: t.hideFooter,
     sectionCount: t._count.sections,
   }
 }
@@ -78,6 +85,8 @@ export async function listProductTemplates(
       name: true,
       isDefault: true,
       position: true,
+      hideHeader: true,
+      hideFooter: true,
       _count: { select: { sections: true } },
     },
   })
@@ -140,6 +149,8 @@ export async function createProductTemplate(
         name: true,
         isDefault: true,
         position: true,
+        hideHeader: true,
+        hideFooter: true,
         _count: { select: { sections: true } },
       },
     })
@@ -196,6 +207,8 @@ export async function duplicateProductTemplate(
         name: true,
         isDefault: true,
         position: true,
+        hideHeader: true,
+        hideFooter: true,
         _count: { select: { sections: true } },
       },
     })
@@ -319,6 +332,36 @@ export async function setDefaultProductTemplate(
   ])
 
   updateTag(`theme-default-product-template-${tpl.themeId}`)
+  updateTag("products")
+  revalidatePath(`/admin/personalizar/temas/${tpl.themeId}/customize`)
+}
+
+// ---------- Header/footer visibility (chrome) ----------
+
+const chromeSchema = z.object({
+  templateId: z.string().min(1),
+  hideHeader: z.boolean(),
+  hideFooter: z.boolean(),
+})
+
+/**
+ * Plan 19 — toggle whether products on this template hide the global
+ * storefront header / footer (landing-style). Invalidates the template tag
+ * (shared by sections + chrome reads) and the products tag.
+ */
+export async function updateProductTemplateChrome(
+  templateId: string,
+  hideHeader: boolean,
+  hideFooter: boolean,
+): Promise<void> {
+  await protectRoute("themes:update")
+  const input = chromeSchema.parse({ templateId, hideHeader, hideFooter })
+  const tpl = await prisma.themeProductTemplate.update({
+    where: { id: input.templateId },
+    data: { hideHeader: input.hideHeader, hideFooter: input.hideFooter },
+    select: { themeId: true },
+  })
+  updateTag(`theme-product-template-${input.templateId}`)
   updateTag("products")
   revalidatePath(`/admin/personalizar/temas/${tpl.themeId}/customize`)
 }

@@ -38,12 +38,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Switch } from "@/components/ui/switch"
 import {
   createProductTemplate,
   deleteProductTemplate,
   duplicateProductTemplate,
   renameProductTemplate,
   setDefaultProductTemplate,
+  updateProductTemplateChrome,
   type ProductTemplateRow,
 } from "@/actions/theme-product-templates"
 import { toast } from "sonner"
@@ -52,6 +54,9 @@ interface Props {
   themeId: string
   templates: ProductTemplateRow[]
   activeTemplateId: string | null
+  /** Refresh the preview iframe after a change that affects the storefront
+   *  (e.g. header/footer visibility). Wired to the shell's handleAnySaved. */
+  onChanged?: () => void
 }
 
 const CREATE_VALUE = "__create__"
@@ -67,6 +72,7 @@ export function ProductTemplatePicker({
   themeId,
   templates,
   activeTemplateId,
+  onChanged,
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -148,6 +154,21 @@ export function ProductTemplatePicker({
     })
   }
 
+  const handleChrome = (next: { hideHeader?: boolean; hideFooter?: boolean }) => {
+    if (!active) return
+    const hideHeader = next.hideHeader ?? active.hideHeader
+    const hideFooter = next.hideFooter ?? active.hideFooter
+    startTransition(async () => {
+      try {
+        await updateProductTemplateChrome(active.id, hideHeader, hideFooter)
+        router.refresh()
+        onChanged?.()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error")
+      }
+    })
+  }
+
   const handleDelete = () => {
     if (!active || active.isDefault) return
     startTransition(async () => {
@@ -173,7 +194,8 @@ export function ProductTemplatePicker({
         : "Renombrar plantilla"
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-2 border-b bg-background">
+    <div className="border-b bg-background">
+      <div className="flex items-center gap-1.5 px-3 py-2">
       <Select
         value={active?.id ?? ""}
         onValueChange={handleSelect}
@@ -247,6 +269,30 @@ export function ProductTemplatePicker({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
+
+      {/* Plan 19 — landing-style toggles: hide the global header/footer for
+          products on this template. */}
+      {active && (
+        <div className="flex items-center gap-4 px-3 pb-2 text-[11px] text-muted-foreground">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <Switch
+              checked={!active.hideHeader}
+              onCheckedChange={(v) => handleChrome({ hideHeader: !v })}
+              disabled={isPending}
+            />
+            Encabezado
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <Switch
+              checked={!active.hideFooter}
+              onCheckedChange={(v) => handleChrome({ hideFooter: !v })}
+              disabled={isPending}
+            />
+            Pie de página
+          </label>
+        </div>
+      )}
 
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
         <DialogContent>

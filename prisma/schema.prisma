@@ -1638,6 +1638,11 @@ model ThemeProductTemplate {
   /// Cannot be deleted.
   isDefault Boolean        @default(false)
   position  Int            @default(0)
+  /// Plan 19 — hide the global storefront header / footer for products using
+  /// this template (landing-style pages without site navigation). Applied via
+  /// CSS on the product page, so no layout refactor is needed.
+  hideHeader Boolean       @default(false)
+  hideFooter Boolean       @default(false)
   /// The PRODUCT-group sections that make up this template. Override rows
   /// (ThemeSection.productId set) do NOT belong here — they hang off Product.
   sections  ThemeSection[]

@@ -122,6 +122,44 @@ function mergeOverrides(
 }
 
 /**
+ * Plan 19 — cached read of a template's chrome flags (hide header/footer),
+ * tagged with the same `theme-product-template-<id>` tag as its sections so
+ * a toggle invalidates both together.
+ */
+function buildCachedTemplateChromeFetch(templateId: string) {
+  const tag = `theme-product-template-${templateId}`
+  return unstable_cache(
+    () =>
+      prisma.themeProductTemplate.findUnique({
+        where: { id: templateId },
+        select: { hideHeader: true, hideFooter: true },
+      }),
+    [`${tag}-chrome`],
+    { tags: [tag] },
+  )
+}
+
+/**
+ * Resolve whether the storefront header / footer should be hidden for a
+ * product (based on its resolved product template). Used by the product page
+ * to render landing-style pages without site navigation.
+ */
+export async function getProductTemplateChrome(opts?: {
+  productId?: string
+  productTemplateId?: string | null
+}): Promise<{ hideHeader: boolean; hideFooter: boolean }> {
+  const theme = await resolveActiveTheme()
+  if (!theme) return { hideHeader: false, hideFooter: false }
+  const templateId = await resolveProductTemplateId(theme.id, opts)
+  if (!templateId) return { hideHeader: false, hideFooter: false }
+  const t = await buildCachedTemplateChromeFetch(templateId)()
+  return {
+    hideHeader: t?.hideHeader ?? false,
+    hideFooter: t?.hideFooter ?? false,
+  }
+}
+
+/**
  * Plan 19 — cached lookup of a theme's default product template id. Tagged
  * `theme-default-product-template-<themeId>` so `setDefaultProductTemplate`
  * can invalidate it.
