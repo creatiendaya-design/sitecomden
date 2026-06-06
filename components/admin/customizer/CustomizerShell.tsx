@@ -341,8 +341,25 @@ export function CustomizerShell({
       : currentTarget.path
     const url = new URL(path, window.location.origin)
     url.searchParams.set("theme-preview", theme.id)
+    // Plan 19 — when editing a (shared) product template, force the preview
+    // to render THAT template, not whichever one the sample product is
+    // assigned to. Skipped in override mode (the real product already shows
+    // its own template + overrides).
+    if (
+      !productOverride &&
+      templateMode === "product" &&
+      activeProductTemplateId
+    ) {
+      url.searchParams.set("productTemplate", activeProductTemplateId)
+    }
     setPreviewUrl(url.toString())
-  }, [currentTarget, theme.id, productOverride])
+  }, [
+    currentTarget,
+    theme.id,
+    productOverride,
+    templateMode,
+    activeProductTemplateId,
+  ])
 
   const [device, setDevice] = useState<DeviceMode>("desktop")
 

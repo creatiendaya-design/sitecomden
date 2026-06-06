@@ -36,6 +36,10 @@ interface ProductDetailPageProps {
   params: Promise<{
     slug: string;
   }>;
+  // Plan 19 — the customizer's iframe appends `?productTemplate=<id>` so the
+  // preview renders the template currently being EDITED (which the sample
+  // product may not be assigned to). Storefront visitors never set this.
+  searchParams?: Promise<{ productTemplate?: string }>;
 }
 
 // Two layers of caching:
@@ -178,8 +182,10 @@ export async function generateMetadata({
 
 export default async function ProductDetailPage({
   params,
+  searchParams,
 }: ProductDetailPageProps) {
   const { slug } = await params;
+  const previewTemplateId = (await searchParams)?.productTemplate;
 
   const [product, settings, nonce] = await Promise.all([
     getProductBySlug(slug),
@@ -197,10 +203,17 @@ export default async function ProductDetailPage({
   // Resolved after the product load because it depends on the assignment.
   // Each template read is cached via `theme-product-template-<id>`, so an
   // admin save in the customizer triggers a re-render here.
-  const productSections = await getThemedSections("PRODUCT", "desktop", {
-    productId: product.id,
-    productTemplateId: product.themeProductTemplateId,
-  });
+  // When previewing a specific template from the customizer, render it PURE
+  // (no per-product overlays). Otherwise render the product's own template +
+  // its detached overrides.
+  const productSections = previewTemplateId
+    ? await getThemedSections("PRODUCT", "desktop", {
+        productTemplateId: previewTemplateId,
+      })
+    : await getThemedSections("PRODUCT", "desktop", {
+        productId: product.id,
+        productTemplateId: product.themeProductTemplateId,
+      });
 
   // Calcular stock total
   const totalStock = product.hasVariants
