@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { checkoutPayButtonClass } from "@/components/checkout/pay-button-class";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
@@ -85,7 +86,8 @@ export default function MercadoPagoRedirectClient({
                 </div>
                 {/* Respaldo si la redirección automática no ocurre. */}
                 <Button
-                  className="w-full"
+                  variant="cta"
+                  className={`w-full ${checkoutPayButtonClass}`}
                   size="lg"
                   onClick={goToMercadoPago}
                   disabled={!redirectUrl}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { checkoutPayButtonClass } from "@/components/checkout/pay-button-class";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import { PayPalIcon } from "@/components/payment-icons";
@@ -91,7 +92,8 @@ export default function PaypalRedirectClient({
                   confirmaremos tu orden automáticamente.
                 </p>
                 <Button
-                  className="w-full"
+                  variant="cta"
+                  className={`w-full ${checkoutPayButtonClass}`}
                   size="lg"
                   onClick={handlePay}
                   disabled={redirecting || !approveUrl}

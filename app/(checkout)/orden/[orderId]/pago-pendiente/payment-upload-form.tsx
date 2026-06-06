@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { uploadPaymentProof } from "@/actions/pending-payments";
 import { Button } from "@/components/ui/button";
+import { checkoutPayButtonClass } from "@/components/checkout/pay-button-class";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -198,7 +199,7 @@ export default function PaymentUploadForm({ orderId, viewToken }: PaymentUploadF
       </div>
 
       {/* Botón de Envío */}
-      <Button type="submit" disabled={loading || !reference || !imageFile} className="w-full" size="lg">
+      <Button type="submit" disabled={loading || !reference || !imageFile} variant="cta" className={`w-full ${checkoutPayButtonClass}`} size="lg">
         {loading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import { CustomDesignConfirmation } from "@/components/checkout/CustomDesignConfirmation";
+import { checkoutPayButtonClass } from "@/components/checkout/pay-button-class";
 import type { CustomDesign, CustomDesignImage } from "@/lib/customizer/types";
 import { canViewOrder } from "@/lib/orders/order-access";
 import ClearCartOnConfirmation from "./ClearCartOnConfirmation";
@@ -484,8 +485,9 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button
             asChild
+            variant="cta"
             size="lg"
-            className="h-12 flex-1 bg-cta text-cta-foreground hover:bg-cta/90"
+            className={`h-12 flex-1 ${checkoutPayButtonClass}`}
           >
             <Link href="/productos" className="flex items-center justify-center gap-2">
               Seguir comprando

@@ -32,16 +32,10 @@ import { cn } from "@/lib/utils";
 const DEFAULT_STATE =
   "border-[var(--theme-checkout-input-border,#e2e8f0)] hover:border-[color-mix(in_oklab,var(--theme-checkout-input-border-focus,#0f172a)_45%,var(--theme-checkout-input-border,#e2e8f0))] focus-visible:border-[var(--theme-checkout-input-border-focus,#0f172a)] focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklab,var(--theme-checkout-input-border-focus,#0f172a)_20%,transparent)]";
 
-/**
- * Pay-button chrome for the checkout CTA, driven by `--theme-checkout-button-*`
- * (customizer → "Checkout") with a fallback to the global brand `--cta`.
- * Applied ON TOP of the Button `cta` variant; tailwind-merge lets these win
- * over the variant's bg/text/radius (including the variant's `hover:bg-cta/90`,
- * which we override with an explicit darken so a custom color hovers correctly).
- * Literal string — no concatenation — so Tailwind emits the classes.
- */
-export const checkoutPayButtonClass =
-  "bg-[var(--theme-checkout-button-bg,var(--cta))] text-[var(--theme-checkout-button-text,var(--cta-foreground))] rounded-[var(--theme-checkout-button-radius,0.375rem)] hover:bg-[color-mix(in_oklab,var(--theme-checkout-button-bg,var(--cta))_90%,black)]";
+// Pay-button chrome lives in a server-safe module so storefront Server
+// Components (`/orden/*`) can import it too. Re-exported here for the existing
+// client-side consumers.
+export { checkoutPayButtonClass } from "./pay-button-class";
 
 type ControlState = {
   hasIcon?: boolean;
