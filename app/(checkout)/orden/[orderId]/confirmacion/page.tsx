@@ -25,6 +25,7 @@ import { checkoutPayButtonClass } from "@/components/checkout/pay-button-class";
 import type { CustomDesign, CustomDesignImage } from "@/lib/customizer/types";
 import { canViewOrder } from "@/lib/orders/order-access";
 import ClearCartOnConfirmation from "./ClearCartOnConfirmation";
+import ConfirmMercadoPagoOnReturn from "./ConfirmMercadoPagoOnReturn";
 
 interface ShippingAddressJson {
   address?: string;
@@ -37,7 +38,12 @@ interface PageProps {
   params: Promise<{
     orderId: string;
   }>;
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{
+    token?: string;
+    // MercadoPago añade estos al redirigir de vuelta tras el pago.
+    payment_id?: string;
+    collection_id?: string;
+  }>;
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -78,7 +84,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function OrderConfirmationPage({ params, searchParams }: PageProps) {
   const { orderId } = await params;
-  const { token } = await searchParams;
+  const { token, payment_id, collection_id } = await searchParams;
   const siteSettings = await getSiteSettings();
 
   const order = await prisma.order.findUnique({
@@ -119,6 +125,15 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
 
   const isPaid = order.paymentStatus === "PAID";
   const isPending = order.paymentStatus === "PENDING";
+
+  // Confirmación por retorno: si volvemos de MercadoPago con un payment_id y la
+  // orden aún no está pagada (el webhook no llegó —típico en localhost— o se
+  // retrasó), un componente cliente la verifica y refresca. Reverificación real
+  // contra la API en el server action, así que es seguro e idempotente.
+  const mpReturnPaymentId =
+    order.paymentMethod === "MERCADOPAGO" && !isPaid
+      ? (payment_id ?? collection_id ?? null)
+      : null;
   const whatsappNumber = siteSettings.contact_phone.replace(/\D/g, "");
   // Número de orden mostrado al cliente (mismo formato que el admin / verificar):
   // secuencial con prefijo (PED-0001) o, para órdenes legacy sin orderSeq, el cuid.
@@ -154,6 +169,8 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
       {(order.paymentMethod === "MERCADOPAGO" || order.paymentMethod === "PAYPAL") && (
         <ClearCartOnConfirmation />
       )}
+
+      {mpReturnPaymentId && <ConfirmMercadoPagoOnReturn paymentId={mpReturnPaymentId} />}
 
       {/* Ambient brand glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
