@@ -8,6 +8,7 @@ import { sendOrderConfirmationEmail } from "@/lib/email";
 import { autoEmitOnPayment } from "@/actions/sunat";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
+import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 
 /**
  * Procesar pago con tarjeta usando Culqi
@@ -91,6 +92,9 @@ export async function processCardPayment(data: {
         paidAt: new Date(),
       },
     });
+
+    // Contabilizar la compra en el CRM/lealtad (idempotente).
+    await onOrderPaid(order.id);
 
     try {
       await autoEmitOnPayment(order.id);

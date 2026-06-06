@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db";
 import { verifyCulqiCharge, getCulqiCharge } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 
 const log = logger.child({ module: "culqi-webhook" });
 
@@ -138,6 +139,9 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
   // NOTA: El inventario para órdenes con tarjeta YA se descontó atómicamente
   // en createOrder al crear la orden. NO descontar aquí — duplicaba el
   // descuento (createOrder + webhook) y dejaba el stock en negativo.
+
+  // Contabilizar la compra en el CRM/lealtad (idempotente).
+  await onOrderPaid(orderId);
 
   // Revalidar páginas
   revalidatePath("/admin/ordenes");

@@ -16,6 +16,7 @@ import {
   subscribeNewsletterFromOrder,
   incrementPromotionUsage,
 } from "@/lib/promotions/server";
+import { ensureCustomerId } from "@/lib/loyalty/link-customer";
 
 export async function createCodOrder(rawData: unknown) {
   const parsed = createCodOrderSchema.safeParse(rawData);
@@ -239,8 +240,20 @@ export async function createCodOrder(rawData: unknown) {
   const roundedDiscount = Math.round(promotionDiscount * 100) / 100;
   const total = subtotal + shippingCost - roundedDiscount;
 
+  // Enlazar (o crear) la ficha de cliente solo si dejó un email real — el
+  // checkout COD permite comprar sin correo (placeholder), y ésos no deben
+  // generar fichas basura en el CRM. ensureCustomerId filtra el placeholder.
+  const linkedCustomerId = data.email
+    ? await ensureCustomerId({
+        email: data.email,
+        name: data.name,
+        phone: data.phone,
+      })
+    : null;
+
   const order = await prisma.order.create({
     data: {
+      customerId: linkedCustomerId ?? undefined,
       customerName: data.name,
       customerEmail: data.email || `cod-${Date.now()}@shopgood.pe`,
       customerPhone: data.phone,

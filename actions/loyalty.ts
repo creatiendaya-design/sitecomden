@@ -1,6 +1,6 @@
 "use server";
 
-import { Prisma, LoyaltyProgramSettings } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { protectRoute } from "@/lib/protect-route";
@@ -11,6 +11,7 @@ import {
 } from "@/lib/validations/admin";
 import { logAudit } from "@/lib/audit-log";
 import { getCurrentUserId } from "@/lib/auth";
+import { calculateLoyaltyTier, generateReferralCode } from "@/lib/loyalty/core";
 
 function flattenZodError(err: z.ZodError): string {
   return err.issues.map((i) => i.message).join("; ");
@@ -31,24 +32,8 @@ export type PointTransactionType =
   | "REWARD_REDEMPTION"
   | "EXPIRED";
 
-// Generar código de referido único
-function generateReferralCode(name: string): string {
-  const prefix = name
-    .toUpperCase()
-    .replace(/[^A-Z]/g, "")
-    .substring(0, 4)
-    .padEnd(4, "X");
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `${prefix}${random}`;
-}
-
-// Calcular nivel VIP según puntos
-function calculateLoyaltyTier(points: number, settings: LoyaltyProgramSettings): LoyaltyTier {
-  if (points >= settings.platinumThreshold) return "PLATINUM";
-  if (points >= settings.goldThreshold) return "GOLD";
-  if (points >= settings.silverThreshold) return "SILVER";
-  return "BRONZE";
-}
+// `generateReferralCode` y `calculateLoyaltyTier` viven en @/lib/loyalty/core
+// para compartirse con la contabilización de compra (lib/loyalty/award-purchase).
 
 // ============================================
 // CUSTOMER - Registro y Gestión
@@ -423,67 +408,10 @@ async function deductPoints(
   }
 }
 
-// Dar puntos por compra (internal — invoked from order/payment confirmation flows)
-async function _awardPurchasePoints(orderId: string) {
-  try {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: { customer: true },
-    });
-
-    if (!order || !order.customerId || !order.customer) {
-      return { success: false, error: "Orden sin cliente" };
-    }
-
-    const settings = await getLoyaltySettings();
-    
-    // ✅ Validar que settings exista
-    if (!settings) {
-      return { success: false, error: "Error en configuración del programa de lealtad" };
-    }
-    
-    // Calcular puntos: 1 punto por cada sol gastado
-    const pointsToAward = Math.floor(
-      Number(order.total) * settings.pointsPerSol
-    );
-
-    if (pointsToAward <= 0) {
-      return { success: true, points: 0 };
-    }
-
-    // Agregar puntos
-    await addPoints(order.customerId, {
-      points: pointsToAward,
-      type: "PURCHASE",
-      description: `Compra orden #${order.orderNumber}`,
-      reference: orderId,
-    });
-
-    // Actualizar orden
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        pointsEarned: pointsToAward,
-        customerTier: order.customer.loyaltyTier,
-      },
-    });
-
-    // Actualizar stats del cliente
-    await prisma.customer.update({
-      where: { id: order.customerId },
-      data: {
-        totalOrders: { increment: 1 },
-        totalSpent: { increment: order.total },
-        lastPurchaseAt: new Date(),
-      },
-    });
-
-    return { success: true, points: pointsToAward };
-  } catch (error) {
-    console.error("Error otorgando puntos de compra:", error);
-    return { success: false, error: "Error al otorgar puntos" };
-  }
-}
+// La contabilización de compra (puntos + stats del cliente al confirmar el pago)
+// vive en @/lib/loyalty/award-purchase (`onOrderPaid`), invocada desde todos los
+// flujos de confirmación de pago. La antigua `_awardPurchasePoints` quedó muerta
+// (nunca se invocaba) y fue removida.
 
 // ============================================
 // RECOMPENSAS - Listar y Canjear

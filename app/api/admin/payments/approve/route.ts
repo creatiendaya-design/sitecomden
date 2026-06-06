@@ -8,6 +8,7 @@ import {
 } from "@/lib/inventory/decrement-stock";
 import { logAudit } from "@/lib/audit-log";
 import { getRequestLogger } from "@/lib/logger";
+import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
@@ -115,6 +116,9 @@ export async function POST(request: Request) {
       }
       throw txError;
     }
+
+    // Contabilizar la compra en el CRM/lealtad (idempotente).
+    await onOrderPaid(orderId);
 
     log.info(
       {

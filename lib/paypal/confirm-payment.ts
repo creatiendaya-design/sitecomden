@@ -16,6 +16,7 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
 import { capturePaypalOrder, getPaypalOrder, type PaypalOrderInfo } from "./client";
 import { readPaypalSettings } from "./config";
+import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 
 const log = logger.child({ module: "paypal-confirm" });
 
@@ -101,6 +102,9 @@ export async function captureAndConfirmPaypalOrder(
     });
 
     // NOTA: el inventario ya se descontó en createOrder (PayPal no es manual).
+
+    // Contabilizar la compra en el CRM/lealtad (idempotente).
+    await onOrderPaid(orderId);
 
     try {
       const { autoEmitOnPayment } = await import("@/actions/sunat");

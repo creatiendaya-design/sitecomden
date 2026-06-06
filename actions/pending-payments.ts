@@ -8,6 +8,7 @@ import { autoEmitOnPayment } from "@/actions/sunat";
 import { protectRoute } from "@/lib/protect-route";
 import { checkRateLimit, uploadRateLimiter } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 
 const log = logger.child({ module: "pending-payments" });
 
@@ -226,6 +227,9 @@ export async function approvePayment(paymentId: string) {
         paidAt: new Date(),
       },
     });
+
+    // Contabilizar la compra en el CRM/lealtad (idempotente).
+    await onOrderPaid(payment.orderId);
 
     try {
       await autoEmitOnPayment(payment.orderId);

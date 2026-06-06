@@ -18,6 +18,8 @@ import {
   StockUnavailableError,
 } from "@/lib/inventory/decrement-stock";
 import { grantOrderAccess } from "@/lib/orders/order-access";
+import { ensureCustomerId } from "@/lib/loyalty/link-customer";
+import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 import {
   resolveAppliedVolumeDiscount,
   resolveAppliedSubscriptionDiscount,
@@ -378,12 +380,25 @@ export async function createOrder(rawData: unknown) {
     // inside a single transaction. If any line item ran out of stock between
     // the pre-flight check and now (concurrent buyer won the race), the
     // StockUnavailableError rolls back the order and we surface a clear error.
+    // Enlazar (o crear) la ficha de cliente por email — modelo Shopify: todo
+    // comprador aparece en el CRM. Se hace FUERA de la transacción a propósito:
+    // una colisión de email en carrera (P2002) aborta una transacción de
+    // Postgres y nos impediría recuperarnos; aquí ensureCustomerId la maneja sin
+    // tumbar el checkout. Si la orden luego se revierte (p. ej. sin stock), la
+    // ficha queda sin órdenes — benigno, y se reconcilia en la próxima compra.
+    const linkedCustomerId = await ensureCustomerId({
+      email: data.customerEmail,
+      name: data.customerName,
+      phone: data.customerPhone,
+    });
+
     let order;
     try {
       order = await prisma.$transaction(async (tx) => {
         const created = await tx.order.create({
           data: {
             viewToken,
+            customerId: linkedCustomerId ?? undefined,
             subtotal,
             shipping,
             discount,
@@ -976,6 +991,16 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       where: { id: input.orderId },
       data: updateData,
     });
+
+    // Contabilizar la compra en el CRM/lealtad la primera vez que la orden
+    // pasa a PAGADA (idempotente; seguro aunque también dispare otro flujo).
+    const becamePaid =
+      (input.paymentStatus === "PAID" &&
+        currentOrder.paymentStatus !== "PAID") ||
+      (input.status === "PAID" && currentOrder.status !== "PAID");
+    if (becamePaid) {
+      await onOrderPaid(input.orderId);
+    }
 
     // ============================================================
     // ✅ TRACKING DE CONVERSIONES - SERVER SIDE
