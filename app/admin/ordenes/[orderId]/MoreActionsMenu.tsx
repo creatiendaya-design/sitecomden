@@ -22,6 +22,7 @@ import {
 import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { updateOrderStatus } from "@/actions/orders";
+import { refundOrder } from "@/actions/refunds";
 import {
   canCancelOrder,
   canRefundPayment,
@@ -34,13 +35,16 @@ interface MoreActionsMenuProps {
   orderId: string;
   orderStatus: string;
   paymentStatus: string;
+  paymentMethod: string;
 }
 
 export default function MoreActionsMenu({
   orderId,
   orderStatus,
   paymentStatus,
+  paymentMethod,
 }: MoreActionsMenuProps) {
+  const isMercadoPago = paymentMethod === "MERCADOPAGO";
   const router = useRouter();
   const [cancelLoading, setCancelLoading] = useState(false);
   const [refundLoading, setRefundLoading] = useState(false);
@@ -75,9 +79,13 @@ export default function MoreActionsMenu({
     setRefundLoading(true);
     setRefundOpen(false);
     try {
-      const result = await updateOrderStatus({ orderId, paymentStatus: "REFUNDED" as PaymentStatus });
+      const result = await refundOrder({ orderId });
       if (result.success) {
-        toast.success("Reembolso procesado. Se envió email al cliente.");
+        toast.success(
+          result.automatic
+            ? "Reembolso procesado en MercadoPago. Se devolvió el dinero, se repuso el stock y se notificó al cliente."
+            : "Reembolso registrado (stock y puntos ajustados). Recuerda devolver el dinero manualmente en la pasarela."
+        );
         router.refresh();
       } else {
         toast.error(result.error || "Error al procesar el reembolso");
@@ -169,9 +177,24 @@ export default function MoreActionsMenu({
       <AlertDialog open={refundOpen} onOpenChange={setRefundOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Procesar reembolso?</AlertDialogTitle>
+            <AlertDialogTitle>¿Procesar reembolso total?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se enviará un email al cliente. El dinero será devuelto en 5-7 días hábiles.
+              {isMercadoPago ? (
+                <>
+                  Se devolverá el <strong>monto total</strong> al cliente vía MercadoPago,
+                  se repondrá el stock al inventario, se revertirán sus puntos y se le
+                  enviará un correo. Esta acción no se puede deshacer.
+                </>
+              ) : (
+                <>
+                  Se marcará la orden como reembolsada, se repondrá el stock, se
+                  revertirán los puntos y se notificará al cliente.{" "}
+                  <span className="font-medium text-amber-600">
+                    El reembolso automático aún no está disponible para este método: debes
+                    devolver el dinero manualmente en la pasarela.
+                  </span>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

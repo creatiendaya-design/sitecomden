@@ -125,6 +125,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             orderId={order.id}
             orderStatus={order.status}
             paymentStatus={order.paymentStatus}
+            paymentMethod={order.paymentMethod}
           />
         </div>
       </div>

@@ -18,7 +18,7 @@ import { confirmMercadoPagoPayment } from "@/lib/mercadopago/confirm-payment";
 
 export type ConfirmReturnResult = {
   ok: boolean;
-  status: "paid" | "failed" | "pending" | "ignored" | null;
+  status: "paid" | "failed" | "pending" | "ignored" | "refunded" | null;
 };
 
 export async function confirmMercadoPagoReturn(

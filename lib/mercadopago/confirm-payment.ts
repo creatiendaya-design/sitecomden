@@ -16,11 +16,12 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
 import { getMercadoPagoPayment } from "./client";
 import { MERCADOPAGO_CURRENCY } from "./config";
+import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 
 const log = logger.child({ module: "mercadopago-confirm" });
 
 export type ConfirmResult =
-  | { ok: true; orderId: string; status: "paid" | "failed" | "pending" | "ignored" }
+  | { ok: true; orderId: string; status: "paid" | "failed" | "pending" | "ignored" | "refunded" }
   | { ok: false; error: string };
 
 function appBaseUrl(): string {
@@ -57,6 +58,39 @@ export async function confirmMercadoPagoPayment(
   if (!order) {
     log.error({ paymentId, orderId }, "Order not found for payment");
     return { ok: false, error: "Orden no encontrada" };
+  }
+
+  // ----- Reembolso parcial desde el panel: NO soportado (solo total) -----
+  // No aplicamos efectos totales (descuadrarían stock/puntos); avisamos para que
+  // un admin lo maneje a mano. `ignored` (no `pending`) evita reintentos.
+  if (payment.status === "partially_refunded") {
+    log.warn(
+      { orderId, paymentId },
+      "Partial refund from MercadoPago panel — not supported, needs manual handling"
+    );
+    return { ok: true, orderId, status: "ignored" };
+  }
+
+  // ----- Reembolso TOTAL hecho desde el panel de MercadoPago -----
+  // (Va antes de la idempotencia de PAID: una orden pagada que se reembolsa
+  // desde MercadoPago debe procesarse aquí.)
+  if (payment.status === "refunded") {
+    // Solo si estaba pagada. Si llega out-of-order sobre una orden no pagada (o
+    // ya reembolsada), lo ignoramos: no es error, así el webhook no reintenta.
+    if (order.paymentStatus !== "PAID") {
+      log.warn(
+        { orderId, paymentStatus: order.paymentStatus },
+        "Refund webhook on non-PAID order, ignored"
+      );
+      return { ok: true, orderId, status: "ignored" };
+    }
+    const { applyRefund } = await import("@/lib/orders/apply-refund");
+    const res = await applyRefund(orderId, { source: "webhook" });
+    if (!res.ok) {
+      return { ok: false, error: res.error ?? "No se pudo aplicar el reembolso" };
+    }
+    log.info({ orderId }, "Order refunded via MercadoPago webhook");
+    return { ok: true, orderId, status: "refunded" };
   }
 
   // Idempotencia: no re-procesar una orden ya pagada.
@@ -102,6 +136,9 @@ export async function confirmMercadoPagoPayment(
         paidAt: new Date(),
       },
     });
+
+    // Contabilizar la compra en el CRM/lealtad (idempotente).
+    await onOrderPaid(orderId);
 
     // NOTA: el inventario ya se descontó atómicamente en createOrder (para
     // MercadoPago el stock se reserva al crear la orden, igual que tarjeta).
