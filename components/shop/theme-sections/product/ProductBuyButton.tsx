@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Minus, Plus, ShoppingCart } from "lucide-react"
 import { toast } from "sonner"
 import type { ResolvedThemeSectionBlock } from "@/lib/theme-sections/types"
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { useCartStore } from "@/store/cart"
 import { useCartDrawer } from "@/store/cart-drawer"
 import { useTracking } from "@/hooks/useTracking"
+import CodOrderModal from "@/components/shop/CodOrderModal"
 import { SubBlockWrapper } from "../_helpers"
 import { useProductContext } from "./ProductContext"
 
@@ -38,7 +40,15 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
     inStock,
     quantity,
     setQuantity,
+    checkoutMode,
+    codFormTemplate,
+    shippingRestriction,
   } = useProductContext()
+
+  const [codOpen, setCodOpen] = useState(false)
+  // COD / quick-order products bypass the cart: the button opens the COD modal
+  // (name + address + cash-on-delivery) instead of adding to the cart drawer.
+  const isCod = checkoutMode !== "STANDARD"
 
   const content = block.content as ProductBuyButtonContent
   const label = content.buttonText?.trim() || "Agregar al carrito"
@@ -124,6 +134,18 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
     }
   }
 
+  const handleBuyNow = () => {
+    if (hasVariants && !selectedVariant) {
+      toast.error("Seleccioná las opciones del producto")
+      return
+    }
+    if (!inStock) {
+      toast.error("Producto agotado")
+      return
+    }
+    setCodOpen(true)
+  }
+
   return (
     <SubBlockWrapper
       block={block}
@@ -171,7 +193,7 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
         )}
         <button
           type="button"
-          onClick={handleAdd}
+          onClick={isCod ? handleBuyNow : handleAdd}
           disabled={!inStock}
           style={buttonStyle}
           className={[
@@ -183,10 +205,30 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
         >
           <ShoppingCart className="h-5 w-5" />
           <span data-content-field="buttonText">
-            {inStock ? label : "Agotado"}
+            {!inStock ? "Agotado" : isCod ? "Comprar ahora" : label}
           </span>
         </button>
       </div>
+
+      {isCod && (
+        <CodOrderModal
+          open={codOpen}
+          onClose={() => setCodOpen(false)}
+          items={[
+            {
+              productId,
+              variantId: selectedVariant?.id,
+              quantity: clampedQty,
+              name: productName,
+              price: currentPrice,
+              originalUnitPrice: currentComparePrice ?? currentPrice,
+              image: currentImage ?? undefined,
+            },
+          ]}
+          template={codFormTemplate ?? null}
+          shippingRestriction={shippingRestriction ?? null}
+        />
+      )}
     </SubBlockWrapper>
   )
 }

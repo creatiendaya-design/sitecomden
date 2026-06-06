@@ -14,6 +14,11 @@ import type { FbtRecommendationForRender } from "@/components/shop/theme-section
 import { getThemedSections } from "@/lib/theme-sections/resolve-active-sections";
 import { resolveProductBlocksFromLoaded } from "@/lib/blocks/resolve-product-blocks";
 import type { LandingBlock } from "@/lib/types/landing-blocks";
+import type { CheckoutMode } from "@/lib/types/cod-form";
+import type {
+  CodFormTemplateData,
+  ShippingRestriction,
+} from "@/lib/cod-forms/types";
 import type {
   SizeGuideData,
   SizeGuideTab,
@@ -257,6 +262,11 @@ export default async function ProductDetailPage({
             visible: b.visible,
             required: b.required,
           })),
+          // The COD modal re-fetches the per-template shipping profile
+          // server-side by templateId (getShippingOptionsForCodForm), so the
+          // client never reads this list. Emit an empty array to satisfy the
+          // CodFormTemplateData shape consumed by the theme-section buy button.
+          shippingRateIds: [] as string[],
         }
       : null,
     shippingRestriction: p.shippingRestriction ?? null,
@@ -588,6 +598,15 @@ export default async function ProductDetailPage({
             })),
             reviews: serializedReviews,
             frequentlyBoughtTogether: fbtRecs,
+            // COD / quick-order flow: thread the checkout mode + form template
+            // so the PRODUCT_MAIN buy button can open the COD modal instead of
+            // a plain add-to-cart. Without this, COD-only products silently
+            // fell back to the cart on the theme-section storefront.
+            checkoutMode: serializedProduct.checkoutMode as CheckoutMode,
+            codFormTemplate:
+              serializedProduct.codFormTemplate as CodFormTemplateData | null,
+            shippingRestriction:
+              serializedProduct.shippingRestriction as ShippingRestriction | null,
           }}
           variants={serializedVariants}
           options={product.options}

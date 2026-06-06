@@ -96,6 +96,9 @@ export function ProductMain({
         hasVariants={product.hasVariants}
         variants={variants}
         options={options}
+        checkoutMode={product.checkoutMode}
+        codFormTemplate={product.codFormTemplate}
+        shippingRestriction={product.shippingRestriction}
       >
         <div
           className={

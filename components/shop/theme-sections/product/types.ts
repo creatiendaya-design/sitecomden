@@ -32,6 +32,12 @@ export interface FbtRecommendationForRender {
   stock: number
 }
 
+import type { CheckoutMode } from "@/lib/types/cod-form"
+import type {
+  CodFormTemplateData,
+  ShippingRestriction,
+} from "@/lib/cod-forms/types"
+
 /**
  * Shape consumed by the product theme-section renderers. The data is the
  * already-serialized output of `app/(shop)/productos/[slug]/page.tsx` —
@@ -65,4 +71,13 @@ export interface ProductForRender {
   /** Recommendations for the FREQUENTLY_BOUGHT_TOGETHER section (excludes the
    *  current product). Optional so sections that don't need it stay compatible. */
   frequentlyBoughtTogether?: FbtRecommendationForRender[]
+  /** Quick-order / cash-on-delivery checkout mode. When not "STANDARD" the
+   *  PRODUCT_MAIN buy button opens the COD modal instead of adding to cart.
+   *  Optional so callers that don't carry it default to STANDARD. */
+  checkoutMode?: CheckoutMode
+  /** COD form template bound to this product (drives the COD modal fields,
+   *  button copy, and post-submit action). Null for STANDARD products. */
+  codFormTemplate?: CodFormTemplateData | null
+  /** Optional geographic restriction enforced inside the COD modal. */
+  shippingRestriction?: ShippingRestriction | null
 }

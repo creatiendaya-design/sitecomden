@@ -7,6 +7,11 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import type { CheckoutMode } from "@/lib/types/cod-form"
+import type {
+  CodFormTemplateData,
+  ShippingRestriction,
+} from "@/lib/cod-forms/types"
 
 export interface ProductVariant {
   id: string
@@ -63,6 +68,13 @@ export interface ProductContextValue {
    *  the BuyButton so cart items always carry a thumbnail. */
   currentImage: string | null
   inStock: boolean
+  /** Checkout mode. When not "STANDARD" the buy button opens the COD modal
+   *  instead of adding to cart. */
+  checkoutMode: CheckoutMode
+  /** COD form template (null for STANDARD products). */
+  codFormTemplate: CodFormTemplateData | null
+  /** Geographic restriction enforced inside the COD modal. */
+  shippingRestriction: ShippingRestriction | null
 }
 
 const ProductCtx = createContext<ProductContextValue | null>(null)
@@ -80,6 +92,9 @@ interface ProductProviderProps {
   hasVariants: boolean
   variants: ProductVariant[]
   options: ProductOption[]
+  checkoutMode?: CheckoutMode
+  codFormTemplate?: CodFormTemplateData | null
+  shippingRestriction?: ShippingRestriction | null
   children: ReactNode
 }
 
@@ -94,6 +109,9 @@ export function ProductProvider({
   hasVariants,
   variants,
   options,
+  checkoutMode = "STANDARD",
+  codFormTemplate = null,
+  shippingRestriction = null,
   children,
 }: ProductProviderProps) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
@@ -131,6 +149,9 @@ export function ProductProvider({
       currentStock,
       currentImage,
       inStock: currentStock > 0,
+      checkoutMode,
+      codFormTemplate,
+      shippingRestriction,
     }
   }, [
     productId,
@@ -146,6 +167,9 @@ export function ProductProvider({
     selectedVariant,
     selectedOptions,
     quantity,
+    checkoutMode,
+    codFormTemplate,
+    shippingRestriction,
   ])
 
   return <ProductCtx.Provider value={value}>{children}</ProductCtx.Provider>
