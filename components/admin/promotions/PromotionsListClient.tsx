@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatPeruDateWith } from "@/lib/format-date";
 import {
   Calendar,
   DollarSign,
@@ -325,7 +326,7 @@ export default function PromotionsListClient({
 
             // Build a compact one-line metadata summary used only on mobile
             const formatShort = (d: string | Date) =>
-              new Date(d).toLocaleDateString("es-PE", {
+              formatPeruDateWith(d, {
                 day: "2-digit",
                 month: "2-digit",
                 year: "2-digit",
@@ -517,9 +518,9 @@ export default function PromotionsListClient({
                       <div className="flex items-center gap-1 text-sm">
                         <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
                         <span className="truncate tabular-nums">
-                          {promo.startsAt && new Date(promo.startsAt).toLocaleDateString("es-PE")}
+                          {promo.startsAt && formatPeruDateWith(promo.startsAt)}
                           {promo.startsAt && promo.expiresAt && " · "}
-                          {promo.expiresAt && new Date(promo.expiresAt).toLocaleDateString("es-PE")}
+                          {promo.expiresAt && formatPeruDateWith(promo.expiresAt)}
                           {!promo.startsAt && !promo.expiresAt && (
                             <span className="text-muted-foreground">Sin límite</span>
                           )}

@@ -1,5 +1,7 @@
 /** Human-readable formatters for the media library UI. */
 
+import { formatPeruDate } from "@/lib/format-date";
+
 export function formatBytes(bytes: number): string {
   if (!bytes || bytes <= 0) return "—";
   const units = ["B", "KB", "MB", "GB"];
@@ -10,11 +12,7 @@ export function formatBytes(bytes: number): string {
 
 export function formatMediaDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString("es-PE", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return formatPeruDate(iso);
   } catch {
     return "";
   }

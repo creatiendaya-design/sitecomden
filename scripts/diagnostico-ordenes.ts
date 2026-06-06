@@ -2,6 +2,7 @@
 // Ejecutar: npx tsx scripts/diagnostico-ordenes.ts
 
 import { prisma } from "@/lib/db";
+import { formatPeruDateTime } from "@/lib/format-date";
 
 async function diagnosticar() {
   console.log("🔍 DIAGNÓSTICO DE ÓRDENES\n");
@@ -54,7 +55,7 @@ async function diagnosticar() {
     console.log(`    Nombre: ${order.customerName}`);
     console.log(`    CustomerId: ${order.customerId || "❌ NO VINCULADO"}`);
     console.log(`    Total: S/. ${order.total}`);
-    console.log(`    Fecha: ${order.createdAt.toLocaleString("es-PE")}`);
+    console.log(`    Fecha: ${formatPeruDateTime(order.createdAt)}`);
   });
 
   // 5. Customers registrados

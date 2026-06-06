@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { sanitizeRichText } from "@/lib/blocks/sanitize-rich-text"
+import { formatPeruDateWith } from "@/lib/format-date"
 
 interface PolicyPageParams {
   params: Promise<{ slug: string }>
@@ -65,7 +66,7 @@ export default async function PolicyPage({ params }: PolicyPageParams) {
         </h1>
         <p className="text-xs text-muted-foreground mt-2">
           Última actualización:{" "}
-          {policy.updatedAt.toLocaleDateString("es-PE", {
+          {formatPeruDateWith(policy.updatedAt, {
             year: "numeric",
             month: "long",
             day: "numeric",

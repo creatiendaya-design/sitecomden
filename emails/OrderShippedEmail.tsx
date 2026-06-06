@@ -9,6 +9,7 @@ import {
   Text,
   type EmailSiteSettings,
 } from "./_components/EmailLayout";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 interface OrderShippedEmailProps {
   orderNumber: string;
@@ -77,7 +78,7 @@ export default function OrderShippedEmail({
           <Text style={{ margin: 0, fontSize: "14px" }}>
             <strong>Fecha estimada de entrega:</strong>
             <br />
-            {new Date(estimatedDelivery).toLocaleDateString("es-PE", {
+            {formatPeruDateWith(estimatedDelivery, {
               weekday: "long",
               year: "numeric",
               month: "long",

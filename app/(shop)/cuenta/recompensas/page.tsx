@@ -29,6 +29,7 @@ import {
   getCustomerRedemptions
 } from "@/actions/loyalty";
 import { toast } from "sonner";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 type RewardItem = Awaited<ReturnType<typeof getAvailableRewards>>[number];
 type RedemptionItem = Awaited<ReturnType<typeof getCustomerRedemptions>>[number];
@@ -247,7 +248,7 @@ export default function RecompensasPage() {
                         </h3>
                         <p className="text-sm text-muted-foreground">
                           Canjeado el{" "}
-                          {new Date(redemption.createdAt).toLocaleDateString("es-PE")}
+                          {formatPeruDateWith(redemption.createdAt)}
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant={redemption.status === "PENDING" ? "default" : "secondary"}>
@@ -267,7 +268,7 @@ export default function RecompensasPage() {
                         {redemption.status === "PENDING" && (
                           <p className="text-xs text-muted-foreground mt-1">
                             Expira:{" "}
-                            {new Date(redemption.expiresAt).toLocaleDateString("es-PE")}
+                            {formatPeruDateWith(redemption.expiresAt)}
                           </p>
                         )}
                       </div>

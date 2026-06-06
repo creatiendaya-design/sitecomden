@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Calendar } from "lucide-react";
 import DeleteCouponButton from "@/components/admin/DeleteCouponButton";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 export default async function CouponsPage() {
   const coupons = await prisma.coupon.findMany({
@@ -123,13 +124,13 @@ export default async function CouponsPage() {
                         <Calendar className="h-3 w-3" />
                         {coupon.startsAt && (
                           <span>
-                            {new Date(coupon.startsAt).toLocaleDateString("es-PE")}
+                            {formatPeruDateWith(coupon.startsAt)}
                           </span>
                         )}
                         {coupon.startsAt && coupon.expiresAt && " - "}
                         {coupon.expiresAt && (
                           <span>
-                            {new Date(coupon.expiresAt).toLocaleDateString("es-PE")}
+                            {formatPeruDateWith(coupon.expiresAt)}
                           </span>
                         )}
                         {!coupon.startsAt && !coupon.expiresAt && "Sin límite"}

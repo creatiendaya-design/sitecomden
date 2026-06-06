@@ -8,6 +8,7 @@ import { ArrowLeft, History, Download } from "lucide-react";
 import { getInventoryMovements } from "@/actions/inventory";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 export default async function InventoryMovementsPage() {
   const movementsResult = await getInventoryMovements({ limit: 100 });
@@ -225,9 +226,7 @@ export default async function InventoryMovementsPage() {
                         locale: es,
                       })}
                       <p className="text-xs">
-                        {new Date(movement.createdAt).toLocaleDateString(
-                          "es-PE"
-                        )}
+                        {formatPeruDateWith(movement.createdAt)}
                       </p>
                     </div>
                   </div>

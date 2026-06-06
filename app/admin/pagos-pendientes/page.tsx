@@ -32,6 +32,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 interface PendingPayment {
   id: string;
@@ -281,7 +282,7 @@ export default function PendingPaymentsPage() {
                           {formatPrice(payment.amount)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(payment.createdAt).toLocaleDateString("es-PE", {
+                          {formatPeruDateWith(payment.createdAt, {
                             day: "2-digit",
                             month: "short",
                             hour: "2-digit",

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { protectRoute } from "@/lib/protect-route";
+import { formatPeruDate } from "@/lib/format-date";
 import { getCurrentUserId } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getCustomerById } from "@/actions/customers";
@@ -40,11 +41,7 @@ function formatCurrency(value: number): string {
 
 function formatDate(date: Date | string | null): string {
   if (!date) return "—";
-  return new Date(date).toLocaleDateString("es-PE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatPeruDate(date);
 }
 
 function toDateInput(date: Date | string | null): string | null {

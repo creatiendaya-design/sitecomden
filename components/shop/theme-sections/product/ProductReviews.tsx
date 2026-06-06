@@ -4,6 +4,7 @@ import { SectionWrapper } from "../_helpers"
 import { StarRating } from "@/components/shop/StarRating"
 import { WriteReviewButton } from "./WriteReviewButton"
 import type { ProductForRender, ProductReviewForRender } from "./types"
+import { formatPeruDate } from "@/lib/format-date"
 
 interface ProductReviewsProps {
   section: ResolvedThemeSection
@@ -34,11 +35,7 @@ function relativeDate(iso: string): string {
     const weeks = Math.floor(days / 7)
     return weeks === 1 ? "hace 1 semana" : `hace ${weeks} semanas`
   }
-  return new Date(iso).toLocaleDateString("es-PE", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
+  return formatPeruDate(iso)
 }
 
 function ReviewCard({ review }: { review: ProductReviewForRender }) {

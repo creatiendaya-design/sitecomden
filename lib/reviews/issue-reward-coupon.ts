@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
+import { formatPeruDateWith } from "@/lib/format-date";
 import {
   getReviewRewardConfig,
 } from "@/actions/review-reward-settings";
@@ -114,7 +115,7 @@ export async function issueReviewRewardCoupon(
             <div style="background:#f5f5f5;padding:20px;border-radius:8px;margin:20px 0;text-align:center;">
               <p style="margin:0;font-size:13px;color:#666;">Tu código de cupón</p>
               <p style="margin:8px 0;font-size:24px;font-weight:bold;letter-spacing:2px;">${escapeHtml(code)}</p>
-              <p style="margin:0;font-size:13px;color:#666;">Válido hasta ${expiresAt.toLocaleDateString("es-PE")}</p>
+              <p style="margin:0;font-size:13px;color:#666;">Válido hasta ${formatPeruDateWith(expiresAt)}</p>
               ${minLabel}
             </div>
             <p style="color:#666;font-size:12px;margin-top:30px;">

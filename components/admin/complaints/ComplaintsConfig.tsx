@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { formatPeruDateWith } from "@/lib/format-date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,7 +206,7 @@ export default function ComplaintsConfig() {
                     {config.prefix}-2025-001
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    <strong>Fecha:</strong> {new Date().toLocaleDateString("es-PE")}
+                    <strong>Fecha:</strong> {formatPeruDateWith(new Date())}
                   </p>
                 </div>
                 <p className="text-sm">

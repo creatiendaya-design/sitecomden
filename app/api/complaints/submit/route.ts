@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withRateLimit, formRateLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 const formDataSchema = z.record(
   z.string().max(200),
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
               <p>${emailMessage}</p>
               <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
                 <p style="margin: 0;"><strong>Número de Reclamación:</strong> ${complaint.complaintNumber}</p>
-                <p style="margin: 10px 0 0 0;"><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-PE")}</p>
+                <p style="margin: 10px 0 0 0;"><strong>Fecha:</strong> ${formatPeruDateWith(new Date())}</p>
               </div>
               <p>Por favor conserve este número para dar seguimiento a su caso.</p>
               <p style="color: #666; font-size: 12px; margin-top: 30px;">

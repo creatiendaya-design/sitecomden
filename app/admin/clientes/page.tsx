@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { protectRoute } from "@/lib/protect-route";
 import { getCustomers, getCustomerStats } from "@/actions/customers";
+import { formatPeruDate } from "@/lib/format-date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,11 +37,7 @@ function formatCurrency(value: number): string {
 
 function formatDate(date: Date | null): string {
   if (!date) return "—";
-  return new Date(date).toLocaleDateString("es-PE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatPeruDate(date);
 }
 
 function locationOf(address: unknown): string {

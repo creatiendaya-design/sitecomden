@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
+import { formatPeruDateWith } from "@/lib/format-date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -207,7 +208,7 @@ export default function ComplaintDetailPage({
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">Fecha de envío</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(complaint.createdAt).toLocaleDateString("es-PE", {
+                      {formatPeruDateWith(complaint.createdAt, {
                         dateStyle: "long",
                       })}
                     </p>
@@ -269,7 +270,7 @@ export default function ComplaintDetailPage({
                   {complaint.respondedAt && (
                     <p className="text-xs text-muted-foreground mt-2">
                       Respondido el{" "}
-                      {new Date(complaint.respondedAt).toLocaleDateString("es-PE", {
+                      {formatPeruDateWith(complaint.respondedAt, {
                         dateStyle: "long",
                       })}
                     </p>

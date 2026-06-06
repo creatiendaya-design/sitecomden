@@ -25,6 +25,7 @@ import {
   getLoyaltySettings,
   registerCustomer,
 } from "@/actions/loyalty";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 export const metadata = {
   title: "Mi Cuenta - ShopGood Perú",
@@ -310,7 +311,7 @@ export default async function CuentaPage() {
                         {getTransactionLabel(transaction.type)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(transaction.createdAt).toLocaleDateString("es-PE", {
+                        {formatPeruDateWith(transaction.createdAt, {
                           day: "numeric",
                           month: "short",
                           year: "numeric",

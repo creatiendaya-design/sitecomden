@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
 import { formatPrice, formatOrderNumber } from "@/lib/utils";
+import { formatPeruDateShort, formatPeruDate, formatPeruTime } from "@/lib/format-date";
 import { getSiteSettings } from "@/lib/site-settings";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -297,10 +298,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                             </span>
                             <span> · </span>
                             <span>
-                              {new Date(order.createdAt).toLocaleDateString("es-PE", {
-                                day: "2-digit",
-                                month: "short",
-                              })}
+                              {formatPeruDateShort(order.createdAt)}
                             </span>
                             <span> · </span>
                             <span>{order.items.length} item{order.items.length === 1 ? "" : "s"}</span>
@@ -358,7 +356,6 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                       const orderLabel = order.orderSeq
                         ? formatOrderNumber(order.orderSeq, orderPrefix)
                         : `#${order.orderNumber.slice(-8).toUpperCase()}`;
-                      const created = new Date(order.createdAt);
                       return (
                         <TableRow key={order.id}>
                           <TableCell className="px-4 py-2.5">
@@ -379,17 +376,10 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                           </TableCell>
                           <TableCell className="py-2.5 text-sm">
                             <div className="leading-tight">
-                              {created.toLocaleDateString("es-PE", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })}
+                              {formatPeruDate(order.createdAt)}
                             </div>
                             <div className="text-xs text-muted-foreground leading-tight tabular-nums">
-                              {created.toLocaleTimeString("es-PE", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {formatPeruTime(order.createdAt)}
                             </div>
                           </TableCell>
                           <TableCell className="py-2.5 text-center text-sm tabular-nums">

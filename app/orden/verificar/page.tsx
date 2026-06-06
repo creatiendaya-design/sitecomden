@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getOrderByToken } from "@/actions/orders";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 type GetOrderByTokenResult = Awaited<ReturnType<typeof getOrderByToken>>;
 type OrderData = Extract<GetOrderByTokenResult, { data: unknown }>["data"];
@@ -180,7 +181,7 @@ function VerificarOrdenContent() {
               <div>
                 <CardTitle>Orden {order.displayNumber}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Realizada el {new Date(order.createdAt).toLocaleDateString("es-PE", {
+                  Realizada el {formatPeruDateWith(order.createdAt, {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
@@ -392,7 +393,7 @@ function TimelineItem({
         </p>
         {date && (
           <p className="text-sm text-muted-foreground">
-            {new Date(date).toLocaleDateString("es-PE", {
+            {formatPeruDateWith(date, {
               year: "numeric",
               month: "long",
               day: "numeric",

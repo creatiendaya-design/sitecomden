@@ -3,11 +3,12 @@ import { requirePermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getSiteSettings } from "@/lib/site-settings";
 import { formatOrderNumber } from "@/lib/utils";
+import { formatPeruDateWith } from "@/lib/format-date";
 import Papa from "papaparse";
 
 function fmt(date: Date | null | undefined): string {
   if (!date) return "";
-  return new Date(date).toLocaleDateString("es-PE", {
+  return formatPeruDateWith(date, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -18,7 +19,7 @@ function fmt(date: Date | null | undefined): string {
 
 function fmtDate(date: Date | null | undefined): string {
   if (!date) return "";
-  return new Date(date).toLocaleDateString("es-PE", {
+  return formatPeruDateWith(date, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

@@ -25,6 +25,7 @@ import {
 } from "@/lib/order-status-logic";
 import { CustomDesignViewer } from "@/components/admin/orders/CustomDesignViewer";
 import type { CustomDesign, CustomDesignImage } from "@/lib/customizer/types";
+import { formatPeruDateWith, formatPeruDateTime } from "@/lib/format-date";
 
 interface OrderDetailPageProps {
   params: Promise<{ orderId: string }>;
@@ -103,7 +104,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           <div>
             <h1 className="text-3xl font-bold">{orderDisplayNumber}</h1>
             <p className="text-muted-foreground">
-              {new Date(order.createdAt).toLocaleString("es-PE", {
+              {formatPeruDateWith(order.createdAt, {
                 dateStyle: "long",
                 timeStyle: "short",
               })}
@@ -331,7 +332,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               </span>
               {order.paidAt && (
                 <p className="text-sm text-muted-foreground">
-                  Pagado: {new Date(order.paidAt).toLocaleString("es-PE")}
+                  Pagado: {formatPeruDateTime(order.paidAt)}
                 </p>
               )}
               {order.paymentStatus === "VERIFYING" && order.pendingPayment?.proofImage && (
@@ -368,7 +369,9 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {order.electronicDocument.issuedAt?.toLocaleString("es-PE")}
+                        {order.electronicDocument.issuedAt
+                          ? formatPeruDateTime(order.electronicDocument.issuedAt)
+                          : null}
                       </p>
                       <div className="flex gap-2 flex-wrap">
                         {order.electronicDocument.pdfUrl && (
@@ -454,14 +457,14 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               <div>
                 <p className="font-medium">Creada</p>
                 <p className="text-muted-foreground">
-                  {new Date(order.createdAt).toLocaleString("es-PE")}
+                  {formatPeruDateTime(order.createdAt)}
                 </p>
               </div>
               {order.paidAt && (
                 <div>
                   <p className="font-medium">Pagada</p>
                   <p className="text-muted-foreground">
-                    {new Date(order.paidAt).toLocaleString("es-PE")}
+                    {formatPeruDateTime(order.paidAt)}
                   </p>
                 </div>
               )}
@@ -469,7 +472,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                 <div>
                   <p className="font-medium">Enviada</p>
                   <p className="text-muted-foreground">
-                    {new Date(order.shippedAt).toLocaleString("es-PE")}
+                    {formatPeruDateTime(order.shippedAt)}
                   </p>
                 </div>
               )}
@@ -477,7 +480,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                 <div>
                   <p className="font-medium">Entregada</p>
                   <p className="text-muted-foreground">
-                    {new Date(order.deliveredAt).toLocaleString("es-PE")}
+                    {formatPeruDateTime(order.deliveredAt)}
                   </p>
                 </div>
               )}

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
 import { protectRoute } from "@/lib/protect-route";
 import { formatPrice } from "@/lib/utils";
+import { formatPeruDateWith } from "@/lib/format-date";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { FileText } from "lucide-react";
@@ -72,7 +73,7 @@ export default async function FacturacionPage() {
                     return (
                       <tr key={doc.id} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="px-4 py-3">
-                          {doc.createdAt.toLocaleDateString("es-PE")}
+                          {formatPeruDateWith(doc.createdAt)}
                         </td>
                         <td className="px-4 py-3 font-mono font-medium">{doc.fullNumber}</td>
                         <td className="px-4 py-3">

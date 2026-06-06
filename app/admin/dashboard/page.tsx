@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
+import { formatPeruDateWith } from "@/lib/format-date";
 import { formatPrice, formatOrderNumber } from "@/lib/utils";
 import { getSiteSettings } from "@/lib/site-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -163,7 +164,7 @@ export default async function AdminDashboardPage() {
       });
 
       return {
-        date: startOfDay.toLocaleDateString("es-PE", {
+        date: formatPeruDateWith(startOfDay, {
           month: "short",
           day: "numeric",
         }),
@@ -538,7 +539,7 @@ export default async function AdminDashboardPage() {
                         <p className="mt-0.5 text-xs text-muted-foreground truncate">
                           {order.customerName} · {order.items.length}{" "}
                           {order.items.length === 1 ? "item" : "items"} ·{" "}
-                          {new Date(order.createdAt).toLocaleDateString("es-PE", {
+                          {formatPeruDateWith(order.createdAt, {
                             day: "numeric",
                             month: "short",
                           })}

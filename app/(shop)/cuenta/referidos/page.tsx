@@ -17,6 +17,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { getCustomerByEmail, getLoyaltySettings } from "@/actions/loyalty";
+import { formatPeruDateWith } from "@/lib/format-date";
 
 type CustomerData = NonNullable<Awaited<ReturnType<typeof getCustomerByEmail>>>;
 type SettingsData = NonNullable<Awaited<ReturnType<typeof getLoyaltySettings>>>;
@@ -309,7 +310,7 @@ export default function ReferidosPage() {
                       +{settings.referralBonus} pts
                     </Badge>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(referral.registeredAt).toLocaleDateString("es-PE")}
+                      {formatPeruDateWith(referral.registeredAt)}
                     </p>
                   </div>
                 </div>

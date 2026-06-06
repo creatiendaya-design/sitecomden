@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { buildNubefactItem, buildTotals } from "./sunat-igv";
+import { formatPeruDateWith } from "./format-date";
 import type {
   SunatProvider,
   SunatConfig,
@@ -97,7 +98,10 @@ export class NubefactProvider implements SunatProvider {
       const clientName = isFactura ? (order.buyerRazonSocial ?? order.customerName) : order.customerName;
       const clientAddress = isFactura ? (order.buyerFiscalAddress ?? "") : "";
 
-      const today = new Date().toLocaleDateString("es-PE", {
+      // fecha_de_emision debe ser la fecha local de Perú: emitir ~8pm en Perú es
+      // ~1am UTC del día siguiente, así que sin zona horaria SUNAT recibiría la
+      // fecha equivocada.
+      const today = formatPeruDateWith(new Date(), {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
@@ -192,7 +196,7 @@ export class NubefactProvider implements SunatProvider {
       serie: doc.series,
       numero: doc.number,
       fecha_de_emision: doc.issuedAt
-        ? doc.issuedAt.toLocaleDateString("es-PE", {
+        ? formatPeruDateWith(doc.issuedAt, {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
