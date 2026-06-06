@@ -21,9 +21,9 @@ export default async function FeaturedProducts() {
         },
       },
       variants: {
+        // Todas las variantes activas para sumar su stock en la card.
         where: { active: true },
         orderBy: { price: "asc" },
-        take: 1,
       },
     },
     take: 6, // Mostrar 6 productos destacados

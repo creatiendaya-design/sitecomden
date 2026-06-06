@@ -201,9 +201,9 @@ const loadCategoryProducts = cache((categoryId: string) =>
             include: {
               categories: { include: { category: true } },
               variants: {
+                // Todas las variantes activas para sumar su stock en la card.
                 where: { active: true },
                 orderBy: { price: "asc" },
-                take: 1,
               },
             },
           },

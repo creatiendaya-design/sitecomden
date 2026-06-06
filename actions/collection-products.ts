@@ -19,6 +19,9 @@ export interface CollectionProductCard {
   hasVariants: boolean
   featured: boolean
   stock: number
+  /** Variantes activas (precio + stock). La card suma su stock para productos
+   *  con variantes y usa la más barata como precio "Desde". */
+  variants: { price: number; compareAtPrice: number | null; stock: number }[]
 }
 
 export type CollectionSource =
@@ -58,6 +61,13 @@ const PRODUCT_SELECT = {
   hasVariants: true,
   featured: true,
   stock: true,
+  variants: {
+    // La card suma el stock de las variantes activas para productos con
+    // variantes (su `stock` a nivel producto suele ser 0).
+    where: { active: true },
+    orderBy: { price: "asc" },
+    select: { price: true, compareAtPrice: true, stock: true },
+  },
 } satisfies Prisma.ProductSelect
 
 type ProductRow = {
@@ -70,6 +80,11 @@ type ProductRow = {
   hasVariants: boolean
   featured: boolean
   stock: number
+  variants: {
+    price: Prisma.Decimal
+    compareAtPrice: Prisma.Decimal | null
+    stock: number
+  }[]
 }
 
 function serialize(p: ProductRow): CollectionProductCard {
@@ -83,6 +98,11 @@ function serialize(p: ProductRow): CollectionProductCard {
     hasVariants: p.hasVariants,
     featured: p.featured,
     stock: p.stock,
+    variants: p.variants.map((v) => ({
+      price: Number(v.price),
+      compareAtPrice: v.compareAtPrice === null ? null : Number(v.compareAtPrice),
+      stock: v.stock,
+    })),
   }
 }
 

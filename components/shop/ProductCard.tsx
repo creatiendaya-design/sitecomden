@@ -39,11 +39,9 @@ interface ProductCardProps {
       slug: string;
     } | null;
     variants?: Array<{
-      id: string;
       price: number;
-      compareAtPrice: number | null;
+      compareAtPrice?: number | null;
       stock?: number;
-      options?: unknown;
       [key: string]: unknown;
     }>;
     averageRating?: number;
@@ -63,13 +61,42 @@ export default function ProductCard({ product }: ProductCardProps) {
   const checkoutMode = (product as { checkoutMode?: string }).checkoutMode ?? "STANDARD";
   const isCodOnly = checkoutMode !== "STANDARD";
 
-  const selectedVariant = product.hasVariants && product.variants && product.variants.length > 0
-    ? product.variants[0]
-    : null;
+  const variants =
+    product.hasVariants && Array.isArray(product.variants)
+      ? product.variants
+      : [];
+  // Las variantes llegan ordenadas por precio asc, así que la primera es la más barata.
+  const cheapestVariant = variants.length > 0 ? variants[0] : null;
 
-  const displayPrice = selectedVariant ? selectedVariant.price : product.basePrice;
-  const comparePrice = selectedVariant ? selectedVariant.compareAtPrice : product.compareAtPrice;
-  const displayStock = selectedVariant?.stock ?? product.stock ?? 999;
+  const displayPrice = cheapestVariant ? cheapestVariant.price : product.basePrice;
+  const comparePrice = cheapestVariant
+    ? cheapestVariant.compareAtPrice ?? null
+    : product.compareAtPrice;
+
+  // Stock realmente comprable. Para productos con variantes es la suma del
+  // stock de las variantes activas (la card lleva al detalle para elegir la
+  // variante; nunca agrega una variante en un clic). Para productos simples,
+  // el stock del producto. Si falta el dato cae a 0 (agotado) — nunca a un
+  // valor "infinito" que permitiría vender sin stock.
+  const displayStock = product.hasVariants
+    ? variants.reduce((sum, v) => sum + (v.stock ?? 0), 0)
+    : product.stock ?? 0;
+
+  // Los productos con variantes se eligen en el detalle (talla/color + stock
+  // por variante).
+  const needsVariantSelection = product.hasVariants;
+
+  const outOfStock = displayStock <= 0;
+  const buttonLabel = outOfStock
+    ? "Agotado"
+    : isCodOnly
+      ? "Comprar ahora"
+      : needsVariantSelection
+        ? "Elegir opciones"
+        : "Agregar al carrito";
+  // COD se resuelve en el detalle aunque marque agotado (su flujo valida stock
+  // aparte); el resto se deshabilita cuando no hay stock.
+  const buttonDisabled = outOfStock && !isCodOnly;
 
   const discount = comparePrice
     ? Math.round(((comparePrice - displayPrice) / comparePrice) * 100)
@@ -119,54 +146,32 @@ export default function ProductCard({ product }: ProductCardProps) {
     console.log("📊 Product clicked from list:", product.name);
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handlePrimaryAction = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Productos asignados a un COD form no pueden ir al carrito normal:
-    // mandamos al detalle donde se abre el modal "Comprar ahora" (COD).
-    if (isCodOnly) {
+    // Productos COD o con variantes se resuelven en el detalle: el COD abre el
+    // modal "Comprar ahora" y los de variantes permiten elegir talla/color con
+    // su stock por variante.
+    if (isCodOnly || needsVariantSelection) {
       router.push(`/productos/${product.slug}`);
       return;
     }
 
-    if (displayStock <= 0) {
-      toast.error("Producto sin stock");
+    if (outOfStock) {
+      toast.error("Producto agotado");
       return;
     }
 
-    let variantOptions: Record<string, string> | undefined;
-    if (selectedVariant?.options) {
-      try {
-        if (typeof selectedVariant.options === 'object' && selectedVariant.options !== null) {
-          variantOptions = Object.entries(selectedVariant.options).reduce((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {} as Record<string, string>);
-        }
-      } catch (error) {
-        console.warn('Error al procesar options:', error);
-      }
-    }
-
-    const cartItem = {
-      id: selectedVariant ? selectedVariant.id : product.id,
+    addToCart({
+      id: product.id,
       productId: product.id,
-      variantId: selectedVariant?.id,
       slug: product.slug,
       name: product.name,
-      variantName: variantOptions
-        ? Object.entries(variantOptions)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(", ")
-        : undefined,
       price: displayPrice,
       image: mainImage ?? undefined,
       maxStock: displayStock,
-      options: variantOptions,
-    };
-
-    addToCart(cartItem);
+    });
 
     // ✅ Track AddToCart
     trackEvent("AddToCart", {
@@ -178,7 +183,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       currency: "PEN",
       contents: [
         {
-          id: selectedVariant?.id || product.id,
+          id: product.id,
           quantity: 1,
           item_price: displayPrice,
         },
@@ -195,8 +200,6 @@ export default function ProductCard({ product }: ProductCardProps) {
     setIsWishlisted(!isWishlisted);
     toast.info(isWishlisted ? "Removido de favoritos" : "Agregado a favoritos");
   };
-
-  const outOfStock = displayStock <= 0;
 
   return (
     <div className="group relative overflow-hidden rounded-xl bg-white shadow-sm transition-all hover:shadow-xl">
@@ -219,7 +222,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         )}
         {outOfStock && (
           <Badge variant="secondary" className="shadow-md">
-            Sin stock
+            Agotado
           </Badge>
         )}
       </div>
@@ -281,11 +284,11 @@ export default function ProductCard({ product }: ProductCardProps) {
               size="sm"
               variant="cta"
               className={CARD_BUTTON_CLASS}
-              onClick={handleAddToCart}
-              disabled={outOfStock}
+              onClick={handlePrimaryAction}
+              disabled={buttonDisabled}
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
-              {outOfStock ? "Sin stock" : isCodOnly ? "Comprar ahora" : "Agregar al carrito"}
+              {buttonLabel}
             </Button>
           </div>
         </div>
@@ -353,11 +356,11 @@ export default function ProductCard({ product }: ProductCardProps) {
             variant="cta"
             size="sm"
             className={CARD_BUTTON_CLASS}
-            onClick={handleAddToCart}
-            disabled={outOfStock}
+            onClick={handlePrimaryAction}
+            disabled={buttonDisabled}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
-            {outOfStock ? "Sin stock" : isCodOnly ? "Comprar ahora" : "Agregar"}
+            {buttonLabel}
           </Button>
         </div>
       </Link>

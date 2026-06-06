@@ -2,7 +2,7 @@ import type { CSSProperties } from "react"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import type { ResolvedThemeSection } from "@/lib/theme-sections/types"
-import type { Product as PrismaProduct } from "@prisma/client"
+import type { Prisma, Product as PrismaProduct } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { cn } from "@/lib/utils"
 import ProductCard from "@/components/shop/ProductCard"
@@ -51,7 +51,13 @@ type RelatedProductRow = Pick<
   | "hasVariants"
   | "featured"
   | "stock"
->
+> & {
+  variants: {
+    price: Prisma.Decimal
+    compareAtPrice: Prisma.Decimal | null
+    stock: number
+  }[]
+}
 
 const PRODUCT_SELECT = {
   id: true,
@@ -63,6 +69,13 @@ const PRODUCT_SELECT = {
   hasVariants: true,
   featured: true,
   stock: true,
+  variants: {
+    // La card suma el stock de las variantes activas (su `stock` a nivel
+    // producto suele ser 0 cuando hay variantes).
+    where: { active: true },
+    orderBy: { price: "asc" },
+    select: { price: true, compareAtPrice: true, stock: true },
+  },
 } as const
 
 const DEFAULT_LIMIT = 8
@@ -205,6 +218,12 @@ export async function FeaturedCollection({
         hasVariants: p.hasVariants,
         featured: p.featured,
         stock: p.stock,
+        variants: p.variants.map((v) => ({
+          price: Number(v.price),
+          compareAtPrice:
+            v.compareAtPrice === null ? null : Number(v.compareAtPrice),
+          stock: v.stock,
+        })),
       }}
     />
   ))

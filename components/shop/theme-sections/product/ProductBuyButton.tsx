@@ -44,7 +44,13 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
   const label = content.buttonText?.trim() || "Agregar al carrito"
   const showQty = content.showQuantityPicker ?? true
   const qtyMin = Math.max(1, content.quantityMin ?? 1)
-  const qtyMax = Math.max(qtyMin, content.quantityMax ?? 99)
+  const qtyMaxSetting = Math.max(qtyMin, content.quantityMax ?? 99)
+  // El tope real nunca puede superar el stock de la variante/producto actual.
+  // Sin esto el picker llegaba a 99 aunque hubiera 3 unidades.
+  const qtyMax = inStock ? Math.min(qtyMaxSetting, currentStock) : qtyMin
+  // La cantidad mostrada/usada se mantiene dentro del rango aunque el estado
+  // venga de una variante anterior con más stock.
+  const clampedQty = Math.min(Math.max(quantity, qtyMin), qtyMax)
   const buttonBg = content.buttonBgColor?.trim() || ""
   const buttonText = content.buttonTextColor?.trim() || ""
   const addItem = useCartStore((s) => s.addItem)
@@ -76,7 +82,7 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
       toast.error("Producto agotado")
       return
     }
-    const safeQty = Math.min(Math.max(quantity, qtyMin), qtyMax)
+    const safeQty = clampedQty
     if (safeQty > currentStock) {
       toast.error(`Sólo hay ${currentStock} unidades en stock`)
       return
@@ -132,8 +138,8 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => setQuantity(Math.max(qtyMin, quantity - 1))}
-              disabled={!inStock || quantity <= qtyMin}
+              onClick={() => setQuantity(Math.max(qtyMin, clampedQty - 1))}
+              disabled={!inStock || clampedQty <= qtyMin}
               aria-label="Disminuir cantidad"
             >
               <Minus className="h-4 w-4" />
@@ -143,7 +149,7 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
               inputMode="numeric"
               min={qtyMin}
               max={qtyMax}
-              value={quantity}
+              value={clampedQty}
               onChange={(e) => {
                 const next = Number(e.target.value)
                 if (!Number.isFinite(next)) return
@@ -155,8 +161,8 @@ export function ProductBuyButton({ block }: ProductBuyButtonProps) {
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => setQuantity(Math.min(qtyMax, quantity + 1))}
-              disabled={!inStock || quantity >= qtyMax}
+              onClick={() => setQuantity(Math.min(qtyMax, clampedQty + 1))}
+              disabled={!inStock || clampedQty >= qtyMax}
               aria-label="Aumentar cantidad"
             >
               <Plus className="h-4 w-4" />

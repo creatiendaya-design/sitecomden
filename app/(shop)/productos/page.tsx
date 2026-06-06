@@ -72,9 +72,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         },
       },
       variants: {
+        // Todas las variantes activas: la card suma su stock (la más barata,
+        // primera por orderBy, define el precio "Desde").
         where: { active: true },
         orderBy: { price: "asc" },
-        take: 1,
       },
     },
     orderBy,
