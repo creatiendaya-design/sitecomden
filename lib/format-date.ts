@@ -49,13 +49,28 @@ export function formatPeruDateTime(value: Date | string | number): string {
  * horaria de Perú. Útil para preservar formatos puntuales (fecha larga,
  * `dateStyle`, con hora incluida, etc.) que no encajan en los helpers de arriba.
  * Sin opciones usa el formato de fecha por defecto del locale (dd/mm/aaaa).
+ *
+ * Elige el método correcto: si las opciones piden hora (`hour`/`minute`/
+ * `second`/`timeStyle`/`dayPeriod`) usa `toLocaleString` (el único que acepta
+ * componentes de hora); si solo piden fecha usa `toLocaleDateString` para no
+ * añadir una hora no deseada. `toLocaleDateString` lanza "Invalid option" si le
+ * pasas `timeStyle`, por eso esta distinción es necesaria.
  */
 export function formatPeruDateWith(
   value: Date | string | number,
   options: Intl.DateTimeFormatOptions = {}
 ): string {
-  return new Date(value).toLocaleDateString(PERU_LOCALE, {
-    ...options,
-    timeZone: PERU_TIME_ZONE,
-  });
+  const wantsTime =
+    options.hour !== undefined ||
+    options.minute !== undefined ||
+    options.second !== undefined ||
+    options.timeStyle !== undefined ||
+    options.dayPeriod !== undefined;
+
+  const opts: Intl.DateTimeFormatOptions = { ...options, timeZone: PERU_TIME_ZONE };
+  const date = new Date(value);
+
+  return wantsTime
+    ? date.toLocaleString(PERU_LOCALE, opts)
+    : date.toLocaleDateString(PERU_LOCALE, opts);
 }
