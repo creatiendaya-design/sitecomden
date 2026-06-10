@@ -56,7 +56,15 @@ export function buildPreviewOverridesCss(targets: PreviewTarget[]): string {
     if (decls.base.length === 0 && decls.mobile.length === 0) continue
 
     const attr = escapeAttr(target)
-    const selector = `[data-preview-target="${attr}"], [data-preview-target="${attr}"] > *`
+    // Selector duality: theme sections paint on the wrapper itself; page-
+    // builder blocks (`block:*`) paint on the FIRST CHILD (the wrapper is a
+    // bare positioning div with no padding in the SSR). Targeting the wrapper
+    // for blocks would add padding/border the storefront never renders — a
+    // visible gap above/below the block. So scope block overrides to the
+    // child only; sections keep the wrapper (+ child for LEGACY_BLOCK).
+    const selector = target.startsWith("block:")
+      ? `[data-preview-target="${attr}"] > *`
+      : `[data-preview-target="${attr}"], [data-preview-target="${attr}"] > *`
 
     if (decls.base.length > 0) {
       baseRules.push(`${selector} { ${decls.base.join("; ")}; }`)
