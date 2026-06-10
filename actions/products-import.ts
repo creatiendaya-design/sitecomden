@@ -129,6 +129,11 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
         metaDescription: row.metaDescription,
         images,
         hasVariants: row.variants.length > 0,
+        // Importar un slug es intención explícita de tenerlo vivo: si el
+        // producto estaba soft-eliminado (deletedAt != null), el re-import lo
+        // resucita. Sin esto quedaba `active: true` + `deletedAt != null` →
+        // visible en la tienda pero oculto en /admin/productos.
+        deletedAt: null,
       };
 
       const derivedOptions = row.variants.length > 0 ? deriveOptionsFromVariants(row.variants) : [];
