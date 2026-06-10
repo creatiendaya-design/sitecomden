@@ -24,6 +24,8 @@ interface Props {
   sectionId: string
   group: ThemeSectionGroup
   rect: OverlayRect
+  /** The iframe viewport rect — the toolbar is clamped inside it. */
+  clip: OverlayRect
   /** Fase 3 — per-product override mode adds detach/restore. */
   productOverride: { productId: string; productSlug: string } | null
 }
@@ -42,6 +44,7 @@ export function CustomizerSectionToolbar({
   sectionId,
   group,
   rect,
+  clip,
   productOverride,
 }: Props) {
   const router = useRouter()
@@ -90,9 +93,22 @@ export function CustomizerSectionToolbar({
       }
     })
 
-  // Anchor above the section, clamped to stay on-screen.
-  const top = Math.max(rect.top - 38, 6)
-  const left = rect.left + rect.width / 2
+  // Hide the toolbar when the section is scrolled out of the iframe viewport.
+  const visible =
+    rect.top < clip.top + clip.height && rect.top + rect.height > clip.top
+  if (!visible) return null
+
+  // Anchor above the section, but keep the toolbar inside the iframe area:
+  // sit above the section when there's room, otherwise just inside the top.
+  const aboveTop = rect.top - 38
+  const top =
+    aboveTop >= clip.top + 4
+      ? aboveTop
+      : Math.min(rect.top + 6, clip.top + clip.height - 40)
+  const left = Math.min(
+    Math.max(rect.left + rect.width / 2, clip.left + 90),
+    clip.left + clip.width - 90,
+  )
 
   return (
     <div

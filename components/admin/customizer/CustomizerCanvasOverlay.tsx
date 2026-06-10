@@ -58,38 +58,54 @@ export function CustomizerCanvasOverlay({
     return () => el.removeEventListener("wheel", onWheel)
   }, [enabled, scrollBy])
 
-  if (!enabled) return null
+  if (!enabled || !iframeRect) return null
 
+  const clip = iframeRect
   const showHover = hovered && (!selected || hovered.id !== selected.id)
+  // Borders are drawn inside a clip box the exact size of the iframe, with
+  // coordinates RELATIVE to it, so a section scrolled partly out of view
+  // never paints over the header / toolbar / browser chrome.
+  const rel = (r: OverlayRect): OverlayRect => ({
+    top: r.top - clip.top,
+    left: r.left - clip.left,
+    width: r.width,
+    height: r.height,
+  })
 
   return (
     <>
-      {iframeRect && (
-        <div
-          ref={captureRef}
-          className="fixed z-20"
-          style={{
-            top: iframeRect.top,
-            left: iframeRect.left,
-            width: iframeRect.width,
-            height: iframeRect.height,
-          }}
-          onPointerMove={(e) => handleMove(e.clientX, e.clientY)}
-          onPointerLeave={handleLeave}
-          onPointerDown={(e) => handleSelect(e.clientX, e.clientY)}
-        />
-      )}
+      <div
+        ref={captureRef}
+        className="fixed z-20"
+        style={{
+          top: clip.top,
+          left: clip.left,
+          width: clip.width,
+          height: clip.height,
+        }}
+        onPointerMove={(e) => handleMove(e.clientX, e.clientY)}
+        onPointerLeave={handleLeave}
+        onPointerDown={(e) => handleSelect(e.clientX, e.clientY)}
+      />
 
-      <div className="pointer-events-none fixed inset-0 z-30">
+      <div
+        className="pointer-events-none fixed z-30 overflow-hidden"
+        style={{
+          top: clip.top,
+          left: clip.left,
+          width: clip.width,
+          height: clip.height,
+        }}
+      >
         {showHover && (
           <Box
-            rect={hovered.rect}
+            rect={rel(hovered.rect)}
             className="outline outline-2 -outline-offset-2 outline-blue-400/60"
           />
         )}
         {selected && (
           <Box
-            rect={selected.rect}
+            rect={rel(selected.rect)}
             className="outline outline-2 -outline-offset-2 outline-blue-500"
           />
         )}
@@ -100,6 +116,7 @@ export function CustomizerCanvasOverlay({
           sectionId={selected.id}
           group={selected.group}
           rect={selected.rect}
+          clip={clip}
           productOverride={productOverride}
         />
       )}
