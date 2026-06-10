@@ -27,7 +27,6 @@ import {
   Users,
   Asterisk,
   ClipboardList,
-  LayoutTemplate,
   ScrollText,
   Sparkles,
   Tag,
@@ -163,11 +162,11 @@ function AdminLayoutInner({
           icon: Package2,
           label: "Inventario",
         },
-        {
-          href: "/admin/landing-plantillas",
-          icon: LayoutTemplate,
-          label: "Plantillas de Landing",
-        },
+        // Plan 19 — "Plantillas de Landing" (legacy LandingTemplate system) is
+        // hidden from the nav: it's superseded by per-product theme templates
+        // and no longer drives the storefront. The route + data still exist
+        // (full removal is a separate cleanup, since ProductStandardView is
+        // still the render fallback).
         {
           href: "/admin/personalizables",
           icon: Sparkles,
