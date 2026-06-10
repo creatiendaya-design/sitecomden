@@ -113,9 +113,7 @@ export function CustomizerCanvasOverlay({
 
       {selected && (
         <CustomizerSectionToolbar
-          sectionId={selected.id}
-          group={selected.group}
-          rect={selected.rect}
+          target={selected}
           clip={clip}
           productOverride={productOverride}
         />

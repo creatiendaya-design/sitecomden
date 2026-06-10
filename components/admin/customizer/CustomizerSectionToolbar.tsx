@@ -12,21 +12,19 @@ import {
   SplitSquareHorizontal,
   Trash2,
 } from "lucide-react"
-import type { ThemeSectionGroup } from "@prisma/client"
 import { useThemeSectionsStore } from "./theme-sections-store"
+import { useBuilderStore } from "@/components/admin/page-builder/store"
 import {
   detachProductSection,
   restoreProductSection,
 } from "@/actions/theme-sections"
-import type { OverlayRect } from "./useIframeSectionOverlay"
+import type { OverlayRect, OverlayTarget } from "./useIframeSectionOverlay"
 
 interface Props {
-  sectionId: string
-  group: ThemeSectionGroup
-  rect: OverlayRect
+  target: OverlayTarget
   /** The iframe viewport rect — the toolbar is clamped inside it. */
   clip: OverlayRect
-  /** Fase 3 — per-product override mode adds detach/restore. */
+  /** Fase 3 — per-product override mode adds detach/restore (sections only). */
   productOverride: { productId: string; productSlug: string } | null
 }
 
@@ -35,22 +33,21 @@ const UNMOVABLE = new Set(["PRODUCT_MAIN"])
 const UNDELETABLE = new Set(["PRODUCT_MAIN", "COLLECTION_GRID"])
 
 /**
- * Plan 19 — floating toolbar over the selected section in the customizer
- * preview. Mirrors the page-builder's BlockFloatingToolbar but wired to the
- * theme-sections store. Lives in the parent overlay (pointer-events-auto)
- * anchored above the section's rect.
+ * Plan 19 — floating toolbar over the selected target in the customizer
+ * preview. Handles BOTH theme sections (ThemeSection store) and page-builder
+ * blocks (builder store), wiring the right move/hide/delete actions.
  */
 export function CustomizerSectionToolbar({
-  sectionId,
-  group,
-  rect,
+  target,
   clip,
   productOverride,
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const sections = useThemeSectionsStore((s) =>
+  // Theme-section store (used when target.kind === "section")
+  const group = target.group ?? "PRODUCT"
+  const themeSections = useThemeSectionsStore((s) =>
     group === "HEADER"
       ? s.header
       : group === "FOOTER"
@@ -63,43 +60,15 @@ export function CustomizerSectionToolbar({
   const toggleEnabled = useThemeSectionsStore((s) => s.toggleSectionEnabled)
   const removeSection = useThemeSectionsStore((s) => s.removeSection)
 
-  const idx = sections.findIndex((s) => s.id === sectionId)
-  const section = idx >= 0 ? sections[idx] : null
-  if (!section) return null
+  // Page-builder store (used when target.kind === "block")
+  const builderBlocks = useBuilderStore((s) => s.blocks)
+  const moveBlockRelative = useBuilderStore((s) => s.moveBlockRelative)
+  const removeBlock = useBuilderStore((s) => s.removeBlock)
 
-  const isOverride = !!productOverride
-  const isInherited = isOverride && section.origin === "inherited"
-  const unmovable = UNMOVABLE.has(section.type) || isOverride
-  const undeletable = UNDELETABLE.has(section.type) || isOverride
-
-  const move = (dir: -1 | 1) => {
-    const target = idx + dir
-    if (target < 0 || target >= sections.length) return
-    const ordered = sections.map((s) => s.id)
-    ;[ordered[idx], ordered[target]] = [ordered[target], ordered[idx]]
-    reorderSections(group, ordered)
-  }
-
-  const stop = (e: React.SyntheticEvent) => e.stopPropagation()
-
-  const runOverride = (fn: () => Promise<unknown>, okMsg: string) =>
-    startTransition(async () => {
-      try {
-        await fn()
-        toast.success(okMsg)
-        router.refresh()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error")
-      }
-    })
-
-  // Hide the toolbar when the section is scrolled out of the iframe viewport.
+  // Position: anchor above the target, clamped inside the iframe viewport.
+  const { rect } = target
   const visible =
     rect.top < clip.top + clip.height && rect.top + rect.height > clip.top
-  if (!visible) return null
-
-  // Anchor above the section, but keep the toolbar inside the iframe area:
-  // sit above the section when there's room, otherwise just inside the top.
   const aboveTop = rect.top - 38
   const top =
     aboveTop >= clip.top + 4
@@ -110,88 +79,158 @@ export function CustomizerSectionToolbar({
     clip.left + clip.width - 90,
   )
 
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+
+  // ---- Resolve actions per kind ----
+  let body: React.ReactNode = null
+
+  if (target.kind === "block") {
+    const idx = builderBlocks.findIndex((b) => b.id === target.id)
+    if (idx < 0 || !visible) return null
+    body = (
+      <>
+        <IconBtn
+          label="Subir"
+          disabled={idx <= 0}
+          onClick={() => moveBlockRelative(target.id, "up")}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </IconBtn>
+        <IconBtn
+          label="Bajar"
+          disabled={idx >= builderBlocks.length - 1}
+          onClick={() => moveBlockRelative(target.id, "down")}
+        >
+          <ChevronDown className="h-4 w-4" />
+        </IconBtn>
+        <IconBtn
+          label="Eliminar"
+          destructive
+          onClick={() => {
+            if (window.confirm("¿Eliminar este bloque?")) removeBlock(target.id)
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </IconBtn>
+      </>
+    )
+  } else {
+    const idx = themeSections.findIndex((s) => s.id === target.id)
+    const section = idx >= 0 ? themeSections[idx] : null
+    if (!section || !visible) return null
+
+    const isOverride = !!productOverride
+    const isInherited = isOverride && section.origin === "inherited"
+    const unmovable = UNMOVABLE.has(section.type) || isOverride
+    const undeletable = UNDELETABLE.has(section.type) || isOverride
+
+    const move = (dir: -1 | 1) => {
+      const tgt = idx + dir
+      if (tgt < 0 || tgt >= themeSections.length) return
+      const ordered = themeSections.map((s) => s.id)
+      ;[ordered[idx], ordered[tgt]] = [ordered[tgt], ordered[idx]]
+      reorderSections(group, ordered)
+    }
+    const runOverride = (fn: () => Promise<unknown>, okMsg: string) =>
+      startTransition(async () => {
+        try {
+          await fn()
+          toast.success(okMsg)
+          router.refresh()
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Error")
+        }
+      })
+
+    body = (
+      <>
+        {!isInherited && (
+          <>
+            <IconBtn
+              label="Subir"
+              disabled={unmovable || idx <= 0}
+              onClick={() => move(-1)}
+            >
+              <ChevronUp className="h-4 w-4" />
+            </IconBtn>
+            <IconBtn
+              label="Bajar"
+              disabled={unmovable || idx >= themeSections.length - 1}
+              onClick={() => move(1)}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </IconBtn>
+            <IconBtn
+              label={section.enabled ? "Ocultar" : "Mostrar"}
+              onClick={() => toggleEnabled(target.id)}
+            >
+              {section.enabled ? (
+                <Eye className="h-4 w-4" />
+              ) : (
+                <EyeOff className="h-4 w-4" />
+              )}
+            </IconBtn>
+          </>
+        )}
+
+        {isOverride &&
+          (isInherited ? (
+            <IconBtn
+              label="Personalizar solo este producto"
+              disabled={isPending}
+              onClick={() =>
+                runOverride(
+                  () =>
+                    detachProductSection(productOverride!.productId, target.id),
+                  "Sección personalizada",
+                )
+              }
+            >
+              <SplitSquareHorizontal className="h-4 w-4" />
+            </IconBtn>
+          ) : (
+            <IconBtn
+              label="Volver a heredar de la plantilla"
+              disabled={isPending}
+              onClick={() =>
+                runOverride(
+                  () => restoreProductSection(target.id),
+                  "Sección restaurada",
+                )
+              }
+            >
+              <Link2 className="h-4 w-4" />
+            </IconBtn>
+          ))}
+
+        {!isOverride && (
+          <IconBtn
+            label="Eliminar"
+            disabled={undeletable}
+            destructive
+            onClick={() => {
+              if (undeletable) return
+              if (window.confirm("¿Eliminar esta sección?")) {
+                removeSection(target.id)
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </IconBtn>
+        )}
+      </>
+    )
+  }
+
   return (
     <div
       className="pointer-events-auto fixed z-40 flex items-center gap-0.5 rounded-md border bg-background px-1 py-0.5 shadow-lg"
       style={{ top, left, transform: "translateX(-50%)" }}
       onClick={stop}
       onMouseDown={stop}
+      onPointerDown={stop}
     >
-      {!isInherited && (
-        <>
-          <IconBtn
-            label="Subir"
-            disabled={unmovable || idx <= 0}
-            onClick={() => move(-1)}
-          >
-            <ChevronUp className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn
-            label="Bajar"
-            disabled={unmovable || idx >= sections.length - 1}
-            onClick={() => move(1)}
-          >
-            <ChevronDown className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn
-            label={section.enabled ? "Ocultar" : "Mostrar"}
-            onClick={() => toggleEnabled(sectionId)}
-          >
-            {section.enabled ? (
-              <Eye className="h-4 w-4" />
-            ) : (
-              <EyeOff className="h-4 w-4" />
-            )}
-          </IconBtn>
-        </>
-      )}
-
-      {/* Fase 3 — override detach/restore */}
-      {isOverride &&
-        (isInherited ? (
-          <IconBtn
-            label="Personalizar solo este producto"
-            disabled={isPending}
-            onClick={() =>
-              runOverride(
-                () =>
-                  detachProductSection(productOverride!.productId, sectionId),
-                "Sección personalizada",
-              )
-            }
-          >
-            <SplitSquareHorizontal className="h-4 w-4" />
-          </IconBtn>
-        ) : (
-          <IconBtn
-            label="Volver a heredar de la plantilla"
-            disabled={isPending}
-            onClick={() =>
-              runOverride(
-                () => restoreProductSection(sectionId),
-                "Sección restaurada",
-              )
-            }
-          >
-            <Link2 className="h-4 w-4" />
-          </IconBtn>
-        ))}
-
-      {!isOverride && (
-        <IconBtn
-          label="Eliminar"
-          disabled={undeletable}
-          destructive
-          onClick={() => {
-            if (undeletable) return
-            if (window.confirm("¿Eliminar esta sección?")) {
-              removeSection(sectionId)
-            }
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </IconBtn>
-      )}
+      {body}
     </div>
   )
 }

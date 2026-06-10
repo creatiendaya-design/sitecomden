@@ -6,6 +6,7 @@ import {
   useThemeSectionsStore,
   findGroupBySection,
 } from "./theme-sections-store"
+import { useBuilderStore } from "@/components/admin/page-builder/store"
 
 export interface OverlayRect {
   top: number
@@ -14,9 +15,12 @@ export interface OverlayRect {
   height: number
 }
 
-export interface OverlaySection {
+export interface OverlayTarget {
+  /** "section" = theme section (ThemeSection store); "block" = page-builder block. */
+  kind: "section" | "block"
   id: string
-  group: ThemeSectionGroup
+  /** Theme-section group (only for kind === "section"). */
+  group: ThemeSectionGroup | null
   rect: OverlayRect
 }
 
@@ -33,50 +37,54 @@ function cssEscape(value: string): string {
   return value.replace(/["\\]/g, "\\$&")
 }
 
-function sectionIdFrom(node: Element | null): string | null {
+/** The full `data-preview-target` value ("section:<id>" | "block:<id>") under a node. */
+function targetKeyFrom(node: Element | null): string | null {
   if (!node) return null
-  const el = node.closest('[data-preview-target^="section:"]')
-  if (!el) return null
-  const target = el.getAttribute("data-preview-target")
-  return target ? target.slice("section:".length) : null
+  const el = node.closest(
+    '[data-preview-target^="section:"],[data-preview-target^="block:"]',
+  )
+  return el?.getAttribute("data-preview-target") ?? null
 }
 
 /**
- * Plan 19 — interactive canvas overlay for the customizer iframe.
+ * Plan 19 — interactive canvas overlay for the customizer iframe. Works for
+ * BOTH editing systems visible in the preview:
+ *  - theme sections (`data-preview-target="section:<id>"`, ThemeSection store)
+ *  - page-builder blocks (`data-preview-target="block:<id>"`, builder store)
  *
- * Hover/click are NOT detected via listeners inside the iframe document
- * (unreliable across the iframe's document swaps). Instead the overlay
- * component renders a transparent capture surface in the PARENT over the
- * iframe and calls `handleMove`/`handleSelect` with client coordinates; this
- * hook maps them to a section using the iframe's `elementFromPoint`
- * (same-origin). Section rects are computed as `section rect + iframe offset`
- * and recomputed on a `tick` bumped by scroll/resize/layout/store changes.
+ * Hover/click are detected from a parent capture surface (the overlay
+ * component) and mapped to a target via the iframe's `elementFromPoint`
+ * (same-origin). Rects are `target rect + iframe offset`, recomputed on a
+ * `tick` bumped by scroll/resize/layout/store changes.
  */
 export function useIframeSectionOverlay(
   iframeRef: RefObject<HTMLIFrameElement | null>,
   { enabled, device, previewUrl }: Options,
 ): {
-  hovered: OverlaySection | null
-  selected: OverlaySection | null
+  hovered: OverlayTarget | null
+  selected: OverlayTarget | null
   iframeRect: OverlayRect | null
   handleMove: (clientX: number, clientY: number) => void
   handleLeave: () => void
   handleSelect: (clientX: number, clientY: number) => void
   scrollBy: (deltaX: number, deltaY: number) => void
 } {
-  const storeSelected = useThemeSectionsStore((s) => s.selected)
-  const selectedId =
-    storeSelected?.kind === "section" ? storeSelected.sectionId : null
+  const themeSelected = useThemeSectionsStore((s) => s.selected)
+  const builderSelected = useBuilderStore((s) => s.selectedBlockId)
+  const selectedKey =
+    themeSelected?.kind === "section"
+      ? `section:${themeSelected.sectionId}`
+      : builderSelected
+        ? `block:${builderSelected}`
+        : null
 
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
   const [iframeRect, setIframeRect] = useState<OverlayRect | null>(null)
 
-  // Recompute trigger: keep `tick` + `iframeRect` fresh on scroll / resize /
-  // iframe internal scroll / layout changes / store mutations / reload.
   useEffect(() => {
     if (!enabled) {
-      setHoveredId(null)
+      setHoveredKey(null)
       setIframeRect(null)
       return
     }
@@ -92,7 +100,12 @@ export function useIframeSectionOverlay(
       raf = requestAnimationFrame(() => {
         raf = 0
         const f = iframe.getBoundingClientRect()
-        setIframeRect({ top: f.top, left: f.left, width: f.width, height: f.height })
+        setIframeRect({
+          top: f.top,
+          left: f.left,
+          width: f.width,
+          height: f.height,
+        })
         setTick((t) => t + 1)
       })
     }
@@ -117,7 +130,8 @@ export function useIframeSectionOverlay(
     iframe.addEventListener("load", onLoad)
     sync()
     const poll = window.setInterval(sync, 1000)
-    const unsub = useThemeSectionsStore.subscribe(bump)
+    const unsubTheme = useThemeSectionsStore.subscribe(bump)
+    const unsubBuilder = useBuilderStore.subscribe(bump)
     window.addEventListener("resize", bump)
     window.addEventListener("scroll", bump, true)
 
@@ -127,25 +141,34 @@ export function useIframeSectionOverlay(
       observer?.disconnect()
       if (raf) cancelAnimationFrame(raf)
       window.clearInterval(poll)
-      unsub()
+      unsubTheme()
+      unsubBuilder()
       window.removeEventListener("resize", bump)
       window.removeEventListener("scroll", bump, true)
     }
   }, [iframeRef, enabled, device, previewUrl])
 
-  const computeSection = (id: string | null): OverlaySection | null => {
-    if (!id) return null
+  const compute = (key: string | null): OverlayTarget | null => {
+    if (!key) return null
     const iframe = iframeRef.current
     const doc = iframe?.contentDocument
     if (!doc || !iframe) return null
     const el = doc.querySelector(
-      `[data-preview-target="section:${cssEscape(id)}"]`,
+      `[data-preview-target="${cssEscape(key)}"]`,
     )
-    const group = findGroupBySection(useThemeSectionsStore.getState(), id)
-    if (!el || !group) return null
+    if (!el) return null
+    const sep = key.indexOf(":")
+    const kind = key.slice(0, sep) as "section" | "block"
+    const id = key.slice(sep + 1)
+    let group: ThemeSectionGroup | null = null
+    if (kind === "section") {
+      group = findGroupBySection(useThemeSectionsStore.getState(), id)
+      if (!group) return null
+    }
     const r = el.getBoundingClientRect()
     const f = iframe.getBoundingClientRect()
     return {
+      kind,
       id,
       group,
       rect: {
@@ -158,9 +181,9 @@ export function useIframeSectionOverlay(
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const hovered = useMemo(() => computeSection(hoveredId), [hoveredId, tick])
+  const hovered = useMemo(() => compute(hoveredKey), [hoveredKey, tick])
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const selected = useMemo(() => computeSection(selectedId), [selectedId, tick])
+  const selected = useMemo(() => compute(selectedKey), [selectedKey, tick])
 
   const elementAt = (clientX: number, clientY: number): Element | null => {
     const iframe = iframeRef.current
@@ -171,17 +194,28 @@ export function useIframeSectionOverlay(
   }
 
   const handleMove = (clientX: number, clientY: number) => {
-    setHoveredId(sectionIdFrom(elementAt(clientX, clientY)))
+    setHoveredKey(targetKeyFrom(elementAt(clientX, clientY)))
   }
-  const handleLeave = () => setHoveredId(null)
+  const handleLeave = () => setHoveredKey(null)
   const handleSelect = (clientX: number, clientY: number) => {
-    const id = sectionIdFrom(elementAt(clientX, clientY))
-    const store = useThemeSectionsStore.getState()
-    store.select(
-      id && findGroupBySection(store, id)
-        ? { kind: "section", sectionId: id }
-        : null,
-    )
+    const key = targetKeyFrom(elementAt(clientX, clientY))
+    const themeStore = useThemeSectionsStore.getState()
+    const builderStore = useBuilderStore.getState()
+    if (!key) {
+      themeStore.select(null)
+      builderStore.selectBlock(null)
+      return
+    }
+    const sep = key.indexOf(":")
+    const kind = key.slice(0, sep)
+    const id = key.slice(sep + 1)
+    if (kind === "section") {
+      if (findGroupBySection(themeStore, id)) {
+        themeStore.select({ kind: "section", sectionId: id })
+      }
+    } else {
+      builderStore.selectBlock(id)
+    }
   }
   const scrollBy = (deltaX: number, deltaY: number) => {
     iframeRef.current?.contentWindow?.scrollBy({ left: deltaX, top: deltaY })
