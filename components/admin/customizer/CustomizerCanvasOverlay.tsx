@@ -1,6 +1,6 @@
 "use client"
 
-import type { RefObject } from "react"
+import { useEffect, useRef, type RefObject } from "react"
 import {
   useIframeSectionOverlay,
   type OverlayRect,
@@ -18,11 +18,14 @@ interface Props {
 }
 
 /**
- * Plan 19 — interactive canvas overlay drawn in the PARENT, positioned over
- * the customizer iframe. Reads section rects via `useIframeSectionOverlay`
- * and paints a blue hover/selection border (Shopify/page-builder style).
- * `pointer-events-none` so it never blocks the iframe or the sidebar.
- * (Fase 2 adds the floating toolbar.)
+ * Plan 19 — interactive canvas overlay over the customizer iframe.
+ *
+ * A transparent capture surface (positioned over the iframe) detects
+ * hover/click in the PARENT and maps them to sections via the hook's
+ * `elementFromPoint`. This avoids the unreliable in-iframe listeners. The
+ * capture surface forwards wheel events so the preview still scrolls.
+ * Hover/selection borders are drawn above it (pointer-events-none), and the
+ * floating toolbar sits on top.
  */
 export function CustomizerCanvasOverlay({
   iframeRef,
@@ -31,11 +34,29 @@ export function CustomizerCanvasOverlay({
   previewUrl,
   productOverride,
 }: Props) {
-  const { hovered, selected } = useIframeSectionOverlay(iframeRef, {
-    enabled,
-    device,
-    previewUrl,
-  })
+  const {
+    hovered,
+    selected,
+    iframeRect,
+    handleMove,
+    handleLeave,
+    handleSelect,
+    scrollBy,
+  } = useIframeSectionOverlay(iframeRef, { enabled, device, previewUrl })
+
+  // Forward wheel to the iframe (the capture surface would otherwise swallow
+  // it). Native listener with passive:false so preventDefault works.
+  const captureRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = captureRef.current
+    if (!el || !enabled) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      scrollBy(e.deltaX, e.deltaY)
+    }
+    el.addEventListener("wheel", onWheel, { passive: false })
+    return () => el.removeEventListener("wheel", onWheel)
+  }, [enabled, scrollBy])
 
   if (!enabled) return null
 
@@ -43,20 +64,37 @@ export function CustomizerCanvasOverlay({
 
   return (
     <>
+      {iframeRect && (
+        <div
+          ref={captureRef}
+          className="fixed z-20"
+          style={{
+            top: iframeRect.top,
+            left: iframeRect.left,
+            width: iframeRect.width,
+            height: iframeRect.height,
+          }}
+          onPointerMove={(e) => handleMove(e.clientX, e.clientY)}
+          onPointerLeave={handleLeave}
+          onPointerDown={(e) => handleSelect(e.clientX, e.clientY)}
+        />
+      )}
+
       <div className="pointer-events-none fixed inset-0 z-30">
         {showHover && (
           <Box
             rect={hovered.rect}
-            className="border-2 border-blue-400/60 rounded-[1px]"
+            className="outline outline-2 -outline-offset-2 outline-blue-400/60"
           />
         )}
         {selected && (
           <Box
             rect={selected.rect}
-            className="border-2 border-blue-500 rounded-[1px]"
+            className="outline outline-2 -outline-offset-2 outline-blue-500"
           />
         )}
       </div>
+
       {selected && (
         <CustomizerSectionToolbar
           sectionId={selected.id}
