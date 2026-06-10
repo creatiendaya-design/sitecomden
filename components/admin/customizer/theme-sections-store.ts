@@ -254,7 +254,7 @@ function rowToDraft(
 }
 
 /** Find which group owns a given section id, scanning all known slots. */
-function findGroupBySection(
+export function findGroupBySection(
   state: {
     header: SectionDraft[]
     footer: SectionDraft[]

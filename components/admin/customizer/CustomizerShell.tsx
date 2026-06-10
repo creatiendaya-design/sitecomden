@@ -39,6 +39,7 @@ import {
   type DeviceMode,
 } from "./CustomizerToolbar"
 import { CustomizerPreview } from "./CustomizerPreview"
+import { CustomizerCanvasOverlay } from "./CustomizerCanvasOverlay"
 import { CustomizerTokensPanel } from "./CustomizerTokensPanel"
 import { ZoneList } from "./ZoneList"
 import { ColorSchemesProvider } from "./color-schemes-context"
@@ -764,6 +765,15 @@ export function CustomizerShell({
               Cargando vista previa…
             </div>
           )}
+          {/* Plan 19 — interactive canvas overlay (hover/select borders +
+              floating toolbar) over the preview iframe. */}
+          <CustomizerCanvasOverlay
+            iframeRef={iframeRef}
+            enabled={panelView === "sections" && previewUrl !== null}
+            device={device}
+            previewUrl={previewUrl}
+            productOverride={productOverride}
+          />
         </main>
 
         {/* Right column: block settings (only meaningful in sections
