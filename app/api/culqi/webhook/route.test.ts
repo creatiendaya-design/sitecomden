@@ -26,21 +26,29 @@ const mocks = vi.hoisted(() => ({
     inventoryMovement: { create: vi.fn() },
   },
   verifyCulqiCharge: vi.fn(),
+  getCulqiCharge: vi.fn(),
   revalidatePath: vi.fn(),
   loggerChild: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 const prismaMock = mocks.prisma;
 const verifyCulqiChargeMock = mocks.verifyCulqiCharge;
+const getCulqiChargeMock = mocks.getCulqiCharge;
 const revalidatePathMock = mocks.revalidatePath;
 const loggerChildMock = mocks.loggerChild;
 
 vi.mock("@/lib/db", () => ({ prisma: mocks.prisma }));
-vi.mock("@/lib/culqi", () => ({ verifyCulqiCharge: mocks.verifyCulqiCharge }));
+vi.mock("@/lib/culqi", () => ({
+  verifyCulqiCharge: mocks.verifyCulqiCharge,
+  getCulqiCharge: mocks.getCulqiCharge,
+}));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/logger", () => ({
   logger: { child: () => mocks.loggerChild },
 }));
+// Loyalty accounting is a separate concern with its own tests; stub it here
+// so this file only exercises the webhook's own branching logic.
+vi.mock("@/lib/loyalty/award-purchase", () => ({ onOrderPaid: vi.fn() }));
 
 // Import AFTER mocks are registered.
 import { POST, GET } from "./route";
@@ -82,7 +90,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/culqi/webhook - charge.succeeded", () => {
-  it("marks order as PAID and decrements product stock", async () => {
+  it("marks order as PAID without touching stock (already decremented atomically in createOrder)", async () => {
     verifyCulqiChargeMock.mockResolvedValue(true);
     prismaMock.order.findUnique.mockResolvedValue({
       id: "order_abc",
@@ -116,18 +124,12 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
     expect(updateCall.data.paymentProvider).toBe("culqi");
     expect(updateCall.data.paidAt).toBeInstanceOf(Date);
 
-    // Stock decremented for both the product and the variant.
-    expect(prismaMock.product.update).toHaveBeenCalledWith({
-      where: { id: "prod_1" },
-      data: { stock: { decrement: 2 } },
-    });
-    expect(prismaMock.productVariant.update).toHaveBeenCalledWith({
-      where: { id: "var_1" },
-      data: { stock: { decrement: 1 } },
-    });
-
-    // Two inventory movements recorded (one per item kind).
-    expect(prismaMock.inventoryMovement.create).toHaveBeenCalledTimes(2);
+    // Stock is NOT touched here — createOrder already decremented it
+    // atomically when the order was placed. Decrementing again here would
+    // double-count (see the NOTA comment in handleChargeSucceeded).
+    expect(prismaMock.product.update).not.toHaveBeenCalled();
+    expect(prismaMock.productVariant.update).not.toHaveBeenCalled();
+    expect(prismaMock.inventoryMovement.create).not.toHaveBeenCalled();
 
     // Cache invalidated.
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/ordenes");
@@ -186,6 +188,17 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
 
 describe("POST /api/culqi/webhook - charge.failed", () => {
   it("marks order as FAILED with failure reason in paymentDetails", async () => {
+    // handleChargeFailed verifies against Culqi's API before trusting the
+    // webhook — a truly-failed charge reports an outcome other than
+    // "venta_exitosa".
+    getCulqiChargeMock.mockResolvedValue({
+      object: "charge",
+      outcome: { type: "fraudulent" },
+    });
+    prismaMock.order.findUnique.mockResolvedValue({
+      paymentStatus: "PENDING",
+    });
+
     const event = {
       object: "event",
       id: "evt_test_2",
@@ -239,6 +252,12 @@ describe("POST /api/culqi/webhook - refund.succeeded", () => {
     prismaMock.order.findFirst.mockResolvedValue({
       id: "order_ref_1",
       orderNumber: "PED-0007",
+    });
+    // handleRefundSucceeded verifies against Culqi's API before trusting the
+    // webhook — a confirmed refund reports amount_refunded > 0.
+    getCulqiChargeMock.mockResolvedValue({
+      object: "charge",
+      amount_refunded: 5000,
     });
 
     const event = {
