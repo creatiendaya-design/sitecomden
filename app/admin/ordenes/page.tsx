@@ -128,7 +128,19 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     await Promise.all([
       prisma.order.findMany({
         where,
-        include: { items: { select: { id: true } } },
+        select: {
+          id: true,
+          orderSeq: true,
+          orderNumber: true,
+          paymentStatus: true,
+          status: true,
+          customerName: true,
+          customerEmail: true,
+          createdAt: true,
+          paymentMethod: true,
+          total: true,
+          items: { select: { id: true } },
+        },
         orderBy: { createdAt: "desc" },
         skip,
         take: PER_PAGE,

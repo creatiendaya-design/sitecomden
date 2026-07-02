@@ -54,6 +54,33 @@ export async function createCodOrder(rawData: unknown) {
     image?: string;
   }[] = [];
 
+  // Precargar variantes/productos en dos queries batch (antes: un findUnique
+  // por ítem del carrito dentro del loop de abajo).
+  const itemVariantIds = [
+    ...new Set(itemList.filter((i) => i.variantId).map((i) => i.variantId!)),
+  ];
+  const itemProductIds = [...new Set(itemList.map((i) => i.productId!))];
+  const [codVariantRows, codProductRows] = await Promise.all([
+    itemVariantIds.length > 0
+      ? prisma.productVariant.findMany({
+          where: { id: { in: itemVariantIds } },
+          select: {
+            id: true,
+            price: true,
+            stock: true,
+            image: true,
+            product: { select: { name: true, id: true, images: true } },
+          },
+        })
+      : Promise.resolve([]),
+    prisma.product.findMany({
+      where: { id: { in: itemProductIds } },
+      select: { id: true, basePrice: true, stock: true, name: true, images: true },
+    }),
+  ]);
+  const codVariantById = new Map(codVariantRows.map((v) => [v.id, v]));
+  const codProductById = new Map(codProductRows.map((p) => [p.id, p]));
+
   for (const item of itemList) {
     let baseUnitPrice = 0;
     let resolvedProductId = "";
@@ -61,15 +88,7 @@ export async function createCodOrder(rawData: unknown) {
     let resolvedImage: string | undefined;
 
     if (item.variantId) {
-      const variant = await prisma.productVariant.findUnique({
-        where: { id: item.variantId },
-        select: {
-          price: true,
-          stock: true,
-          image: true,
-          product: { select: { name: true, id: true, images: true } },
-        },
-      });
+      const variant = codVariantById.get(item.variantId);
       if (!variant) return { success: false, error: "Variante no encontrada" };
       if (variant.stock < item.quantity) return { success: false, error: "Stock insuficiente" };
       baseUnitPrice = Number(variant.price);
@@ -77,10 +96,7 @@ export async function createCodOrder(rawData: unknown) {
       resolvedName = variant.product.name;
       resolvedImage = variant.image ?? getProductImageUrl(variant.product.images) ?? undefined;
     } else {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-        select: { basePrice: true, stock: true, name: true, images: true },
-      });
+      const product = codProductById.get(item.productId!);
       if (!product) return { success: false, error: "Producto no encontrado" };
       if (product.stock < item.quantity) return { success: false, error: "Stock insuficiente" };
       baseUnitPrice = Number(product.basePrice);

@@ -63,20 +63,45 @@ export async function createOrder(rawData: unknown) {
       };
     }
 
+    // Precios/stock/restricciones autoritativos del servidor, en un solo
+    // round-trip por tabla (antes: N findUnique por ítem, repetido para cada
+    // uso — precio, stock, restricción de envío y plantilla de personalización).
+    const variantIds = [
+      ...new Set(data.items.filter((i) => i.variantId).map((i) => i.variantId!)),
+    ];
+    const productIds = [...new Set(data.items.map((i) => i.productId))];
+    const [variantRows, productRows] = await Promise.all([
+      variantIds.length > 0
+        ? prisma.productVariant.findMany({
+            where: { id: { in: variantIds } },
+            select: { id: true, price: true, stock: true, active: true },
+          })
+        : Promise.resolve([]),
+      prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: {
+          id: true,
+          name: true,
+          basePrice: true,
+          stock: true,
+          active: true,
+          shippingRestriction: true,
+          checkoutMode: true,
+          customizableTemplateId: true,
+        },
+      }),
+    ]);
+    const variantById = new Map(variantRows.map((v) => [v.id, v]));
+    const productById = new Map(productRows.map((p) => [p.id, p]));
+
     // Obtener precios autoritativos del servidor — nunca confiar en los del cliente
     const serverPrices = new Map<string, number>();
     for (const item of data.items) {
       if (item.variantId) {
-        const variant = await prisma.productVariant.findUnique({
-          where: { id: item.variantId },
-          select: { price: true },
-        });
+        const variant = variantById.get(item.variantId);
         if (variant) serverPrices.set(item.variantId, Number(variant.price));
       } else {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: { basePrice: true },
-        });
+        const product = productById.get(item.productId);
         if (product) serverPrices.set(item.productId, Number(product.basePrice));
       }
     }
@@ -257,10 +282,7 @@ export async function createOrder(rawData: unknown) {
     // We don't expose exact remaining stock to the client (info disclosure).
     for (const item of data.items) {
       if (item.variantId) {
-        const variant = await prisma.productVariant.findUnique({
-          where: { id: item.variantId },
-          select: { stock: true, active: true },
-        });
+        const variant = variantById.get(item.variantId);
 
         if (!variant || !variant.active) {
           return {
@@ -276,10 +298,7 @@ export async function createOrder(rawData: unknown) {
           };
         }
       } else {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: { stock: true, active: true },
-        });
+        const product = productById.get(item.productId);
 
         if (!product || !product.active) {
           return {
@@ -302,21 +321,11 @@ export async function createOrder(rawData: unknown) {
     // free-text names), so we validate at the district level only — restrictions
     // defined exclusively at province/department level for a product won't fire
     // here. The COD checkout (which carries explicit IDs) is unaffected.
-    const productsForRestriction = await prisma.product.findMany({
-      where: { id: { in: data.items.map((i) => i.productId) } },
-      select: {
-        id: true,
-        name: true,
-        shippingRestriction: true,
-        checkoutMode: true,
-      },
-    });
-
     // Productos asignados a un COD form (checkoutMode != STANDARD) no pueden
     // pasar por este flujo de checkout (tarjeta / Yape / Plin / PayPal); solo
     // se venden vía CodOrderModal → createCodOrder.
     for (const item of data.items) {
-      const p = productsForRestriction.find((x) => x.id === item.productId);
+      const p = productById.get(item.productId);
       if (p && p.checkoutMode !== "STANDARD") {
         return {
           success: false,
@@ -326,7 +335,7 @@ export async function createOrder(rawData: unknown) {
     }
 
     for (const item of data.items) {
-      const p = productsForRestriction.find((x) => x.id === item.productId);
+      const p = productById.get(item.productId);
       if (!p) continue;
       const err = validateShippingRestriction(
         (p.shippingRestriction as ShippingRestriction | null) ?? null,
@@ -347,10 +356,7 @@ export async function createOrder(rawData: unknown) {
     const { validateCartItemDesign } = await import("./customizer-checkout");
     for (const item of data.items) {
       if (item.customDesign) {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: { customizableTemplateId: true },
-        });
+        const product = productById.get(item.productId);
         const validationResult = validateCartItemDesign(
           {
             productId: item.productId,

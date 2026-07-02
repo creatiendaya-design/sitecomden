@@ -102,6 +102,23 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
   });
   const existingSet = new Set(existing.map((p) => p.slug));
 
+  // Precargar todas las variantes existentes de los productos que ya existen
+  // (antes: un findFirst por variante dentro del loop de import de abajo —
+  // con CSVs grandes esto eran miles de queries secuenciales).
+  const existingSlugsForVariants = rows
+    .map((r) => r.slug)
+    .filter((slug) => existingSet.has(slug));
+  const existingVariantRows =
+    existingSlugsForVariants.length > 0
+      ? await prisma.productVariant.findMany({
+          where: { product: { slug: { in: existingSlugsForVariants } } },
+          select: { id: true, sku: true, product: { select: { slug: true } } },
+        })
+      : [];
+  const existingVariantByKey = new Map(
+    existingVariantRows.map((v) => [`${v.product.slug}::${v.sku}`, v.id])
+  );
+
   for (const row of rows) {
     // Validate critical fields before DB operations
     if (!row.slug || row.basePrice < 0 || !Number.isFinite(row.basePrice)) {
@@ -149,13 +166,10 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
 
         // Upsert variantes con seguridad de producto
         for (const v of row.variants) {
-          const existingVariant = await prisma.productVariant.findFirst({
-            where: { sku: v.sku, product: { slug: row.slug } },
-            select: { id: true },
-          });
-          if (existingVariant) {
+          const existingVariantId = existingVariantByKey.get(`${row.slug}::${v.sku}`);
+          if (existingVariantId) {
             await prisma.productVariant.update({
-              where: { id: existingVariant.id },
+              where: { id: existingVariantId },
               data: { price: v.price, compareAtPrice: v.compareAtPrice ?? null, stock: v.stock, options: v.options ?? {} },
             });
           } else {
@@ -259,13 +273,22 @@ export async function importProductsBatch(rows: ImportRow[]): Promise<ImportBatc
             });
           }
         } else {
-          for (const createdVariant of created.variants) {
-            const inputVariant = row.variants.find((v) => v.sku === createdVariant.sku);
-            if (inputVariant && inputVariant.stock > 0) {
-              await prisma.inventoryMovement.create({
-                data: { productId: created.id, variantId: createdVariant.id, type: "PURCHASE", quantity: inputVariant.stock, reason: "Importación CSV" },
-              });
-            }
+          const movements = created.variants
+            .map((createdVariant) => {
+              const inputVariant = row.variants.find((v) => v.sku === createdVariant.sku);
+              return inputVariant && inputVariant.stock > 0
+                ? {
+                    productId: created.id,
+                    variantId: createdVariant.id,
+                    type: "PURCHASE" as const,
+                    quantity: inputVariant.stock,
+                    reason: "Importación CSV",
+                  }
+                : null;
+            })
+            .filter((m): m is NonNullable<typeof m> => m !== null);
+          if (movements.length > 0) {
+            await prisma.inventoryMovement.createMany({ data: movements });
           }
         }
 

@@ -26,9 +26,15 @@ export async function GET(request: Request) {
           { shortDescription: { contains: query, mode: "insensitive" } },
         ],
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        basePrice: true,
+        images: true,
         categories: {
-          include: {
+          take: 1,
+          select: {
             category: {
               select: {
                 name: true,

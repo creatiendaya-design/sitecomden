@@ -62,13 +62,28 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     orderBy = { name: "asc" };
   }
 
-  // Obtener productos
+  // Obtener productos. `select` acota a las columnas que ProductCard/
+  // CollectionGrid realmente consumen (evita traer description/
+  // shortDescription/metaTitle/customizableMockupOverrides/etc. por fila).
+  // `take` es un tope de seguridad: esta página no tiene paginación real
+  // todavía (pendiente como mejora aparte), así que evita que un catálogo
+  // muy grande materialice todas sus filas en un solo request.
   const products = await prisma.product.findMany({
     where,
-    include: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      basePrice: true,
+      compareAtPrice: true,
+      images: true,
+      hasVariants: true,
+      featured: true,
+      stock: true,
+      checkoutMode: true,
       categories: {
-        include: {
-          category: true,
+        select: {
+          category: { select: { name: true, slug: true } },
         },
       },
       variants: {
@@ -76,9 +91,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         // primera por orderBy, define el precio "Desde").
         where: { active: true },
         orderBy: { price: "asc" },
+        select: { price: true, compareAtPrice: true, stock: true },
       },
     },
     orderBy,
+    take: 200,
   });
 
   // Serializar productos

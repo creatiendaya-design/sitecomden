@@ -40,24 +40,54 @@ export async function checkCartStock(
   };
 
   try {
+    // Precargar todas las variantes/productos del carrito en dos queries batch
+    // (antes: un findUnique por ítem dentro del loop de abajo).
+    const variantIds = [
+      ...new Set(items.filter((i) => i.variantId).map((i) => i.variantId!)),
+    ];
+    const productIds = [
+      ...new Set(items.filter((i) => !i.variantId).map((i) => i.productId)),
+    ];
+    const [variantRows, productRows] = await Promise.all([
+      variantIds.length > 0
+        ? prisma.productVariant.findMany({
+            where: { id: { in: variantIds } },
+            select: {
+              id: true,
+              stock: true,
+              active: true,
+              product: {
+                select: {
+                  active: true,
+                  name: true,
+                  checkoutMode: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+      productIds.length > 0
+        ? prisma.product.findMany({
+            where: { id: { in: productIds } },
+            select: {
+              id: true,
+              stock: true,
+              active: true,
+              name: true,
+              hasVariants: true,
+              checkoutMode: true,
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+    const variantById = new Map(variantRows.map((v) => [v.id, v]));
+    const productById = new Map(productRows.map((p) => [p.id, p]));
+
     // Verificar cada item
     for (const item of items) {
       // Si tiene variante, verificar stock de la variante
       if (item.variantId) {
-        const variant = await prisma.productVariant.findUnique({
-          where: { id: item.variantId },
-          select: {
-            stock: true,
-            active: true,
-            product: {
-              select: {
-                active: true,
-                name: true,
-                checkoutMode: true,
-              },
-            },
-          },
-        });
+        const variant = variantById.get(item.variantId);
 
         if (!variant) {
           result.success = false;
@@ -121,16 +151,7 @@ export async function checkCartStock(
         }
       } else {
         // Producto sin variante
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: {
-            stock: true,
-            active: true,
-            name: true,
-            hasVariants: true,
-            checkoutMode: true,
-          },
-        });
+        const product = productById.get(item.productId);
 
         if (!product) {
           result.success = false;

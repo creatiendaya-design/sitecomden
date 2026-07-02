@@ -7,8 +7,13 @@ export async function GET() {
   if (authResponse) return authResponse;
 
   try {
+    // `take` es un tope de seguridad: la UI busca/filtra sobre la lista
+    // completa en el cliente (no pagina server-side todavía), así que sin
+    // límite esta ruta podría traer toda la tabla de suscriptores en cada
+    // carga de /admin/newsletter a medida que la lista crece sin límite.
     const subscribers = await prisma.newsletterSubscriber.findMany({
       orderBy: { subscribedAt: "desc" },
+      take: 2000,
       select: {
         id: true,
         email: true,

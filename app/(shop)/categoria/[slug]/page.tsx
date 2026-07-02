@@ -196,14 +196,33 @@ const loadCategoryProducts = cache((categoryId: string) =>
           categoryId,
           product: { active: true },
         },
+        // `take` es un tope de seguridad ante categorías muy grandes (esta
+        // página no pagina todavía); `select` en el producto evita traer
+        // description/shortDescription/metaTitle/etc. que la card no usa.
+        take: 200,
         include: {
           product: {
-            include: {
-              categories: { include: { category: true } },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              basePrice: true,
+              compareAtPrice: true,
+              images: true,
+              hasVariants: true,
+              featured: true,
+              stock: true,
+              checkoutMode: true,
+              categories: {
+                select: {
+                  category: { select: { name: true, slug: true } },
+                },
+              },
               variants: {
                 // Todas las variantes activas para sumar su stock en la card.
                 where: { active: true },
                 orderBy: { price: "asc" },
+                select: { price: true, compareAtPrice: true, stock: true },
               },
             },
           },

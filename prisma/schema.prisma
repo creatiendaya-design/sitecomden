@@ -180,7 +180,10 @@ model Product {
   @@index([sizeGuideId])
   @@index([codFormTemplateId])
   @@index([themeProductTemplateId])
+  @@index([landingTemplateId])
   @@index([deletedAt])
+  @@index([active, createdAt])
+  @@index([active, basePrice])
 }
 
 /// Manual product↔product curation for cross-sell / "comprados juntos".
@@ -378,6 +381,7 @@ model Order {
   @@index([fulfillmentStatus])
   @@index([customerEmail])
   @@index([createdAt])
+  @@index([customerId, createdAt])
 }
 
 model OrderItem {
@@ -649,6 +653,7 @@ model InventoryMovement {
   @@index([productId])
   @@index([type])
   @@index([createdAt])
+  @@index([productId, createdAt])
 }
 
 enum InventoryMovementType {
@@ -1186,6 +1191,7 @@ model PointTransaction {
   @@index([customerId])
   @@index([type])
   @@index([createdAt])
+  @@index([customerId, createdAt])
 }
 
 enum PointTransactionType {

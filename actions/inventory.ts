@@ -130,7 +130,12 @@ export async function getInventoryList() {
       where: {
         active: true,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        stock: true,
+        hasVariants: true,
         variants: {
           where: { active: true },
           select: {
@@ -422,16 +427,40 @@ export async function adjustStock(data: {
 export async function getLowStockProducts() {
   await protectRoute("products:view");
   try {
-    // ✅ Simplificar la query - Prisma no soporta prisma.productVariant.fields en queries
-    const products = await prisma.product.findMany({
-      where: {
-        active: true,
-      },
-      include: {
+    // El filtro de "stock bajo" se resuelve en SQL en vez de traer TODO el
+    // catálogo activo (con todas sus variantes) y filtrar en JS. La
+    // comparación entre dos columnas de la misma fila (variant.stock <=
+    // variant.lowStockAlert) no es expresable con el `where` de Prisma, así
+    // que usamos SQL crudo solo para hallar los ids candidatos; los datos a
+    // mostrar se traen después con una query Prisma normal acotada a esos ids.
+    const lowStockIds = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT "Product".id
+      FROM "Product"
+      WHERE "Product".active = true
+        AND (
+          ("Product"."hasVariants" = false AND "Product".stock <= 5)
+          OR EXISTS (
+            SELECT 1 FROM "ProductVariant" v
+            WHERE v."productId" = "Product".id
+              AND v.active = true
+              AND v.stock <= v."lowStockAlert"
+          )
+        )
+    `;
+
+    if (lowStockIds.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const lowStockProducts = await prisma.product.findMany({
+      where: { id: { in: lowStockIds.map((r) => r.id) } },
+      select: {
+        id: true,
+        name: true,
+        hasVariants: true,
+        stock: true,
         variants: {
-          where: {
-            active: true,
-          },
+          where: { active: true },
           select: {
             id: true,
             sku: true,
@@ -441,15 +470,6 @@ export async function getLowStockProducts() {
           },
         },
       },
-    });
-
-    // Filtrar en JavaScript
-    const lowStockProducts = products.filter((product) => {
-      if (!product.hasVariants) {
-        return product.stock <= 5;
-      } else {
-        return product.variants.some((v) => v.stock <= v.lowStockAlert);
-      }
     });
 
     return {
