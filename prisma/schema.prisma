@@ -654,6 +654,10 @@ model InventoryMovement {
   @@index([type])
   @@index([createdAt])
   @@index([productId, createdAt])
+  /// releaseOrderStock consulta los movimientos de una orden por `reference`
+  /// para saber cuánto stock sigue reteniendo; sin este índice sería un seq
+  /// scan de toda la tabla en cada cancelación o rechazo de pago.
+  @@index([reference])
 }
 
 enum InventoryMovementType {

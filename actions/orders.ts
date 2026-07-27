@@ -13,6 +13,7 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
 import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
 import { getProductImageUrl } from "@/lib/image-utils";
+import { releaseOrderStock } from "@/lib/inventory/release-order-stock";
 
 /**
  * Nombre legible de una variante a partir de su Json `options`, con el mismo
@@ -1096,11 +1097,37 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       updateData.adminNotes = input.adminNotes;
     }
 
-    // Actualizar la orden
-    const order = await prisma.order.update({
-      where: { id: input.orderId },
-      data: updateData,
-    });
+    // Actualizar la orden. Cancelar además libera el inventario que la orden
+    // siga reteniendo, en la MISMA transacción que el cambio de estado: hasta
+    // ahora cancelar sólo escribía `cancelledAt`, así que las unidades
+    // descontadas al crear la orden quedaban retenidas para siempre.
+    const isCancelling =
+      input.status === "CANCELLED" && currentOrder.status !== "CANCELLED";
+
+    const order = isCancelling
+      ? await prisma.$transaction(async (tx) => {
+          // Claim atómico: sólo prospera si la orden seguía sin cancelar, así
+          // dos clics simultáneos no devuelven el stock dos veces.
+          const claim = await tx.order.updateMany({
+            where: { id: input.orderId, status: { not: "CANCELLED" } },
+            data: updateData as Prisma.OrderUpdateManyMutationInput,
+          });
+
+          // count 0 = otro flujo ganó la carrera; no repetimos los efectos.
+          if (claim.count > 0) {
+            await releaseOrderStock(tx, {
+              orderId: input.orderId,
+              orderNumber: currentOrder.orderNumber,
+              reason: "Cancelación",
+            });
+          }
+
+          return tx.order.findUniqueOrThrow({ where: { id: input.orderId } });
+        })
+      : await prisma.order.update({
+          where: { id: input.orderId },
+          data: updateData,
+        });
 
     // Contabilizar la compra en el CRM/lealtad la primera vez que la orden
     // pasa a PAGADA (idempotente; seguro aunque también dispare otro flujo).
