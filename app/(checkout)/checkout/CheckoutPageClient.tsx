@@ -122,6 +122,17 @@ export default function CheckoutPageClient({
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
   
+  // Clave del intento de compra actual. Va en un ref para sobrevivir a los
+  // re-renders sin provocarlos, y se mantiene ESTABLE mientras el intento
+  // fracase: ésa es justamente la condición para que un reintento tras un
+  // error de red recupere el pedido ya creado en vez de duplicarlo. Sólo se
+  // rota tras un pedido creado con éxito, para que la siguiente compra sea
+  // una operación distinta.
+  const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
+  const rotateIdempotencyKey = () => {
+    idempotencyKeyRef.current = crypto.randomUUID();
+  };
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -416,6 +427,7 @@ export default function CheckoutPageClient({
       });
 
       const orderData = {
+        idempotencyKey: idempotencyKeyRef.current,
         customerName: formData.customerName.trim(),
         customerEmail: formData.customerEmail.trim().toLowerCase(),
         customerPhone: formData.customerPhone.trim(),
@@ -478,6 +490,10 @@ export default function CheckoutPageClient({
         setCulqiToken(null);
         return;
       }
+
+      // El pedido existe: el siguiente intento de compra debe ser una
+      // operación nueva, no un reintento de éste.
+      rotateIdempotencyKey();
 
       const paymentResult = await processCardPayment({
         orderId: result.orderId!,
@@ -627,6 +643,7 @@ export default function CheckoutPageClient({
       });
 
       const orderData = {
+        idempotencyKey: idempotencyKeyRef.current,
         customerName: formData.customerName.trim(),
         customerEmail: formData.customerEmail.trim().toLowerCase(),
         customerPhone: formData.customerPhone.trim(),
@@ -687,6 +704,9 @@ export default function CheckoutPageClient({
         setLoading(false);
         return;
       }
+
+      // El pedido existe: el siguiente intento debe ser una operación nueva.
+      rotateIdempotencyKey();
 
       const tokenQs = `?token=${result.viewToken}`;
 

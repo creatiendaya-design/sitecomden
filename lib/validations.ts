@@ -734,6 +734,11 @@ export const updateSiteSettingsSchema = z.object({
 // ===================================================================
 
 export const createCodOrderSchema = z.object({
+  /**
+   * Identificador del intento de compra (ver createOrderSchema). Un reenvío
+   * con la misma clave devuelve el pedido ya creado en vez de duplicarlo.
+   */
+  idempotencyKey: z.string().min(8).max(100).optional(),
   productId: z.string().optional(),
   variantId: z.string().optional(),
   quantity: z.number().int().min(1).max(99).optional(),

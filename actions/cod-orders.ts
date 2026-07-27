@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { createCodOrderSchema } from "@/lib/validations";
 import { getProductImageUrl } from "@/lib/image-utils";
@@ -22,6 +23,31 @@ import {
   StockUnavailableError,
 } from "@/lib/inventory/decrement-stock";
 
+/**
+ * Pedido COD ya creado con esa clave de idempotencia, con la misma forma de
+ * respuesta que el camino normal. No repite los efectos (stock, promociones,
+ * tracking): ya ocurrieron en la primera petición.
+ */
+async function findCodOrderByIdempotencyKey(key: string) {
+  const existing = await prisma.order.findUnique({
+    where: { idempotencyKey: key },
+    select: { id: true, orderSeq: true },
+  });
+
+  if (!existing) return null;
+
+  const siteSettings = await getSiteSettings();
+  const orderPrefix = siteSettings.order_prefix || "PED";
+
+  return {
+    success: true as const,
+    orderId: existing.id,
+    formattedNumber: existing.orderSeq
+      ? formatOrderNumber(existing.orderSeq, orderPrefix)
+      : `#${existing.id.slice(-8).toUpperCase()}`,
+  };
+}
+
 export async function createCodOrder(rawData: unknown) {
   const parsed = createCodOrderSchema.safeParse(rawData);
   if (!parsed.success) {
@@ -29,6 +55,14 @@ export async function createCodOrder(rawData: unknown) {
   }
 
   const data = parsed.data;
+
+  // Reenvío del mismo intento: devolver el pedido existente en vez de crear
+  // otro. El formulario COD es de una sola pantalla y se envía desde móvil,
+  // así que el reintento tras una respuesta perdida es especialmente probable.
+  if (data.idempotencyKey) {
+    const existing = await findCodOrderByIdempotencyKey(data.idempotencyKey);
+    if (existing) return existing;
+  }
 
   const itemList = data.items ?? [
     { productId: data.productId!, variantId: data.variantId, quantity: data.quantity ?? 1 },
@@ -284,6 +318,7 @@ export async function createCodOrder(rawData: unknown) {
     order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
+          idempotencyKey: data.idempotencyKey,
           customerId: linkedCustomerId ?? undefined,
           customerName: data.name,
           customerEmail: data.email || `cod-${Date.now()}@shopgood.pe`,
@@ -341,6 +376,18 @@ export async function createCodOrder(rawData: unknown) {
     if (error instanceof StockUnavailableError) {
       return { success: false, error: error.message };
     }
+
+    // Carrera realmente simultánea con la misma clave: el índice único la
+    // atrapa, la transacción revierte entera y devolvemos el pedido que ganó.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      data.idempotencyKey
+    ) {
+      const existing = await findCodOrderByIdempotencyKey(data.idempotencyKey);
+      if (existing) return existing;
+    }
+
     throw error;
   }
 

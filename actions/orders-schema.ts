@@ -42,6 +42,13 @@ const orderItemSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
+  /**
+   * Identificador del INTENTO de compra, generado por el navegador. Si dos
+   * peticiones llegan con la misma clave (doble clic, reintento tras un
+   * timeout de red), la segunda recibe el pedido ya creado en lugar de crear
+   * uno nuevo. Opcional para no romper clientes que aún no la envían.
+   */
+  idempotencyKey: z.string().min(8).max(100).optional(),
   customerName: z.string().min(3, "Nombre debe tener al menos 3 caracteres").max(200),
   customerEmail: z.string().check(z.email("Email inválido")),
   customerPhone: z.string().min(9, "Teléfono inválido").max(20),
