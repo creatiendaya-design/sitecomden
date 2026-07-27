@@ -75,7 +75,21 @@ export async function POST(request: NextRequest) {
     if (paypalOrderId) {
       const result = await captureAndConfirmPaypalOrder(paypalOrderId);
       if (!result.ok) {
-        log.error({ paypalOrderId, error: result.error }, "Failed to confirm PayPal payment");
+        log.error(
+          { paypalOrderId, error: result.error, retryable: result.retryable },
+          "Failed to confirm PayPal payment"
+        );
+
+        // Un 200 aquí le dice a PayPal "evento procesado" y lo descarta. Cuando
+        // el fallo es transitorio —su API no respondió, falta configurar el tipo
+        // de cambio— la captura ya se hizo y la orden quedaba PENDIENTE con el
+        // dinero cobrado. Con 503 PayPal reentrega el evento (hasta 3 días).
+        if (result.retryable) {
+          return NextResponse.json(
+            { error: "temporary failure, please retry" },
+            { status: 503 }
+          );
+        }
       }
     }
 

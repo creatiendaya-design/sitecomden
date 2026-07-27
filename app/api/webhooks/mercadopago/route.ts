@@ -73,12 +73,30 @@ export async function POST(request: NextRequest) {
     if (isPayment && paymentId != null) {
       const result = await confirmMercadoPagoPayment(String(paymentId));
       if (!result.ok) {
-        log.error({ paymentId, error: result.error }, "Failed to confirm MercadoPago payment");
+        log.error(
+          { paymentId, error: result.error, retryable: result.retryable },
+          "Failed to confirm MercadoPago payment"
+        );
+
+        // Un 200 aquí le dice a MercadoPago "recibido y procesado" y descarta
+        // el evento. Cuando el fallo es transitorio —su API no respondió, la BD
+        // no estaba— eso dejaba la orden PENDIENTE con el dinero cobrado y sin
+        // nadie que volviera a intentarlo. Devolvemos 503 para que reentregue.
+        //
+        // Los fallos terminales (importe que no cuadra, pago sin referencia)
+        // siguen respondiendo 200: reintentarlos sólo genera ruido, ya quedaron
+        // en el log para revisión manual.
+        if (result.retryable) {
+          return NextResponse.json(
+            { error: "temporary failure, please retry" },
+            { status: 503 }
+          );
+        }
       }
     }
 
-    // Siempre 200 para que MercadoPago no reintente indefinidamente por errores
-    // de procesamiento nuestros (la firma inválida sí devuelve 401 arriba).
+    // La firma inválida devuelve 401 arriba; el resto de casos no reintentables
+    // se confirman con 200.
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     log.error({ err: error }, "MercadoPago webhook processing failed");

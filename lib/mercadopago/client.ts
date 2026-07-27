@@ -138,11 +138,47 @@ export async function createCheckoutPreference(
 
     return { success: true, preferenceId: preference.id, redirectUrl };
   } catch (error) {
-    log.error({ err: error, orderId: input.orderId }, "Failed to create MercadoPago preference");
+    // El SDK envuelve la respuesta de MercadoPago en propiedades no estándar
+    // (`cause`, `status`) que `err: error` de pino NO serializa: sin esto el log
+    // queda como "Failed to create..." sin decir POR QUÉ (token rechazado,
+    // invalid_notification_url, auto_return inválido, cuenta sin habilitar…).
+    log.error(
+      {
+        err: error,
+        orderId: input.orderId,
+        mode: mp.mode,
+        baseUrl: base,
+        mpStatus: extractMpStatus(error),
+        mpCause: extractMpCause(error),
+      },
+      "Failed to create MercadoPago preference"
+    );
     return {
       success: false,
       error: "Error al iniciar el pago con MercadoPago. Intenta nuevamente.",
     };
+  }
+}
+
+/** Código HTTP que devolvió MercadoPago, si el error viene de la API. */
+function extractMpStatus(error: unknown): number | null {
+  if (typeof error !== "object" || error === null) return null;
+  const status = (error as Record<string, unknown>).status;
+  return typeof status === "number" ? status : null;
+}
+
+/**
+ * Detalle de error de la API de MercadoPago (`cause`), serializado a algo que
+ * el logger sí escribe. Es el dato que identifica la falla real.
+ */
+function extractMpCause(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) return null;
+  const cause = (error as Record<string, unknown>).cause;
+  if (cause === undefined || cause === null) return null;
+  try {
+    return JSON.stringify(cause).slice(0, 1000);
+  } catch {
+    return String(cause);
   }
 }
 

@@ -47,7 +47,18 @@ export default async function PaypalReturnPage({ params, searchParams }: PagePro
 
   const result = await captureAndConfirmPaypalOrder(paypalOrderId);
 
-  if (result.ok && (result.status === "paid" || result.status === "ignored" || result.status === "pending")) {
+  // `orphaned` = PayPal sí cobró, pero la orden ya no admitía el pago (fue
+  // cancelada mientras el cliente pagaba). NO puede caer al reintento: le
+  // ofrecería pagar otra vez algo que ya pagó. Va a la confirmación, que le
+  // muestra el estado real del pedido; la reconciliación queda anotada en el
+  // pedido para el admin (ver lib/payments/order-payment-state.ts).
+  if (
+    result.ok &&
+    (result.status === "paid" ||
+      result.status === "ignored" ||
+      result.status === "pending" ||
+      result.status === "orphaned")
+  ) {
     redirect(confirmacion);
   }
 

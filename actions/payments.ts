@@ -4,11 +4,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { createCulqiCharge, solesToCents, formatCardInfo } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
-import { sendOrderConfirmationEmail } from "@/lib/email";
-import { autoEmitOnPayment } from "@/actions/sunat";
-import { getSiteSettings } from "@/lib/site-settings";
-import { displayOrderNumber } from "@/lib/utils";
-import { onOrderPaid } from "@/lib/loyalty/award-purchase";
+import {
+  claimOrderAsPaid,
+  recordOrphanPayment,
+} from "@/lib/payments/order-payment-state";
+import { runCulqiPostPaymentEffects } from "@/lib/payments/culqi-post-payment";
 
 /**
  * Procesar pago con tarjeta usando Culqi
@@ -19,10 +19,12 @@ export async function processCardPayment(data: {
   email: string;
 }) {
   try {
-    // 1. Obtener la orden
+    // 1. Obtener la orden (sólo el importe autoritativo y su identidad; los
+    // datos para el correo los relee `runCulqiPostPaymentEffects` DESPUÉS del
+    // claim, cuando ya reflejan el pago).
     const order = await prisma.order.findUnique({
       where: { id: data.orderId },
-      include: { items: true },
+      select: { id: true, orderNumber: true, total: true, paymentStatus: true },
     });
 
     if (!order) {
@@ -107,38 +109,58 @@ export async function processCardPayment(data: {
     const charge = chargeResult.data;
     console.log("✅ Culqi charge successful:", charge.id);
 
-    // 5. Actualizar orden con información del pago
+    // 5. Marcar la orden pagada — con claim condicionado, NO con un `update`
+    // incondicional.
+    //
+    // El claim del paso 2 evita el doble cobro, pero no protege este momento:
+    // entre él y este punto transcurrió toda la llamada a Culqi, y en esa
+    // ventana un admin pudo CANCELAR la orden (lo que ya devolvió el stock al
+    // inventario). Un `update` directo la dejaba PAGADA sin unidades detrás y
+    // el pedido salía a despacho sin respaldo.
     const cardInfo = formatCardInfo(charge);
-    
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: "PAID",
-        paymentStatus: "PAID",
-        paymentId: charge.id,
-        paymentProvider: "culqi",
-        paymentDetails: {
-          chargeId: charge.id,
-          authorizationCode: charge.authorization_code,
-          referenceCode: charge.reference_code,
-          cardBrand: cardInfo.brand,
-          cardLastFour: cardInfo.lastFour,
-          cardType: cardInfo.type,
-          amount: charge.amount,
-          currency: charge.currency_code,
-          createdAt: new Date(charge.creation_date * 1000).toISOString(),
-        } satisfies Prisma.InputJsonValue,
-        paidAt: new Date(),
-      },
+
+    const claimPaid = await claimOrderAsPaid(order.id, {
+      status: "PAID",
+      paymentStatus: "PAID",
+      paymentId: charge.id,
+      paymentProvider: "culqi",
+      paymentDetails: {
+        chargeId: charge.id,
+        authorizationCode: charge.authorization_code,
+        referenceCode: charge.reference_code,
+        cardBrand: cardInfo.brand,
+        cardLastFour: cardInfo.lastFour,
+        cardType: cardInfo.type,
+        amount: charge.amount,
+        currency: charge.currency_code,
+        createdAt: new Date(charge.creation_date * 1000).toISOString(),
+      } satisfies Prisma.InputJsonValue,
+      paidAt: new Date(),
     });
 
-    // Contabilizar la compra en el CRM/lealtad (idempotente).
-    await onOrderPaid(order.id);
+    // Cobramos dinero sobre una orden que ya no admite pago. No podemos
+    // "deshacer" el cargo aquí (no hay integración de refund con Culqi), así
+    // que lo dejamos anotado para conciliación manual y se lo decimos al
+    // cliente en vez de mostrarle una confirmación falsa.
+    if (claimPaid.outcome === "not-payable") {
+      await recordOrphanPayment({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        provider: "Culqi",
+        providerPaymentId: charge.id,
+        amount: charge.amount / 100,
+        currency: charge.currency_code,
+        status: claimPaid.status,
+        paymentStatus: claimPaid.paymentStatus,
+      });
 
-    try {
-      await autoEmitOnPayment(order.id);
-    } catch (emitError) {
-      console.error("SUNAT auto-emission failed (payment still confirmed):", emitError);
+      revalidatePath("/admin/ordenes");
+
+      return {
+        success: false,
+        error:
+          "Tu pago se procesó, pero el pedido ya no estaba disponible. No te preocupes: lo revisaremos y te devolveremos el importe.",
+      };
     }
 
     // NOTA: El inventario YA se descontó atómicamente en createOrder (para
@@ -146,33 +168,14 @@ export async function processCardPayment(data: {
     // descontar aquí — hacerlo causaba doble/triple descuento (createOrder +
     // processCardPayment + webhook) y stock negativo.
 
-    // 7. Enviar email de confirmación
-    try {
-      const emailSettings = await getSiteSettings();
-      const orderDisplayNumber = displayOrderNumber(order, emailSettings.order_prefix || "PED");
-      await sendOrderConfirmationEmail({
-        orderNumber: orderDisplayNumber,
-        customerName: order.customerName,
-        customerEmail: order.customerEmail,
-        total: Number(order.total),
-        paymentMethod: "CARD",
-        viewOrderLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/orden/${order.id}/confirmacion?token=${order.viewToken}`,
-        items: order.items.map((item) => ({
-          name: item.name,
-          variantName: item.variantName || undefined,
-          quantity: item.quantity,
-          price: Number(item.price),
-          image: item.image || undefined,
-          customDesignImages: (item.customDesignImages as unknown as Array<{ zoneId: string; url: string }> | null) ?? undefined,
-        })),
-        shippingAddress: order.shippingAddress as unknown as { address: string; district: string; city: string; department: string },
-      });
-    } catch (emailError) {
-      console.error("Error sending confirmation email:", emailError);
-      // No fallar el proceso si el email falla
+    // 6. Efectos (lealtad, SUNAT, correo) SOLO si este flujo ganó el claim. Si
+    // el webhook ya la había marcado pagada, él corrió los mismos efectos:
+    // repetirlos aquí duplicaría el comprobante y el correo al cliente.
+    if (claimPaid.outcome === "claimed") {
+      await runCulqiPostPaymentEffects(order.id);
     }
 
-    // 8. Revalidar páginas
+    // 7. Revalidar páginas
     revalidatePath("/admin/ordenes");
     revalidatePath(`/orden/${order.id}/confirmacion`);
 

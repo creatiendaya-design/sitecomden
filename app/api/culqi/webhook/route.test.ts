@@ -29,6 +29,9 @@ const mocks = vi.hoisted(() => ({
   getCulqiCharge: vi.fn(),
   revalidatePath: vi.fn(),
   applyRefund: vi.fn(),
+  claimOrderAsPaid: vi.fn(),
+  recordOrphanPayment: vi.fn(),
+  runCulqiPostPaymentEffects: vi.fn(),
   loggerChild: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
@@ -37,6 +40,9 @@ const verifyCulqiChargeMock = mocks.verifyCulqiCharge;
 const getCulqiChargeMock = mocks.getCulqiCharge;
 const revalidatePathMock = mocks.revalidatePath;
 const applyRefundMock = mocks.applyRefund;
+const claimOrderAsPaidMock = mocks.claimOrderAsPaid;
+const recordOrphanPaymentMock = mocks.recordOrphanPayment;
+const postPaymentEffectsMock = mocks.runCulqiPostPaymentEffects;
 const loggerChildMock = mocks.loggerChild;
 
 vi.mock("@/lib/db", () => ({ prisma: mocks.prisma }));
@@ -49,12 +55,20 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/logger", () => ({
   logger: { child: () => mocks.loggerChild },
 }));
-// Loyalty accounting is a separate concern with its own tests; stub it here
-// so this file only exercises the webhook's own branching logic.
-vi.mock("@/lib/loyalty/award-purchase", () => ({ onOrderPaid: vi.fn() }));
 // Refund side effects (stock restore, loyalty revert, email) have their own
 // tests; here we only assert the webhook delegates to applyRefund.
 vi.mock("@/lib/orders/apply-refund", () => ({ applyRefund: mocks.applyRefund }));
+// La transición orden→pagada vive en lib/payments/order-payment-state (con sus
+// propios tests). Aquí sólo comprobamos que el webhook la usa en vez de hacer
+// su propio `order.update`, que era lo que permitía revivir órdenes canceladas.
+vi.mock("@/lib/payments/order-payment-state", () => ({
+  claimOrderAsPaid: mocks.claimOrderAsPaid,
+  recordOrphanPayment: mocks.recordOrphanPayment,
+}));
+// Lealtad + SUNAT + correo: efectos con sus propios tests.
+vi.mock("@/lib/payments/culqi-post-payment", () => ({
+  runCulqiPostPaymentEffects: mocks.runCulqiPostPaymentEffects,
+}));
 
 // Import AFTER mocks are registered.
 import { POST, GET } from "./route";
@@ -95,6 +109,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Por defecto ningún otro pedido reclama el mismo cargo.
   prismaMock.order.findFirst.mockResolvedValue(null);
+  // Por defecto la orden sigue siendo pagable y este flujo gana el claim.
+  claimOrderAsPaidMock.mockResolvedValue({ outcome: "claimed" });
 });
 
 describe("POST /api/culqi/webhook - charge.succeeded", () => {
@@ -126,14 +142,21 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
       "order_abc",
     );
 
-    // Order moved to PAID.
-    const updateCall = prismaMock.order.update.mock.calls[0]?.[0];
-    expect(updateCall.where).toEqual({ id: "order_abc" });
-    expect(updateCall.data.status).toBe("PAID");
-    expect(updateCall.data.paymentStatus).toBe("PAID");
-    expect(updateCall.data.paymentId).toBe("chr_test_123");
-    expect(updateCall.data.paymentProvider).toBe("culqi");
-    expect(updateCall.data.paidAt).toBeInstanceOf(Date);
+    // Order moved to PAID — vía el claim condicionado, nunca con un
+    // `order.update` directo (ver el test de la orden cancelada más abajo).
+    expect(prismaMock.order.update).not.toHaveBeenCalled();
+    const [claimedOrderId, claimedData] = claimOrderAsPaidMock.mock.calls[0];
+    expect(claimedOrderId).toBe("order_abc");
+    expect(claimedData.status).toBe("PAID");
+    expect(claimedData.paymentStatus).toBe("PAID");
+    expect(claimedData.paymentId).toBe("chr_test_123");
+    expect(claimedData.paymentProvider).toBe("culqi");
+    expect(claimedData.paidAt).toBeInstanceOf(Date);
+
+    // Y los efectos del pedido confirmado (lealtad, SUNAT, correo) corren una
+    // vez: antes el webhook sólo hacía lealtad, así que si ganaba él la carrera
+    // el cliente se quedaba sin correo y sin comprobante.
+    expect(postPaymentEffectsMock).toHaveBeenCalledWith("order_abc");
 
     // Stock is NOT touched here — createOrder already decremented it
     // atomically when the order was placed. Decrementing again here would
@@ -251,6 +274,61 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
 
     expect(res.status).toBe(200);
     expect(prismaMock.order.update).not.toHaveBeenCalled();
+  });
+
+  // El escenario que motivó el fix: un admin cancela el pedido mientras Culqi
+  // procesa el cargo. La cancelación ya devolvió el stock al inventario; si el
+  // webhook vuelve a marcar PAID, el pedido sale a despacho sin unidades.
+  it("does NOT revive a cancelled order — records the money for reconciliation", async () => {
+    verifyCulqiChargeMock.mockResolvedValue(true);
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "order_abc",
+      orderNumber: "PED-0001",
+      paymentStatus: "FAILED",
+      total: 199.9,
+    });
+    claimOrderAsPaidMock.mockResolvedValue({
+      outcome: "not-payable",
+      status: "CANCELLED",
+      paymentStatus: "FAILED",
+    });
+
+    const res = await POST(makeWebhookRequest(chargeSucceededEvent()));
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.order.update).not.toHaveBeenCalled();
+    // El dinero no desaparece en silencio: queda anotado en el pedido.
+    expect(recordOrphanPaymentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: "order_abc",
+        provider: "Culqi",
+        providerPaymentId: "chr_test_123",
+        // El evento trae céntimos; la nota para el admin va en soles.
+        amount: 199.9,
+        status: "CANCELLED",
+      }),
+    );
+    // Y ningún efecto de "pedido confirmado".
+    expect(postPaymentEffectsMock).not.toHaveBeenCalled();
+  });
+
+  it("does not re-run side effects when a concurrent flow already paid it", async () => {
+    verifyCulqiChargeMock.mockResolvedValue(true);
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "order_abc",
+      orderNumber: "PED-0001",
+      paymentStatus: "VERIFYING",
+      total: 199.9,
+    });
+    claimOrderAsPaidMock.mockResolvedValue({ outcome: "already-paid" });
+
+    const res = await POST(makeWebhookRequest(chargeSucceededEvent()));
+
+    expect(res.status).toBe(200);
+    // Sin esto el cliente recibía dos correos y se emitía dos veces el
+    // comprobante cuando el retorno y el webhook llegaban a la vez.
+    expect(postPaymentEffectsMock).not.toHaveBeenCalled();
+    expect(recordOrphanPaymentMock).not.toHaveBeenCalled();
   });
 });
 

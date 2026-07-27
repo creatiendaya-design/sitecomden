@@ -66,9 +66,22 @@ export const FULFILLMENT_STATUS_LABELS: Record<FulfillmentStatus, string> = {
 // VALIDACIONES
 // ============================================================
 
-export function canCancelOrder(orderStatus: OrderStatus): boolean {
+/**
+ * Cancelar cierra el pedido y devuelve el stock SIN mover dinero.
+ *
+ * Por eso sólo aplica mientras no se haya cobrado: una vez pagada, cerrar el
+ * pedido es un reembolso (`canRefundPayment`), que además devuelve el importe,
+ * revierte los puntos y avisa al cliente. `updateOrderStatus` rechaza la
+ * cancelación de una orden pagada; pasar `paymentStatus` aquí evita ofrecer en
+ * la UI un botón que siempre iba a fallar.
+ */
+export function canCancelOrder(
+  orderStatus: OrderStatus,
+  paymentStatus?: PaymentStatus
+): boolean {
   // Solo se puede cancelar antes de enviar
-  return ["PENDING", "PAID", "PROCESSING"].includes(orderStatus);
+  if (!["PENDING", "PAID", "PROCESSING"].includes(orderStatus)) return false;
+  return paymentStatus !== "PAID";
 }
 
 export function canRefundPayment(paymentStatus: PaymentStatus): boolean {

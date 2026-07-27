@@ -80,6 +80,20 @@ describe("canCancelOrder", () => {
     expect(canCancelOrder("CANCELLED")).toBe(false);
     expect(canCancelOrder("REFUNDED")).toBe(false);
   });
+
+  // Cancelar no mueve dinero: sobre una orden cobrada dejaría al cliente sin
+  // producto y sin devolución. Ese caso es un reembolso.
+  it("blocks cancellation once the money was collected", () => {
+    expect(canCancelOrder("PENDING", "PAID")).toBe(false);
+    expect(canCancelOrder("PAID", "PAID")).toBe(false);
+    expect(canCancelOrder("PROCESSING", "PAID")).toBe(false);
+  });
+
+  it("still allows cancellation while the payment is not collected", () => {
+    expect(canCancelOrder("PENDING", "PENDING")).toBe(true);
+    expect(canCancelOrder("PENDING", "VERIFYING")).toBe(true);
+    expect(canCancelOrder("PENDING", "FAILED")).toBe(true);
+  });
 });
 
 describe("canRefundPayment", () => {

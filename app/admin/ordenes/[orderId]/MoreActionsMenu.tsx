@@ -53,7 +53,10 @@ export default function MoreActionsMenu({
   const [refundOpen, setRefundOpen] = useState(false);
   const [failedOpen, setFailedOpen] = useState(false);
 
-  const showCancel = canCancelOrder(orderStatus as OrderStatus);
+  const showCancel = canCancelOrder(
+    orderStatus as OrderStatus,
+    paymentStatus as PaymentStatus
+  );
   const showRefund = canRefundPayment(paymentStatus as PaymentStatus);
   const showFailed = canMarkPaymentAsFailed(paymentStatus as PaymentStatus);
 

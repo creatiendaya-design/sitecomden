@@ -15,8 +15,12 @@ import { prisma } from "@/lib/db";
 import { verifyCulqiCharge, getCulqiCharge, solesToCents } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
-import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 import { applyRefund } from "@/lib/orders/apply-refund";
+import {
+  claimOrderAsPaid,
+  recordOrphanPayment,
+} from "@/lib/payments/order-payment-state";
+import { runCulqiPostPaymentEffects } from "@/lib/payments/culqi-post-payment";
 
 const log = logger.child({ module: "culqi-webhook" });
 
@@ -100,7 +104,7 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
   // La orden PRIMERO: es la única fuente autoritativa del importe a cobrar.
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    select: { id: true, orderNumber: true, total: true, paymentStatus: true },
   });
 
   if (!order) return;
@@ -134,35 +138,62 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
     return;
   }
 
-  // Actualizar orden
-  await prisma.order.update({
-    where: { id: orderId },
-    data: {
-      status: "PAID",
-      paymentStatus: "PAID",
-      paymentId: data.id,
-      paymentProvider: "culqi",
-      paymentDetails: {
-        chargeId: data.id,
-        authorizationCode: data.authorization_code,
-        referenceCode: data.reference_code,
-        cardBrand: data.source?.iin?.card_brand,
-        cardLastFour: data.source?.last_four,
-        cardType: data.source?.iin?.card_type,
-        amount: data.amount,
-        currency: data.currency_code,
-        webhookProcessedAt: new Date().toISOString(),
-      } as Prisma.InputJsonValue,
-      paidAt: new Date(),
-    },
+  // Claim atómico en lugar de `update` directo. La comprobación de arriba
+  // ("¿ya está PAID?") es leer-luego-escribir y, sobre todo, no excluía las
+  // órdenes CANCELADAS/REEMBOLSADAS: un cargo que llegaba tarde —el admin
+  // canceló mientras Culqi procesaba, devolviendo el stock— volvía a marcar la
+  // orden PAGADA sin unidades que la respalden.
+  const claim = await claimOrderAsPaid(orderId, {
+    status: "PAID",
+    paymentStatus: "PAID",
+    paymentId: data.id,
+    paymentProvider: "culqi",
+    paymentDetails: {
+      chargeId: data.id,
+      authorizationCode: data.authorization_code,
+      referenceCode: data.reference_code,
+      cardBrand: data.source?.iin?.card_brand,
+      cardLastFour: data.source?.last_four,
+      cardType: data.source?.iin?.card_type,
+      amount: data.amount,
+      currency: data.currency_code,
+      webhookProcessedAt: new Date().toISOString(),
+    } as Prisma.InputJsonValue,
+    paidAt: new Date(),
   });
+
+  if (claim.outcome === "already-paid") {
+    log.info({ orderId, chargeId: data.id }, "Order already marked paid by a concurrent flow");
+    return;
+  }
+
+  if (claim.outcome === "not-payable") {
+    // Dinero cobrado sobre una orden que ya no lo admite. Queda anotado para
+    // que un humano lo reembolse desde el panel de Culqi; reintentar el
+    // webhook no lo arreglaría.
+    await recordOrphanPayment({
+      orderId,
+      orderNumber: order.orderNumber,
+      provider: "Culqi",
+      providerPaymentId: data.id,
+      amount: data.amount / 100,
+      currency: data.currency_code,
+      status: claim.status,
+      paymentStatus: claim.paymentStatus,
+    });
+    revalidatePath("/admin/ordenes");
+    return;
+  }
 
   // NOTA: El inventario para órdenes con tarjeta YA se descontó atómicamente
   // en createOrder al crear la orden. NO descontar aquí — duplicaba el
   // descuento (createOrder + webhook) y dejaba el stock en negativo.
 
-  // Contabilizar la compra en el CRM/lealtad (idempotente).
-  await onOrderPaid(orderId);
+  // Lealtad + SUNAT + correo de confirmación. Antes el webhook sólo hacía
+  // lealtad, así que cuando ganaba él la carrera (la server action perdió la
+  // respuesta de Culqi por red) el cliente se quedaba sin correo y el
+  // comprobante electrónico sin emitir.
+  await runCulqiPostPaymentEffects(orderId);
 
   // Revalidar páginas
   revalidatePath("/admin/ordenes");

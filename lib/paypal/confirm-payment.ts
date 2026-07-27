@@ -3,9 +3,10 @@
  *
  * Única fuente de verdad para marcar una orden como pagada vía PayPal. Captura
  * la orden de PayPal si aún está aprobada (o lee su estado si ya se capturó),
- * valida que el `custom_id` corresponda a nuestra orden y la divisa coincida con
- * la configurada, y marca PAID. La invocan tanto el retorno del cliente como el
- * webhook; ambos pueden correr en carrera y el resultado es idempotente.
+ * valida que el `custom_id` corresponda a nuestra orden y que divisa e importe
+ * coincidan con lo que la orden debe cobrar, y marca PAID. La invocan tanto el
+ * retorno del cliente como el webhook; ambos pueden correr en carrera y el
+ * resultado es idempotente.
  */
 
 import { Prisma } from "@prisma/client";
@@ -15,14 +16,35 @@ import { logger } from "@/lib/logger";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
 import { capturePaypalOrder, getPaypalOrder, type PaypalOrderInfo } from "./client";
-import { readPaypalSettings } from "./config";
+import { readPaypalSettings, convertPenToCharge } from "./config";
 import { onOrderPaid } from "@/lib/loyalty/award-purchase";
+import {
+  cancelOrderForFailedPayment,
+  claimOrderAsPaid,
+  recordOrphanPayment,
+} from "@/lib/payments/order-payment-state";
 
 const log = logger.child({ module: "paypal-confirm" });
 
 export type ConfirmResult =
-  | { ok: true; orderId: string; status: "paid" | "failed" | "pending" | "ignored" }
-  | { ok: false; error: string };
+  | {
+      ok: true;
+      orderId: string;
+      /** `orphaned`: se cobró sobre una orden que ya no admitía pago. */
+      status: "paid" | "failed" | "pending" | "ignored" | "orphaned";
+    }
+  | {
+      ok: false;
+      error: string;
+      /**
+       * `true` cuando volver a intentar puede prosperar (PayPal caído, tipo de
+       * cambio sin configurar). El webhook lo traduce en un 5xx para que PayPal
+       * reentregue el evento; con `false` responde 200 y deja de insistir,
+       * porque el problema no se arregla repitiendo (importe que no cuadra,
+       * orden inexistente).
+       */
+      retryable: boolean;
+    };
 
 function appBaseUrl(): string {
   return (
@@ -41,13 +63,13 @@ export async function captureAndConfirmPaypalOrder(
   // Estado actual en PayPal (evita doble captura en carrera retorno/webhook).
   let info: PaypalOrderInfo | null = await getPaypalOrder(paypalOrderId);
   if (!info) {
-    return { ok: false, error: "No se pudo verificar la orden en PayPal" };
+    return { ok: false, error: "No se pudo verificar la orden en PayPal", retryable: true };
   }
 
   const orderId = info.customId;
   if (!orderId) {
     log.error({ paypalOrderId }, "PayPal order without custom_id");
-    return { ok: false, error: "Orden de PayPal sin referencia" };
+    return { ok: false, error: "Orden de PayPal sin referencia", retryable: false };
   }
 
   const order = await prisma.order.findUnique({
@@ -56,7 +78,7 @@ export async function captureAndConfirmPaypalOrder(
   });
   if (!order) {
     log.error({ paypalOrderId, orderId }, "Order not found for PayPal order");
-    return { ok: false, error: "Orden no encontrada" };
+    return { ok: false, error: "Orden no encontrada", retryable: false };
   }
 
   // Idempotencia.
@@ -79,27 +101,81 @@ export async function captureAndConfirmPaypalOrder(
         { paypalOrderId, orderId, got: info.currencyCode, expected: settings.currency },
         "PayPal currency mismatch — refusing to confirm"
       );
-      return { ok: false, error: "La divisa del pago no coincide con la configurada" };
+      return { ok: false, error: "La divisa del pago no coincide con la configurada", retryable: false };
     }
 
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: "PAID",
-        paymentStatus: "PAID",
-        paymentId: info.captureId ?? info.id,
-        paymentProvider: "paypal",
-        paymentDetails: {
-          paypalOrderId: info.id,
-          captureId: info.captureId,
-          captureStatus: info.captureStatus,
-          amount: info.amountValue,
-          currency: info.currencyCode,
-          processedAt: new Date().toISOString(),
-        } satisfies Prisma.InputJsonValue,
-        paidAt: new Date(),
-      },
+    // Importe: hasta ahora sólo se comparaba la divisa, así que cualquier
+    // cantidad capturada cerraba la orden como pagada. PayPal cobra en divisa
+    // internacional, no en soles, así que el importe esperado es el total del
+    // pedido convertido con el tipo de cambio vigente.
+    //
+    // A diferencia de MercadoPago (igualdad exacta, misma divisa) aquí se exige
+    // "no menos de lo esperado": la conversión redondea a 2 decimales y el tipo
+    // de cambio es editable, de modo que una igualdad estricta rechazaría pagos
+    // legítimos ya capturados y dejaría al cliente con el dinero cobrado y sin
+    // pedido. Un pago de más se acepta y queda registrado en paymentDetails.
+    const expectedCharge = convertPenToCharge(Number(order.total), settings.exchangeRate);
+
+    if (expectedCharge === null) {
+      log.error(
+        { paypalOrderId, orderId, exchangeRate: settings.exchangeRate },
+        "PayPal exchange rate not configured — cannot validate captured amount"
+      );
+      return { ok: false, error: "No se pudo validar el importe del pago", retryable: true };
+    }
+
+    const expectedCents = Math.round(expectedCharge * 100);
+    const paidCents = info.amountValue != null ? Math.round(info.amountValue * 100) : null;
+
+    if (paidCents === null || paidCents < expectedCents) {
+      log.error(
+        { paypalOrderId, orderId, expectedCents, paidCents, totalPen: Number(order.total) },
+        "PayPal amount mismatch — refusing to confirm"
+      );
+      return { ok: false, error: "El monto del pago no coincide con la orden", retryable: false };
+    }
+
+    // Claim atómico: la comprobación de idempotencia de arriba es
+    // leer-luego-escribir, y además el `update` incondicional aceptaba órdenes
+    // CANCELADAS —una cancelación entre la aprobación en PayPal y el retorno
+    // dejaba la orden PAID con el stock ya devuelto al inventario—.
+    const claim = await claimOrderAsPaid(orderId, {
+      status: "PAID",
+      paymentStatus: "PAID",
+      paymentId: info.captureId ?? info.id,
+      paymentProvider: "paypal",
+      paymentDetails: {
+        paypalOrderId: info.id,
+        captureId: info.captureId,
+        captureStatus: info.captureStatus,
+        amount: info.amountValue,
+        currency: info.currencyCode,
+        expectedAmount: expectedCharge,
+        processedAt: new Date().toISOString(),
+      } satisfies Prisma.InputJsonValue,
+      paidAt: new Date(),
     });
+
+    if (claim.outcome === "already-paid") {
+      log.info({ orderId, paypalOrderId }, "Order already marked paid by a concurrent flow");
+      return { ok: true, orderId, status: "ignored" };
+    }
+
+    if (claim.outcome === "not-payable") {
+      // El dinero ya se capturó pero la orden no puede recibirlo. No es un
+      // error reintentable: que el webhook deje de insistir y lo vea un humano.
+      await recordOrphanPayment({
+        orderId,
+        orderNumber: order.orderNumber,
+        provider: "PayPal",
+        providerPaymentId: info.captureId ?? info.id,
+        amount: info.amountValue,
+        currency: info.currencyCode,
+        status: claim.status,
+        paymentStatus: claim.paymentStatus,
+      });
+      return { ok: true, orderId, status: "orphaned" };
+    }
 
     // NOTA: el inventario ya se descontó en createOrder (PayPal no es manual).
 
@@ -137,22 +213,29 @@ export async function captureAndConfirmPaypalOrder(
   }
 
   // ----- Anulada / fallida -----
+  // VOIDED es terminal en PayPal: la autorización ya no puede capturarse, así
+  // que el pedido no va a cobrarse nunca. Antes sólo se marcaba FAILED y las
+  // unidades descontadas al crear la orden quedaban retenidas para siempre.
   if (info.status === "VOIDED") {
-    if (order.paymentStatus !== "REFUNDED") {
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          paymentStatus: "FAILED",
-          paymentDetails: {
-            paypalOrderId: info.id,
-            status: info.status,
-            processedAt: new Date().toISOString(),
-          } satisfies Prisma.InputJsonValue,
-        },
-      });
+    const result = await cancelOrderForFailedPayment({
+      orderId,
+      orderNumber: order.orderNumber,
+      reason: "Pago anulado en PayPal",
+      paymentDetails: {
+        paypalOrderId: info.id,
+        status: info.status,
+        processedAt: new Date().toISOString(),
+      } satisfies Prisma.InputJsonValue,
+    });
+
+    if (result.cancelled) {
       revalidatePath("/admin/ordenes");
     }
-    log.info({ orderId, status: info.status }, "PayPal order voided");
+
+    log.info(
+      { orderId, status: info.status, ...result },
+      "PayPal order voided — order cancelled and stock released"
+    );
     return { ok: true, orderId, status: "failed" };
   }
 

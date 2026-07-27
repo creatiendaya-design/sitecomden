@@ -11,6 +11,7 @@ import {
 } from "@/lib/validations/admin";
 import { logAudit } from "@/lib/audit-log";
 import { getCurrentUserId } from "@/lib/auth";
+import { setStockAbsolute } from "@/lib/inventory/set-stock";
 
 function flattenZodError(err: z.ZodError): string {
   return err.issues.map((i) => i.message).join("; ");
@@ -345,54 +346,33 @@ export async function adjustStock(data: {
     }
     const input = parsed.data;
 
-    let currentStock = 0;
+    // El movimiento de ledger y la escritura del stock van en una sola
+    // transacción con compare-and-swap (ver lib/inventory/set-stock.ts): antes
+    // eran tres pasos sueltos y dos admins ajustando a la vez se pisaban,
+    // dejando el ledger sin cuadrar con el stock.
+    const result = await setStockAbsolute({
+      target: { productId: input.productId, variantId: input.variantId },
+      newStock: input.newStock,
+      reason: input.reason,
+    });
 
-    // Obtener stock actual
-    if (input.variantId) {
-      const variant = await prisma.productVariant.findUnique({
-        where: { id: input.variantId },
-        select: { stock: true },
-      });
-      currentStock = variant?.stock || 0;
-    } else if (input.productId) {
-      const product = await prisma.product.findUnique({
-        where: { id: input.productId },
-        select: { stock: true },
-      });
-      currentStock = product?.stock || 0;
+    if (result.outcome === "not-found") {
+      return { success: false, error: "Producto o variante no encontrado" };
     }
 
-    const difference = input.newStock - currentStock;
+    if (result.outcome === "conflict") {
+      return {
+        success: false,
+        error:
+          "El stock cambió mientras guardabas (otra persona o una venta lo modificó). Vuelve a cargar el inventario e inténtalo de nuevo.",
+      };
+    }
 
-    if (difference === 0) {
+    if (result.outcome === "unchanged") {
       return {
         success: true,
         message: "El stock ya está en el valor indicado",
       };
-    }
-
-    // Crear movimiento de ajuste
-    await prisma.inventoryMovement.create({
-      data: {
-        productId: input.productId ?? undefined,
-        variantId: input.variantId ?? undefined,
-        type: "ADJUSTMENT",
-        quantity: difference,
-        reason: input.reason,
-      },
-    });
-
-    // Actualizar stock
-    if (input.variantId) {
-      await prisma.productVariant.update({
-        where: { id: input.variantId },
-        data: { stock: input.newStock },
-      });
-    } else if (input.productId) {
-      await prisma.product.update({
-        where: { id: input.productId },
-        data: { stock: input.newStock },
-      });
     }
 
     revalidatePath("/admin/inventario");
@@ -402,10 +382,10 @@ export async function adjustStock(data: {
       userId: currentUserId ?? null,
       entityType: input.variantId ? "ProductVariant" : "Product",
       entityId: input.variantId ?? input.productId ?? null,
-      before: { stock: currentStock },
-      after: { stock: input.newStock },
+      before: { stock: result.previousStock },
+      after: { stock: result.newStock },
       metadata: {
-        difference,
+        difference: result.difference,
         reason: input.reason,
       },
     });

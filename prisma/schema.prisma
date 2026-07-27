@@ -376,6 +376,19 @@ model Order {
   /// When the "leave a review" post-purchase email was sent for this order.
   /// Null = not sent yet; set so the cron never emails the same order twice.
   reviewRequestSentAt DateTime?
+
+  /// Cuándo caduca la reserva de inventario de esta orden.
+  ///
+  /// Las órdenes de pasarela (CARD / MERCADOPAGO / PAYPAL) descuentan stock al
+  /// crearse, antes de que exista el pago. Sin caducidad, cada checkout
+  /// abandonado —la mayoría— retenía esas unidades para siempre y la tienda se
+  /// quedaba "sin stock" sola. El barrido de
+  /// `lib/inventory/release-expired-reservations.ts` cancela la orden y devuelve
+  /// el stock cuando esta fecha queda atrás.
+  ///
+  /// Null significa "no caduca": Yape/Plin (que no reservan hasta que un admin
+  /// aprueba), COD (pedido ya comprometido) y toda orden ya pagada.
+  reservationExpiresAt DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   /// Optimistic-locking version (Plan 18). Two admins updating the same
@@ -390,6 +403,11 @@ model Order {
   @@index([customerEmail])
   @@index([createdAt])
   @@index([customerId, createdAt])
+  /// El barrido de reservas vencidas corre periódicamente y casi siempre no
+  /// encuentra nada. Sin índice sería un seq scan de toda la tabla de pedidos
+  /// en cada pasada; con él, y siendo NULL la gran mayoría de las filas, la
+  /// consulta toca sólo las órdenes de pasarela aún sin cobrar.
+  @@index([reservationExpiresAt])
 }
 
 model OrderItem {

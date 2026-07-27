@@ -14,11 +14,17 @@
  * referenciada) y es idempotente, así que no se puede falsificar ni duplicar.
  */
 
-import { confirmMercadoPagoPayment } from "@/lib/mercadopago/confirm-payment";
+import {
+  confirmMercadoPagoPayment,
+  type ConfirmResult,
+} from "@/lib/mercadopago/confirm-payment";
+
+/** Derivado de la fuente para que añadir un estado allí no deje esto obsoleto. */
+type ConfirmStatus = Extract<ConfirmResult, { ok: true }>["status"];
 
 export type ConfirmReturnResult = {
   ok: boolean;
-  status: "paid" | "failed" | "pending" | "ignored" | "refunded" | null;
+  status: ConfirmStatus | null;
 };
 
 export async function confirmMercadoPagoReturn(
