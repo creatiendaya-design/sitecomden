@@ -4,6 +4,7 @@ import { rejectPaymentSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit-log";
 import { getRequestLogger } from "@/lib/logger";
+import { releaseOrderStock } from "@/lib/inventory/release-order-stock";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
@@ -76,75 +77,19 @@ export async function POST(request: Request) {
         },
       });
 
-      // 3. Restaurar stock de los productos
-      for (const item of order.items) {
-        // Solo restaurar stock si el producto/variante aún existe
-        
-        if (item.variantId) {
-          try {
-            // Restaurar stock de variante
-            await tx.productVariant.update({
-              where: { id: item.variantId },
-              data: { stock: { increment: item.quantity } },
-            });
+      // 3. Devolver al inventario SOLO lo que la orden retiene realmente.
+      // Antes se hacía increment de item.quantity para cada línea, sin mirar
+      // si esta orden llegó a descontar stock: Yape/Plin crean la orden sin
+      // tocar el inventario, así que rechazar uno de esos pagos INVENTABA
+      // unidades. releaseOrderStock lo deduce del ledger de movimientos.
+      const released = await releaseOrderStock(tx, {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        reason: `Rechazo de pago por ${user.email || user.id}`,
+        userId: user.id,
+      });
 
-            await tx.inventoryMovement.create({
-              data: {
-                variantId: item.variantId,
-                type: "RETURN",
-                quantity: item.quantity,
-                reason: `Devolución - Orden #${order.orderNumber} rechazada por ${user.email || user.id}`,
-                reference: order.id,
-                userId: user.id,
-              },
-            });
-
-            log.debug(
-              { variantId: item.variantId, restored: item.quantity },
-              "Variant stock restored",
-            );
-          } catch (error) {
-            log.warn(
-              { variantId: item.variantId, err: error },
-              "Variant deleted — stock not restored",
-            );
-          }
-        } else if (item.productId) {
-          try {
-            // Restaurar stock de producto simple
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: { increment: item.quantity } },
-            });
-
-            await tx.inventoryMovement.create({
-              data: {
-                productId: item.productId,
-                type: "RETURN",
-                quantity: item.quantity,
-                reason: `Devolución - Orden #${order.orderNumber} rechazada por ${user.email || user.id}`,
-                reference: order.id,
-                userId: user.id,
-              },
-            });
-
-            log.debug(
-              { productId: item.productId, restored: item.quantity },
-              "Product stock restored",
-            );
-          } catch (error) {
-            log.warn(
-              { productId: item.productId, err: error },
-              "Product deleted — stock not restored",
-            );
-          }
-        } else {
-          log.warn(
-            { itemName: item.name },
-            "Order item has no product/variant reference — stock not restored",
-          );
-        }
-      }
+      log.debug({ orderId: order.id, ...released }, "Stock released on payment rejection");
     });
 
     log.info(
