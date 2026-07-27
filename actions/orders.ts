@@ -14,6 +14,7 @@ import { displayOrderNumber } from "@/lib/utils";
 import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
 import { getProductImageUrl } from "@/lib/image-utils";
 import { releaseOrderStock } from "@/lib/inventory/release-order-stock";
+import { reservationExpiryFor } from "@/lib/inventory/reservation-policy";
 
 /**
  * Respuesta de `createOrder` para un pedido que ya existe con esa clave de
@@ -558,6 +559,10 @@ export async function createOrder(rawData: unknown) {
             status: "PENDING",
             paymentStatus: "PENDING",
             fulfillmentStatus: "UNFULFILLED",
+            // Caducidad de la reserva: sólo la fijan los métodos que descuentan
+            // stock antes de cobrar (tarjeta, MercadoPago, PayPal). Para
+            // Yape/Plin y COD queda NULL — ver lib/inventory/reservation-policy.
+            reservationExpiresAt: reservationExpiryFor(data.paymentMethod),
             customerName: data.customerName,
             customerEmail: data.customerEmail.toLowerCase().trim(),
             customerPhone: data.customerPhone,
@@ -1077,11 +1082,25 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       };
 
       const allowed = allowedTransitions[currentOrder.status] || [];
-      
+
       if (!allowed.includes(input.status) && input.status !== currentOrder.status) {
         return {
           success: false,
           error: `No se puede cambiar de ${currentOrder.status} a ${input.status}`,
+        };
+      }
+
+      // Cancelar una orden YA PAGADA devolvía el stock y cerraba el pedido sin
+      // tocar el dinero: el cliente se quedaba sin producto y sin reembolso, y
+      // la orden quedaba CANCELADA (no REEMBOLSADA), de modo que ni siquiera
+      // aparecía como pendiente de devolver. Esa operación es un reembolso, y
+      // tiene su propio flujo: `refundOrder` devuelve el dinero en la pasarela
+      // cuando puede y sólo entonces aplica estado, stock, puntos y correo.
+      if (input.status === "CANCELLED" && currentOrder.paymentStatus === "PAID") {
+        return {
+          success: false,
+          error:
+            "Esta orden está pagada: no se puede cancelar sin devolver el dinero. Usa la acción \"Reembolsar\" del pedido.",
         };
       }
 
@@ -1096,6 +1115,9 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
         updateData.deliveredAt = new Date();
       } else if (input.status === "CANCELLED") {
         updateData.cancelledAt = new Date();
+        // Cancelar libera el stock aquí mismo, así que la orden deja de tener
+        // reserva viva: sin esto el barrido la seguiría viendo como vencida.
+        updateData.reservationExpiresAt = null;
       }
     }
 
@@ -1110,11 +1132,26 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
       };
 
       const allowed = allowedTransitions[currentOrder.paymentStatus] || [];
-      
+
       if (!allowed.includes(input.paymentStatus) && input.paymentStatus !== currentOrder.paymentStatus) {
         return {
           success: false,
           error: `No se puede cambiar el estado de pago de ${currentOrder.paymentStatus} a ${input.paymentStatus}`,
+        };
+      }
+
+      // REFUNDED lo escribe SOLO `applyRefund`, que además devuelve el stock,
+      // revierte los puntos de lealtad y avisa al cliente. Marcarlo a mano
+      // desde aquí dejaba el pedido "reembolsado" sin ninguno de esos efectos
+      // y sin haber devuelto el dinero.
+      if (
+        input.paymentStatus === "REFUNDED" &&
+        currentOrder.paymentStatus !== "REFUNDED"
+      ) {
+        return {
+          success: false,
+          error:
+            "El estado REEMBOLSADO se aplica desde la acción \"Reembolsar\" del pedido, que además devuelve el dinero y restaura el inventario.",
         };
       }
 

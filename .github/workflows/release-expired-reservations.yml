@@ -1,0 +1,56 @@
+name: Release expired reservations
+
+# Cancela los pedidos de pasarela (tarjeta / MercadoPago / PayPal) que
+# reservaron stock y nunca se pagaron, devolviendo las unidades al inventario.
+# Sin esto, cada checkout abandonado —la mayoría— retenía stock para siempre.
+#
+# Requiere la misma configuración que warmup.yml en los ajustes del repo:
+#   - Secret   CRON_SECRET     — mismo valor que la env var CRON_SECRET en
+#                                Vercel. Se envía como Bearer token.
+#   - Variable PRODUCTION_URL  — URL base de producción. Opcional; por defecto
+#                                https://www.nuejoy.online.
+#
+# CADENCIA — leer antes de bajarla:
+# Cada pasada despierta la compute de Neon, que en plan gratuito sigue
+# facturando ~5 min de CU tras la última consulta. Un schedule */10 fue
+# exactamente lo que agotó la cuota el 2026-06-20 y tumbó la tienda (ver
+# warmup.yml). Con una pasada por hora son ~24 despertares/día en vez de 144.
+#
+# El coste de esta cadencia es latencia, no correctitud: una reserva puede
+# sobrevivir hasta ~1h más allá de su vencimiento. Con una ventana de reserva de
+# 60 min (ORDER_RESERVATION_MINUTES) eso significa que el stock vuelve entre 1 y
+# 2 horas después del abandono, lo cual es aceptable. Si la tienda pasa a un plan
+# de pago de Neon, bajarlo a */15 es seguro.
+on:
+  schedule:
+    - cron: '7 * * * *' # cada hora, en el minuto 7 (evita el pico de :00)
+  workflow_dispatch: {}
+
+concurrency:
+  group: release-expired-reservations
+  cancel-in-progress: true
+
+jobs:
+  sweep:
+    name: Sweep expired reservations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Hit /api/internal/release-expired-reservations
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          BASE_URL="${PRODUCTION_URL:-https://www.nuejoy.online}"
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET is not set. This job CANCELS orders, so it refuses to run unauthenticated."
+            exit 1
+          fi
+          echo "Sweeping $BASE_URL/api/internal/release-expired-reservations"
+          # --location: sigue redirecciones apex->www para que un cambio de host
+          # canónico no convierta el barrido en un no-op silencioso.
+          curl --fail --silent --show-error --location \
+            --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -w "\nHTTP %{http_code} | total %{time_total}s\n" \
+            "$BASE_URL/api/internal/release-expired-reservations"
