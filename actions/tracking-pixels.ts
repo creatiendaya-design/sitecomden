@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
+import { requirePermission } from "@/lib/auth";
 import { getActivePixelsCached } from "@/lib/tracking-pixels";
 
 // ============================================
@@ -53,6 +54,10 @@ export type PixelConfig =
 // ============================================
 
 export async function getAllPixels() {
+  // PROTEGIDO: `config` incluye access tokens de CAPI / api secrets de GA4.
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const pixels = await prisma.trackingPixel.findMany({
       orderBy: { platform: "asc" },
@@ -76,6 +81,10 @@ export async function getAllPixels() {
 // ============================================
 
 export async function getPixelByPlatform(platform: PixelPlatform) {
+  // PROTEGIDO: devuelve credenciales completas.
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const pixel = await prisma.trackingPixel.findFirst({
       where: { platform },
@@ -109,6 +118,9 @@ export async function savePixel(
   testMode: boolean,
   description?: string
 ) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     // Validar configuración según plataforma
     let validatedConfig;
@@ -180,6 +192,9 @@ export async function savePixel(
 // ============================================
 
 export async function deletePixel(platform: PixelPlatform) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     await prisma.trackingPixel.deleteMany({
       where: { platform },
@@ -200,6 +215,9 @@ export async function deletePixel(platform: PixelPlatform) {
 // ============================================
 
 export async function togglePixel(platform: PixelPlatform, enabled: boolean) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     await prisma.trackingPixel.updateMany({
       where: { platform },
@@ -221,10 +239,39 @@ export async function togglePixel(platform: PixelPlatform, enabled: boolean) {
 // ============================================
 
 /**
+ * Campos de `config` que el navegador necesita para inicializar los scripts
+ * de píxel. Todo lo demás (`accessToken` de Meta/TikTok CAPI, `apiSecret` de
+ * GA4 Measurement Protocol) es server-only: lo lee `lib/conversion-api.ts`
+ * directamente de la BD y NUNCA debe salir en el payload RSC.
+ */
+const CLIENT_SAFE_PIXEL_FIELDS = [
+  "pixelId",
+  "testEventCode",
+  "conversionId",
+  "conversionLabel",
+  "measurementId",
+] as const;
+
+function toClientSafeConfig(config: unknown): PixelConfig {
+  if (typeof config !== "object" || config === null) return {} as PixelConfig;
+  const source = config as Record<string, unknown>;
+  const safe: Record<string, unknown> = {};
+
+  for (const field of CLIENT_SAFE_PIXEL_FIELDS) {
+    if (source[field] !== undefined) safe[field] = source[field];
+  }
+
+  return safe as PixelConfig;
+}
+
+/**
  * Cached delegate. The actual `unstable_cache` wrapper lives in
  * `lib/tracking-pixels.ts` because a `"use server"` module can't export
  * non-server-action helpers safely. Mutations below call
  * `updateTag("tracking-pixels")` to invalidate this read.
+ *
+ * PÚBLICO a propósito (lo consumen los layouts del storefront), por eso
+ * devuelve la config saneada — sin credenciales de servidor.
  */
 export async function getActivePixels(): Promise<{
   success: boolean;
@@ -235,7 +282,7 @@ export async function getActivePixels(): Promise<{
     success: result.success,
     pixels: result.pixels.map((p) => ({
       platform: p.platform,
-      config: p.config as PixelConfig,
+      config: toClientSafeConfig(p.config),
       testMode: p.testMode,
     })),
   };

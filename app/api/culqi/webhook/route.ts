@@ -12,10 +12,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { verifyCulqiCharge, getCulqiCharge } from "@/lib/culqi";
+import { verifyCulqiCharge, getCulqiCharge, solesToCents } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { onOrderPaid } from "@/lib/loyalty/award-purchase";
+import { applyRefund } from "@/lib/orders/apply-refund";
 
 const log = logger.child({ module: "culqi-webhook" });
 
@@ -96,14 +97,7 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
 
   if (!orderId) return;
 
-  // Verificar contra la API de Culqi que el cargo realmente existe y fue exitoso.
-  // Culqi no firma webhooks, así que esta llamada de vuelta es la única prueba confiable.
-  const isValid = await verifyCulqiCharge(data.id, data.amount, data.currency_code);
-  if (!isValid) {
-    log.error({ chargeId: data.id }, "Charge failed verification against Culqi API");
-    return;
-  }
-
+  // La orden PRIMERO: es la única fuente autoritativa del importe a cobrar.
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { items: true },
@@ -112,6 +106,33 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
   if (!order) return;
 
   if (order.paymentStatus === "PAID") return;
+
+  // Un mismo cargo no puede pagar dos órdenes distintas.
+  const chargeAlreadyUsed = await prisma.order.findFirst({
+    where: { paymentId: data.id, id: { not: orderId } },
+    select: { id: true },
+  });
+  if (chargeAlreadyUsed) {
+    log.error(
+      { chargeId: data.id, orderId, existingOrderId: chargeAlreadyUsed.id },
+      "Culqi charge already applied to a different order"
+    );
+    return;
+  }
+
+  // Verificar contra la API de Culqi que el cargo existe, fue exitoso y —lo
+  // esencial— que su importe y metadata corresponden a ESTA orden. Culqi no
+  // firma webhooks, así que esta llamada de vuelta es la única prueba fiable,
+  // y sólo prueba algo si se contrasta contra la BD (ver verifyCulqiCharge).
+  const expectedAmount = solesToCents(Number(order.total));
+  const isValid = await verifyCulqiCharge(data.id, expectedAmount, "PEN", orderId);
+  if (!isValid) {
+    log.error(
+      { chargeId: data.id, orderId, expectedAmount },
+      "Charge failed verification against the order in DB"
+    );
+    return;
+  }
 
   // Actualizar orden
   await prisma.order.update({
@@ -242,18 +263,27 @@ async function handleRefundSucceeded(event: CulqiWebhookEvent) {
     return;
   }
 
-  // Actualizar orden como reembolsada
-  await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      status: "REFUNDED",
-      paymentStatus: "REFUNDED",
-    },
-  });
+  // Fuente única de verdad para "esta orden quedó reembolsada": además de los
+  // estados, restaura inventario, revierte lealtad y notifica al cliente. Antes
+  // este webhook sólo tocaba los dos campos de estado, así que un reembolso
+  // hecho desde el panel de Culqi dejaba el stock sin devolver y los puntos
+  // de lealtad regalados.
+  const result = await applyRefund(order.id, { source: "webhook" });
+
+  if (!result.ok) {
+    log.error(
+      { orderId: order.id, error: result.error },
+      "applyRefund failed for Culqi refund webhook"
+    );
+    return;
+  }
 
   revalidatePath("/admin/ordenes");
 
-  log.info({ orderNumber: order.orderNumber, orderId: order.id }, "Order refunded via webhook");
+  log.info(
+    { orderNumber: order.orderNumber, orderId: order.id, alreadyRefunded: result.alreadyRefunded },
+    "Order refunded via webhook"
+  );
 }
 
 // GET no permitido

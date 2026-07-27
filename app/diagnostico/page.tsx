@@ -1,8 +1,13 @@
 "use client";
 
 import { useAuth, useUser } from "@clerk/nextjs";
+import { notFound } from "next/navigation";
 
 export default function DiagnosticoClerk() {
+  // Herramienta de desarrollo: expone sessionId y datos del usuario.
+  // No debe existir en producción.
+  if (process.env.NODE_ENV === "production") notFound();
+
   const { userId, isLoaded, isSignedIn, sessionId } = useAuth();
   const { user } = useUser();
 

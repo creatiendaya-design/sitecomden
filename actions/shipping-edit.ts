@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 // =====================================================
@@ -8,6 +9,9 @@ import { revalidatePath } from "next/cache";
 // =====================================================
 
 export async function getShippingZoneById(id: string) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const zone = await prisma.shippingZone.findUnique({
       where: { id },
@@ -33,6 +37,9 @@ export async function createShippingZone(data: {
   description?: string | null;
   active: boolean;
 }) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const zone = await prisma.shippingZone.create({
       data: {
@@ -60,6 +67,9 @@ export async function updateShippingZone(
     active: boolean;
   },
 ) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const zone = await prisma.shippingZone.update({
       where: { id },
@@ -82,6 +92,9 @@ export async function updateShippingZone(
 }
 
 export async function deleteShippingZone(id: string) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     await prisma.shippingZone.delete({ where: { id } });
 
@@ -100,6 +113,9 @@ export async function deleteShippingZone(id: string) {
 // =====================================================
 
 export async function getZoneDistrictsWithDetails(zoneId: string) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado", data: [] };
+
   try {
     const assignments = await prisma.shippingZoneDistrict.findMany({
       where: { shippingZoneId: zoneId },
@@ -132,6 +148,9 @@ export async function getZoneDistrictsWithDetails(zoneId: string) {
 }
 
 export async function addDistrictToZone(zoneId: string, districtCode: string) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const existing = await prisma.shippingZoneDistrict.findUnique({
       where: { districtCode },
@@ -156,6 +175,9 @@ export async function addDistrictToZone(zoneId: string, districtCode: string) {
 }
 
 export async function removeDistrictFromZone(assignmentId: string, zoneId: string) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     await prisma.shippingZoneDistrict.delete({ where: { id: assignmentId } });
 
@@ -174,6 +196,9 @@ export async function removeDistrictFromZone(assignmentId: string, zoneId: strin
 // =====================================================
 
 export async function getShippingRateById(id: string) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const rate = await prisma.shippingRate.findUnique({
       where: { id },
@@ -210,6 +235,9 @@ export async function updateShippingRate(
     excludeFromRegularCheckout?: boolean;
   },
 ) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const rate = await prisma.shippingRate.update({
       where: { id },
@@ -243,6 +271,9 @@ export async function updateShippingRate(
 }
 
 export async function deleteShippingRate(id: string) {
+  const { response } = await requirePermission("settings:update");
+  if (response) return { success: false, error: "No autorizado" };
+
   try {
     const rate = await prisma.shippingRate.findUnique({ where: { id } });
 

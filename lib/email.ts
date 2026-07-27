@@ -1,5 +1,5 @@
 import { resend } from "./resend";
-import { getFromEmail } from "@/actions/email-settings";
+import { getFromEmail } from "@/lib/email-settings";
 import { prisma } from "@/lib/db";
 import { resolveEmailLogoUrl, resolveEmailImageUrl } from "@/lib/email/image-url";
 import OrderConfirmationEmail from "@/emails/OrderConfirmationEmail";

@@ -1,8 +1,13 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 
 export default async function DebugAuthPage() {
+  // Herramienta de desarrollo: vuelca claims de sesión y nombres de cookies.
+  // No debe existir en producción.
+  if (process.env.NODE_ENV === "production") notFound();
+
   const { userId, sessionClaims } = await auth();
   const user = await currentUser();
   const cookieStore = await cookies();

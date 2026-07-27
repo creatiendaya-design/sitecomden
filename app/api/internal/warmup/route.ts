@@ -10,11 +10,12 @@ import { prisma } from "@/lib/db"
  * we saw earlier; keeping the connection warm sidesteps the issue
  * without paying for an always-on Neon plan.
  *
- * Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` when the
- * env var is configured. Without the secret the endpoint is open — useful
- * for local testing but not exposed in production unless CRON_SECRET is
- * unset (which would be a misconfiguration). Vercel's docs recommend
- * setting CRON_SECRET, so we treat it as the production guard.
+ * Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. En producción
+ * el secreto es OBLIGATORIO y el endpoint falla cerrado si falta: antes, la
+ * ausencia de la variable (un despliegue mal configurado, justo el escenario
+ * en que menos quieres estar expuesto) dejaba el endpoint público y con él un
+ * disparador anónimo de consultas a la BD. En desarrollo sigue abierto para
+ * poder probarlo en local.
  */
 export const dynamic = "force-dynamic"
 
@@ -24,7 +25,11 @@ const PING_TIMEOUT_MS = 8000
 
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
+  if (!cronSecret) {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+  } else {
     const auth = request.headers.get("authorization")
     if (auth !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
