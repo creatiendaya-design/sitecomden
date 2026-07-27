@@ -24,8 +24,14 @@ export const dynamic = "force-dynamic";
 const BATCH_LIMIT = 50;
 
 export async function GET(request: Request) {
+  // Fail-closed en producción: sin CRON_SECRET este endpoint envía correos a
+  // clientes reales, así que una variable ausente no puede significar "abierto".
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
+  if (!cronSecret) {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else {
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

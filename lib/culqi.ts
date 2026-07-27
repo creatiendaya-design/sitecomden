@@ -3,7 +3,7 @@
  * Documentación: https://docs.culqi.com/
  */
 
-import { getActiveCulqiKeys } from "@/actions/culqi-settings";
+import { getActiveCulqiKeys } from "@/lib/culqi-config";
 import { logger } from "@/lib/logger";
 
 const log = logger.child({ module: "culqi" });
@@ -216,21 +216,45 @@ export async function getCulqiCharge(chargeId: string) {
 /**
  * Verificar que un cargo de webhook realmente existe y fue exitoso en Culqi.
  * Culqi no firma sus webhooks, así que verificamos contra su API directamente.
+ *
+ * IMPORTANTE: `expectedAmount` y `expectedOrderId` deben venir de la orden en
+ * BD, NUNCA del propio evento. Comparar el cargo contra los valores que el
+ * evento trae consigo no prueba nada: un atacante puede POSTear un evento
+ * falso apuntando a un cargo real y barato (uno suyo de S/1) con el
+ * `order_id` de la orden que quiere marcar pagada. El cargo existe, el monto
+ * "coincide" con lo que él mismo declaró, y la orden se marca PAID.
  */
 export async function verifyCulqiCharge(
   chargeId: string,
   expectedAmount: number,
-  expectedCurrency: string
+  expectedCurrency: string,
+  expectedOrderId?: string
 ): Promise<boolean> {
   try {
     const charge = await getCulqiCharge(chargeId);
-    return (
+
+    const basicsOk =
       charge.object === "charge" &&
       charge.id === chargeId &&
       charge.outcome?.type === "venta_exitosa" &&
       charge.amount === expectedAmount &&
-      charge.currency_code === expectedCurrency
-    );
+      charge.currency_code === expectedCurrency;
+
+    if (!basicsOk) return false;
+
+    // El cargo debe declarar, del lado de Culqi, la misma orden que dice pagar.
+    if (expectedOrderId) {
+      const chargeOrderId = charge.metadata?.order_id;
+      if (chargeOrderId !== expectedOrderId) {
+        log.error(
+          { chargeId, expectedOrderId, chargeOrderId },
+          "Culqi charge metadata does not match the order it claims to pay"
+        );
+        return false;
+      }
+    }
+
+    return true;
   } catch {
     return false;
   }

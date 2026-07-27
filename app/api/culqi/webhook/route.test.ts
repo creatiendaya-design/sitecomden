@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   verifyCulqiCharge: vi.fn(),
   getCulqiCharge: vi.fn(),
   revalidatePath: vi.fn(),
+  applyRefund: vi.fn(),
   loggerChild: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
@@ -35,12 +36,14 @@ const prismaMock = mocks.prisma;
 const verifyCulqiChargeMock = mocks.verifyCulqiCharge;
 const getCulqiChargeMock = mocks.getCulqiCharge;
 const revalidatePathMock = mocks.revalidatePath;
+const applyRefundMock = mocks.applyRefund;
 const loggerChildMock = mocks.loggerChild;
 
 vi.mock("@/lib/db", () => ({ prisma: mocks.prisma }));
 vi.mock("@/lib/culqi", () => ({
   verifyCulqiCharge: mocks.verifyCulqiCharge,
   getCulqiCharge: mocks.getCulqiCharge,
+  solesToCents: (soles: number) => Math.round(soles * 100),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/logger", () => ({
@@ -49,6 +52,9 @@ vi.mock("@/lib/logger", () => ({
 // Loyalty accounting is a separate concern with its own tests; stub it here
 // so this file only exercises the webhook's own branching logic.
 vi.mock("@/lib/loyalty/award-purchase", () => ({ onOrderPaid: vi.fn() }));
+// Refund side effects (stock restore, loyalty revert, email) have their own
+// tests; here we only assert the webhook delegates to applyRefund.
+vi.mock("@/lib/orders/apply-refund", () => ({ applyRefund: mocks.applyRefund }));
 
 // Import AFTER mocks are registered.
 import { POST, GET } from "./route";
@@ -87,6 +93,8 @@ function chargeSucceededEvent(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Por defecto ningún otro pedido reclama el mismo cargo.
+  prismaMock.order.findFirst.mockResolvedValue(null);
 });
 
 describe("POST /api/culqi/webhook - charge.succeeded", () => {
@@ -96,6 +104,7 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
       id: "order_abc",
       orderNumber: "PED-0001",
       paymentStatus: "PENDING",
+      total: 199.9,
       items: [
         { productId: "prod_1", variantId: null, quantity: 2 },
         { productId: null, variantId: "var_1", quantity: 1 },
@@ -108,11 +117,13 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ received: true });
 
-    // Verified against Culqi API before trusting the webhook.
+    // Verificado contra la API de Culqi usando el importe de la ORDEN (no el
+    // que trae el evento) y ligado al orderId concreto.
     expect(verifyCulqiChargeMock).toHaveBeenCalledWith(
       "chr_test_123",
       19990,
       "PEN",
+      "order_abc",
     );
 
     // Order moved to PAID.
@@ -150,11 +161,67 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
 
   it("rejects the webhook when Culqi verification fails", async () => {
     verifyCulqiChargeMock.mockResolvedValue(false);
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "order_abc",
+      orderNumber: "PED-0001",
+      paymentStatus: "PENDING",
+      total: 199.9,
+      items: [],
+    });
 
     const res = await POST(makeWebhookRequest(chargeSucceededEvent()));
 
     expect(res.status).toBe(200);
-    expect(prismaMock.order.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.order.update).not.toHaveBeenCalled();
+    expect(loggerChildMock.error).toHaveBeenCalled();
+  });
+
+  it("does NOT mark the order PAID when the charge is for a smaller amount than the order total", async () => {
+    // El escenario que motivó el fix: el atacante POSTea un evento con un
+    // cargo real suyo de S/1 y el order_id de una orden de S/199.90. El cargo
+    // existe en Culqi, así que verificar "el cargo contra lo que el evento
+    // declara" pasaría. Verificarlo contra Order.total no.
+    verifyCulqiChargeMock.mockImplementation(
+      async (_chargeId: string, expectedAmount: number) => expectedAmount === 100,
+    );
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "order_abc",
+      orderNumber: "PED-0001",
+      paymentStatus: "PENDING",
+      total: 199.9,
+      items: [],
+    });
+
+    const res = await POST(
+      makeWebhookRequest(chargeSucceededEvent({ amount: 100 })),
+    );
+
+    expect(res.status).toBe(200);
+    expect(verifyCulqiChargeMock).toHaveBeenCalledWith(
+      "chr_test_123",
+      19990, // el total real de la orden, NO los 100 del evento
+      "PEN",
+      "order_abc",
+    );
+    expect(prismaMock.order.update).not.toHaveBeenCalled();
+    expect(loggerChildMock.error).toHaveBeenCalled();
+  });
+
+  it("refuses to apply one charge to a second order", async () => {
+    verifyCulqiChargeMock.mockResolvedValue(true);
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "order_abc",
+      orderNumber: "PED-0001",
+      paymentStatus: "PENDING",
+      total: 199.9,
+      items: [],
+    });
+    prismaMock.order.findFirst.mockResolvedValue({ id: "order_previous" });
+
+    const res = await POST(makeWebhookRequest(chargeSucceededEvent()));
+
+    expect(res.status).toBe(200);
+    expect(verifyCulqiChargeMock).not.toHaveBeenCalled();
     expect(prismaMock.order.update).not.toHaveBeenCalled();
     expect(loggerChildMock.error).toHaveBeenCalled();
   });
@@ -165,6 +232,7 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
       id: "order_abc",
       orderNumber: "PED-0001",
       paymentStatus: "PAID",
+      total: 199.9,
       items: [],
     });
 
@@ -248,11 +316,12 @@ describe("POST /api/culqi/webhook - charge.failed", () => {
 });
 
 describe("POST /api/culqi/webhook - refund.succeeded", () => {
-  it("marks the matching order as REFUNDED", async () => {
+  it("delegates every refund effect to applyRefund (stock, loyalty, email)", async () => {
     prismaMock.order.findFirst.mockResolvedValue({
       id: "order_ref_1",
       orderNumber: "PED-0007",
     });
+    applyRefundMock.mockResolvedValue({ ok: true });
     // handleRefundSucceeded verifies against Culqi's API before trusting the
     // webhook — a confirmed refund reports amount_refunded > 0.
     getCulqiChargeMock.mockResolvedValue({
@@ -279,10 +348,14 @@ describe("POST /api/culqi/webhook - refund.succeeded", () => {
     expect(prismaMock.order.findFirst).toHaveBeenCalledWith({
       where: { paymentId: "chr_refunded_1" },
     });
-    const updateCall = prismaMock.order.update.mock.calls[0]?.[0];
-    expect(updateCall.where).toEqual({ id: "order_ref_1" });
-    expect(updateCall.data.status).toBe("REFUNDED");
-    expect(updateCall.data.paymentStatus).toBe("REFUNDED");
+
+    // El webhook ya no toca los estados a mano: eso dejaba el stock sin
+    // devolver y los puntos de lealtad regalados.
+    expect(applyRefundMock).toHaveBeenCalledWith("order_ref_1", {
+      source: "webhook",
+    });
+    expect(prismaMock.order.update).not.toHaveBeenCalled();
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/ordenes");
   });
 
   it("logs an error and skips when no order matches the chargeId", async () => {

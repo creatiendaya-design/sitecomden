@@ -2,73 +2,43 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
+import {
+  readEmailSettings,
+  DEFAULT_EMAIL_SETTINGS,
+  type EmailSettings,
+} from "@/lib/email-settings";
+
+const log = logger.child({ module: "email-settings-action" });
+
+export type { EmailSettings } from "@/lib/email-settings";
 
 // ============================================================
-// TIPOS
-// ============================================================
-
-export interface EmailSettings {
-  fromEmail: string;
-  fromName: string;
-  replyToEmail: string;
-  adminEmail: string;
-  companyName: string;
-}
-
-// ============================================================
-// VALORES POR DEFECTO
-// ============================================================
-
-const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
-  fromEmail: "onboarding@resend.dev",
-  fromName: "Mi Tienda",
-  replyToEmail: "soporte@mitienda.com",
-  adminEmail: "admin@mitienda.com",
-  companyName: "Mi Tienda",
-};
-
-// ============================================================
-// OBTENER CONFIGURACIÓN DE EMAILS
+// OBTENER CONFIGURACIÓN DE EMAILS (PROTEGIDO)
 // ============================================================
 
 export async function getEmailSettings(): Promise<EmailSettings> {
-  try {
-    const setting = await prisma.setting.findUnique({
-      where: { key: "email_settings" },
-    });
+  const { response } = await requirePermission("settings:update");
+  if (response) return DEFAULT_EMAIL_SETTINGS;
 
-    // ✅ Validar que exista y que value no sea null
-    if (!setting || !setting.value) {
-      return DEFAULT_EMAIL_SETTINGS;
-    }
-
-    // ✅ Validar que sea un objeto con las propiedades requeridas
-    const value = setting.value as unknown as Record<string, unknown>;
-    if (
-      typeof value === "object" &&
-      value.fromEmail &&
-      value.fromName &&
-      value.replyToEmail &&
-      value.adminEmail &&
-      value.companyName
-    ) {
-      return value as unknown as EmailSettings;
-    }
-
-    // Si no cumple la estructura, retornar defaults
-    return DEFAULT_EMAIL_SETTINGS;
-  } catch (error) {
-    console.error("Error getting email settings:", error);
-    return DEFAULT_EMAIL_SETTINGS;
-  }
+  return readEmailSettings();
 }
 
 // ============================================================
-// GUARDAR CONFIGURACIÓN DE EMAILS
+// GUARDAR CONFIGURACIÓN DE EMAILS (PROTEGIDO)
 // ============================================================
 
 export async function saveEmailSettings(settings: EmailSettings) {
+  const { response } = await requirePermission("settings:update");
+  if (response) {
+    return {
+      success: false,
+      error: "No autorizado para cambiar la configuración de emails",
+    };
+  }
+
   try {
     // Validaciones básicas
     if (!settings.fromEmail || !settings.fromEmail.includes("@")) {
@@ -122,8 +92,6 @@ export async function saveEmailSettings(settings: EmailSettings) {
       },
     });
 
-    console.log("Email settings saved:", settings);
-
     // Revalidar páginas que usan esta configuración
     revalidatePath("/admin/configuracion/emails");
 
@@ -132,28 +100,10 @@ export async function saveEmailSettings(settings: EmailSettings) {
       message: "Configuración guardada correctamente",
     };
   } catch (error) {
-    console.error("Error saving email settings:", error);
+    log.error({ err: error }, "Failed to save email settings");
     return {
       success: false,
       error: "Error al guardar la configuración",
     };
   }
-}
-
-// ============================================================
-// OBTENER FROM_EMAIL FORMATEADO (para Resend)
-// ============================================================
-
-export async function getFromEmail(): Promise<string> {
-  const settings = await getEmailSettings();
-  return `${settings.fromName} <${settings.fromEmail}>`;
-}
-
-// ============================================================
-// OBTENER ADMIN_EMAIL
-// ============================================================
-
-export async function getAdminEmail(): Promise<string> {
-  const settings = await getEmailSettings();
-  return settings.adminEmail;
 }

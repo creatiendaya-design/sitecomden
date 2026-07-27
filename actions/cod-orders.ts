@@ -17,6 +17,10 @@ import {
   incrementPromotionUsage,
 } from "@/lib/promotions/server";
 import { ensureCustomerId } from "@/lib/loyalty/link-customer";
+import {
+  decrementStockAtomic,
+  StockUnavailableError,
+} from "@/lib/inventory/decrement-stock";
 
 export async function createCodOrder(rawData: unknown) {
   const parsed = createCodOrderSchema.safeParse(rawData);
@@ -267,35 +271,78 @@ export async function createCodOrder(rawData: unknown) {
       })
     : null;
 
-  const order = await prisma.order.create({
-    data: {
-      customerId: linkedCustomerId ?? undefined,
-      customerName: data.name,
-      customerEmail: data.email || `cod-${Date.now()}@shopgood.pe`,
-      customerPhone: data.phone,
-      customerDni: data.dni,
-      customerNotes: data.notes,
-      billingAddress: locationJson,
-      shippingAddress: locationJson,
-      subtotal,
-      shipping: shippingCost,
-      discount: roundedDiscount,
-      tax: 0,
-      total,
-      paymentMethod: "COD",
-      shippingMethod: shippingMethodLabel,
-      items: {
-        create: resolvedItems.map((item) => ({
+  // Crear la orden y descontar inventario en la MISMA transacción.
+  //
+  // Antes sólo se comprobaba `stock < quantity` antes de crear la orden y nunca
+  // se descontaba: dos compradores COD simultáneos (o el mismo pulsando dos
+  // veces) generaban pedidos por unidades inexistentes, y el stock seguía
+  // marcando disponible indefinidamente. El decremento atómico con guarda
+  // `stock >= quantity` es la única comprobación válida (la lectura previa es
+  // TOCTOU) y es el mismo camino que usa el checkout estándar.
+  let order: { id: string; orderNumber: string; orderSeq: number | null };
+  try {
+    order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          customerId: linkedCustomerId ?? undefined,
+          customerName: data.name,
+          customerEmail: data.email || `cod-${Date.now()}@shopgood.pe`,
+          customerPhone: data.phone,
+          customerDni: data.dni,
+          customerNotes: data.notes,
+          billingAddress: locationJson,
+          shippingAddress: locationJson,
+          subtotal,
+          shipping: shippingCost,
+          discount: roundedDiscount,
+          tax: 0,
+          total,
+          paymentMethod: "COD",
+          shippingMethod: shippingMethodLabel,
+          items: {
+            create: resolvedItems.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              image: item.image,
+            })),
+          },
+        },
+      });
+
+      for (const item of resolvedItems) {
+        const result = await decrementStockAtomic(tx, {
           productId: item.productId,
-          variantId: item.variantId,
-          name: item.name,
-          price: item.price,
+          variantId: item.variantId ?? undefined,
           quantity: item.quantity,
-          image: item.image,
-        })),
-      },
-    },
-  });
+          name: item.name,
+        });
+        if (!result.ok) {
+          throw new StockUnavailableError(result.error ?? "Stock insuficiente");
+        }
+
+        await tx.inventoryMovement.create({
+          data: {
+            productId: item.variantId ? undefined : item.productId,
+            variantId: item.variantId ?? undefined,
+            type: "SALE",
+            quantity: -item.quantity,
+            reason: `Venta COD - Orden #${created.orderNumber}`,
+            reference: created.id,
+          },
+        });
+      }
+
+      return created;
+    });
+  } catch (error) {
+    if (error instanceof StockUnavailableError) {
+      return { success: false, error: error.message };
+    }
+    throw error;
+  }
 
   // Subscribe collected emails (one per unique address) to the newsletter.
   // Failures are swallowed inside the helper so they cannot block the order.

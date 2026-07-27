@@ -2,128 +2,132 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
+import {
+  readCulqiSettings,
+  DEFAULT_CULQI_SETTINGS,
+  type CulqiSettings,
+} from "@/lib/culqi-config";
 
-// ============================================================
-// TIPOS
-// ============================================================
+const log = logger.child({ module: "culqi-settings" });
 
-export interface CulqiSettings {
-  mode: "test" | "production";
-  test: {
-    publicKey: string;
-    secretKey: string;
-  };
-  production: {
-    publicKey: string;
-    secretKey: string;
-  };
+export type { CulqiSettings } from "@/lib/culqi-config";
+
+/**
+ * Marcador que sustituye a la secret key cuando la enviamos al navegador.
+ * Si el formulario devuelve una clave que aún contiene este marcador,
+ * significa que el admin no la editó y conservamos la almacenada.
+ */
+const MASK = "••••••••";
+
+function maskSecret(secretKey: string): string {
+  if (!secretKey) return "";
+  const tail = secretKey.slice(-4);
+  return `${MASK}${tail}`;
+}
+
+function isMasked(value: string): boolean {
+  return value.includes(MASK);
 }
 
 // ============================================================
-// VALORES POR DEFECTO
+// OBTENER CONFIGURACIÓN (ENMASCARADA)
 // ============================================================
 
-const DEFAULT_CULQI_SETTINGS: CulqiSettings = {
-  mode: "test",
-  test: {
-    publicKey: "",
-    secretKey: "",
-  },
-  production: {
-    publicKey: "",
-    secretKey: "",
-  },
-};
-
-// ============================================================
-// OBTENER CONFIGURACIÓN DE CULQI
-// ============================================================
-
+/**
+ * Configuración de Culqi para el panel admin.
+ *
+ * PROTEGIDO + ENMASCARADO: las public keys viajan completas (son públicas por
+ * definición), pero las secret keys se devuelven como `••••••••1234`. Nunca
+ * enviamos una secret key completa al navegador, ni siquiera a un admin.
+ */
 export async function getCulqiSettings(): Promise<CulqiSettings> {
-  try {
-    const setting = await prisma.setting.findUnique({
-      where: { key: "culqi_config" },
-    });
+  const { response } = await requirePermission("settings:update");
+  if (response) return DEFAULT_CULQI_SETTINGS;
 
-    if (!setting || !setting.value) {
-      return DEFAULT_CULQI_SETTINGS;
-    }
+  const settings = await readCulqiSettings();
 
-    const value = setting.value as unknown as Record<string, unknown>;
-    
-    // Validar estructura
-    if (
-      typeof value === "object" &&
-      value.mode &&
-      value.test &&
-      value.production &&
-      typeof value.test === "object" &&
-      typeof value.production === "object"
-    ) {
-      return value as unknown as CulqiSettings;
-    }
-
-    return DEFAULT_CULQI_SETTINGS;
-  } catch (error) {
-    console.error("Error getting Culqi settings:", error);
-    return DEFAULT_CULQI_SETTINGS;
-  }
+  return {
+    mode: settings.mode,
+    test: {
+      publicKey: settings.test.publicKey,
+      secretKey: maskSecret(settings.test.secretKey),
+    },
+    production: {
+      publicKey: settings.production.publicKey,
+      secretKey: maskSecret(settings.production.secretKey),
+    },
+  };
 }
 
 // ============================================================
-// GUARDAR CONFIGURACIÓN DE CULQI
+// GUARDAR CONFIGURACIÓN
 // ============================================================
 
 export async function saveCulqiSettings(settings: CulqiSettings) {
+  const { response } = await requirePermission("settings:update");
+  if (response) {
+    return {
+      success: false,
+      error: "No autorizado para cambiar la configuración de Culqi",
+    };
+  }
+
   try {
-    // Validaciones
-    if (!["test", "production"].includes(settings.mode)) {
+    if (settings.mode !== "test" && settings.mode !== "production") {
       return {
         success: false,
         error: "Modo inválido. Debe ser 'test' o 'production'",
       };
     }
 
-    // Si está en modo test, validar que tenga las claves de test
-    if (settings.mode === "test") {
-      if (!settings.test.publicKey || !settings.test.secretKey) {
-        return {
-          success: false,
-          error: "Las claves de prueba son requeridas cuando el modo es 'test'",
-        };
-      }
+    // Las secret keys enmascaradas significan "sin cambios": recuperamos las
+    // almacenadas para no sobrescribirlas con el marcador.
+    const stored = await readCulqiSettings();
+    const merged: CulqiSettings = {
+      mode: settings.mode,
+      test: {
+        publicKey: settings.test.publicKey.trim(),
+        secretKey: isMasked(settings.test.secretKey)
+          ? stored.test.secretKey
+          : settings.test.secretKey.trim(),
+      },
+      production: {
+        publicKey: settings.production.publicKey.trim(),
+        secretKey: isMasked(settings.production.secretKey)
+          ? stored.production.secretKey
+          : settings.production.secretKey.trim(),
+      },
+    };
+
+    const activeKeys = merged.mode === "test" ? merged.test : merged.production;
+    if (!activeKeys.publicKey || !activeKeys.secretKey) {
+      return {
+        success: false,
+        error:
+          merged.mode === "test"
+            ? "Las claves de prueba son requeridas cuando el modo es 'test'"
+            : "Las claves de producción son requeridas cuando el modo es 'production'",
+      };
     }
 
-    // Si está en modo production, validar que tenga las claves de production
-    if (settings.mode === "production") {
-      if (!settings.production.publicKey || !settings.production.secretKey) {
-        return {
-          success: false,
-          error: "Las claves de producción son requeridas cuando el modo es 'production'",
-        };
-      }
-    }
-
-    // Guardar o actualizar setting
     await prisma.setting.upsert({
       where: { key: "culqi_config" },
       update: {
-        value: settings as unknown as Prisma.InputJsonValue,
+        value: merged as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de Culqi (claves y modo de operación)",
       },
       create: {
         key: "culqi_config",
-        value: settings as unknown as Prisma.InputJsonValue,
+        value: merged as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de Culqi (claves y modo de operación)",
       },
     });
 
-    console.log("✅ Culqi settings saved successfully");
-
-    // Revalidar páginas relevantes
     revalidatePath("/admin/configuracion/culqi");
     revalidatePath("/checkout/pago");
 
@@ -132,41 +136,10 @@ export async function saveCulqiSettings(settings: CulqiSettings) {
       message: "Configuración de Culqi guardada correctamente",
     };
   } catch (error) {
-    console.error("Error saving Culqi settings:", error);
+    log.error({ err: error }, "Failed to save Culqi settings");
     return {
       success: false,
       error: "Error al guardar la configuración de Culqi",
     };
-  }
-}
-
-// ============================================================
-// OBTENER CLAVES ACTIVAS (según modo)
-// ============================================================
-
-export async function getActiveCulqiKeys(): Promise<{
-  publicKey: string;
-  secretKey: string;
-  mode: "test" | "production";
-} | null> {
-  try {
-    const settings = await getCulqiSettings();
-    
-    if (settings.mode === "test") {
-      return {
-        publicKey: settings.test.publicKey,
-        secretKey: settings.test.secretKey,
-        mode: "test",
-      };
-    } else {
-      return {
-        publicKey: settings.production.publicKey,
-        secretKey: settings.production.secretKey,
-        mode: "production",
-      };
-    }
-  } catch (error) {
-    console.error("Error getting active Culqi keys:", error);
-    return null;
   }
 }

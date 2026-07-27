@@ -12,6 +12,22 @@ import { createOrderSchema, type UpdateOrderStatusInput } from "./orders-schema"
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
 import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
+import { getProductImageUrl } from "@/lib/image-utils";
+
+/**
+ * Nombre legible de una variante a partir de su Json `options`, con el mismo
+ * formato que usa el carrito (`"Color: Rojo, Talla: M"`). Se calcula en el
+ * servidor para que el snapshot del pedido no dependa del payload del cliente.
+ */
+function formatVariantName(options: unknown): string | undefined {
+  if (typeof options !== "object" || options === null) return undefined;
+
+  const parts = Object.entries(options as Record<string, unknown>)
+    .filter(([, value]) => typeof value === "string" || typeof value === "number")
+    .map(([key, value]) => `${key}: ${String(value)}`);
+
+  return parts.length > 0 ? parts.join(", ") : undefined;
+}
 import type { ShippingRestriction } from "@/lib/cod-forms/types";
 import {
   decrementStockAtomic,
@@ -74,7 +90,17 @@ export async function createOrder(rawData: unknown) {
       variantIds.length > 0
         ? prisma.productVariant.findMany({
             where: { id: { in: variantIds } },
-            select: { id: true, price: true, stock: true, active: true },
+            select: {
+              id: true,
+              // `productId` es imprescindible: sin él no se puede comprobar que
+              // la variante pertenece al producto que el cliente dice comprar.
+              productId: true,
+              options: true,
+              image: true,
+              price: true,
+              stock: true,
+              active: true,
+            },
           })
         : Promise.resolve([]),
       prisma.product.findMany({
@@ -82,6 +108,7 @@ export async function createOrder(rawData: unknown) {
         select: {
           id: true,
           name: true,
+          images: true,
           basePrice: true,
           stock: true,
           active: true,
@@ -93,6 +120,20 @@ export async function createOrder(rawData: unknown) {
     ]);
     const variantById = new Map(variantRows.map((v) => [v.id, v]));
     const productById = new Map(productRows.map((p) => [p.id, p]));
+
+    // La variante debe pertenecer al producto declarado. Sin esta comprobación
+    // el cliente puede emparejar el productId de un artículo caro con el
+    // variantId barato de otro producto y pagar el precio del segundo.
+    for (const item of data.items) {
+      if (!item.variantId) continue;
+      const variant = variantById.get(item.variantId);
+      if (!variant || variant.productId !== item.productId) {
+        return {
+          success: false,
+          error: "Uno de los productos del carrito ya no es válido. Recarga la página.",
+        };
+      }
+    }
 
     // Obtener precios autoritativos del servidor — nunca confiar en los del cliente
     const serverPrices = new Map<string, number>();
@@ -115,26 +156,81 @@ export async function createOrder(rawData: unknown) {
     // Costo de envío SIEMPRE resuelto desde la BD vía shippingRateId. Nunca
     // confiar en data.shipping del cliente (un payload manipulado podría enviar
     // shipping:0 para no pagar envío). Mismo patrón que el flujo COD.
+    //
+    // Además, la tarifa debe ser una de las que el servidor REALMENTE ofrecería
+    // para este destino y este subtotal. Validar sólo `rate.active` permitía
+    // elegir la tarifa más barata de cualquier otra zona (S/5 de Lima para un
+    // envío a provincia) o una tarifa fuera de su rango min/max.
+    const coverage = data.districtCode
+      ? await prisma.shippingZoneDistrict.findUnique({
+          where: { districtCode: data.districtCode },
+          select: { shippingZoneId: true, shippingZone: { select: { active: true } } },
+        })
+      : null;
+
     let resolvedShipping = 0;
     if (data.shippingRateId) {
+      if (!coverage || !coverage.shippingZone.active) {
+        return {
+          success: false,
+          error: "No tenemos cobertura de envío en tu distrito aún.",
+        };
+      }
+
       const rate = await prisma.shippingRate.findUnique({
         where: { id: data.shippingRateId },
         select: {
           active: true,
+          zoneId: true,
           baseCost: true,
           freeShippingMin: true,
+          minOrderAmount: true,
+          maxOrderAmount: true,
+          excludeFromRegularCheckout: true,
           zone: { select: { active: true } },
         },
       });
-      if (!rate || !rate.active || !rate.zone.active) {
+
+      const rateIsSelectable =
+        rate &&
+        rate.active &&
+        rate.zone.active &&
+        // Debe pertenecer a la zona que cubre el distrito de entrega.
+        rate.zoneId === coverage.shippingZoneId &&
+        // Las tarifas reservadas a formularios COD no se ofrecen aquí.
+        !rate.excludeFromRegularCheckout &&
+        // Mismos límites min/max que aplica getShippingOptionsForCheckout.
+        subtotal >= (rate.minOrderAmount ? Number(rate.minOrderAmount) : 0) &&
+        subtotal <= (rate.maxOrderAmount ? Number(rate.maxOrderAmount) : Infinity);
+
+      if (!rateIsSelectable) {
         return {
           success: false,
           error: "La tarifa de envío seleccionada ya no está disponible.",
         };
       }
+
       const baseCost = Number(rate.baseCost);
       const freeMin = rate.freeShippingMin ? Number(rate.freeShippingMin) : null;
       resolvedShipping = freeMin && subtotal >= freeMin ? 0 : baseCost;
+    } else if (coverage?.shippingZone.active) {
+      // Hay cobertura configurada para este distrito: omitir la tarifa no puede
+      // ser una forma de no pagar el envío.
+      const hasSelectableRate = await prisma.shippingRate.findFirst({
+        where: {
+          zoneId: coverage.shippingZoneId,
+          active: true,
+          excludeFromRegularCheckout: false,
+        },
+        select: { id: true },
+      });
+
+      if (hasSelectableRate) {
+        return {
+          success: false,
+          error: "Debes seleccionar un método de envío.",
+        };
+      }
     }
 
     // Resolver descuentos por volumen + suscripción server-side. Nunca
@@ -445,11 +541,19 @@ export async function createOrder(rawData: unknown) {
                 ...data.items.map((item) => ({
                   productId: item.productId,
                   variantId: item.variantId || undefined,
-                  name: item.name,
-                  variantName: item.variantName || undefined,
+                  // Snapshot construido desde la BD, no desde el payload: el
+                  // nombre y la imagen del pedido son el registro comercial de
+                  // qué se vendió, así que no pueden venir del cliente.
+                  name: productById.get(item.productId)?.name ?? item.name,
+                  variantName: item.variantId
+                    ? formatVariantName(variantById.get(item.variantId)?.options)
+                    : undefined,
                   price: serverPrices.get(item.variantId ?? item.productId) ?? 0,
                   quantity: item.quantity,
-                  image: item.image || undefined,
+                  image:
+                    (item.variantId ? variantById.get(item.variantId)?.image : null) ??
+                    getProductImageUrl(productById.get(item.productId)?.images) ??
+                    undefined,
                   variantOptions: (item.options ?? null) as Prisma.InputJsonValue,
                   customDesign: item.customDesign === undefined || item.customDesign === null
                     ? Prisma.JsonNull
