@@ -16,9 +16,17 @@ name: Neon warmup
 #                               defaults to https://nuejoy.online when
 #                               unset.
 
+# DISABLED 2026-06-20 — the */10 schedule kept the Neon free-tier compute
+# awake ~24/7, burning the 100 CU-hrs/month quota (we hit 110 CU-hrs on
+# Jun 20 and the project was throttled: every query failed with the quota
+# error, taking the whole storefront down). On free tier the warmup cure
+# was worse than the P1001 cold-start disease it was meant to prevent.
+# The schedule is commented out, not deleted, so it can be restored if we
+# ever move to a paid Neon plan where always-warm makes sense. Until then
+# we accept the occasional 1-2s cold start. Manual dispatch stays enabled.
 on:
-  schedule:
-    - cron: '*/10 * * * *'
+  # schedule:
+  #   - cron: '*/10 * * * *'
   workflow_dispatch: {}
 
 concurrency:
