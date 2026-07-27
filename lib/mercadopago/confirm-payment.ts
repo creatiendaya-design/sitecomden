@@ -117,8 +117,13 @@ export async function confirmMercadoPagoPayment(
       return { ok: false, error: "El monto del pago no coincide con la orden" };
     }
 
-    await prisma.order.update({
-      where: { id: orderId },
+    // Claim atómico en lugar del `update` directo: la comprobación de
+    // idempotencia de arriba es leer-luego-escribir, así que dos entregas
+    // concurrentes del webhook (o webhook + retorno del usuario) podían pasar
+    // ambas. Aquí el daño era leve —escriben los mismos valores— pero con el
+    // claim los efectos posteriores corren una sola vez.
+    const claim = await prisma.order.updateMany({
+      where: { id: orderId, paymentStatus: { not: "PAID" } },
       data: {
         status: "PAID",
         paymentStatus: "PAID",
@@ -136,6 +141,11 @@ export async function confirmMercadoPagoPayment(
         paidAt: new Date(),
       },
     });
+
+    if (claim.count === 0) {
+      log.info({ orderId, paymentId }, "Order already marked paid by a concurrent flow");
+      return { ok: true, orderId, status: "ignored" };
+    }
 
     // Contabilizar la compra en el CRM/lealtad (idempotente).
     await onOrderPaid(orderId);
