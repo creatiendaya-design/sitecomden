@@ -16,6 +16,42 @@ import { getProductImageUrl } from "@/lib/image-utils";
 import { releaseOrderStock } from "@/lib/inventory/release-order-stock";
 
 /**
+ * Respuesta de `createOrder` para un pedido que ya existe con esa clave de
+ * idempotencia. Devuelve exactamente la misma forma que el camino normal para
+ * que el cliente no distinga un reintento de una creación.
+ *
+ * Vuelve a conceder acceso al pedido: el navegador que reintenta necesita la
+ * cookie para que el redirect posterior funcione. Lo que NO se repite son los
+ * efectos de un pedido nuevo (descuento de stock, uso de cupón, email,
+ * newsletter, contadores de promoción); ésos ya ocurrieron la primera vez.
+ */
+async function findOrderByIdempotencyKey(key: string) {
+  const existing = await prisma.order.findUnique({
+    where: { idempotencyKey: key },
+    select: {
+      id: true,
+      orderNumber: true,
+      paymentMethod: true,
+      viewToken: true,
+      customerEmail: true,
+    },
+  });
+
+  if (!existing) return null;
+
+  await grantOrderAccess(existing.id, existing.viewToken);
+
+  return {
+    success: true as const,
+    orderId: existing.id,
+    orderNumber: existing.orderNumber,
+    paymentMethod: existing.paymentMethod,
+    viewToken: existing.viewToken,
+    customerEmail: existing.customerEmail,
+  };
+}
+
+/**
  * Nombre legible de una variante a partir de su Json `options`, con el mismo
  * formato que usa el carrito (`"Color: Rojo, Talla: M"`). Se calcula en el
  * servidor para que el snapshot del pedido no dependa del payload del cliente.
@@ -68,6 +104,16 @@ export async function createOrder(rawData: unknown) {
       };
     }
     const data = parsed.data;
+
+    // Reenvío del mismo intento de compra: devolver el pedido ya creado en
+    // lugar de crear otro. Cubre el caso frecuente —el primer intento terminó
+    // pero el cliente no llegó a ver la respuesta y reintentó— sin llegar a
+    // tocar stock, cupones ni pasarela. La carrera realmente simultánea la
+    // resuelve el índice único más abajo.
+    if (data.idempotencyKey) {
+      const existing = await findOrderByIdempotencyKey(data.idempotencyKey);
+      if (existing) return existing;
+    }
 
     // Rate limiting por IP: previene spam de órdenes falsas (10 / 10 min).
     const hdrs = await headers();
@@ -501,6 +547,7 @@ export async function createOrder(rawData: unknown) {
         const created = await tx.order.create({
           data: {
             viewToken,
+            idempotencyKey: data.idempotencyKey,
             customerId: linkedCustomerId ?? undefined,
             subtotal,
             shipping,
@@ -663,6 +710,22 @@ export async function createOrder(rawData: unknown) {
       if (txError instanceof StockUnavailableError) {
         return { success: false, error: txError.message };
       }
+
+      // P2002 sobre idempotencyKey: otra petición con la misma clave ganó la
+      // carrera mientras ésta calculaba. Es exactamente el caso que el índice
+      // único existe para atrapar — el doble envío realmente simultáneo, que
+      // la comprobación del principio no puede ver. La transacción entera ya
+      // revirtió (stock y cupón intactos), así que basta devolver el pedido
+      // que sí se creó.
+      if (
+        txError instanceof Prisma.PrismaClientKnownRequestError &&
+        txError.code === "P2002" &&
+        data.idempotencyKey
+      ) {
+        const existing = await findOrderByIdempotencyKey(data.idempotencyKey);
+        if (existing) return existing;
+      }
+
       throw txError;
     }
 

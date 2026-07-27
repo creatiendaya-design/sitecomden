@@ -221,3 +221,31 @@ describe("createOrderSchema - subscription opt-in", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("createOrderSchema - idempotencyKey", () => {
+  it("acepta el payload sin clave (clientes que aún no la envían)", () => {
+    const result = createOrderSchema.safeParse(validPayload());
+    expect(result.success).toBe(true);
+  });
+
+  it("acepta un UUID como clave", () => {
+    const result = createOrderSchema.safeParse(
+      validPayload({ idempotencyKey: crypto.randomUUID() }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("rechaza claves demasiado cortas para ser únicas", () => {
+    const result = createOrderSchema.safeParse(
+      validPayload({ idempotencyKey: "abc" }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("rechaza claves desmedidas", () => {
+    const result = createOrderSchema.safeParse(
+      validPayload({ idempotencyKey: "x".repeat(101) }),
+    );
+    expect(result.success).toBe(false);
+  });
+});

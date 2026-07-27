@@ -324,6 +324,14 @@ model Order {
   total       Decimal     @db.Decimal(10, 2)
   status      OrderStatus @default(PENDING)
 
+  /// Clave única del intento de compra, generada por el navegador. Permite que
+  /// reenviar el checkout (doble clic, reintento tras un timeout de red)
+  /// devuelva el pedido ya creado en vez de crear uno nuevo. Nullable: los
+  /// pedidos anteriores a esta columna y los creados por flujos que no la
+  /// envían la dejan en NULL, y Postgres admite múltiples NULL bajo un índice
+  /// único.
+  idempotencyKey String? @unique
+
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id])
 

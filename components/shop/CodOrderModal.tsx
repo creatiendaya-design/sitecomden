@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -87,6 +87,9 @@ export default function CodOrderModal({
 }: CodOrderModalProps) {
   const [step, setStep] = useState<"form" | "thanks">("form");
   const [isPending, startTransition] = useTransition();
+
+  // Clave del intento de compra actual (ver createCodOrderSchema).
+  const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
   const { trackEvent } = useTracking();
 
   const [formValues, setFormValues] = useState<Record<string, string>>({});
@@ -295,6 +298,10 @@ export default function CodOrderModal({
 
     startTransition(async () => {
       const payload = {
+        // Estable mientras el intento falle, para que un reenvío desde móvil
+        // (respuesta perdida, doble toque) recupere el pedido ya creado en vez
+        // de duplicarlo. Se rota tras un pedido exitoso.
+        idempotencyKey: idempotencyKeyRef.current,
         items: items.map(({ productId, variantId, quantity, promotionId, subscriptionOptIn }) => ({
           productId,
           variantId,
@@ -325,6 +332,9 @@ export default function CodOrderModal({
         toast.error(result.error ?? "Error al crear el pedido");
         return;
       }
+
+      // El pedido existe: el siguiente envío es una compra distinta.
+      idempotencyKeyRef.current = crypto.randomUUID();
 
       trackEvent("Purchase", {
         value: total,
