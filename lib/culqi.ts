@@ -112,9 +112,22 @@ export async function getCulqiPublicKey(): Promise<string | null> {
 /**
  * Crear un cargo con tarjeta usando Culqi
  */
+/**
+ * `indeterminate: true` significa que NO sabemos si el cargo llegó a hacerse
+ * (la petición murió por red o timeout). Quien llama no debe liberar la orden
+ * para un reintento en ese caso: podría cobrarse dos veces. Un `success: false`
+ * sin este flag sí es un rechazo confirmado por Culqi, donde no hubo cargo.
+ */
+export interface CulqiChargeResult {
+  success: boolean;
+  data?: CulqiChargeResponse;
+  error?: string;
+  indeterminate?: boolean;
+}
+
 export async function createCulqiCharge(
   data: CulqiChargeData
-): Promise<{ success: boolean; data?: CulqiChargeResponse; error?: string }> {
+): Promise<CulqiChargeResult> {
   try {
     // Obtener la clave secreta activa
     const keys = await getActiveCulqiKeys();
@@ -176,10 +189,13 @@ export async function createCulqiCharge(
       data: charge,
     };
   } catch (error) {
+    // La petición no llegó a completarse: el cargo pudo haberse creado en
+    // Culqi y habernos perdido la respuesta. Estado indeterminado.
     log.error({ err: error }, "Culqi API request failed");
     return {
       success: false,
       error: "Error de conexión con el procesador de pagos",
+      indeterminate: true,
     };
   }
 }

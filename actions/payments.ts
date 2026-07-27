@@ -32,11 +32,26 @@ export async function processCardPayment(data: {
       };
     }
 
-    // 2. Verificar que la orden esté pendiente de pago
-    if (order.paymentStatus !== "PENDING") {
+    // 2. Reclamar la orden ANTES de hablar con Culqi.
+    //
+    // Comprobar `order.paymentStatus !== "PENDING"` y cobrar después es
+    // leer-luego-escribir con una llamada que MUEVE DINERO en medio: la ventana
+    // entre la comprobación y el UPDATE final es toda la petición HTTP a Culqi
+    // (cientos de ms). Dos envíos concurrentes —doble clic, reintento tras un
+    // timeout de red— leían ambos PENDING, pasaban ambos la comprobación y
+    // generaban DOS cargos reales sobre la misma orden.
+    //
+    // El claim atómico deja la orden en VERIFYING; sólo un flujo puede
+    // ganarlo, y el resto se detiene aquí sin llegar a cobrar.
+    const claim = await prisma.order.updateMany({
+      where: { id: order.id, paymentStatus: "PENDING" },
+      data: { paymentStatus: "VERIFYING" },
+    });
+
+    if (claim.count === 0) {
       return {
         success: false,
-        error: "Esta orden ya fue procesada",
+        error: "Esta orden ya fue procesada o tiene un pago en curso.",
       };
     }
 
@@ -55,10 +70,34 @@ export async function processCardPayment(data: {
       },
     });
 
-    // 4. Si el cargo falló, retornar error
+    // 4. Si el cargo falló, soltar el claim para que el cliente pueda
+    // reintentar con otra tarjeta. Sin esto la orden quedaría atascada en
+    // VERIFYING y ningún intento posterior podría reclamarla.
+    //
+    // EXCEPCIÓN: si el resultado es indeterminado (la petición murió por red)
+    // no liberamos. El cargo pudo haberse creado en Culqi sin que llegáramos a
+    // enterarnos, y permitir el reintento cobraría dos veces. La orden queda
+    // en VERIFYING para que un admin la concilie contra el panel de Culqi;
+    // si el cargo existía, el webhook la marcará PAID por su cuenta.
     if (!chargeResult.success || !chargeResult.data) {
       console.error("❌ Culqi charge failed:", chargeResult.error);
-      
+
+      if (chargeResult.indeterminate) {
+        console.error(
+          `⚠️ Orden ${order.orderNumber} queda en VERIFYING: resultado de Culqi indeterminado, requiere conciliación manual.`,
+        );
+        return {
+          success: false,
+          error:
+            "No pudimos confirmar el estado de tu pago. No vuelvas a intentarlo: revisaremos tu orden y te confirmaremos en breve.",
+        };
+      }
+
+      await prisma.order.updateMany({
+        where: { id: order.id, paymentStatus: "VERIFYING" },
+        data: { paymentStatus: "PENDING" },
+      });
+
       return {
         success: false,
         error: chargeResult.error || "Error al procesar el pago",

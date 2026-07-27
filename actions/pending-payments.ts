@@ -1,14 +1,15 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { put } from "@vercel/blob";
-import { autoEmitOnPayment } from "@/actions/sunat";
 import { protectRoute } from "@/lib/protect-route";
 import { checkRateLimit, uploadRateLimiter } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
-import { onOrderPaid } from "@/lib/loyalty/award-purchase";
+import {
+  approvePendingPayment,
+  rejectPendingPayment,
+} from "@/lib/payments/verify-pending-payment";
 
 const log = logger.child({ module: "pending-payments" });
 
@@ -189,137 +190,44 @@ export async function getPendingPayments() {
 }
 
 // ============================================================
-// APROBAR PAGO (Admin)
+// APROBAR / RECHAZAR PAGO (Admin)
 // ============================================================
+//
+// Ambas delegan en lib/payments/verify-pending-payment.ts. Antes tenían su
+// propia implementación, divergida de la de /api/admin/payments/*: marcaban la
+// orden PAID con `update` sueltos y sin descontar inventario, y ésta es la ruta
+// que usa realmente la UI del admin.
 
 export async function approvePayment(paymentId: string) {
-  try {
-    await protectRoute("orders:update_status");
-    // Obtener pago pendiente con orden
-    const payment = await prisma.pendingPayment.findUnique({
-      where: { id: paymentId },
-      include: { order: true },
-    });
+  const userId = await protectRoute("orders:update_status");
 
-    if (!payment) {
-      return {
-        success: false,
-        error: "Pago no encontrado",
-      };
-    }
+  const result = await approvePendingPayment(paymentId, { id: userId });
 
-    // Actualizar PendingPayment a verified
-    await prisma.pendingPayment.update({
-      where: { id: paymentId },
-      data: {
-        status: "verified",
-        verifiedAt: new Date(),
-        // TODO: Agregar verifiedBy: userId cuando tengas auth
-      },
-    });
-
-    // Actualizar estado de orden
-    await prisma.order.update({
-      where: { id: payment.orderId },
-      data: {
-        status: "PAID",
-        paymentStatus: "PAID",
-        paidAt: new Date(),
-      },
-    });
-
-    // Contabilizar la compra en el CRM/lealtad (idempotente).
-    await onOrderPaid(payment.orderId);
-
-    try {
-      await autoEmitOnPayment(payment.orderId);
-    } catch (emitError) {
-      console.error("SUNAT auto-emission failed (payment still approved):", emitError);
-    }
-
-    console.log("Pago aprobado:", {
-      paymentId,
-      orderId: payment.orderId,
-      orderNumber: payment.order.orderNumber,
-    });
-
-    // TODO: Enviar email de confirmación al cliente
-
-    revalidatePath("/admin/pagos-pendientes");
-    revalidatePath("/admin/ordenes");
-    revalidatePath(`/admin/ordenes/${payment.orderId}`);
-
-    return {
-      success: true,
-      message: "Pago aprobado correctamente",
-    };
-  } catch (error) {
-    console.error("Error approving payment:", error);
-    return {
-      success: false,
-      error: "Error al aprobar el pago",
-    };
+  if (!result.ok) {
+    return { success: false, error: result.error };
   }
+
+  return {
+    success: true,
+    message: result.alreadyProcessed
+      ? "Este pago ya había sido procesado"
+      : "Pago aprobado correctamente",
+  };
 }
 
-// ============================================================
-// RECHAZAR PAGO (Admin)
-// ============================================================
-
 export async function rejectPayment(paymentId: string, reason: string) {
-  try {
-    await protectRoute("orders:update_status");
-    // Obtener pago pendiente con orden
-    const payment = await prisma.pendingPayment.findUnique({
-      where: { id: paymentId },
-      include: { order: true },
-    });
+  const userId = await protectRoute("orders:update_status");
 
-    if (!payment) {
-      return {
-        success: false,
-        error: "Pago no encontrado",
-      };
-    }
+  const result = await rejectPendingPayment(paymentId, reason, { id: userId });
 
-    // Actualizar PendingPayment a rejected
-    await prisma.pendingPayment.update({
-      where: { id: paymentId },
-      data: {
-        status: "rejected",
-        rejectionReason: reason,
-      },
-    });
-
-    // Actualizar estado de pago de orden a FAILED
-    await prisma.order.update({
-      where: { id: payment.orderId },
-      data: {
-        paymentStatus: "FAILED",
-      },
-    });
-
-    console.log("Pago rechazado:", {
-      paymentId,
-      orderId: payment.orderId,
-      reason,
-    });
-
-    // TODO: Enviar email al cliente notificando el rechazo
-
-    revalidatePath("/admin/pagos-pendientes");
-    revalidatePath("/admin/ordenes");
-    revalidatePath(`/admin/ordenes/${payment.orderId}`);
-
-    return {
-      success: true,
-      message: "Pago rechazado",
-    };
-  } catch (error) {
-    console.error("Error rejecting payment:", error);
-    return {
-      success: false,
-      error: "Error al rechazar el pago",
-    };
+  if (!result.ok) {
+    return { success: false, error: result.error };
   }
+
+  return {
+    success: true,
+    message: result.alreadyProcessed
+      ? "Este pago ya había sido procesado"
+      : "Pago rechazado",
+  };
 }
