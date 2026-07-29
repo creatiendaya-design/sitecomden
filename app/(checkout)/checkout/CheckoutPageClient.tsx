@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CheckoutErrorBanner } from "@/components/checkout/CheckoutErrorBanner";
 import Link from "next/link";
 import Image from "next/image";
 import ApplyCoupon from "@/components/shop/ApplyCoupon";
@@ -24,7 +24,7 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { AlertTriangle, ChevronUp, ChevronDown, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X, User, Mail, Phone, IdCard, Home, MapPin } from "lucide-react";
+import { ChevronUp, ChevronDown, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X, User, Mail, Phone, IdCard, Home, MapPin } from "lucide-react";
 import { useTracking } from "@/hooks/useTracking";
 import CulqiCheckoutButton from "@/components/shop/CulqiCheckoutButton";
 import {
@@ -1038,12 +1038,25 @@ export default function CheckoutPageClient({
         </div>
       )}
 
-      {/* ✅ ALERTA FLOTANTE CON REQUISITOS FALTANTES */}
-      {showMissingAlert && missingRequirements.length > 0 && formData.paymentMethod === "CARD" && (
+      {/* ✅ STACK FLOTANTE DE AVISOS
+          Ambos avisos comparten un solo contenedor fijo para que no se solapen
+          cuando coinciden (p. ej. error del servidor + campos faltantes).
+          El error solo se muestra aquí en desktop: en móvil se renderiza dentro
+          de la barra de pago fija, pegado al CTA que lo disparó. */}
+      <div className="pointer-events-none fixed top-4 left-1/2 z-50 w-[92%] max-w-lg -translate-x-1/2 space-y-2">
+        {error && (
+          <CheckoutErrorBanner
+            message={error}
+            onDismiss={() => setError(null)}
+            className="pointer-events-auto hidden lg:flex"
+          />
+        )}
+
+        {showMissingAlert && missingRequirements.length > 0 && formData.paymentMethod === "CARD" && (
         <div
           role="alert"
           aria-live="assertive"
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-lg animate-in slide-in-from-top-5"
+          className="pointer-events-auto animate-in slide-in-from-top-5"
         >
           <div className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-2xl border border-red-700 backdrop-blur-sm">
             <div className="p-4 flex gap-3">
@@ -1081,7 +1094,8 @@ export default function CheckoutPageClient({
             </div>
           </div>
         </div>
-      )}
+        )}
+      </div>
 
       <div className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-sm">
         <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
@@ -1124,13 +1138,10 @@ export default function CheckoutPageClient({
       <div className="w-full bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-8 lg:pb-12">
           <form onSubmit={handleSubmit} className="checkout-form w-full">
-            {error && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
+            {/* El error NO se renderiza aquí a propósito: quedaba fuera de
+                pantalla cuando se dispara desde el CTA (paybar fija en móvil,
+                tarjeta de resumen en desktop). Vive en el stack flotante
+                superior y dentro de la paybar móvil. */}
             <div className="grid gap-6 lg:gap-8 lg:grid-cols-3 w-full">
               <div className="lg:col-span-2 space-y-6 min-w-0">
                 {/* Información del Cliente */}
@@ -1605,6 +1616,17 @@ export default function CheckoutPageClient({
           `interactive-widget=resizes-content` + scroll-margin. */}
       <div data-checkout-paybar className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
         <div className="px-4 py-3 space-y-2.5">
+          {/* Error de envío/pago, pegado al CTA que lo disparó. Se mantiene
+              visible con el teclado abierto: un pago rechazado pesa más que el
+              espacio vertical. */}
+          {error && (
+            <CheckoutErrorBanner
+              variant="inline"
+              message={error}
+              onDismiss={() => setError(null)}
+            />
+          )}
+
           {/* ✅ BOTÓN DE PAGO CON TARJETA - MÓVIL */}
           {formData.paymentMethod === "CARD" ? (
             <div className="space-y-2">
