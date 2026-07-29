@@ -34,7 +34,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
+import { AcceptedPaymentMarks } from "@/components/checkout/AcceptedPaymentMarks";
 import { PaymentMethodSelector } from "@/components/checkout/PaymentMethodSelector";
 import CheckoutUpsell from "@/components/checkout/CheckoutUpsell";
 import {
@@ -1150,6 +1150,11 @@ export default function CheckoutPageClient({
                     <CardTitle>Información de Contacto</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4 min-w-0">
+                    {/* Los `autocomplete` llevan prefijo de sección ("shipping"
+                        aquí, "billing" en los datos de factura). Sin él, el
+                        navegador trata cada campo por separado; con él agrupa
+                        nombre + email + teléfono + dirección en un perfil y
+                        ofrece autorrellenar todo el bloque de una vez. */}
                     <div className="grid gap-4 sm:grid-cols-2">
                       <CheckoutInput
                         ref={nameRef}
@@ -1162,7 +1167,7 @@ export default function CheckoutPageClient({
                         onChange={handleInputChange}
                         onBlur={handleBlur}
                         placeholder="Juan Pérez"
-                        autoComplete="name"
+                        autoComplete="shipping name"
                         error={validationErrors.customerName}
                       />
                       <CheckoutInput
@@ -1193,7 +1198,7 @@ export default function CheckoutPageClient({
                         onChange={handleInputChange}
                         onBlur={handleBlur}
                         placeholder="juan@example.com"
-                        autoComplete="email"
+                        autoComplete="shipping email"
                         inputMode="email"
                         error={validationErrors.customerEmail}
                       />
@@ -1209,7 +1214,7 @@ export default function CheckoutPageClient({
                         onChange={handleInputChange}
                         onBlur={handleBlur}
                         placeholder="987654321"
-                        autoComplete="tel"
+                        autoComplete="shipping tel"
                         inputMode="numeric"
                         maxLength={9}
                         error={validationErrors.customerPhone}
@@ -1280,7 +1285,7 @@ export default function CheckoutPageClient({
                       onChange={handleInputChange}
                       onBlur={handleBlur}
                       placeholder="Av. Larco 123, Dpto 501"
-                      autoComplete="street-address"
+                      autoComplete="shipping address-line1"
                       error={validationErrors.address}
                     />
 
@@ -1292,6 +1297,7 @@ export default function CheckoutPageClient({
                       value={formData.reference}
                       onChange={handleInputChange}
                       placeholder="Edificio blanco al lado del banco"
+                      autoComplete="shipping address-line2"
                     />
                   </CardContent>
                 </Card>
@@ -1346,6 +1352,7 @@ export default function CheckoutPageClient({
                             label="Razón Social"
                             required
                             placeholder="Mi Empresa SAC"
+                            autoComplete="billing organization"
                             value={formData.buyerRazonSocial}
                             onChange={(e) =>
                               setFormData({ ...formData, buyerRazonSocial: e.target.value })
@@ -1357,6 +1364,7 @@ export default function CheckoutPageClient({
                             label="Dirección Fiscal"
                             required
                             placeholder="Av. Ejemplo 123, Lima"
+                            autoComplete="billing street-address"
                             value={formData.buyerFiscalAddress}
                             onChange={(e) =>
                               setFormData({ ...formData, buyerFiscalAddress: e.target.value })
@@ -1439,16 +1447,11 @@ export default function CheckoutPageClient({
                     en la barra fija) para mantener el pay bar bajo y dejar más
                     formulario visible en primera vista. En desktop los métodos
                     se muestran junto al botón del resumen. */}
-                <div className="lg:hidden flex items-center justify-center gap-2 flex-wrap py-1">
-                  <span className="flex items-center gap-2" aria-hidden="true">
-                    <VisaIcon width={36} height={24} className="opacity-80" />
-                    <MastercardIcon width={32} height={20} className="opacity-80" />
-                    <YapeIcon width={28} height={28} className="opacity-80" />
-                    <PlinIcon width={28} height={28} className="opacity-80" />
-                    <PayPalIcon width={64} height={36} className="opacity-80" />
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1">🔒 Pago seguro</span>
-                </div>
+                <AcceptedPaymentMarks
+                  methods={enabledMethods}
+                  size="md"
+                  className="py-1 lg:hidden"
+                />
               </div>
 
               {/* Resumen Desktop */}
@@ -1584,21 +1587,11 @@ export default function CheckoutPageClient({
                       </Button>
                     )}
 
-                    <div className="space-y-2">
-                      <p className="text-center text-xs text-muted-foreground">
-                        🔒 Pago 100% seguro y encriptado
-                      </p>
-                      <div className="flex items-center justify-center gap-2 flex-wrap">
-                        <span className="text-xs text-muted-foreground">Aceptamos:</span>
-                        <div className="flex items-center gap-2" aria-hidden="true">
-                          <VisaIcon width={28} height={18} className="opacity-70" />
-                          <MastercardIcon width={26} height={16} className="opacity-70" />
-                          <YapeIcon width={24} height={24} className="opacity-70" />
-                          <PlinIcon width={24} height={24} className="opacity-70" />
-                          <PayPalIcon width={66} height={40} className="opacity-70" />
-                        </div>
-                      </div>
-                    </div>
+                    <AcceptedPaymentMarks
+                      methods={enabledMethods}
+                      size="sm"
+                      securityLabel="Pago 100% seguro y encriptado"
+                    />
                   </CardContent>
                 </Card>
               </div>
