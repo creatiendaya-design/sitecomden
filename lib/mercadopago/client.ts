@@ -55,6 +55,63 @@ export interface CreatePreferenceInput {
   viewToken: string;
   /** URL pública base, ej. https://tienda.pe (sin slash final). */
   baseUrl: string;
+  /** Teléfono del comprador (9 dígitos en Perú). Mejora la aprobación. */
+  customerPhone?: string | null;
+  /** DNI del comprador. En Perú el antifraude de MP lo pondera bastante. */
+  customerDni?: string | null;
+  /** Dirección de envío (calle) del comprador. */
+  customerAddress?: string | null;
+  /** Distrito del comprador — se envía como referencia de zona. */
+  customerDistrict?: string | null;
+}
+
+/**
+ * Divide un nombre completo en nombre y apellido. MercadoPago los quiere
+ * separados (`payer.name` / `payer.surname`); mandarlo todo junto en `name`
+ * deja `surname` vacío, y los datos incompletos del pagador penalizan la
+ * aprobación.
+ */
+function splitFullName(fullName: string): { name: string; surname: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) {
+    return { name: parts[0] ?? "", surname: "" };
+  }
+  // En Perú lo habitual es "Nombre(s) ApellidoPaterno ApellidoMaterno": el
+  // último token siempre es apellido, el resto lo tratamos como nombre.
+  return {
+    name: parts.slice(0, -1).join(" "),
+    surname: parts[parts.length - 1],
+  };
+}
+
+/**
+ * Normaliza un teléfono peruano a `area_code` + `number`. MercadoPago rechaza
+ * el objeto entero si trae caracteres no numéricos, así que ante cualquier duda
+ * devolvemos undefined (omitir es mejor que enviar basura).
+ */
+function buildPayerPhone(
+  phone: string | null | undefined
+): { area_code: string; number: string } | undefined {
+  if (!phone) return undefined;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 9) return undefined;
+  // Descartar prefijo país 51 si viene incluido (51 987654321 → 987654321).
+  const local = digits.startsWith("51") && digits.length > 9 ? digits.slice(2) : digits;
+  if (local.length !== 9) return undefined;
+  return { area_code: "51", number: local };
+}
+
+/**
+ * Identificación del pagador. Solo DNI (8 dígitos): enviar un tipo/número que
+ * no valide es peor que no enviar nada.
+ */
+function buildPayerIdentification(
+  dni: string | null | undefined
+): { type: string; number: string } | undefined {
+  if (!dni) return undefined;
+  const digits = dni.replace(/\D/g, "");
+  if (digits.length !== 8) return undefined;
+  return { type: "DNI", number: digits };
 }
 
 export interface CreatePreferenceResult {
@@ -86,21 +143,48 @@ export async function createCheckoutPreference(
   // romper la creación de la preferencia.
   const isHttps = base.startsWith("https://");
 
+  const { name, surname } = splitFullName(input.customerName);
+  const phone = buildPayerPhone(input.customerPhone);
+  const identification = buildPayerIdentification(input.customerDni);
+
   try {
     const preference = await new Preference(mp.client).create({
       body: {
+        // SIGUE SIENDO UN SOLO ÍTEM cuyo unit_price es el total de la orden:
+        // el webhook valida que el monto cobrado sea exactamente order.total.
+        // Solo se añaden campos descriptivos (description / category_id), que
+        // el motor de aprobación de MercadoPago pondera pero no afectan el monto.
         items: [
           {
             id: input.orderId,
             title: `Orden ${input.orderDisplayNumber}`,
+            description: `Compra en línea — pedido ${input.orderDisplayNumber}`,
+            category_id: "retail",
             quantity: 1,
             unit_price: Number(input.total),
             currency_id: MERCADOPAGO_CURRENCY,
           },
         ],
+        // Cuanto más completo el pagador, mejor aprueba el antifraude de MP.
+        // Antes solo se enviaban name + email, dejando identificación, teléfono
+        // y dirección vacíos — el perfil de riesgo más alto posible.
         payer: {
-          name: input.customerName,
+          name,
+          surname,
           email: input.customerEmail,
+          ...(phone ? { phone } : {}),
+          ...(identification ? { identification } : {}),
+          ...(input.customerAddress
+            ? {
+                address: {
+                  street_name: [input.customerAddress, input.customerDistrict]
+                    .filter(Boolean)
+                    .join(", ")
+                    .slice(0, 250),
+                  zip_code: "",
+                },
+              }
+            : {}),
         },
         back_urls: {
           success: `${base}/orden/${input.orderId}/confirmacion?token=${token}`,

@@ -15,6 +15,7 @@
 import { prisma } from "@/lib/db";
 import { canViewOrder } from "@/lib/orders/order-access";
 import { createCheckoutPreference } from "@/lib/mercadopago/client";
+import { buildPreferenceInput } from "@/lib/mercadopago/preference-input";
 import { createPaypalOrder } from "@/lib/paypal/client";
 import { readPaypalSettings, convertPenToCharge } from "@/lib/paypal/config";
 import { getSiteSettings } from "@/lib/site-settings";
@@ -63,16 +64,9 @@ export async function startGatewayCheckout(
   const orderDisplayNumber = displayOrderNumber(order, settings.order_prefix || "PED");
 
   if (order.paymentMethod === "MERCADOPAGO") {
-    const preference = await createCheckoutPreference({
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      orderDisplayNumber,
-      total: Number(order.total),
-      customerName: order.customerName,
-      customerEmail: order.customerEmail,
-      viewToken: order.viewToken,
-      baseUrl: APP_URL,
-    });
+    const preference = await createCheckoutPreference(
+      buildPreferenceInput(order, orderDisplayNumber, APP_URL)
+    );
     if (!preference.success || !preference.redirectUrl) {
       return { success: false, error: preference.error ?? "No se pudo iniciar el pago." };
     }

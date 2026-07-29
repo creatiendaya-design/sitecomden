@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import { canViewOrder } from "@/lib/orders/order-access";
 import { createCheckoutPreference } from "@/lib/mercadopago/client";
+import { buildPreferenceInput } from "@/lib/mercadopago/preference-input";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
 import MercadoPagoRedirectClient from "./mercadopago-redirect-client";
@@ -59,16 +60,9 @@ export default async function PaymentMercadoPagoPage({ params, searchParams }: P
   const settings = await getSiteSettings();
   const orderDisplayNumber = displayOrderNumber(order, settings.order_prefix || "PED");
 
-  const preference = await createCheckoutPreference({
-    orderId: order.id,
-    orderNumber: order.orderNumber,
-    orderDisplayNumber,
-    total: Number(order.total),
-    customerName: order.customerName,
-    customerEmail: order.customerEmail,
-    viewToken: order.viewToken,
-    baseUrl: APP_URL,
-  });
+  const preference = await createCheckoutPreference(
+    buildPreferenceInput(order, orderDisplayNumber, APP_URL)
+  );
 
   return (
     <MercadoPagoRedirectClient
