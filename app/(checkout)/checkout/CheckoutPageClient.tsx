@@ -10,7 +10,11 @@ import { startGatewayCheckout } from "@/actions/payment-redirect";
 import { checkCartStock } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { CheckoutInput, checkoutPayButtonClass } from "@/components/checkout/CheckoutField";
+import { CheckoutInput } from "@/components/checkout/CheckoutField";
+import {
+  checkoutPayButtonClass,
+  checkoutPayButtonSizeClass,
+} from "@/components/checkout/pay-button-class";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -1059,7 +1063,7 @@ export default function CheckoutPageClient({
             isProcessingPayment ||
             missingRequirements.length > 0
           }
-          className="w-full"
+          className={`${checkoutPayButtonSizeClass} ${checkoutPayButtonClass}`}
           siteName={siteName}
           siteLogo={siteLogo}
         />
@@ -1068,7 +1072,7 @@ export default function CheckoutPageClient({
           type="submit"
           variant="cta"
           size="lg"
-          className={`h-12 w-full text-base font-semibold ${checkoutPayButtonClass}`}
+          className={`${checkoutPayButtonSizeClass} ${checkoutPayButtonClass}`}
           disabled={
             loading ||
             !stockVerified ||
