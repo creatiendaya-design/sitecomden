@@ -24,7 +24,7 @@ import LocationSelector from "@/components/shop/LocationSelector";
 import { ShippingOptions } from "@/components/checkout/ShippingOptions";
 import type { ShippingRate } from "@/actions/shipping-checkout";
 import { usePersistedCheckoutForm } from "@/hooks/use-persisted-checkout-form";
-import { ChevronUp, ChevronDown, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X, User, Mail, Phone, IdCard, Home, MapPin } from "lucide-react";
+import { ChevronDown, ShoppingBag, Loader2, AlertCircle, CheckCircle2, X, User, Mail, Phone, IdCard, Home, MapPin } from "lucide-react";
 import { useTracking } from "@/hooks/useTracking";
 import CulqiCheckoutButton from "@/components/shop/CulqiCheckoutButton";
 import {
@@ -149,41 +149,9 @@ export default function CheckoutPageClient({
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [selectedShippingRate, setSelectedShippingRate] = useState<ShippingRate | null>(null);
 
-  // Mobile keyboard detection. While the user is typing in a text field the
-  // soft keyboard eats most of the viewport; keeping the tall fixed pay bar
-  // visible squeezes the field being filled. We hide the pay bar on focus and
-  // restore it on blur so the whole area above the keyboard is usable.
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
-  // Barra de pago móvil: la alerta "Falta completar" se muestra colapsada
-  // (una línea tocable) para mantener baja la barra fija; el usuario la
-  // expande si quiere ver el detalle de qué campos faltan.
-  const [missingAlertExpanded, setMissingAlertExpanded] = useState(false);
-  useEffect(() => {
-    const isTextField = (el: EventTarget | null): boolean => {
-      if (!(el instanceof HTMLElement)) return false;
-      if (el.tagName === "TEXTAREA") return true;
-      if (el.tagName === "INPUT") {
-        const type = (el as HTMLInputElement).type;
-        return !["checkbox", "radio", "button", "submit", "file", "range"].includes(type);
-      }
-      return false;
-    };
-    const onFocusIn = (e: FocusEvent) => {
-      if (isTextField(e.target)) setKeyboardOpen(true);
-    };
-    const onFocusOut = () => {
-      // Defer so focus moving between fields doesn't flicker the bar.
-      window.setTimeout(() => {
-        if (!isTextField(document.activeElement)) setKeyboardOpen(false);
-      }, 120);
-    };
-    document.addEventListener("focusin", onFocusIn);
-    document.addEventListener("focusout", onFocusOut);
-    return () => {
-      document.removeEventListener("focusin", onFocusIn);
-      document.removeEventListener("focusout", onFocusOut);
-    };
-  }, []);
+  // La detección de teclado móvil (`keyboardOpen`) y el colapso de la alerta
+  // "Falta completar" existían solo para mantener baja la barra de pago fija.
+  // Al pasar el CTA al flujo del documento dejaron de tener función.
 
   // Checkout upsell: recommend against the current basket. Re-fetches when the
   // basket changes (e.g. after the customer adds an upsell), excluding items
@@ -903,7 +871,13 @@ export default function CheckoutPageClient({
   // A stable JSX element (NOT a nested component). Defining a component inside
   // the render body creates a new type every render, which remounts the whole
   // subtree — that stole focus from the coupon input the moment it was tapped.
-  const orderSummaryContent = (
+  /**
+   * Resumen del pedido. Se dibuja hasta tres veces (cabecera plegable móvil,
+   * bloque inferior móvil, tarjeta lateral desktop), así que el cupón es
+   * opcional: la cabecera móvil es solo un vistazo a totales y aplicar el
+   * cupón vive en un único sitio por breakpoint.
+   */
+  const renderOrderSummary = ({ showCoupon = true }: { showCoupon?: boolean } = {}) => (
     <>
       <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
         {items.map((item) => (
@@ -940,20 +914,23 @@ export default function CheckoutPageClient({
         </>
       )}
 
-      <Separator className="my-4" />
-
-      <div className="px-1">
-        <ApplyCoupon
-          subtotal={subtotal}
-          onCouponApplied={setAppliedCoupon}
-          onCouponRemoved={() => setAppliedCoupon(null)}
-          currentCoupon={
-            appliedCoupon
-              ? { code: appliedCoupon.code, discount: appliedCoupon.discount }
-              : null
-          }
-        />
-      </div>
+      {showCoupon && (
+        <>
+          <Separator className="my-4" />
+          <div className="px-1">
+            <ApplyCoupon
+              subtotal={subtotal}
+              onCouponApplied={setAppliedCoupon}
+              onCouponRemoved={() => setAppliedCoupon(null)}
+              currentCoupon={
+                appliedCoupon
+                  ? { code: appliedCoupon.code, discount: appliedCoupon.discount }
+                  : null
+              }
+            />
+          </div>
+        </>
+      )}
 
       <Separator className="my-4" />
 
@@ -1009,6 +986,116 @@ export default function CheckoutPageClient({
         <span className="text-primary">{formatPrice(total)}</span>
       </div>
     </>
+  );
+
+  /**
+   * CTA de pago. Móvil y desktop renderizan exactamente este bloque, así que
+   * comparten aviso de validación, altura, `checkoutPayButtonClass` y — lo que
+   * antes divergía — las mismas condiciones de `disabled`: la variante móvil no
+   * exigía aceptar términos ni mostraba spinner al procesar.
+   */
+  const renderPayCta = (scope: "mobile" | "desktop") => (
+    <div className="space-y-3">
+      {formData.paymentMethod === "CARD" &&
+        (missingRequirements.length > 0 ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <div className="flex gap-2">
+              <AlertCircle
+                className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600"
+                aria-hidden="true"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="mb-1.5 text-sm font-bold text-amber-900">Para continuar:</p>
+                <ul className="space-y-0.5 text-xs text-amber-800">
+                  {missingRequirements.map((req, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="font-bold text-amber-600">•</span>
+                      <span>{req}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 h-7 border-amber-400 text-xs font-semibold text-amber-900 hover:bg-amber-100 hover:text-amber-950"
+                  onClick={scrollToFirstMissing}
+                >
+                  Ir al primer campo →
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+            <div className="flex items-start gap-2">
+              <CheckCircle2
+                className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600"
+                aria-hidden="true"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-green-900">¡Todo listo!</p>
+                <p className="mt-1 text-xs text-green-800">
+                  Completa tu pago de forma segura.
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+
+      {formData.paymentMethod === "CARD" ? (
+        <CulqiCheckoutButton
+          key={`culqi-${scope}-${formData.customerEmail}-${formData.acceptTerms}`}
+          amount={Math.round(total * 100)}
+          email={formData.customerEmail}
+          customerName={formData.customerName}
+          onSuccess={handleCulqiSuccess}
+          onError={handleCulqiError}
+          disabled={
+            !formData.customerEmail ||
+            !formData.customerName ||
+            !formData.acceptTerms ||
+            !selectedShippingRate ||
+            isProcessingPayment ||
+            missingRequirements.length > 0
+          }
+          className="w-full"
+          siteName={siteName}
+          siteLogo={siteLogo}
+        />
+      ) : (
+        <Button
+          type="submit"
+          variant="cta"
+          size="lg"
+          className={`h-12 w-full text-base font-semibold ${checkoutPayButtonClass}`}
+          disabled={
+            loading ||
+            !stockVerified ||
+            stockCheckLoading ||
+            !selectedShippingRate ||
+            !formData.acceptTerms
+          }
+          onClick={handleSubmit}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+              Procesando...
+            </>
+          ) : stockCheckLoading ? (
+            "Verificando stock..."
+          ) : !selectedShippingRate ? (
+            "Selecciona método de envío"
+          ) : (
+            <span className="flex items-center justify-center gap-2">
+              <span>Confirmar Pedido</span>
+              <span className="font-bold">{formatPrice(total)}</span>
+            </span>
+          )}
+        </Button>
+      )}
+    </div>
   );
 
   return (
@@ -1097,31 +1184,30 @@ export default function CheckoutPageClient({
         )}
       </div>
 
-      <div className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-sm">
+      {/* Cabecera móvil, al estilo de la referencia: una barra sobria con
+          "Resumen del pedido", chevron y el total a la derecha. Es un vistazo
+          rápido — el resumen completo (con cupón) vive al final del flujo. */}
+      <div className="lg:hidden sticky top-0 z-40 border-b bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/30">
         <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
           <SheetTrigger asChild>
             <button
               type="button"
-              aria-label="Ver resumen del pedido"
-              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-accent/50 active:bg-accent transition-colors"
+              aria-expanded={mobileSheetOpen}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-accent/40 active:bg-accent/60"
             >
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-md bg-primary/10">
-                  <ShoppingBag className="h-4 w-4 text-primary" aria-hidden="true" />
-                </div>
-                <div className="text-left">
-                  <span className="text-xs text-muted-foreground block">
-                    {getTotalItems()} {getTotalItems() === 1 ? 'producto' : 'productos'}
-                  </span>
-                  <span className="text-sm font-semibold block">
-                    Ver resumen
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg">{formatPrice(total)}</span>
-                <ChevronUp className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              </div>
+              <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                <ShoppingBag className="h-4 w-4 shrink-0 opacity-70" aria-hidden="true" />
+                <span className="truncate">
+                  {mobileSheetOpen ? "Ocultar" : "Mostrar"} resumen del pedido
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 opacity-70 transition-transform ${mobileSheetOpen ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                />
+              </span>
+              <span className="shrink-0 text-base font-semibold tabular-nums">
+                {formatPrice(total)}
+              </span>
             </button>
           </SheetTrigger>
           <SheetContent side="top" className="max-h-[85vh] overflow-y-auto px-4 sm:px-6">
@@ -1129,7 +1215,7 @@ export default function CheckoutPageClient({
               <SheetTitle>Resumen del Pedido</SheetTitle>
             </SheetHeader>
             <div className="space-y-4 pb-6">
-              {orderSummaryContent}
+              {renderOrderSummary({ showCoupon: false })}
             </div>
           </SheetContent>
         </Sheet>
@@ -1414,9 +1500,17 @@ export default function CheckoutPageClient({
                   </CardContent>
                 </Card>
 
-                {/* Términos — móvil. Vive en el flujo del formulario (no en la
-                    barra fija) para mantener el pay bar bajo y dejar más espacio
-                    al teclado. En desktop los términos están en el resumen. */}
+                {/* Resumen del pedido — móvil, al final del flujo como en la
+                    referencia. Es el resumen "real": incluye el cupón, que la
+                    cabecera plegable omite para no duplicar el control. */}
+                <Card className="lg:hidden min-w-0">
+                  <CardHeader>
+                    <CardTitle>Resumen del Pedido</CardTitle>
+                  </CardHeader>
+                  <CardContent>{renderOrderSummary()}</CardContent>
+                </Card>
+
+                {/* Términos — móvil. En desktop viven en la tarjeta de resumen. */}
                 <div ref={termsRefMobile} className="lg:hidden">
                   <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
                     <Checkbox
@@ -1443,10 +1537,21 @@ export default function CheckoutPageClient({
                   </div>
                 </div>
 
-                {/* Sellos de pago — móvil. Viven en el flujo del contenido (no
-                    en la barra fija) para mantener el pay bar bajo y dejar más
-                    formulario visible en primera vista. En desktop los métodos
-                    se muestran junto al botón del resumen. */}
+                {/* CTA de pago — móvil. Ya no flota: vive al final del flujo,
+                    como en la referencia. La barra fija tapaba los enlaces del
+                    footer legal (por eso `checkout.css` le añadía un
+                    `padding-bottom` de compensación, hoy innecesario). */}
+                <div className="lg:hidden space-y-2.5">
+                  {error && (
+                    <CheckoutErrorBanner
+                      variant="inline"
+                      message={error}
+                      onDismiss={() => setError(null)}
+                    />
+                  )}
+                  {renderPayCta("mobile")}
+                </div>
+
                 <AcceptedPaymentMarks
                   methods={enabledMethods}
                   size="md"
@@ -1461,7 +1566,7 @@ export default function CheckoutPageClient({
                     <CardTitle>Resumen del Pedido</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {orderSummaryContent}
+                    {renderOrderSummary()}
 
                     <div ref={termsRef} className="pt-2">
                       <div className="flex items-start space-x-2 rounded-lg border bg-muted/30 p-3">
@@ -1491,101 +1596,7 @@ export default function CheckoutPageClient({
                       </div>
                     </div>
 
-                    {/* ✅ BOTÓN DE PAGO CON TARJETA - DESKTOP */}
-                    {formData.paymentMethod === "CARD" ? (
-                      <div className="space-y-3 pt-2">
-                        {/* Alertas de validación */}
-                        {missingRequirements.length > 0 ? (
-                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                            <div className="flex gap-2">
-                              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-amber-900 text-sm mb-1.5">Para continuar:</p>
-                                <ul className="space-y-0.5 text-xs text-amber-800">
-                                  {missingRequirements.map((req, i) => (
-                                    <li key={i} className="flex items-start gap-1.5">
-                                      <span className="text-amber-600 font-bold">•</span>
-                                      <span>{req}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="mt-2 h-7 text-xs border-amber-400 text-amber-900 hover:bg-amber-100 hover:text-amber-950 font-semibold"
-                                  onClick={scrollToFirstMissing}
-                                >
-                                  Ir al primer campo →
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-                            <div className="flex gap-2 items-start">
-                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                              <div className="flex-1">
-                                <p className="font-bold text-green-900 text-sm">¡Todo listo!</p>
-                                <p className="text-xs text-green-800 mt-1">
-                                  Completa tu pago de forma segura.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Botón de Culqi */}
-                        <CulqiCheckoutButton
-                          key={`culqi-desktop-${formData.customerEmail}-${formData.acceptTerms}`}
-                          amount={Math.round(total * 100)}
-                          email={formData.customerEmail}
-                          customerName={formData.customerName}
-                          onSuccess={handleCulqiSuccess}
-                          onError={handleCulqiError}
-                          disabled={
-                            !formData.customerEmail || 
-                            !formData.customerName || 
-                            !formData.acceptTerms ||
-                            !selectedShippingRate ||
-                            isProcessingPayment ||
-                            missingRequirements.length > 0
-                          }
-                          className="w-full"
-                          siteName={siteName}
-                          siteLogo={siteLogo}
-                        />
-                      </div>
-                    ) : (
-                      /* Botón para Yape/Plin/PayPal - Desktop */
-                      <Button
-                        type="submit"
-                        variant="cta"
-                        size="lg"
-                        className={`w-full ${checkoutPayButtonClass}`}
-                        disabled={
-                          loading ||
-                          !stockVerified ||
-                          stockCheckLoading ||
-                          !selectedShippingRate ||
-                          !formData.acceptTerms
-                        }
-                        onClick={handleSubmit}
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Procesando...
-                          </>
-                        ) : stockCheckLoading ? (
-                          "Verificando stock..."
-                        ) : !selectedShippingRate ? (
-                          "Selecciona método de envío"
-                        ) : (
-                          `Confirmar Pedido ${formatPrice(total)}`
-                        )}
-                      </Button>
-                    )}
+                    {renderPayCta("desktop")}
 
                     <AcceptedPaymentMarks
                       methods={enabledMethods}
@@ -1597,119 +1608,6 @@ export default function CheckoutPageClient({
               </div>
             </div>
           </form>
-        </div>
-      </div>
-
-      {/* Botón flotante móvil. SIEMPRE visible — el CTA de pago nunca debe
-          desaparecer (best practice de checkout móvil). Cuando el teclado está
-          abierto se colapsa a solo el botón: se ocultan los elementos
-          decorativos (iconos de confianza y la alerta de validación de tarjeta)
-          para no robar espacio, pero el cliente siempre puede pagar sin tener
-          que cerrar el teclado. El campo enfocado se desplaza por encima vía
-          `interactive-widget=resizes-content` + scroll-margin. */}
-      <div data-checkout-paybar className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-2xl safe-area-pb">
-        <div className="px-4 py-3 space-y-2.5">
-          {/* Error de envío/pago, pegado al CTA que lo disparó. Se mantiene
-              visible con el teclado abierto: un pago rechazado pesa más que el
-              espacio vertical. */}
-          {error && (
-            <CheckoutErrorBanner
-              variant="inline"
-              message={error}
-              onDismiss={() => setError(null)}
-            />
-          )}
-
-          {/* ✅ BOTÓN DE PAGO CON TARJETA - MÓVIL */}
-          {formData.paymentMethod === "CARD" ? (
-            <div className="space-y-2">
-              {/* Alerta compacta para móvil — una sola línea tocable que se
-                  expande para ver el detalle. Oculta mientras se escribe para
-                  dejar la barra fija en solo el botón de pago. */}
-              {!keyboardOpen && (
-                missingRequirements.length > 0 ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setMissingAlertExpanded((v) => !v)}
-                      aria-expanded={missingAlertExpanded}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 text-left"
-                    >
-                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
-                      <span className="font-bold text-amber-900 flex-1">
-                        Falta completar ({missingRequirements.length})
-                      </span>
-                      {missingAlertExpanded ? (
-                        <ChevronDown className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
-                      ) : (
-                        <ChevronUp className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
-                      )}
-                    </button>
-                    {missingAlertExpanded && (
-                      <p className="text-amber-800 px-2.5 pb-2 -mt-0.5 pl-7">
-                        {missingRequirements.join(', ')}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-xs">
-                    <div className="flex gap-2 items-center">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 flex-shrink-0" aria-hidden="true" />
-                      <p className="font-bold text-green-900">¡Listo para pagar!</p>
-                    </div>
-                  </div>
-                )
-              )}
-
-              <CulqiCheckoutButton
-                key={`culqi-mobile-${formData.customerEmail}-${formData.acceptTerms}`}
-                amount={Math.round(total * 100)}
-                email={formData.customerEmail}
-                customerName={formData.customerName}
-                onSuccess={handleCulqiSuccess}
-                onError={handleCulqiError}
-                disabled={
-                  !formData.customerEmail || 
-                  !formData.customerName || 
-                  !formData.acceptTerms ||
-                  !selectedShippingRate ||
-                  isProcessingPayment ||
-                  missingRequirements.length > 0
-                }
-                className="w-full"
-                siteName={siteName}
-                siteLogo={siteLogo}
-              />
-            </div>
-          ) : (
-            /* Botón para Yape/Plin/PayPal - Móvil */
-            <Button
-              type="submit"
-              variant="cta"
-              size="lg"
-              className={`w-full text-base font-semibold h-12 ${checkoutPayButtonClass}`}
-              disabled={
-                loading ||
-                !stockVerified ||
-                stockCheckLoading ||
-                !selectedShippingRate
-              }
-              onClick={handleSubmit}
-            >
-              {loading ? (
-                "Procesando..."
-              ) : stockCheckLoading ? (
-                "Verificando stock..."
-              ) : !selectedShippingRate ? (
-                "Selecciona método de envío"
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <span>Confirmar Pedido</span>
-                  <span className="font-bold">{formatPrice(total)}</span>
-                </span>
-              )}
-            </Button>
-          )}
         </div>
       </div>
     </>

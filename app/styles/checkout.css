@@ -1,21 +1,16 @@
 @layer components {
   /* When a checkout field gets focus (keyboard opens on mobile), the browser
-     scrolls it into view. These margins keep it clear of the sticky summary
-     bar (top) and the fixed pay bar (bottom) instead of being pinned under
-     them. Combined with `interactive-widget=resizes-content` in the root
-     viewport. */
+     scrolls it into view. This margin keeps it clear of the sticky summary bar
+     at the top instead of being pinned under it. Combined with
+     `interactive-widget=resizes-content` in the root viewport.
+
+     The bottom counterpart is gone on purpose: the pay CTA no longer floats
+     (it lives at the end of the form, like the reference checkout), so nothing
+     overlaps the bottom of the viewport. That also removes the padding hack
+     that kept the legal footer's policy links clear of the old fixed bar. */
   @media (max-width: 1023px) {
     .checkout-form :is(input, textarea) {
       scroll-margin-top: 5rem;
-      scroll-margin-bottom: 7rem;
-    }
-
-    /* On the main checkout page the fixed pay bar (data-checkout-paybar)
-       overlaps the bottom of the viewport. Pad the legal footer so its links
-       clear the bar. Scoped via :has() so other checkout routes (which have no
-       pay bar) keep their normal spacing. */
-    body:has([data-checkout-paybar]) .checkout-legal-footer {
-      padding-bottom: 10rem;
     }
   }
 }
