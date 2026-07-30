@@ -14,6 +14,7 @@
 
 import { prisma } from "@/lib/db";
 import { canViewOrder } from "@/lib/orders/order-access";
+import { canStartPayment } from "@/lib/payments/order-payable";
 import { createCheckoutPreference } from "@/lib/mercadopago/client";
 import { buildPreferenceInput } from "@/lib/mercadopago/preference-input";
 import { createPaypalOrder } from "@/lib/paypal/client";
@@ -56,8 +57,13 @@ export async function startGatewayCheckout(
     return { success: false, error: "No autorizado." };
   }
 
-  if (order.paymentStatus === "PAID") {
-    return { success: false, error: "Esta orden ya fue pagada." };
+  // Antes esto sólo bloqueaba `PAID`, así que una orden CANCELADA o REEMBOLSADA
+  // —que ya devolvió su stock— seguía obteniendo una URL de pago perfectamente
+  // cobrable. El predicado compartido cubre además la reserva vencida y el pago
+  // en verificación. Ver `lib/payments/order-payable.ts`.
+  const payable = canStartPayment(order);
+  if (!payable.canStart) {
+    return { success: false, error: payable.message };
   }
 
   const settings = await getSiteSettings();

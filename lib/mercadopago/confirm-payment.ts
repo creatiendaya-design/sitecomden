@@ -20,6 +20,7 @@ import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 import {
   cancelOrderForFailedPayment,
   claimOrderAsPaid,
+  isDuplicateProviderPayment,
   recordOrphanPayment,
 } from "@/lib/payments/order-payment-state";
 
@@ -79,6 +80,62 @@ export async function confirmMercadoPagoPayment(
   if (!order) {
     log.error({ paymentId, orderId }, "Order not found for payment");
     return { ok: false, error: "Orden no encontrada", retryable: false };
+  }
+
+  /**
+   * ----- Segundo cobro distinto sobre un pedido ya pagado -----
+   *
+   * `buildPreferenceInput` crea una preferencia nueva en cada visita a la página
+   * puente, así que un cliente puede acabar con dos sesiones de MercadoPago vivas
+   * para el mismo pedido y pagar las dos. Antes ese segundo pago caía en la guarda
+   * de idempotencia de más abajo y se respondía `ignored`: dinero real cobrado del
+   * que no quedaba rastro en ninguna parte, así que nadie lo devolvía.
+   *
+   * Va ANTES de las ramas de reembolso a propósito. Cuando un admin devuelve el
+   * cobro duplicado (que es lo que le pedimos hacer), MercadoPago manda un webhook
+   * `refunded` con el id de ESE pago; si cayera en la rama de abajo, `applyRefund`
+   * reembolsaría el pedido ENTERO —restaurando stock y revirtiendo puntos— pese a
+   * que el pago legítimo del cliente sigue en pie.
+   */
+  if (
+    order.paymentStatus === "PAID" &&
+    isDuplicateProviderPayment(order.paymentId, payment.id)
+  ) {
+    // El duplicado ya se devolvió: nada que conciliar, el pedido está correcto.
+    if (payment.status === "refunded" || payment.status === "cancelled") {
+      log.info(
+        { orderId, paymentId, appliedPaymentId: order.paymentId, status: payment.status },
+        "Duplicate payment resolved (refunded/cancelled) — order untouched",
+      );
+      return { ok: true, orderId, status: "ignored" };
+    }
+
+    // Un duplicado rechazado nunca cobró: no hay dinero que devolver.
+    if (payment.status !== "approved") {
+      log.info(
+        { orderId, paymentId, status: payment.status },
+        "Duplicate payment not approved — nothing to reconcile",
+      );
+      return { ok: true, orderId, status: "ignored" };
+    }
+
+    await recordOrphanPayment({
+      orderId,
+      orderNumber: order.orderNumber,
+      provider: "MercadoPago",
+      providerPaymentId: payment.id,
+      amount: payment.transactionAmount,
+      currency: payment.currencyId,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      kind: "duplicate",
+      appliedPaymentId: order.paymentId,
+    });
+
+    revalidatePath("/admin/ordenes");
+
+    // `ok: true`: reintentar el webhook no lo arregla, tiene que verlo un humano.
+    return { ok: true, orderId, status: "orphaned" };
   }
 
   // ----- Reembolso parcial desde el panel: NO soportado (solo total) -----
@@ -165,6 +222,26 @@ export async function confirmMercadoPagoPayment(
     });
 
     if (claim.outcome === "already-paid") {
+      // Mismo caso que la guarda de duplicados de arriba, pero ganado en la
+      // ventana de carrera: entre nuestra lectura y el claim, OTRO cobro dejó el
+      // pedido pagado. Si es un pago distinto, este importe también sobra.
+      if (isDuplicateProviderPayment(claim.paymentId, payment.id)) {
+        await recordOrphanPayment({
+          orderId,
+          orderNumber: order.orderNumber,
+          provider: "MercadoPago",
+          providerPaymentId: payment.id,
+          amount: payment.transactionAmount,
+          currency: payment.currencyId,
+          status: order.status,
+          paymentStatus: "PAID",
+          kind: "duplicate",
+          appliedPaymentId: claim.paymentId,
+        });
+        revalidatePath("/admin/ordenes");
+        return { ok: true, orderId, status: "orphaned" };
+      }
+
       log.info({ orderId, paymentId }, "Order already marked paid by a concurrent flow");
       return { ok: true, orderId, status: "ignored" };
     }

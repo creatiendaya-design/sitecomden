@@ -61,10 +61,19 @@ vi.mock("@/lib/orders/apply-refund", () => ({ applyRefund: mocks.applyRefund }))
 // La transición orden→pagada vive en lib/payments/order-payment-state (con sus
 // propios tests). Aquí sólo comprobamos que el webhook la usa en vez de hacer
 // su propio `order.update`, que era lo que permitía revivir órdenes canceladas.
-vi.mock("@/lib/payments/order-payment-state", () => ({
-  claimOrderAsPaid: mocks.claimOrderAsPaid,
-  recordOrphanPayment: mocks.recordOrphanPayment,
-}));
+// `isDuplicateProviderPayment` se deja REAL: es una comparación pura de ids, y
+// mockearla escondería lo que aquí importa (que un segundo cargo distinto sobre
+// una orden ya pagada quede registrado en vez de descartarse en silencio).
+vi.mock("@/lib/payments/order-payment-state", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/order-payment-state")
+  >("@/lib/payments/order-payment-state");
+  return {
+    isDuplicateProviderPayment: actual.isDuplicateProviderPayment,
+    claimOrderAsPaid: mocks.claimOrderAsPaid,
+    recordOrphanPayment: mocks.recordOrphanPayment,
+  };
+});
 // Lealtad + SUNAT + correo: efectos con sus propios tests.
 vi.mock("@/lib/payments/culqi-post-payment", () => ({
   runCulqiPostPaymentEffects: mocks.runCulqiPostPaymentEffects,
@@ -264,6 +273,54 @@ describe("POST /api/culqi/webhook - charge.succeeded", () => {
     expect(res.status).toBe(200);
     expect(prismaMock.order.update).not.toHaveBeenCalled();
     expect(prismaMock.product.update).not.toHaveBeenCalled();
+  });
+
+  // ADV-02: dos cargos distintos sobre el mismo pedido (doble envío, reintento
+  // tras un timeout de red). Antes se salía en silencio y el segundo importe se
+  // quedaba en Culqi sin que nadie supiera que existía.
+  it("records a SECOND distinct charge on an already-paid order as a duplicate", async () => {
+    verifyCulqiChargeMock.mockResolvedValue(true);
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "order_abc",
+      orderNumber: "PED-0001",
+      status: "PAID",
+      paymentStatus: "PAID",
+      paymentId: "chr_previous_999",
+      total: 199.9,
+      items: [],
+    });
+
+    const res = await POST(makeWebhookRequest(chargeSucceededEvent()));
+
+    expect(res.status).toBe(200);
+    expect(recordOrphanPaymentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "duplicate",
+        providerPaymentId: "chr_test_123",
+        appliedPaymentId: "chr_previous_999",
+        provider: "Culqi",
+      }),
+    );
+    // El pedido ya estaba bien: no se toca.
+    expect(prismaMock.order.update).not.toHaveBeenCalled();
+  });
+
+  it("does not flag the SAME charge redelivered as a duplicate", async () => {
+    verifyCulqiChargeMock.mockResolvedValue(true);
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "order_abc",
+      orderNumber: "PED-0001",
+      status: "PAID",
+      paymentStatus: "PAID",
+      paymentId: "chr_test_123",
+      total: 199.9,
+      items: [],
+    });
+
+    const res = await POST(makeWebhookRequest(chargeSucceededEvent()));
+
+    expect(res.status).toBe(200);
+    expect(recordOrphanPaymentMock).not.toHaveBeenCalled();
   });
 
   it("is a no-op when the referenced order does not exist", async () => {

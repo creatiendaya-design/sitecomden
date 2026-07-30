@@ -21,24 +21,33 @@ import type { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { releaseOrderStock } from "@/lib/inventory/release-order-stock";
+import {
+  NON_PAYABLE_ORDER_STATUS,
+  NON_PAYABLE_PAYMENT_STATUS,
+} from "@/lib/payments/order-payable";
 
 const log = logger.child({ module: "order-payment-state" });
 
-/**
- * Estados desde los que una orden ya NO admite un pago.
- *
- * CANCELLED y REFUNDED son terminales y ya devolvieron el inventario;
- * confirmarlos vendería unidades inexistentes. DELIVERED no aparece porque es
- * inalcanzable sin pago previo (`updateOrderStatus` lo impide).
- */
-const NON_PAYABLE_ORDER_STATUS = ["CANCELLED", "REFUNDED"] as const;
-const NON_PAYABLE_PAYMENT_STATUS = ["PAID", "REFUNDED"] as const;
+// Los estados terminales viven en `order-payable.ts` junto al predicado de
+// entrada: si el iniciador y el claim final no comparten la misma lista, se abre
+// exactamente el hueco que ambos intentan cerrar.
+export { NON_PAYABLE_ORDER_STATUS, NON_PAYABLE_PAYMENT_STATUS };
 
 export type ClaimOrderAsPaidResult =
   /** La orden era pagable y este flujo ganó el claim: ejecuta los efectos. */
   | { outcome: "claimed" }
-  /** Otro flujo (webhook vs retorno) ya la marcó pagada: no repitas efectos. */
-  | { outcome: "already-paid" }
+  /**
+   * La orden ya figuraba pagada. Puede ser la carrera benigna (webhook vs
+   * retorno del mismo cobro) o un SEGUNDO cobro distinto; para distinguirlo, el
+   * llamador debe comparar `paymentId` con el id del pago que trae entre manos.
+   * Ver `isDuplicateProviderPayment`.
+   */
+  | {
+      outcome: "already-paid";
+      /** Id del pago que dejó la orden pagada, tal como lo guardó el ganador. */
+      paymentId: string | null;
+      paymentProvider: string | null;
+    }
   /** La orden ya no admite pago. El dinero cobrado necesita intervención. */
   | {
       outcome: "not-payable";
@@ -80,11 +89,26 @@ export async function claimOrderAsPaid(
   // que ya la dejó pagada) o grave (cobramos sobre una orden cancelada).
   const current = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { status: true, paymentStatus: true },
+    select: {
+      status: true,
+      paymentStatus: true,
+      // Se devuelven al llamador para que pueda distinguir "el mismo cobro
+      // llegando dos veces" de "dos cobros distintos sobre un mismo pedido".
+      paymentId: true,
+      paymentProvider: true,
+    },
   });
 
-  if (!current || current.paymentStatus === "PAID") {
-    return { outcome: "already-paid" };
+  if (!current) {
+    return { outcome: "already-paid", paymentId: null, paymentProvider: null };
+  }
+
+  if (current.paymentStatus === "PAID") {
+    return {
+      outcome: "already-paid",
+      paymentId: current.paymentId,
+      paymentProvider: current.paymentProvider,
+    };
   }
 
   return {
@@ -92,6 +116,30 @@ export async function claimOrderAsPaid(
     status: current.status,
     paymentStatus: current.paymentStatus,
   };
+}
+
+/**
+ * ¿El cobro que tenemos entre manos es OTRO cobro sobre una orden ya pagada?
+ *
+ * El caso que detecta: el cliente abrió dos sesiones de pago para el mismo
+ * pedido (dos pestañas, un reintento tras un fallo aparente) y pagó las dos. La
+ * primera confirmación deja la orden PAGADA; la segunda encontraba "ya pagada" y
+ * respondía `ignored`, de modo que ese segundo dinero —real, cobrado, en la
+ * cuenta de la pasarela— no quedaba registrado en ninguna parte. Nadie lo
+ * reembolsaba porque nadie sabía que existía.
+ *
+ * Comparar ids es suficiente y no requiere estado nuevo: `Order.paymentId` es
+ * único y guarda el id del cobro ganador. Si el entrante es distinto, hay dos
+ * cobros. Si `paymentId` es null (pagos antiguos, o el flujo manual Yape/Plin
+ * que no guarda id de pasarela) NO se asume duplicado: preferimos no inventar
+ * huérfanos sobre datos que no tenemos.
+ */
+export function isDuplicateProviderPayment(
+  recordedPaymentId: string | null | undefined,
+  incomingPaymentId: string | null | undefined,
+): boolean {
+  if (!recordedPaymentId || !incomingPaymentId) return false;
+  return recordedPaymentId !== incomingPaymentId;
 }
 
 export interface OrphanPaymentInput {
@@ -104,38 +152,61 @@ export interface OrphanPaymentInput {
   currency: string | null;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  /**
+   * `non-payable` (por defecto): el pedido estaba cerrado y el cobro no se
+   * aplicó. `duplicate`: el pedido SÍ está pagado, pero con otro cobro — este es
+   * dinero extra que hay que devolver. La acción del admin difiere, así que la
+   * nota lo dice explícitamente.
+   */
+  kind?: "non-payable" | "duplicate";
+  /** Sólo para `duplicate`: el cobro que sí quedó aplicado al pedido. */
+  appliedPaymentId?: string | null;
 }
 
 /**
- * Deja constancia de un cobro que llegó sobre una orden que ya no lo admite.
+ * Deja constancia de un cobro que la orden no puede absorber.
  *
  * No lo resolvemos automáticamente: reembolsar requiere la integración por
- * proveedor que aún no existe (ver auditoría, F-06). Lo que sí hacemos es que
+ * proveedor que aún no existe (ver auditoría, ADV-05). Lo que sí hacemos es que
  * el dinero no desaparezca en silencio — queda en el log de error y en las
  * notas del pedido, que es donde un admin lo ve.
  */
 export async function recordOrphanPayment(input: OrphanPaymentInput): Promise<void> {
+  const kind = input.kind ?? "non-payable";
+
   log.error(
     {
       orderId: input.orderId,
       orderNumber: input.orderNumber,
       provider: input.provider,
       providerPaymentId: input.providerPaymentId,
+      appliedPaymentId: input.appliedPaymentId ?? null,
       amount: input.amount,
       currency: input.currency,
       orderStatus: input.status,
       paymentStatus: input.paymentStatus,
+      kind,
     },
-    "Payment received on a non-payable order — money needs manual reconciliation",
+    kind === "duplicate"
+      ? "Second distinct payment on an already-paid order — money needs a refund"
+      : "Payment received on a non-payable order — money needs manual reconciliation",
   );
 
   const stamp = new Date().toISOString();
+  const amountText =
+    input.amount != null ? `, ${input.amount} ${input.currency ?? ""}`.trimEnd() : "";
+
   const note =
-    `[${stamp}] COBRO SIN APLICAR: ${input.provider} confirmó un pago ` +
-    `(${input.providerPaymentId}${
-      input.amount != null ? `, ${input.amount} ${input.currency ?? ""}`.trimEnd() : ""
-    }) sobre una orden en estado ${input.status}/${input.paymentStatus}. ` +
-    `La orden NO se marcó pagada. Revisar y reembolsar en el panel de ${input.provider}.`;
+    kind === "duplicate"
+      ? `[${stamp}] COBRO DUPLICADO: ${input.provider} confirmó un SEGUNDO pago ` +
+        `(${input.providerPaymentId}${amountText}) sobre este pedido, que ya estaba ` +
+        `pagado con el cobro ${input.appliedPaymentId ?? "(sin id registrado)"}. ` +
+        `El pedido se cobra UNA sola vez: este importe es dinero de más y debe ` +
+        `reembolsarse en el panel de ${input.provider}.`
+      : `[${stamp}] COBRO SIN APLICAR: ${input.provider} confirmó un pago ` +
+        `(${input.providerPaymentId}${amountText}) sobre una orden en estado ` +
+        `${input.status}/${input.paymentStatus}. ` +
+        `La orden NO se marcó pagada. Revisar y reembolsar en el panel de ${input.provider}.`;
 
   try {
     await prisma.$transaction(async (tx) => {

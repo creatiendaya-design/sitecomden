@@ -21,6 +21,7 @@ import { onOrderPaid } from "@/lib/loyalty/award-purchase";
 import {
   cancelOrderForFailedPayment,
   claimOrderAsPaid,
+  isDuplicateProviderPayment,
   recordOrphanPayment,
 } from "@/lib/payments/order-payment-state";
 
@@ -81,8 +82,40 @@ export async function captureAndConfirmPaypalOrder(
     return { ok: false, error: "Orden no encontrada", retryable: false };
   }
 
-  // Idempotencia.
+  /**
+   * Idempotencia — y detección del segundo cobro distinto.
+   *
+   * La página puente crea una orden de PayPal nueva en cada visita, así que un
+   * cliente puede tener dos aprobadas para el mismo pedido y completar las dos.
+   * Antes ambas caían aquí y se respondía `ignored`: el segundo importe quedaba
+   * capturado en PayPal sin rastro en el sistema y nadie lo devolvía.
+   *
+   * Sólo cuenta como duplicado si la captura EXISTE: una orden de PayPal creada y
+   * abandonada no cobró nada, y anotarla como huérfana llenaría los pedidos de
+   * avisos falsos.
+   */
   if (order.paymentStatus === "PAID") {
+    const incomingPaymentId = info.captureId ?? info.id;
+    const capturedForReal =
+      info.status === "COMPLETED" && info.captureStatus === "COMPLETED";
+
+    if (capturedForReal && isDuplicateProviderPayment(order.paymentId, incomingPaymentId)) {
+      await recordOrphanPayment({
+        orderId,
+        orderNumber: order.orderNumber,
+        provider: "PayPal",
+        providerPaymentId: incomingPaymentId,
+        amount: info.amountValue,
+        currency: info.currencyCode,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        kind: "duplicate",
+        appliedPaymentId: order.paymentId,
+      });
+      revalidatePath("/admin/ordenes");
+      return { ok: true, orderId, status: "orphaned" };
+    }
+
     return { ok: true, orderId, status: "ignored" };
   }
 
@@ -157,6 +190,26 @@ export async function captureAndConfirmPaypalOrder(
     });
 
     if (claim.outcome === "already-paid") {
+      // La captura ya ocurrió (estamos dentro de la rama COMPLETED). Si otro
+      // cobro ganó el claim en la ventana de carrera, este dinero sobra.
+      const incomingPaymentId = info.captureId ?? info.id;
+      if (isDuplicateProviderPayment(claim.paymentId, incomingPaymentId)) {
+        await recordOrphanPayment({
+          orderId,
+          orderNumber: order.orderNumber,
+          provider: "PayPal",
+          providerPaymentId: incomingPaymentId,
+          amount: info.amountValue,
+          currency: info.currencyCode,
+          status: order.status,
+          paymentStatus: "PAID",
+          kind: "duplicate",
+          appliedPaymentId: claim.paymentId,
+        });
+        revalidatePath("/admin/ordenes");
+        return { ok: true, orderId, status: "orphaned" };
+      }
+
       log.info({ orderId, paypalOrderId }, "Order already marked paid by a concurrent flow");
       return { ok: true, orderId, status: "ignored" };
     }

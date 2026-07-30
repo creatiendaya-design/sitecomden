@@ -4,6 +4,7 @@ import { canViewOrder } from "@/lib/orders/order-access";
 import { createPaypalOrder } from "@/lib/paypal/client";
 import { readPaypalSettings, convertPenToCharge } from "@/lib/paypal/config";
 import { getSiteSettings } from "@/lib/site-settings";
+import { canStartPayment } from "@/lib/payments/order-payable";
 import { displayOrderNumber } from "@/lib/utils";
 import PaypalRedirectClient from "./paypal-redirect-client";
 
@@ -58,6 +59,26 @@ export default async function PaymentPayPalPage({ params, searchParams }: PagePr
   const orderDisplayNumber = displayOrderNumber(order, siteSettings.order_prefix || "PED");
 
   const paypalSettings = await readPaypalSettings();
+
+  // Estados no pagables (cancelada, reembolsada, reserva vencida, pago en
+  // verificación): no se crea la orden de PayPal. Crearla entregaba una URL de
+  // aprobación cobrable sobre un pedido que ya no puede surtirse.
+  // Ver `lib/payments/order-payable.ts`.
+  const payable = canStartPayment(order);
+  if (!payable.canStart) {
+    return (
+      <PaypalRedirectClient
+        orderDisplayNumber={orderDisplayNumber}
+        totalPen={Number(order.total)}
+        chargeAmount={null}
+        currency={paypalSettings.currency}
+        approveUrl={null}
+        canceled={cancel === "1"}
+        error={payable.message}
+      />
+    );
+  }
+
   const chargeAmount = convertPenToCharge(Number(order.total), paypalSettings.exchangeRate);
 
   // Sin tipo de cambio válido no podemos cobrar en la divisa de PayPal.

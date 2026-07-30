@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import CardPaymentClient from "./card-payment-client";
 import { canViewOrder } from "@/lib/orders/order-access";
+import { canStartPayment } from "@/lib/payments/order-payable";
 
 interface PageProps {
   params: Promise<{
@@ -35,8 +36,12 @@ export default async function PaymentCardPage({ params, searchParams }: PageProp
     redirect("/orden/verificar");
   }
 
-  // Si ya está pagada, redirigir a confirmación
-  if (order.paymentStatus === "PAID") {
+  // Si ya está pagada —o el pedido dejó de admitir pagos (cancelado,
+  // reembolsado, reserva vencida, cobro en verificación)— no se muestra el
+  // formulario de tarjeta: la confirmación explica en qué estado está. El
+  // control autoritativo es el claim de `processCardPayment`; esto sólo evita
+  // ofrecer un formulario que va a rechazarse.
+  if (!canStartPayment(order).canStart) {
     redirect(`/orden/${order.id}/confirmacion`);
   }
 

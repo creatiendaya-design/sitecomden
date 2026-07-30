@@ -6,8 +6,13 @@ import { createCulqiCharge, solesToCents, formatCardInfo } from "@/lib/culqi";
 import { revalidatePath } from "next/cache";
 import {
   claimOrderAsPaid,
+  isDuplicateProviderPayment,
   recordOrphanPayment,
 } from "@/lib/payments/order-payment-state";
+import {
+  canStartPayment,
+  NON_PAYABLE_ORDER_STATUS,
+} from "@/lib/payments/order-payable";
 import { runCulqiPostPaymentEffects } from "@/lib/payments/culqi-post-payment";
 
 /**
@@ -24,7 +29,13 @@ export async function processCardPayment(data: {
     // claim, cuando ya reflejan el pago).
     const order = await prisma.order.findUnique({
       where: { id: data.orderId },
-      select: { id: true, orderNumber: true, total: true, paymentStatus: true },
+      select: {
+        id: true,
+        orderNumber: true,
+        total: true,
+        status: true,
+        paymentStatus: true,
+      },
     });
 
     if (!order) {
@@ -45,15 +56,41 @@ export async function processCardPayment(data: {
     //
     // El claim atómico deja la orden en VERIFYING; sólo un flujo puede
     // ganarlo, y el resto se detiene aquí sin llegar a cobrar.
+    //
+    // El WHERE no puede ser sólo `paymentStatus: "PENDING"`: una orden CANCELADA
+    // conserva ese estado de pago (cancelar no lo cambia a FAILED), así que el
+    // claim prosperaba y cobrábamos una tarjeta por un pedido cerrado cuyo stock
+    // ya se había devuelto al inventario. El único remedio después era un
+    // reembolso manual. Se exige además reserva viva, por el mismo motivo.
+    const now = new Date();
     const claim = await prisma.order.updateMany({
-      where: { id: order.id, paymentStatus: "PENDING" },
+      where: {
+        id: order.id,
+        paymentStatus: "PENDING",
+        status: { notIn: [...NON_PAYABLE_ORDER_STATUS] },
+        OR: [
+          { reservationExpiresAt: null },
+          { reservationExpiresAt: { gt: now } },
+        ],
+      },
       data: { paymentStatus: "VERIFYING" },
     });
 
     if (claim.count === 0) {
+      // Distinguir "ya en curso" de "pedido no pagable" para no decirle al
+      // cliente que reintente algo que nunca va a poder pagarse.
+      const current = await prisma.order.findUnique({
+        where: { id: order.id },
+        select: { status: true, paymentStatus: true, reservationExpiresAt: true },
+      });
+
+      const blocked = current ? canStartPayment(current, now) : null;
       return {
         success: false,
-        error: "Esta orden ya fue procesada o tiene un pago en curso.",
+        error:
+          blocked && !blocked.canStart
+            ? blocked.message
+            : "Esta orden ya fue procesada o tiene un pago en curso.",
       };
     }
 
@@ -168,7 +205,39 @@ export async function processCardPayment(data: {
     // descontar aquí — hacerlo causaba doble/triple descuento (createOrder +
     // processCardPayment + webhook) y stock negativo.
 
-    // 6. Efectos (lealtad, SUNAT, correo) SOLO si este flujo ganó el claim. Si
+    // 6a. Ya estaba pagada con OTRO cargo: acabamos de cobrar de más.
+    //
+    // El claim del paso 2 hace esto improbable, pero no imposible: el webhook de
+    // Culqi pudo confirmar un cargo anterior (un reintento cuyo resultado
+    // creíamos perdido) mientras esta petición hablaba con la pasarela. Sin este
+    // registro el importe extra se quedaba en Culqi sin que nadie lo supiera.
+    if (
+      claimPaid.outcome === "already-paid" &&
+      isDuplicateProviderPayment(claimPaid.paymentId, charge.id)
+    ) {
+      await recordOrphanPayment({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        provider: "Culqi",
+        providerPaymentId: charge.id,
+        amount: charge.amount / 100,
+        currency: charge.currency_code,
+        status: order.status,
+        paymentStatus: "PAID",
+        kind: "duplicate",
+        appliedPaymentId: claimPaid.paymentId,
+      });
+
+      revalidatePath("/admin/ordenes");
+
+      return {
+        success: false,
+        error:
+          "Tu pedido ya estaba pagado y este segundo cargo se hizo por error. Lo detectamos y te devolveremos el importe.",
+      };
+    }
+
+    // 6b. Efectos (lealtad, SUNAT, correo) SOLO si este flujo ganó el claim. Si
     // el webhook ya la había marcado pagada, él corrió los mismos efectos:
     // repetirlos aquí duplicaría el comprobante y el correo al cliente.
     if (claimPaid.outcome === "claimed") {

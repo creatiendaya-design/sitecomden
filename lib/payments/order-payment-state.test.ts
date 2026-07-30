@@ -30,6 +30,7 @@ vi.mock("@/lib/inventory/release-order-stock", () => ({
 import {
   cancelOrderForFailedPayment,
   claimOrderAsPaid,
+  isDuplicateProviderPayment,
   recordOrphanPayment,
 } from "./order-payment-state";
 
@@ -101,11 +102,56 @@ describe("claimOrderAsPaid", () => {
     mocks.prisma.order.findUnique.mockResolvedValue({
       status: "PAID",
       paymentStatus: "PAID",
+      paymentId: "chg_1",
+      paymentProvider: "culqi",
     });
 
     const result = await claimOrderAsPaid("ord_1", PAID_DATA);
 
-    expect(result).toEqual({ outcome: "already-paid" });
+    expect(result).toEqual({
+      outcome: "already-paid",
+      paymentId: "chg_1",
+      paymentProvider: "culqi",
+    });
+  });
+
+  // Sin este dato el llamador no puede distinguir "el mismo cobro llegando dos
+  // veces" de "dos cobros distintos", que es la diferencia entre no hacer nada y
+  // deber un reembolso.
+  it("devuelve el pago que ganó, para poder detectar un segundo cobro", async () => {
+    mocks.prisma.order.updateMany.mockResolvedValue({ count: 0 });
+    mocks.prisma.order.findUnique.mockResolvedValue({
+      status: "PAID",
+      paymentStatus: "PAID",
+      paymentId: "mp_111",
+      paymentProvider: "mercadopago",
+    });
+
+    const result = await claimOrderAsPaid("ord_1", PAID_DATA);
+
+    expect(result).toMatchObject({ outcome: "already-paid", paymentId: "mp_111" });
+    expect(
+      mocks.prisma.order.findUnique.mock.calls[0][0].select.paymentId,
+    ).toBe(true);
+  });
+});
+
+describe("isDuplicateProviderPayment", () => {
+  it("detecta dos cobros distintos sobre el mismo pedido", () => {
+    expect(isDuplicateProviderPayment("mp_111", "mp_222")).toBe(true);
+  });
+
+  it("no marca duplicado el mismo cobro reentregado", () => {
+    expect(isDuplicateProviderPayment("mp_111", "mp_111")).toBe(false);
+  });
+
+  // Yape/Plin no guardan id de pasarela, y las órdenes antiguas pueden no
+  // tenerlo. Inventar huérfanos sobre datos ausentes generaría avisos falsos que
+  // enseñan al admin a ignorarlos.
+  it("no asume duplicado cuando falta algún id", () => {
+    expect(isDuplicateProviderPayment(null, "mp_222")).toBe(false);
+    expect(isDuplicateProviderPayment("mp_111", null)).toBe(false);
+    expect(isDuplicateProviderPayment(undefined, undefined)).toBe(false);
   });
 });
 
@@ -156,6 +202,27 @@ describe("recordOrphanPayment", () => {
     mocks.prisma.$transaction.mockRejectedValue(new Error("db down"));
 
     await expect(recordOrphanPayment(orphan)).resolves.toBeUndefined();
+  });
+
+  // La instrucción al admin es distinta: en `non-payable` el pedido no se cobró y
+  // hay que revisarlo; en `duplicate` el pedido está bien y sobra dinero.
+  it("distingue el cobro duplicado y nombra el pago que sí se aplicó", async () => {
+    mocks.tx.order.findUnique.mockResolvedValue({ adminNotes: null });
+
+    await recordOrphanPayment({
+      ...orphan,
+      status: "PAID",
+      paymentStatus: "PAID",
+      kind: "duplicate",
+      appliedPaymentId: "CAP-000",
+      providerPaymentId: "CAP-999",
+    });
+
+    const notes = mocks.tx.order.update.mock.calls[0][0].data.adminNotes as string;
+    expect(notes).toContain("COBRO DUPLICADO");
+    expect(notes).toContain("CAP-999");
+    expect(notes).toContain("CAP-000");
+    expect(notes).not.toContain("COBRO SIN APLICAR");
   });
 });
 

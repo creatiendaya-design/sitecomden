@@ -18,6 +18,7 @@ import { logger } from "@/lib/logger";
 import { applyRefund } from "@/lib/orders/apply-refund";
 import {
   claimOrderAsPaid,
+  isDuplicateProviderPayment,
   recordOrphanPayment,
 } from "@/lib/payments/order-payment-state";
 import { runCulqiPostPaymentEffects } from "@/lib/payments/culqi-post-payment";
@@ -104,12 +105,40 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
   // La orden PRIMERO: es la única fuente autoritativa del importe a cobrar.
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, orderNumber: true, total: true, paymentStatus: true },
+    select: {
+      id: true,
+      orderNumber: true,
+      total: true,
+      status: true,
+      paymentStatus: true,
+      paymentId: true,
+    },
   });
 
   if (!order) return;
 
-  if (order.paymentStatus === "PAID") return;
+  if (order.paymentStatus === "PAID") {
+    // Dos cargos distintos sobre el mismo pedido (doble envío del formulario que
+    // el claim de `processCardPayment` no alcanzó a frenar, reintento tras un
+    // timeout de red). Salir en silencio dejaba el segundo importe cobrado en
+    // Culqi sin rastro; ahora queda anotado para que un admin lo devuelva.
+    if (isDuplicateProviderPayment(order.paymentId, data.id)) {
+      await recordOrphanPayment({
+        orderId,
+        orderNumber: order.orderNumber,
+        provider: "Culqi",
+        providerPaymentId: data.id,
+        amount: data.amount / 100,
+        currency: data.currency_code,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        kind: "duplicate",
+        appliedPaymentId: order.paymentId,
+      });
+      revalidatePath("/admin/ordenes");
+    }
+    return;
+  }
 
   // Un mismo cargo no puede pagar dos órdenes distintas.
   const chargeAlreadyUsed = await prisma.order.findFirst({
@@ -163,6 +192,25 @@ async function handleChargeSucceeded(event: CulqiWebhookEvent) {
   });
 
   if (claim.outcome === "already-paid") {
+    // Otro flujo (la server action del checkout) ganó el claim mientras
+    // verificábamos el cargo. Si lo hizo con OTRO cargo, este cobró de más.
+    if (isDuplicateProviderPayment(claim.paymentId, data.id)) {
+      await recordOrphanPayment({
+        orderId,
+        orderNumber: order.orderNumber,
+        provider: "Culqi",
+        providerPaymentId: data.id,
+        amount: data.amount / 100,
+        currency: data.currency_code,
+        status: order.status,
+        paymentStatus: "PAID",
+        kind: "duplicate",
+        appliedPaymentId: claim.paymentId,
+      });
+      revalidatePath("/admin/ordenes");
+      return;
+    }
+
     log.info({ orderId, chargeId: data.id }, "Order already marked paid by a concurrent flow");
     return;
   }

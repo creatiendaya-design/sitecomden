@@ -35,11 +35,20 @@ vi.mock("./config", async () => {
   const actual = await vi.importActual<typeof import("./config")>("./config");
   return { readPaypalSettings: mocks.readPaypalSettings, convertPenToCharge: actual.convertPenToCharge };
 });
-vi.mock("@/lib/payments/order-payment-state", () => ({
-  claimOrderAsPaid: mocks.claimOrderAsPaid,
-  recordOrphanPayment: mocks.recordOrphanPayment,
-  cancelOrderForFailedPayment: mocks.cancelOrderForFailedPayment,
-}));
+// `isDuplicateProviderPayment` se deja REAL: es una comparación pura de ids y
+// mockearla escondería justo lo que estos tests deben comprobar (que un segundo
+// cobro distinto no se traga como "ya pagada").
+vi.mock("@/lib/payments/order-payment-state", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/order-payment-state")
+  >("@/lib/payments/order-payment-state");
+  return {
+    isDuplicateProviderPayment: actual.isDuplicateProviderPayment,
+    claimOrderAsPaid: mocks.claimOrderAsPaid,
+    recordOrphanPayment: mocks.recordOrphanPayment,
+    cancelOrderForFailedPayment: mocks.cancelOrderForFailedPayment,
+  };
+});
 
 import { captureAndConfirmPaypalOrder } from "./confirm-payment";
 
@@ -162,12 +171,85 @@ describe("orden que ya no admite pago", () => {
   it("no repite los efectos si otro flujo ya la pagó", async () => {
     seedOrder();
     seedPaypal();
-    mocks.claimOrderAsPaid.mockResolvedValue({ outcome: "already-paid" });
+    mocks.claimOrderAsPaid.mockResolvedValue({
+      outcome: "already-paid",
+      paymentId: "CAP-1",
+      paymentProvider: "paypal",
+    });
 
     const result = await captureAndConfirmPaypalOrder("PP-1");
 
     expect(result).toEqual({ ok: true, orderId: "ord_1", status: "ignored" });
     expect(mocks.onOrderPaid).not.toHaveBeenCalled();
+    expect(mocks.recordOrphanPayment).not.toHaveBeenCalled();
+  });
+
+  // ADV-02: la página puente crea una orden de PayPal nueva en cada visita, así
+  // que el cliente puede pagar dos. Antes la segunda respondía `ignored` y el
+  // importe quedaba capturado sin rastro en el sistema.
+  it("registra como duplicado un segundo cobro ganado en la carrera del claim", async () => {
+    seedOrder();
+    seedPaypal();
+    mocks.claimOrderAsPaid.mockResolvedValue({
+      outcome: "already-paid",
+      paymentId: "CAP-OTHER",
+      paymentProvider: "paypal",
+    });
+
+    const result = await captureAndConfirmPaypalOrder("PP-1");
+
+    expect(result).toEqual({ ok: true, orderId: "ord_1", status: "orphaned" });
+    expect(mocks.recordOrphanPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "duplicate",
+        providerPaymentId: "CAP-1",
+        appliedPaymentId: "CAP-OTHER",
+      }),
+    );
+    expect(mocks.onOrderPaid).not.toHaveBeenCalled();
+  });
+});
+
+describe("segundo cobro sobre un pedido ya pagado", () => {
+  it("lo registra como duplicado en vez de descartarlo en silencio", async () => {
+    seedOrder({ paymentStatus: "PAID", status: "PAID", paymentId: "CAP-FIRST" });
+    seedPaypal({ captureId: "CAP-SECOND" });
+
+    const result = await captureAndConfirmPaypalOrder("PP-1");
+
+    expect(result).toEqual({ ok: true, orderId: "ord_1", status: "orphaned" });
+    expect(mocks.recordOrphanPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "duplicate",
+        providerPaymentId: "CAP-SECOND",
+        appliedPaymentId: "CAP-FIRST",
+        provider: "PayPal",
+      }),
+    );
+    // El pedido ya estaba correcto: no se reclama de nuevo.
+    expect(mocks.claimOrderAsPaid).not.toHaveBeenCalled();
+  });
+
+  it("no marca duplicado la reentrega del mismo cobro", async () => {
+    seedOrder({ paymentStatus: "PAID", status: "PAID", paymentId: "CAP-1" });
+    seedPaypal({ captureId: "CAP-1" });
+
+    const result = await captureAndConfirmPaypalOrder("PP-1");
+
+    expect(result).toEqual({ ok: true, orderId: "ord_1", status: "ignored" });
+    expect(mocks.recordOrphanPayment).not.toHaveBeenCalled();
+  });
+
+  // Una orden de PayPal creada y abandonada no cobró nada: anotarla llenaría los
+  // pedidos de avisos falsos y enseñaría al admin a ignorarlos.
+  it("no marca duplicada una orden de PayPal sin captura", async () => {
+    seedOrder({ paymentStatus: "PAID", status: "PAID", paymentId: "CAP-FIRST" });
+    seedPaypal({ id: "PP-2", status: "CREATED", captureId: null, captureStatus: null });
+
+    const result = await captureAndConfirmPaypalOrder("PP-2");
+
+    expect(result).toEqual({ ok: true, orderId: "ord_1", status: "ignored" });
+    expect(mocks.recordOrphanPayment).not.toHaveBeenCalled();
   });
 });
 

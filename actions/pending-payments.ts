@@ -10,6 +10,7 @@ import {
   approvePendingPayment,
   rejectPendingPayment,
 } from "@/lib/payments/verify-pending-payment";
+import { NON_PAYABLE_ORDER_STATUS } from "@/lib/payments/order-payable";
 
 const log = logger.child({ module: "pending-payments" });
 
@@ -24,6 +25,18 @@ const IMAGE_SIGNATURES: number[][] = [
 ];
 
 const MAX_PROOF_BYTES = 5 * 1024 * 1024; // 5MB
+
+/**
+ * Señal interna para revertir la transacción del comprobante cuando el estado
+ * del pago o del pedido cambió mientras subíamos la imagen. No es un error de
+ * sistema: se traduce en un mensaje al cliente, no en un 500.
+ */
+class ProofStateChangedError extends Error {
+  constructor() {
+    super("Pending payment or order state changed during proof upload");
+    this.name = "ProofStateChangedError";
+  }
+}
 
 // ============================================================
 // SUBIR COMPROBANTE DE PAGO (Cliente)
@@ -71,10 +84,49 @@ export async function uploadPaymentProof(formData: FormData) {
       };
     }
 
-    if (!order.pendingPayment) {
+    const pendingPayment = order.pendingPayment;
+    if (!pendingPayment) {
       return {
         success: false,
         error: "Esta orden no tiene pago pendiente",
+      };
+    }
+
+    // ESTADO: un comprobante sólo puede subirse mientras el pago sigue esperando
+    // verificación.
+    //
+    // Antes esta acción no miraba el estado y reescribía `status: "pending"` +
+    // `paymentStatus: "VERIFYING"` incondicionalmente. Eso permitía al cliente
+    // RESUCITAR un pago ya resuelto: subir otra imagen sobre un pago verificado
+    // devolvía el `PendingPayment` a `pending`, y la siguiente aprobación del
+    // admin volvía a marcar la orden PAGADA y volvía a descontar el inventario,
+    // generando un segundo movimiento `SALE` por las mismas unidades. El claim
+    // atómico de `approvePendingPayment` impide dos aprobaciones del MISMO
+    // estado, pero no que alguien recree ese estado desde fuera.
+    //
+    // Tras un rechazo la orden queda CANCELADA: reabrirla no es subir un
+    // comprobante, así que se dirige al cliente a la tienda.
+    if (pendingPayment.status !== "pending") {
+      const alreadyVerified = pendingPayment.status === "verified";
+      return {
+        success: false,
+        error: alreadyVerified
+          ? "El pago de este pedido ya fue verificado. No necesitas subir otro comprobante."
+          : "El comprobante de este pedido ya fue revisado y rechazado. Escríbenos para resolverlo.",
+      };
+    }
+
+    if (order.status === "CANCELLED" || order.status === "REFUNDED") {
+      return {
+        success: false,
+        error: "Este pedido está cerrado y no admite comprobantes. Escríbenos si necesitas ayuda.",
+      };
+    }
+
+    if (order.paymentStatus === "PAID" || order.paymentStatus === "REFUNDED") {
+      return {
+        success: false,
+        error: "El pago de este pedido ya está resuelto. No necesitas subir un comprobante.",
       };
     }
 
@@ -100,23 +152,54 @@ export async function uploadPaymentProof(formData: FormData) {
       { access: "public" }
     );
 
-    // Actualizar PendingPayment con referencia e imagen
-    await prisma.pendingPayment.update({
-      where: { id: order.pendingPayment.id },
-      data: {
-        reference,
-        proofImage: blob.url,
-        status: "pending", // Asegurar que está en pending para revisión
-      },
-    });
+    // Las comprobaciones de estado de arriba son leer-luego-escribir: un admin
+    // puede aprobar o rechazar el pago en la ventana que abre la subida del
+    // archivo a Blob (cientos de ms). Por eso ambas escrituras van en UNA
+    // transacción y condicionadas.
+    //
+    // Nótese que ya NO se escribe `status: "pending"`: el WHERE garantiza que ya
+    // lo era, y escribirlo era precisamente lo que permitía revivir un pago
+    // resuelto. Tampoco se fuerza `VERIFYING` sobre una orden que dejó de
+    // admitirlo.
+    let applied = true;
+    try {
+      await prisma.$transaction(async (tx) => {
+        const claim = await tx.pendingPayment.updateMany({
+          where: { id: pendingPayment.id, status: "pending" },
+          data: { reference, proofImage: blob.url },
+        });
+        if (claim.count === 0) throw new ProofStateChangedError();
 
-    // Actualizar estado de pago de orden a VERIFYING
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        paymentStatus: "VERIFYING",
-      },
-    });
+        const orderClaim = await tx.order.updateMany({
+          where: {
+            id: orderId,
+            status: { notIn: [...NON_PAYABLE_ORDER_STATUS] },
+            paymentStatus: { in: ["PENDING", "VERIFYING"] },
+          },
+          data: { paymentStatus: "VERIFYING" },
+        });
+
+        // Lanzar, no `return`: Prisma sólo revierte una transacción interactiva
+        // ante una excepción. Sin esto el comprobante quedaría guardado sobre un
+        // pedido que ya no lo admite, confundiendo al admin que lo revisa.
+        if (orderClaim.count === 0) throw new ProofStateChangedError();
+      });
+    } catch (txError) {
+      if (!(txError instanceof ProofStateChangedError)) throw txError;
+      applied = false;
+    }
+
+    if (!applied) {
+      log.warn(
+        { orderId },
+        "Proof upload rejected: payment or order state changed while uploading",
+      );
+      return {
+        success: false,
+        error:
+          "El estado de tu pedido cambió mientras subíamos el comprobante. Revisa tu pedido o escríbenos.",
+      };
+    }
 
     // No registrar la referencia bancaria del cliente (dato financiero) en logs.
     log.info({ orderId }, "Comprobante de pago subido");

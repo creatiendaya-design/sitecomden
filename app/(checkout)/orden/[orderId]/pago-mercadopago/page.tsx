@@ -4,6 +4,7 @@ import { canViewOrder } from "@/lib/orders/order-access";
 import { createCheckoutPreference } from "@/lib/mercadopago/client";
 import { buildPreferenceInput } from "@/lib/mercadopago/preference-input";
 import { getSiteSettings } from "@/lib/site-settings";
+import { canStartPayment } from "@/lib/payments/order-payable";
 import { displayOrderNumber } from "@/lib/utils";
 import MercadoPagoRedirectClient from "./mercadopago-redirect-client";
 
@@ -59,6 +60,22 @@ export default async function PaymentMercadoPagoPage({ params, searchParams }: P
 
   const settings = await getSiteSettings();
   const orderDisplayNumber = displayOrderNumber(order, settings.order_prefix || "PED");
+
+  // El resto de estados no pagables (cancelada, reembolsada, reserva vencida,
+  // pago en verificación) NO deben generar una preferencia: sería una URL de
+  // MercadoPago cobrable sobre un pedido que no puede surtirse. Se explica el
+  // motivo en vez de crear la sesión. Ver `lib/payments/order-payable.ts`.
+  const payable = canStartPayment(order);
+  if (!payable.canStart) {
+    return (
+      <MercadoPagoRedirectClient
+        orderDisplayNumber={orderDisplayNumber}
+        total={Number(order.total)}
+        redirectUrl={null}
+        error={payable.message}
+      />
+    );
+  }
 
   const preference = await createCheckoutPreference(
     buildPreferenceInput(order, orderDisplayNumber, APP_URL)
