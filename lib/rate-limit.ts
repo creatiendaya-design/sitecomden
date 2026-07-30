@@ -18,6 +18,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 import type { Duration } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/logger";
+import { checkFallbackLimit } from "@/lib/rate-limit-fallback";
 
 const log = logger.child({ module: "rate-limit" });
 
@@ -29,14 +30,106 @@ const hasUpstashConfig = Boolean(
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
-if (!hasUpstashConfig && process.env.NODE_ENV !== "production") {
-  log.warn("UPSTASH_REDIS env vars not set — rate limiting disabled (dev mode fallback)");
+if (!hasUpstashConfig) {
+  // En producción esto NO es una nota de desarrollo: significa que login,
+  // checkout y uploads corren con el respaldo en memoria, cuyo límite efectivo se
+  // multiplica por el número de instancias. Debe verse en las alertas.
+  if (process.env.NODE_ENV === "production") {
+    log.error(
+      "UPSTASH_REDIS env vars not set — rate limiting DEGRADED to per-instance in-memory limits",
+    );
+  } else {
+    log.warn("UPSTASH_REDIS env vars not set — using in-memory rate limiting (dev)");
+  }
 }
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
+
+// ===================================================================
+// REGISTRO DE LIMITADORES (para el respaldo en memoria)
+// ===================================================================
+
+/**
+ * Nivel de riesgo de lo que protege un limitador.
+ *
+ * `critical` cubre lo que un atacante ataca directamente —credenciales, dinero,
+ * códigos adivinables—. Cuando uno de estos cae al respaldo se registra como
+ * error, porque la protección quedó debilitada y hay que restaurar Redis.
+ * `standard` cubre abuso y coste (spam, uploads, búsquedas): degradar ahí es
+ * molesto, no peligroso.
+ */
+export type RateLimitTier = "critical" | "standard";
+
+interface LimiterSpec {
+  limit: number;
+  windowMs: number;
+  prefix: string;
+  tier: RateLimitTier;
+}
+
+/**
+ * `Ratelimit` no expone su propia configuración, y el respaldo necesita el límite
+ * y la ventana. Se registran aquí al construirlo para que `checkRateLimit` siga
+ * recibiendo sólo el limitador y ningún llamador tenga que cambiar.
+ */
+const LIMITER_SPECS = new WeakMap<Ratelimit, LimiterSpec>();
+
+/** Convierte una `Duration` de Upstash ("15 m", "1 h") a milisegundos. */
+export function parseDurationMs(window: Duration): number {
+  const match = /^(\d+)\s*(ms|s|m|h|d)$/.exec(window.trim());
+  if (!match) {
+    throw new Error(`Ventana de rate limit no reconocida: "${window}"`);
+  }
+
+  const value = Number(match[1]);
+  const unitMs: Record<string, number> = {
+    ms: 1,
+    s: 1000,
+    m: 60_000,
+    h: 3_600_000,
+    d: 86_400_000,
+  };
+
+  return value * unitMs[match[2]];
+}
+
+function defineRateLimiter(options: {
+  limit: number;
+  window: Duration;
+  prefix: string;
+  tier: RateLimitTier;
+}): Ratelimit {
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(options.limit, options.window),
+    analytics: true,
+    prefix: `ratelimit:${options.prefix}`,
+  });
+
+  LIMITER_SPECS.set(limiter, {
+    limit: options.limit,
+    windowMs: parseDurationMs(options.window),
+    prefix: options.prefix,
+    tier: options.tier,
+  });
+
+  return limiter;
+}
+
+/**
+ * Límite por defecto para un limitador sin registrar. No debería ocurrir —todos
+ * los constructores registran— pero si ocurre, se aplica algo restrictivo en vez
+ * de dejar pasar todo, que es el fallo que arregla ADV-10.
+ */
+const UNREGISTERED_FALLBACK: LimiterSpec = {
+  limit: 10,
+  windowMs: 60_000,
+  prefix: "unregistered",
+  tier: "critical",
+};
 
 // ===================================================================
 // RATE LIMITERS PREDEFINIDOS
@@ -46,77 +139,79 @@ const redis = new Redis({
  * 🔐 LOGIN: 5 intentos por 15 minutos
  * Previene brute force de contraseñas
  */
-export const loginRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(5, "15 m"),
-  analytics: true,
-  prefix: "ratelimit:login",
+export const loginRateLimiter = defineRateLimiter({
+  limit: 5,
+  window: "15 m",
+  prefix: "login",
+  tier: "critical",
 });
 
 /**
  * 📝 FORMS: 3 envíos por hora
  * Para formularios de contacto, reclamos, newsletter
  */
-export const formRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(3, "1 h"),
-  analytics: true,
-  prefix: "ratelimit:forms",
+export const formRateLimiter = defineRateLimiter({
+  limit: 3,
+  window: "1 h",
+  prefix: "forms",
+  tier: "standard",
 });
 
 /**
  * 🔄 API GENERAL: 100 requests por minuto
  * Para endpoints API públicos
  */
-export const apiRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(100, "1 m"),
-  analytics: true,
-  prefix: "ratelimit:api",
+export const apiRateLimiter = defineRateLimiter({
+  limit: 100,
+  window: "1 m",
+  prefix: "api",
+  tier: "standard",
 });
 
 /**
  * 🛒 CHECKOUT: 10 intentos por 10 minutos
  * Para prevenir spam de órdenes falsas
  */
-export const checkoutRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(10, "10 m"),
-  analytics: true,
-  prefix: "ratelimit:checkout",
+export const checkoutRateLimiter = defineRateLimiter({
+  limit: 10,
+  window: "10 m",
+  prefix: "checkout",
+  // `critical`: crea órdenes, reserva inventario y abre sesiones de cobro.
+  tier: "critical",
 });
 
 /**
  * 📤 UPLOAD: 20 uploads por hora
  * Para subida de archivos
  */
-export const uploadRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(20, "1 h"),
-  analytics: true,
-  prefix: "ratelimit:upload",
+export const uploadRateLimiter = defineRateLimiter({
+  limit: 20,
+  window: "1 h",
+  prefix: "upload",
+  tier: "standard",
 });
 
 /**
  * 🔍 SEARCH: 50 búsquedas por minuto
  * Para buscador de productos
  */
-export const searchRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(50, "1 m"),
-  analytics: true,
-  prefix: "ratelimit:search",
+export const searchRateLimiter = defineRateLimiter({
+  limit: 50,
+  window: "1 m",
+  prefix: "search",
+  tier: "standard",
 });
 
 /**
  * 🎟️ COUPON VALIDATION: 10 intentos por minuto
  * Para validar cupones (previene bruteforce de códigos)
  */
-export const couponRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(10, "1 m"),
-  analytics: true,
-  prefix: "ratelimit:coupon",
+export const couponRateLimiter = defineRateLimiter({
+  limit: 10,
+  window: "1 m",
+  prefix: "coupon",
+  // `critical`: un cupón es un código adivinable con valor monetario.
+  tier: "critical",
 });
 
 // ===================================================================
@@ -185,12 +280,14 @@ export function createRateLimiter(options: {
   limit: number;
   window: Duration;
   prefix: string;
+  /** Por defecto `critical`: ante la duda, degradar protegiendo. */
+  tier?: RateLimitTier;
 }) {
-  return new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(options.limit, options.window),
-    analytics: true,
-    prefix: `ratelimit:${options.prefix}`,
+  return defineRateLimiter({
+    limit: options.limit,
+    window: options.window,
+    prefix: options.prefix,
+    tier: options.tier ?? "critical",
   });
 }
 
@@ -203,6 +300,68 @@ export interface RateLimitResult {
   remaining: number;
   reset: number;
   limit: number;
+  /**
+   * `true` cuando la decisión la tomó el contador en memoria porque Redis no
+   * estaba disponible. Los llamadores no necesitan mirarlo (la semántica de
+   * `success` no cambia); existe para pruebas y diagnóstico.
+   */
+  degraded?: boolean;
+}
+
+/**
+ * Resuelve el límite con el contador en memoria del proceso.
+ *
+ * Se registra en cada uso, y con severidad según el nivel de riesgo: un login sin
+ * Redis es un incidente de seguridad que hay que atender, una búsqueda sin Redis
+ * es una molestia.
+ */
+function applyFallback(
+  limiter: Ratelimit,
+  identifier: string,
+  cause: "not-configured" | "redis-unreachable",
+  context?: { action?: string; userId?: string },
+  err?: unknown,
+): RateLimitResult {
+  const spec = LIMITER_SPECS.get(limiter) ?? UNREGISTERED_FALLBACK;
+
+  if (spec === UNREGISTERED_FALLBACK) {
+    log.error(
+      { action: context?.action },
+      "Rate limiter used without a registered spec — applying restrictive default",
+    );
+  }
+
+  const outcome = checkFallbackLimit(
+    `${spec.prefix}:${identifier}`,
+    spec.limit,
+    spec.windowMs,
+  );
+
+  const detail = {
+    cause,
+    prefix: spec.prefix,
+    tier: spec.tier,
+    action: context?.action,
+    allowed: outcome.success,
+    ...(err ? { err: err instanceof Error ? err.message : err } : {}),
+  };
+
+  if (spec.tier === "critical") {
+    log.error(
+      detail,
+      "Rate limiting DEGRADED to in-memory for a critical limiter — restore Redis",
+    );
+  } else {
+    log.warn(detail, "Rate limiting degraded to in-memory");
+  }
+
+  return {
+    success: outcome.success,
+    remaining: outcome.remaining,
+    reset: outcome.reset,
+    limit: spec.limit,
+    degraded: true,
+  };
 }
 
 /**
@@ -230,20 +389,17 @@ export async function checkRateLimit(
     details?: Record<string, unknown>;
   }
 ): Promise<RateLimitResult> {
-  // Skip Redis call entirely if Upstash isn't configured (dev fallback).
+  // Sin Redis NO se deja pasar todo (ADV-10): se degrada al contador en memoria
+  // del proceso. Protección más débil que Redis, pero acotada.
   if (!hasUpstashConfig) {
-    return { success: true, remaining: 0, reset: Date.now(), limit: 0 };
+    return applyFallback(limiter, identifier, "not-configured", context);
   }
 
   let result: Awaited<ReturnType<typeof limiter.limit>>;
   try {
     result = await limiter.limit(identifier);
   } catch (err) {
-    log.warn(
-      { err: err instanceof Error ? err.message : err },
-      "Rate limiter unavailable (Redis unreachable), allowing request",
-    );
-    return { success: true, remaining: 0, reset: Date.now(), limit: 0 };
+    return applyFallback(limiter, identifier, "redis-unreachable", context, err);
   }
 
   // Si se excedió el límite, loguear

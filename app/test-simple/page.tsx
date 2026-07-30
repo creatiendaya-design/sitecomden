@@ -1,6 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
+import { notFound } from "next/navigation";
 
 export default async function TestSimplePage() {
+  // Herramienta de desarrollo: revela el prefijo de la clave publicable de Clerk
+  // y si el secreto está presente. No debe existir en producción (ADV-20/25).
+  if (process.env.NODE_ENV === "production") notFound();
+
   let userId = "ERROR";
   let error = null;
 

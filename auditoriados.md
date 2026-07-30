@@ -43,14 +43,17 @@ dos hallazgos P0. Resumen del estado tras esa remediación:
 4. **Ruta administrativa heredada (ADV-04) — CERRADO.** Retirada; era además
    código muerto.
 
+También se cerraron ADV-10 (rate limiting fail-open) y ADV-20/25 (rutas debug
+accesibles en producción).
+
 Persisten como bloqueadores: reembolsos automáticos solo para Mercado Pago,
-ausencia de devoluciones/fulfillment parcial, rate limiting fail-open, falta de
-inbox de webhooks, conciliación insuficiente y MFA ausente.
+ausencia de devoluciones/fulfillment parcial, falta de inbox de webhooks,
+conciliación insuficiente y MFA ausente.
 
 **Resultados de verificación de esta ejecución:**
 
 - Vitest: **23 archivos, 245/245 pruebas aprobadas** (tras la remediación de la
-  sección 29: **26 archivos, 289/289**).
+  sección 29: **28 archivos, 310/310**).
 - TypeScript: **sin errores**.
 - ESLint: **0 errores y 3 advertencias**.
 - Build de producción: **completado**; durante el prerender hubo errores TLS de
@@ -65,11 +68,12 @@ inbox de webhooks, conciliación insuficiente y MFA ausente.
 **No preparado** (sin cambio tras la remediación de la sección 29).
 
 Las cuatro rutas P0 originales están cerradas o, en el caso de ADV-02, acotadas a
-un fallo detectable y reversible en vez de invisible. Eso mejora materialmente el
-riesgo, pero no alcanza para declarar preparación: siguen abiertos el reembolso
-monetario por proveedor (ADV-05), la ausencia de devoluciones y fulfillment por
-cantidades (ADV-06/07), la conciliación de `VERIFYING` (ADV-08), el inbox de
-webhooks (ADV-09), el rate limiting fail-open (ADV-10) y la falta de MFA (ADV-13).
+un fallo detectable y reversible en vez de invisible; ADV-10 también está cerrado.
+Eso mejora materialmente el riesgo, pero no alcanza para declarar preparación:
+siguen abiertos el reembolso monetario por proveedor (ADV-05), la ausencia de
+devoluciones y fulfillment por cantidades (ADV-06/07), la conciliación de
+`VERIFYING` (ADV-08), el inbox de webhooks (ADV-09), las dependencias High
+(ADV-12) y la falta de MFA (ADV-13).
 
 ## 3. Nivel de confianza
 
@@ -97,7 +101,7 @@ La confianza es alta en los hallazgos confirmados por trazado directo y en las
 | Pagos | Culqi, Mercado Pago, PayPal, Yape, Plin, COD | Amplio; intentos y refunds no normalizados |
 | Archivos | Vercel Blob y Cloudflare Stream | Validación útil; comprobantes públicos |
 | Comunicación | Resend | Best-effort, sin outbox durable |
-| Protección | Upstash rate limit, middleware, Zod | Rate limit fail-open |
+| Protección | Upstash rate limit, middleware, Zod | Degrada sin Redis; ya no fail-open |
 | Observabilidad | Pino, request ID, Sentry opcional | Parcial; falta trazabilidad financiera durable |
 | Despliegue | Vercel y GitHub Actions | CI sin E2E; build y runtime dependen de BD externa |
 
@@ -121,7 +125,7 @@ vendedores, comisiones, payouts o `tenantId`.
 | 9. Devoluciones/refunds | `actions/refunds.ts`, `apply-refund.ts` | Refund total parcial; devoluciones ausentes |
 | 10. Clientes/cuentas | Clerk, `Customer`, cuenta/pedidos | Funcional; privacidad incompleta |
 | 11. Admin/permisos | `lib/auth.ts`, sesiones, roles | RBAC; sin MFA ni auditoría universal |
-| 12. Seguridad API | route handlers, Zod, rate limit | Cobertura desigual; fail-open |
+| 12. Seguridad API | route handlers, Zod, rate limit | Cobertura desigual; rate limit ya degrada |
 | 13. Auth/tokens | Clerk, `viewToken`, sesión admin | Tokens útiles; sesión admin no hasheada |
 | 14. Base/integridad | `prisma/schema.prisma`, migraciones | Índices útiles; faltan checks y entidades |
 | 15. Archivos/imágenes | `/api/upload`, media, review uploads | Magic bytes en rutas críticas; ACL desigual |
@@ -232,7 +236,8 @@ Completos en el código revisado, no certificados contra proveedores reales:
 5. Implementar estados de refund y devolución monetaria por proveedor.
 6. Modelar devoluciones y fulfillment por cantidades.
 7. Persistir webhooks y crear conciliación/SLA para `VERIFYING`.
-8. Configurar protección degradada, MFA y alertas.
+8. ~~Configurar protección degradada~~ (**hecho**, sección 29.B); MFA y alertas
+   siguen pendientes.
 9. Resolver dependencias High tras pruebas de compatibilidad.
 10. Ejecutar los 20 flujos en staging con BD y proveedores sandbox estables.
 
@@ -285,8 +290,9 @@ convierte en registro huérfano ni dispara refund/alerta.
 - **ADV-08:** `VERIFYING` está excluido deliberadamente del barrido
   (`reservation-policy.ts:70-86`) y no se halló reconciliador con SLA.
 - **ADV-09:** webhooks sin inbox durable dependen de retención/reintentos externos.
-- **ADV-10:** `lib/rate-limit.ts:233-246` permite toda petición si Redis falta o
-  falla, también en login/checkout.
+- **ADV-10 — CERRADO** (sección 29): `lib/rate-limit.ts:233-246` permite toda
+  petición si Redis falta o falla, también en login/checkout. Ahora degrada a un
+  contador en memoria por proceso en vez de desactivarse.
 - **ADV-11:** `Order.version` existe, pero las escrituras no lo aplican
   uniformemente.
 - **ADV-12:** npm reporta 3 High y 2 Moderate en producción, incluidos PostCSS y
@@ -304,7 +310,11 @@ convierte en registro huérfano ni dispara refund/alerta.
 - **ADV-18:** comprobantes Yape/Plin se guardan como Blob público.
 - **ADV-19:** borrado físico de productos con stock cero puede borrar movimientos
   por relaciones `onDelete: Cascade`.
-- **ADV-20:** rutas de diagnóstico/test aparecen en el build de producción.
+- **ADV-20 — CERRADO** (sección 29): rutas de diagnóstico/test aparecen en el
+  build de producción. Siguen compilándose (son rutas dinámicas), pero todas las
+  que exponían algo responden 404 en producción. Matiz que la auditoría no
+  distinguió: `debug-auth` y `diagnostico` **ya** tenían esa guarda; faltaba en
+  `test-simple`, `test-server-auth` y `/api/test`.
 - **ADV-21:** no se evidenció validación explícita uniforme de Origin/CSRF.
 - **ADV-22:** el CI no ejecuta E2E y usa una URL de BD ficticia sin servicio.
 - **ADV-23:** `vercel.json` usa build explícito mientras existe un
@@ -314,8 +324,11 @@ convierte en registro huérfano ni dispara refund/alerta.
 
 ## 14. Vulnerabilidades bajas
 
-- **ADV-25:** `/api/test` y páginas como `/test-simple` aumentan superficie y
-  filtran presencia/estado básico.
+- **ADV-25 — CERRADO** (sección 29): `/api/test` y páginas como `/test-simple`
+  aumentan superficie y filtran presencia/estado básico. `/test-simple` era el
+  peor de los tres: revelaba el prefijo de la clave publicable de Clerk y si el
+  secreto estaba configurado. `/limpiar-sesion` se dejó accesible a propósito: no
+  filtra nada y sirve como herramienta de soporte para una sesión atascada.
 - **ADV-26:** logs heredados con `console` pierden estructura y request ID.
 - **ADV-27:** CSP con `style-src 'unsafe-inline'` reduce defensa en profundidad.
 - **ADV-28:** middleware basado en patrones de URL es heurístico y puede producir
@@ -390,7 +403,9 @@ convierte en registro huérfano ni dispara refund/alerta.
 
 - La consistencia financiera depende de una fila `Order`, no de un ledger.
 - Webhooks procesan trabajo en request sin cola propia.
-- Redis caído elimina protección en vez de degradar por niveles.
+- ~~Redis caído elimina protección en vez de degradar por niveles.~~ Resuelto
+  (sección 29): degrada a un contador por instancia. Queda la limitación inherente
+  de serverless: el límite efectivo se multiplica por el número de instancias.
 - No hay partición lógica por tienda ni región.
 - Inventario global único impide múltiples almacenes.
 - Exportaciones y jobs carecen de paginación/streaming uniforme.
@@ -444,7 +459,7 @@ Estados permitidos usados: `CONFIRMED`, `PROBABLE`, `REQUIRES TEST`,
 | ADV-07 | Fulfillment | High | CONFIRMED | `prisma/schema.prisma` | Sin Shipment/items | Envío parcial | Estado falso | Media | Shipment por cantidades | L | P1 |
 | ADV-08 | Conciliación | High | CONFIRMED | `reservation-policy.ts:70-86` | `VERIFYING` excluido | Timeout Culqi | Stock/fondos retenidos | Media | Worker, SLA y alertas | M | P0 |
 | ADV-09 | Webhooks | High | CONFIRMED | `app/api/**webhook**` y schema | Sin inbox/DLQ | Evento perdido | Divergencia | Media | Inbox idempotente + worker | L | P1 |
-| ADV-10 | Rate limit | High | CONFIRMED | `lib/rate-limit.ts:233-246` | Falla permite | Redis caído + abuso | Fuerza bruta/DoS | Media | Política por riesgo/fallback | M | P0 |
+| ADV-10 | Rate limit | High | **FIXED** | `lib/rate-limit.ts`; **nuevo** `lib/rate-limit-fallback.ts` | Permitía todo sin Redis | Redis caído + abuso | Fuerza bruta/DoS | Media | Hecho: degrada a ventana en memoria, con nivel de riesgo por limitador | M | P0 |
 | ADV-11 | Concurrencia | High | CONFIRMED | `schema.prisma:397`; escritores | Version no uniforme | Updates simultáneos | Lost update | Media | Servicio/CAS uniforme | L | P1 |
 | ADV-12 | Supply chain | High | CONFIRMED | `package-lock.json` | npm: 3H/2M | Payload vulnerable | XSS/lectura/imagen | Media | Upgrade probado/mitigación | M | P0 |
 | ADV-13 | Admin auth | High | CONFIRMED | auth/admin UI | Sin MFA | Cuenta comprometida | Control total | Media | MFA/step-up | M | P0 |
@@ -454,12 +469,12 @@ Estados permitidos usados: `CONFIRMED`, `PROBABLE`, `REQUIRES TEST`,
 | ADV-17 | Autorización | Medium | CONFIRMED | complaint admin routes | Permiso poco granular | Usuario modifica formulario | Integridad legal | Baja | Permiso específico | S | P1 |
 | ADV-18 | Privacidad | Medium | CONFIRMED | `pending-payments.ts:96-101` | Blob `public` | URL filtrada | Exposición financiera | Media | Blob privado/signed URL | M | P1 |
 | ADV-19 | Ledger stock | Medium | CONFIRMED | `schema.prisma:674-675` | Movimientos cascade | Borrar producto | Pierde auditoría | Media | Soft delete/RESTRICT | M | P1 |
-| ADV-20 | Superficie | Medium | CONFIRMED | rutas del build | Debug/test desplegables | Acceso público | Info leak | Media | Excluir/404 prod | S | P1 |
+| ADV-20 | Superficie | Medium | **FIXED** | `app/test-simple`, `app/test-server-auth`, `app/api/test` | Debug/test accesibles en prod | Acceso público | Info leak | Media | Hecho: 404 en producción (dos rutas ya lo tenían) | S | P1 |
 | ADV-21 | CSRF | Medium | REQUIRES TEST | actions/routes | Control Origin no uniforme hallado | Cross-site mutation | Cambio no deseado | Baja | Test Origin/CSRF | M | P1 |
 | ADV-22 | CI | Medium | CONFIRMED | `.github/workflows/ci.yml` | Sin E2E/BD | Regresión llega a master | Calidad | Alta | Job E2E con Postgres | M | P1 |
 | ADV-23 | Deploy | Medium | PROBABLE | `vercel.json`; `scripts/vercel-build.mjs` | Dos comandos | Warmup no corre | Fallo release | Media | Unificar y probar | S | P1 |
 | ADV-24 | Privacidad ops | Medium | CONFIRMED | `scripts/mercadopago-last-payments.ts` | Imprime PII | Log compartido | Exposición | Baja | Redactar/flag explícito | S | P2 |
-| ADV-25 | Info leak | Low | CONFIRMED | `/api/test`, test pages | Rutas en build | Enumeración | Menor | Media | Eliminar de prod | S | P2 |
+| ADV-25 | Info leak | Low | **FIXED** | `/api/test`, test pages | `/test-simple` filtraba estado de claves Clerk | Enumeración | Menor | Media | Hecho: 404 en producción | S | P2 |
 | ADV-26 | Logging | Low | CONFIRMED | rutas heredadas | `console` | Incidente | Trazabilidad baja | Alta | Logger estructurado | S | P2 |
 | ADV-27 | CSP | Low | CONFIRMED | headers/middleware | `unsafe-inline` styles | Inyección auxiliar | Menor | Baja | Nonce/hash gradual | M | P3 |
 | ADV-28 | WAF heurístico | Low | CONFIRMED | middleware | Regex URL | Evasión/falso positivo | Menor | Media | Validación por endpoint | M | P3 |
@@ -496,7 +511,7 @@ Leyenda: `Sí`, `Parcial`, `No`, `NV` = no verificado en entorno real.
 | Autenticación | Clerk/token | Sesión propia | Según ruta | N/A | `viewToken`/orden | Parcial |
 | Autorización | Propiedad pedido | RBAC | Desigual | Evento/proveedor | Propiedad | Parcial |
 | Validación input | Zod/servidor | Zod parcial | Zod parcial | Parse + verify | Importe/moneda | Parcial |
-| Rate limit | Parcial | Login parcial | Parcial | No principal | Upload/checkout | Fail-open |
+| Rate limit | Parcial | Login parcial | Parcial | No principal | Upload/checkout | Degrada (ya no fail-open) |
 | Idempotencia | Orden | Parcial | Parcial | Claim parcial | Inicio no, final sí | Insuficiente |
 | Transacción | Checkout | Algunas acciones | Variable | Variable | Claim sí | Parcial |
 | Secretos | NV | Cookie HttpOnly | Entorno | Entorno/settings | Entorno/settings | NV |
@@ -553,8 +568,9 @@ Leyenda: `Sí`, `Parcial`, `No`, `NV` = no verificado en entorno real.
 
 - MFA/step-up para administración.
 - Hash de tokens de sesión y rotación.
-- Rate limit por riesgo con fallback local/controlado.
-- RBAC granular, CSRF/Origin y rutas debug fuera de producción.
+- ~~Rate limit por riesgo con fallback local/controlado.~~ **Hecho** (sección 29.B).
+- RBAC granular, CSRF/Origin, y ~~rutas debug fuera de producción~~ (**hecho**,
+  sección 29.B).
 - Resolver 3 High/2 Moderate con pruebas de compatibilidad.
 - Checks SQL y soft delete/RESTRICT para ledger.
 
@@ -579,8 +595,7 @@ que es una diferencia grande en impacto pero no una solución completa.
 
 Siguen bloqueando la preparación: refunds multi-proveedor (ADV-05), ausencia de
 postventa y fulfillment por cantidades (ADV-06/07), conciliación de `VERIFYING`
-(ADV-08), inbox de webhooks (ADV-09), rate limiting fail-open (ADV-10) y MFA
-(ADV-13).
+(ADV-08), inbox de webhooks (ADV-09), dependencias High (ADV-12) y MFA (ADV-13).
 
 La reevaluación debe repetirse después de Fases 1-2 con evidencia de migración,
 tests concurrentes, E2E de staging y pagos sandbox. Hasta entonces, la operación
@@ -590,11 +605,14 @@ inmediata de detener cobros.
 
 ## 29. Remediación aplicada (2026-07-29)
 
-Verificada con **289/289 pruebas Vitest** (26 archivos; +44 sobre las 245
+Verificada con **310/310 pruebas Vitest** (28 archivos; +65 sobre las 245
 originales), TypeScript sin errores, ESLint con 0 errores y las 3 advertencias
 preexistentes, y build de producción correcto.
 
-### Cambios
+Se aplicó en dos tandas: primero los cuatro P0 de pagos e inventario (29.A),
+después el rate limiting y la superficie de rutas debug (29.B).
+
+### 29.A — Cambios en pagos e inventario
 
 | Hallazgo | Qué se hizo | Archivos |
 |---|---|---|
@@ -612,7 +630,7 @@ reembolsaba el pedido entero —restaurando stock y revirtiendo puntos— pese a
 el pago legítimo seguía en pie. La detección de duplicados se colocó por eso
 **antes** de las ramas de reembolso, con test dedicado.
 
-### Nuevas pruebas
+### Nuevas pruebas (29.A)
 
 - `lib/payments/order-payable.test.ts` — 13 casos del predicado, incluido el
   agujero original (cancelada con pago `PENDING`) y la coherencia entre la lista
@@ -623,6 +641,38 @@ el pago legítimo seguía en pie. La detección de duplicados se colocó por eso
   duplicado frente al del cobro aplicado.
 - Ampliados `lib/payments/order-payment-state.test.ts`,
   `lib/paypal/confirm-payment.test.ts`, `app/api/culqi/webhook/route.test.ts`.
+
+### 29.B — Rate limiting y superficie de rutas
+
+| Hallazgo | Qué se hizo | Archivos |
+|---|---|---|
+| ADV-10 | `checkRateLimit` ya no devuelve `success: true` cuando Redis falta o falla: **degrada** a una ventana deslizante en memoria del proceso. Cada limitador declara su límite, ventana y **nivel de riesgo**; los `critical` (login, checkout, cupones) registran la degradación como `error` y los `standard` como `warn`. Un limitador sin registrar aplica un default restrictivo en vez de pasar todo. | **nuevo** `lib/rate-limit-fallback.ts`, `lib/rate-limit.ts` |
+| ADV-20 / ADV-25 | 404 en producción para `/test-simple`, `/test-server-auth` y `/api/test`, con el mismo patrón que ya usaban `debug-auth` y `diagnostico`. | `app/test-simple/page.tsx`, `app/test-server-auth/page.tsx`, `app/api/test/route.ts` |
+
+**Decisión explícita:** se gatearon en vez de borrarlas. El efecto en producción es
+el mismo que eliminarlas, es reversible y conserva su utilidad en desarrollo.
+`/limpiar-sesion` se dejó accesible: no filtra nada y sirve de herramienta de
+soporte para una sesión de Clerk atascada.
+
+### Nuevas pruebas (29.B)
+
+- `lib/rate-limit-fallback.test.ts` — 9 casos: límite exacto, negación al
+  superarlo, deslizamiento de la ventana, aislamiento por clave, y las dos cotas
+  de memoria (peticiones bloqueadas y número de claves).
+- `lib/rate-limit.test.ts` — 12 casos: sin Upstash configurado y con Redis
+  inalcanzable **se sigue negando** al pasar el límite; se respeta el veredicto de
+  Redis cuando responde; y la severidad del registro corresponde al nivel de
+  riesgo.
+
+### Limitación conocida del respaldo en memoria
+
+El contador vive en el proceso. En serverless hay N instancias, cada una con el
+suyo, así que el límite efectivo sin Redis es N × límite. **No sustituye a Redis**;
+convierte "sin protección" en "protección degradada y acotada". Por eso cada uso
+del respaldo se registra, y en producción la ausencia de configuración de Upstash
+se registra como `error` al arrancar: es un estado del que hay que salir, no un
+régimen de operación. Conviene enganchar ese log a una alerta (ADV-08 comparte esa
+necesidad).
 
 ### Consecuencia operativa a vigilar
 
@@ -639,4 +689,14 @@ activo antes de operar con tráfico real.
   sigue siendo posible**, sólo deja de ser invisible.
 - No implementa reembolso automático del duplicado (requiere ADV-05, el adaptador
   de refund por proveedor). La devolución sigue siendo manual.
-- No toca ADV-05 a ADV-30.
+- El respaldo de rate limiting no iguala a Redis (ver limitación arriba).
+- No toca ADV-05 a ADV-09, ADV-11 a ADV-19, ni ADV-21 a ADV-24, ADV-26 a ADV-30.
+
+### Estado de los hallazgos tras las dos tandas
+
+| Severidad | Cerrados | Mitigados | Abiertos |
+|---|---|---|---|
+| Critical | ADV-01 | ADV-02 | — |
+| High | ADV-03, ADV-04, ADV-10 | — | ADV-05, ADV-06, ADV-07, ADV-08, ADV-09, ADV-11, ADV-12, ADV-13 |
+| Medium | ADV-20 | — | ADV-14 a ADV-19, ADV-21 a ADV-24 |
+| Low | ADV-25 | — | ADV-26 a ADV-30 |

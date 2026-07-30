@@ -1,7 +1,12 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 
 export default async function TestServerAuth() {
+  // Herramienta de desarrollo: vuelca el userId y el email del usuario en sesión.
+  // No debe existir en producción (auditoría ADV-20/25).
+  if (process.env.NODE_ENV === "production") notFound();
+
   // ⭐ CLERK v5+: auth() ahora es asíncrono, necesita await
   const { userId } = await auth();
   const user = await currentUser();
