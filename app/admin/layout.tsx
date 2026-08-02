@@ -79,6 +79,9 @@ function AdminLayoutInner({
     /^\/admin\/productos\/bulk-edit\/?$/.test(pathname ?? "");
   const isCodFormEditor =
     /^\/admin\/formularios-cod\/[^/]+$/.test(pathname ?? "");
+  // Etiqueta de envío: hoja de impresión, sin sidebar ni header.
+  const isShippingLabel =
+    /^\/admin\/ordenes\/[^/]+\/etiqueta$/.test(pathname ?? "");
   const isFullScreenBuilder =
     isProductLandingBuilder ||
     isTemplateEditor ||
@@ -87,7 +90,8 @@ function AdminLayoutInner({
     isCategoryBuilder ||
     isThemeCustomizer ||
     isBulkEditor ||
-    isCodFormEditor;
+    isCodFormEditor ||
+    isShippingLabel;
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "Configuración",
     "Métodos de Pago",

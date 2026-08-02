@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, CreditCard, FileText, MapPin, Package, User } from "lucide-react";
+import { ArrowLeft, CreditCard, FileText, MapPin, Package, Printer, User } from "lucide-react";
 import Image from "next/image";
 import CopyLinkButton from "./copy-link-button";
 import { EmitDocumentButton, ResendComprobanteButton } from "./EmitDocumentButton";
@@ -121,6 +121,12 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusPillClass(order.fulfillmentStatus)}`}>
             {FULFILLMENT_STATUS_LABELS[order.fulfillmentStatus as keyof typeof FULFILLMENT_STATUS_LABELS] ?? order.fulfillmentStatus}
           </span>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/ordenes/${order.id}/etiqueta`} target="_blank">
+              <Printer className="h-4 w-4 mr-1" />
+              Etiqueta de envío
+            </Link>
+          </Button>
           <MoreActionsMenu
             orderId={order.id}
             orderStatus={order.status}
