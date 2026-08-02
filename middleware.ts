@@ -86,11 +86,14 @@ function buildCsp(nonce: string, allowSameOriginEmbed: boolean): string {
     // subidas por el admin a Vercel Blob (typography picker).
     "font-src 'self' data: https://*.public.blob.vercel-storage.com",
 
-    // Conexiones: APIs necesarias (incluye subida directa de video a Cloudflare Stream)
-    "connect-src 'self' https://api.culqi.com https://*.vercel-insights.com https://*.vercel-analytics.com https://*.vercel.app https://*.clerk.accounts.dev https://*.clerk.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com https://connect.facebook.net https://www.facebook.com https://upload.videodelivery.net https://*.cloudflarestream.com",
+    // Conexiones: APIs necesarias (incluye subida directa de video a Cloudflare
+    // Stream y la tokenización de tarjeta del Card Payment Brick de MercadoPago).
+    "connect-src 'self' https://api.culqi.com https://api.mercadopago.com https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://*.vercel-insights.com https://*.vercel-analytics.com https://*.vercel.app https://*.clerk.accounts.dev https://*.clerk.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com https://connect.facebook.net https://www.facebook.com https://upload.videodelivery.net https://*.cloudflarestream.com",
 
-    // Frames: pasarelas de pago + Clerk + reproductor de Cloudflare Stream
-    "frame-src 'self' https://checkout.culqi.com https://*.clerk.accounts.dev https://*.clerk.com https://iframe.videodelivery.net https://*.cloudflarestream.com",
+    // Frames: pasarelas de pago + Clerk + reproductor de Cloudflare Stream.
+    // MercadoPago sirve los campos de tarjeta (PAN/CVV) en iframes propios —sin
+    // esto el Brick se monta vacío— y el desafío 3DS en mercadolibre.com.
+    "frame-src 'self' https://checkout.culqi.com https://*.mercadopago.com https://*.mercadolibre.com https://*.clerk.accounts.dev https://*.clerk.com https://iframe.videodelivery.net https://*.cloudflarestream.com",
 
     // Media: reproducción de video desde Vercel Blob (fallback) y Cloudflare Stream
     "media-src 'self' blob: https://*.public.blob.vercel-storage.com https://videodelivery.net https://*.cloudflarestream.com",

@@ -28,8 +28,12 @@ interface MercadoPagoClient {
 /**
  * Construye el cliente del SDK con el access token activo.
  * Devuelve null si MercadoPago no está configurado.
+ *
+ * Exportado para que el cobro con tarjeta (`card-payment.ts`) use exactamente
+ * las mismas credenciales y timeout que Checkout Pro: dos formas de construir el
+ * cliente acabarían divergiendo (una en test y otra en producción, por ejemplo).
  */
-async function buildClient(): Promise<MercadoPagoClient | null> {
+export async function buildClient(): Promise<MercadoPagoClient | null> {
   const keys = await getActiveMercadoPagoKeys();
   if (!keys) {
     log.error("MercadoPago access token not configured");
@@ -71,7 +75,7 @@ export interface CreatePreferenceInput {
  * deja `surname` vacío, y los datos incompletos del pagador penalizan la
  * aprobación.
  */
-function splitFullName(fullName: string): { name: string; surname: string } {
+export function splitFullName(fullName: string): { name: string; surname: string } {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length <= 1) {
     return { name: parts[0] ?? "", surname: "" };
@@ -105,7 +109,7 @@ function buildPayerPhone(
  * Identificación del pagador. Solo DNI (8 dígitos): enviar un tipo/número que
  * no valide es peor que no enviar nada.
  */
-function buildPayerIdentification(
+export function buildPayerIdentification(
   dni: string | null | undefined
 ): { type: string; number: string } | undefined {
   if (!dni) return undefined;
@@ -245,7 +249,7 @@ export async function createCheckoutPreference(
 }
 
 /** Código HTTP que devolvió MercadoPago, si el error viene de la API. */
-function extractMpStatus(error: unknown): number | null {
+export function extractMpStatus(error: unknown): number | null {
   if (typeof error !== "object" || error === null) return null;
   const status = (error as Record<string, unknown>).status;
   return typeof status === "number" ? status : null;
@@ -255,7 +259,7 @@ function extractMpStatus(error: unknown): number | null {
  * Detalle de error de la API de MercadoPago (`cause`), serializado a algo que
  * el logger sí escribe. Es el dato que identifica la falla real.
  */
-function extractMpCause(error: unknown): string | null {
+export function extractMpCause(error: unknown): string | null {
   if (typeof error !== "object" || error === null) return null;
   const cause = (error as Record<string, unknown>).cause;
   if (cause === undefined || cause === null) return null;

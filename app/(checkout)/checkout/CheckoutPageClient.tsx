@@ -39,12 +39,36 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { AcceptedPaymentMarks } from "@/components/checkout/AcceptedPaymentMarks";
-import { PaymentMethodSelector } from "@/components/checkout/PaymentMethodSelector";
+import {
+  PaymentMethodSelector,
+  type MethodValue as CheckoutPaymentMethod,
+} from "@/components/checkout/PaymentMethodSelector";
+import {
+  MercadoPagoCardBrick,
+  type MercadoPagoBrickController,
+} from "@/components/checkout/MercadoPagoCardBrick";
+import { payOrderWithMercadoPagoCard } from "@/actions/mercadopago-card";
 import CheckoutUpsell from "@/components/checkout/CheckoutUpsell";
 import {
   getCartRecommendations,
   type RecommendationCard,
 } from "@/actions/recommendations";
+
+/**
+ * Método tal como se guarda en BD (enum `PaymentMethod` de Prisma).
+ *
+ * `MERCADOPAGO_CARD` existe solo en la interfaz: es el MISMO procesador, la
+ * misma cuenta y el mismo webhook que `MERCADOPAGO`; lo único que cambia es
+ * dónde teclea la tarjeta el comprador. Guardarlo como un método distinto
+ * obligaría a migrar el enum y a auditar cada `switch` sobre paymentMethod
+ * (correos, SUNAT, panel, reportes) para no ganar nada: el detalle real del
+ * cobro ya queda en `paymentDetails.paymentMethodId` ("visa", "master"…).
+ */
+function toDbPaymentMethod(
+  method: CheckoutPaymentMethod
+): "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO" {
+  return method === "MERCADOPAGO_CARD" ? "MERCADOPAGO" : method;
+}
 
 const initialFormData = {
   customerName: "",
@@ -53,7 +77,7 @@ const initialFormData = {
   customerDni: "",
   address: "",
   reference: "",
-  paymentMethod: "YAPE" as "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO",
+  paymentMethod: "YAPE" as CheckoutPaymentMethod,
   customerNotes: "",
   acceptTerms: false,
   acceptWhatsApp: false,
@@ -203,6 +227,10 @@ export default function CheckoutPageClient({
   const shippingRef = useRef<HTMLDivElement>(null);
 
   const processingRef = useRef(false);
+
+  // Controlador del Card Payment Brick. Lo llena el componente al montarse y lo
+  // usa el CTA de pago para pedirle los datos de la tarjeta (`getFormData`).
+  const mpBrickRef = useRef<MercadoPagoBrickController | null>(null);
 
   // Scrolls to the terms checkbox that's actually visible on the current
   // breakpoint (desktop lives in the summary card, mobile in the form body).
@@ -603,6 +631,36 @@ export default function CheckoutPageClient({
         return;
       }
 
+      // Tarjeta de MercadoPago: tokenizar ANTES de crear el pedido. `getFormData`
+      // valida el formulario y falla si la tarjeta está incompleta; hacerlo
+      // después dejaría un pedido con stock reservado por cada dígito mal
+      // tecleado.
+      let mpCardData: Awaited<ReturnType<MercadoPagoBrickController["getFormData"]>> | null =
+        null;
+      if (formData.paymentMethod === "MERCADOPAGO_CARD") {
+        if (!mpBrickRef.current) {
+          setError(
+            "El formulario de tarjeta aún no está listo. Espera un momento e intenta de nuevo."
+          );
+          setLoading(false);
+          return;
+        }
+        try {
+          mpCardData = await mpBrickRef.current.getFormData();
+        } catch {
+          // El Brick ya marca en rojo el campo que falta: aquí solo evitamos
+          // seguir adelante.
+          setError("Revisa los datos de tu tarjeta e intenta nuevamente.");
+          setLoading(false);
+          return;
+        }
+        if (!mpCardData?.token) {
+          setError("Revisa los datos de tu tarjeta e intenta nuevamente.");
+          setLoading(false);
+          return;
+        }
+      }
+
       trackEvent("AddPaymentInfo", {
         value: total,
         currency: "PEN",
@@ -626,7 +684,7 @@ export default function CheckoutPageClient({
         department: formData.departmentName || "Lima",
         districtCode: formData.districtCode,
         reference: formData.reference?.trim() || undefined,
-        paymentMethod: formData.paymentMethod,
+        paymentMethod: toDbPaymentMethod(formData.paymentMethod),
         customerNotes: formData.customerNotes?.trim() || undefined,
         acceptWhatsApp: formData.acceptWhatsApp || false,
         items: items.map((item) => ({
@@ -681,6 +739,31 @@ export default function CheckoutPageClient({
       rotateIdempotencyKey();
 
       const tokenQs = `?token=${result.viewToken}`;
+
+      if (mpCardData && result.orderId) {
+        // Cobro con tarjeta SIN salir de la tienda. El importe lo pone el
+        // servidor a partir de `order.total`; de aquí solo viaja el token.
+        const payment = await payOrderWithMercadoPagoCard({
+          orderId: result.orderId,
+          viewToken: result.viewToken,
+          card: mpCardData,
+        });
+
+        if (payment.status === "rejected" || payment.status === "error") {
+          // El pedido queda vivo con el pago FAILED: el comprador puede probar
+          // otra tarjeta u otro método sin volver a llenar la dirección.
+          setError(payment.message ?? "No pudimos procesar tu tarjeta.");
+          setLoading(false);
+          return;
+        }
+
+        // Aprobado o en verificación: en ambos casos el pedido ya existe y el
+        // dinero está en camino, así que el carrito deja de tener sentido.
+        clearCart();
+        clearPersistedData();
+        router.push(`/orden/${result.orderId}/confirmacion${tokenQs}`);
+        return;
+      }
 
       if (result.paymentMethod === "YAPE" || result.paymentMethod === "PLIN") {
         clearCart();
@@ -1486,6 +1569,16 @@ export default function CheckoutPageClient({
                         setShowMissingAlert(false);
                       }}
                       disabled={loading || isProcessingPayment}
+                      panelExtras={{
+                        MERCADOPAGO_CARD: (
+                          <MercadoPagoCardBrick
+                            amount={total}
+                            payerEmail={formData.customerEmail}
+                            controllerRef={mpBrickRef}
+                            disabled={loading || isProcessingPayment}
+                          />
+                        ),
+                      }}
                     />
                   </CardContent>
                 </Card>

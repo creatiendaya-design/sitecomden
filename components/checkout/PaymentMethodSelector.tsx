@@ -23,7 +23,20 @@ type EnabledMethods = {
   mercadopago: boolean;
 };
 
-type MethodValue = "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO";
+/**
+ * `MERCADOPAGO_CARD` es una opción de INTERFAZ, no un método de pago nuevo en
+ * BD: se guarda como `MERCADOPAGO` igual que el flujo con redirección (mismo
+ * procesador, misma conciliación, mismos webhooks). Lo único que cambia es
+ * dónde paga el cliente — aquí mismo con el Brick, o en la pantalla de
+ * MercadoPago. Ver `toDbPaymentMethod` en el checkout.
+ */
+export type MethodValue =
+  | "YAPE"
+  | "PLIN"
+  | "CARD"
+  | "PAYPAL"
+  | "MERCADOPAGO"
+  | "MERCADOPAGO_CARD";
 
 const DEFAULT_ENABLED: EnabledMethods = {
   yape: true,
@@ -43,6 +56,13 @@ interface PaymentMethodSelectorProps {
    * instantly — no spinner, no flicker.
    */
   initialEnabledMethods?: EnabledMethods;
+  /**
+   * Contenido extra dentro del panel desplegado de un método concreto (p. ej.
+   * el formulario de tarjeta de MercadoPago). Va aquí y no en el checkout para
+   * que el formulario viva DENTRO de la opción seleccionada, como en la
+   * referencia, en lugar de flotar debajo de la lista.
+   */
+  panelExtras?: Partial<Record<MethodValue, ReactNode>>;
 }
 
 /**
@@ -63,9 +83,12 @@ function Mark({ children, label }: { children: ReactNode; label: string }) {
 }
 
 interface MethodConfig {
+  /** Toggle de admin que gobierna la fila. Varias filas pueden compartirlo. */
   key: keyof EnabledMethods;
   value: MethodValue;
   label: string;
+  /** Aclara la fila cuando su etiqueta se parece a la de otra (dos "Tarjeta"). */
+  hint?: string;
   /** Contenido del panel que se despliega bajo la opción seleccionada. */
   detail: string;
   marks: ReactNode;
@@ -100,6 +123,7 @@ const METHODS: readonly MethodConfig[] = [
     key: "card",
     value: "CARD",
     label: "Tarjeta de crédito o débito",
+    hint: "Pago seguro con Culqi",
     detail:
       "Se abrirá la ventana segura de Culqi para ingresar los datos de tu tarjeta. Nunca almacenamos tu número de tarjeta.",
     marks: (
@@ -127,8 +151,30 @@ const METHODS: readonly MethodConfig[] = [
   },
   {
     key: "mercadopago",
+    value: "MERCADOPAGO_CARD",
+    label: "Tarjeta con Mercado Pago",
+    hint: "Ingresa tu tarjeta aquí, sin salir de la tienda",
+    detail:
+      "Completa los datos de tu tarjeta abajo. El formulario es de Mercado Pago: tu número de tarjeta nunca pasa por nuestros servidores.",
+    marks: (
+      <>
+        <Mark label="Mercado Pago">
+          <MercadoPagoIcon width={20} height={20} />
+        </Mark>
+        <Mark label="Visa">
+          <VisaIcon width={34} height={22} />
+        </Mark>
+        <Mark label="Mastercard">
+          <MastercardIcon width={28} height={18} />
+        </Mark>
+      </>
+    ),
+  },
+  {
+    key: "mercadopago",
     value: "MERCADOPAGO",
     label: "Mercado Pago",
+    hint: "Yape, efectivo y billetera Mercado Pago",
     detail:
       "Se te redirigirá a Mercado Pago para que completes la compra y luego volverás a la tienda.",
     marks: (
@@ -144,6 +190,7 @@ export function PaymentMethodSelector({
   onMethodChange,
   disabled,
   initialEnabledMethods,
+  panelExtras,
 }: PaymentMethodSelectorProps) {
   const [enabledMethods, setEnabledMethods] = useState<EnabledMethods>(
     initialEnabledMethods ?? DEFAULT_ENABLED
@@ -166,16 +213,18 @@ export function PaymentMethodSelector({
 
   // If the currently selected method is disabled, fall back to the first
   // enabled one. Kept separate from the fetch so it never re-triggers a load.
+  //
+  // Se resuelve contra METHODS y no derivando la clave del valor: desde que hay
+  // filas que comparten toggle (`MERCADOPAGO_CARD` → `mercadopago`), pasar el
+  // valor a minúsculas ya no da una clave válida de `EnabledMethods`.
   useEffect(() => {
     if (loading) return;
-    const methodKey = selectedMethod.toLowerCase() as keyof EnabledMethods;
-    if (!enabledMethods[methodKey]) {
-      const firstEnabled = Object.entries(enabledMethods).find(
-        ([, enabled]) => enabled
-      )?.[0];
-      if (firstEnabled) {
-        onMethodChange(firstEnabled.toUpperCase() as MethodValue);
-      }
+    const current = METHODS.find((m) => m.value === selectedMethod);
+    if (current && enabledMethods[current.key]) return;
+
+    const firstEnabled = METHODS.find((m) => enabledMethods[m.key]);
+    if (firstEnabled) {
+      onMethodChange(firstEnabled.value);
     }
   }, [loading, enabledMethods, selectedMethod, onMethodChange]);
 
@@ -249,18 +298,26 @@ export function PaymentMethodSelector({
                 className="size-[18px] shrink-0"
               />
 
-              <span className="min-w-0 text-sm font-semibold leading-tight">
-                {method.label}
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold leading-tight">
+                  {method.label}
+                </span>
+                {method.hint && (
+                  <span className="mt-0.5 block text-xs leading-tight text-muted-foreground">
+                    {method.hint}
+                  </span>
+                )}
               </span>
 
               <span className="flex items-center gap-1.5">{method.marks}</span>
             </label>
 
             {selected && (
-              <div className="border-t bg-muted/40 px-4 py-4">
+              <div className="space-y-4 border-t bg-muted/40 px-4 py-4">
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   {method.detail}
                 </p>
+                {panelExtras?.[method.value]}
               </div>
             )}
           </div>
