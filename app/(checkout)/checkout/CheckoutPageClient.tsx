@@ -15,7 +15,7 @@ import {
   checkoutPayButtonClass,
   checkoutPayButtonSizeClass,
 } from "@/components/checkout/pay-button-class";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1470,7 +1470,10 @@ export default function CheckoutPageClient({
                 {/* Método de Pago */}
                 <Card className="min-w-0">
                   <CardHeader>
-                    <CardTitle>Método de Pago</CardTitle>
+                    <CardTitle>Pago</CardTitle>
+                    <CardDescription>
+                      Todas las transacciones son seguras y están encriptadas.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3 min-w-0">
                     <PaymentMethodSelector

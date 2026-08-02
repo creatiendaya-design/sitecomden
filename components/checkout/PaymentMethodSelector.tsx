@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { getEnabledPaymentMethods } from "@/actions/payment-settings";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { YapeIcon, PlinIcon, VisaIcon, MastercardIcon, PayPalIcon } from "@/components/payment-icons";
+import {
+  YapeIcon,
+  PlinIcon,
+  VisaIcon,
+  MastercardIcon,
+  PayPalIcon,
+  MercadoPagoIcon,
+} from "@/components/payment-icons";
+import { cn } from "@/lib/utils";
 
 type EnabledMethods = {
   yape: boolean;
@@ -15,6 +22,8 @@ type EnabledMethods = {
   paypal: boolean;
   mercadopago: boolean;
 };
+
+type MethodValue = "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO";
 
 const DEFAULT_ENABLED: EnabledMethods = {
   yape: true,
@@ -25,8 +34,8 @@ const DEFAULT_ENABLED: EnabledMethods = {
 };
 
 interface PaymentMethodSelectorProps {
-  selectedMethod: "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO";
-  onMethodChange: (method: "YAPE" | "PLIN" | "CARD" | "PAYPAL" | "MERCADOPAGO") => void;
+  selectedMethod: MethodValue;
+  onMethodChange: (method: MethodValue) => void;
   disabled?: boolean;
   /**
    * Enabled methods resolved on the server (passed from the checkout page).
@@ -35,6 +44,100 @@ interface PaymentMethodSelectorProps {
    */
   initialEnabledMethods?: EnabledMethods;
 }
+
+/**
+ * Marca de pago: rectángulo 38×24 con borde, como en la referencia de checkout.
+ * Los logos cuadrados (Yape/Plin) se centran a 18px para que todas las marcas
+ * ocupen exactamente el mismo espacio y la columna derecha no baile.
+ */
+function Mark({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <span
+      className="flex h-6 w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-[3px] border border-black/10 bg-white"
+      title={label}
+      aria-hidden="true"
+    >
+      {children}
+    </span>
+  );
+}
+
+interface MethodConfig {
+  key: keyof EnabledMethods;
+  value: MethodValue;
+  label: string;
+  /** Contenido del panel que se despliega bajo la opción seleccionada. */
+  detail: string;
+  marks: ReactNode;
+}
+
+const METHODS: readonly MethodConfig[] = [
+  {
+    key: "yape",
+    value: "YAPE",
+    label: "Yape",
+    detail:
+      "Al confirmar tu pedido te mostraremos el número Yape para transferir. Luego subes tu constancia de pago y validamos la orden.",
+    marks: (
+      <Mark label="Yape">
+        <YapeIcon width={18} height={18} />
+      </Mark>
+    ),
+  },
+  {
+    key: "plin",
+    value: "PLIN",
+    label: "Plin",
+    detail:
+      "Al confirmar tu pedido te mostraremos el número Plin para transferir. Luego subes tu constancia de pago y validamos la orden.",
+    marks: (
+      <Mark label="Plin">
+        <PlinIcon width={18} height={18} />
+      </Mark>
+    ),
+  },
+  {
+    key: "card",
+    value: "CARD",
+    label: "Tarjeta de crédito o débito",
+    detail:
+      "Se abrirá la ventana segura de Culqi para ingresar los datos de tu tarjeta. Nunca almacenamos tu número de tarjeta.",
+    marks: (
+      <>
+        <Mark label="Visa">
+          <VisaIcon width={34} height={22} />
+        </Mark>
+        <Mark label="Mastercard">
+          <MastercardIcon width={28} height={18} />
+        </Mark>
+      </>
+    ),
+  },
+  {
+    key: "paypal",
+    value: "PAYPAL",
+    label: "PayPal",
+    detail:
+      "Se te redirigirá a PayPal para que completes la compra y luego volverás a la tienda.",
+    marks: (
+      <Mark label="PayPal">
+        <PayPalIcon width={32} height={18} />
+      </Mark>
+    ),
+  },
+  {
+    key: "mercadopago",
+    value: "MERCADOPAGO",
+    label: "Mercado Pago",
+    detail:
+      "Se te redirigirá a Mercado Pago para que completes la compra y luego volverás a la tienda.",
+    marks: (
+      <Mark label="Mercado Pago">
+        <MercadoPagoIcon width={20} height={20} />
+      </Mark>
+    ),
+  },
+];
 
 export function PaymentMethodSelector({
   selectedMethod,
@@ -71,7 +174,7 @@ export function PaymentMethodSelector({
         ([, enabled]) => enabled
       )?.[0];
       if (firstEnabled) {
-        onMethodChange(firstEnabled.toUpperCase() as PaymentMethodSelectorProps["selectedMethod"]);
+        onMethodChange(firstEnabled.toUpperCase() as MethodValue);
       }
     }
   }, [loading, enabledMethods, selectedMethod, onMethodChange]);
@@ -79,15 +182,18 @@ export function PaymentMethodSelector({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8" role="status">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden="true"></div>
+        <div
+          className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
+          aria-hidden="true"
+        ></div>
         <span className="sr-only">Cargando métodos de pago…</span>
       </div>
     );
   }
 
-  const hasAnyMethod = Object.values(enabledMethods).some(enabled => enabled);
+  const availableMethods = METHODS.filter((m) => enabledMethods[m.key]);
 
-  if (!hasAnyMethod) {
+  if (availableMethods.length === 0) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" aria-hidden="true" />
@@ -101,112 +207,65 @@ export function PaymentMethodSelector({
   return (
     <RadioGroup
       value={selectedMethod}
-      onValueChange={(value) => onMethodChange(value as PaymentMethodSelectorProps["selectedMethod"])}
-      className="space-y-3 min-w-0"
+      onValueChange={(value) => onMethodChange(value as MethodValue)}
+      className={cn(
+        // Un solo bloque con divisores internos, como en la referencia: las
+        // opciones no son tarjetas sueltas sino filas de una misma lista.
+        "grid gap-0 overflow-hidden rounded-lg border min-w-0",
+        disabled && "opacity-60"
+      )}
       disabled={disabled}
     >
-      {/* YAPE */}
-      {enabledMethods.yape && (
-        <label 
-          htmlFor="yape" 
-          className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-        >
-          <RadioGroupItem value="YAPE" id="yape" className="flex-shrink-0" />
-          <div className="flex-shrink-0 w-7 h-7" aria-hidden="true">
-            <YapeIcon width={28} height={28} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm leading-tight">Yape</div>
-            <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-              Instantáneo • 0%
-            </div>
-          </div>
-          <Badge variant="secondary" className="flex-shrink-0 hidden sm:inline-flex text-xs px-2 py-0.5">
-            Top
-          </Badge>
-        </label>
-      )}
+      {availableMethods.map((method, index) => {
+        const selected = selectedMethod === method.value;
+        const id = `payment-${method.value.toLowerCase()}`;
 
-      {/* PLIN */}
-      {enabledMethods.plin && (
-        <label 
-          htmlFor="plin" 
-          className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-        >
-          <RadioGroupItem value="PLIN" id="plin" className="flex-shrink-0" />
-          <div className="flex-shrink-0 w-7 h-7" aria-hidden="true">
-            <PlinIcon width={28} height={28} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm leading-tight">Plin</div>
-            <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-              Instantáneo • 0%
-            </div>
-          </div>
-        </label>
-      )}
+        return (
+          <div
+            key={method.value}
+            className={cn("relative min-w-0", index > 0 && "border-t")}
+          >
+            {/* Borde de selección superpuesto (inset -1px): duplica el borde
+                existente en lugar de desplazar el layout, igual que la
+                referencia. */}
+            {selected && (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -inset-px z-10 border-2 border-foreground/30"
+              />
+            )}
 
-      {/* TARJETA */}
-      {enabledMethods.card && (
-        <label 
-          htmlFor="card" 
-          className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-        >
-          <RadioGroupItem value="CARD" id="card" className="flex-shrink-0" />
-          <div className="flex items-center gap-1.5 flex-shrink-0" aria-hidden="true">
-            <VisaIcon width={36} height={24} />
-            <MastercardIcon width={28} height={18} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm leading-tight truncate">
-              Tarjeta
-            </div>
-            <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-              Crédito/Débito
-            </div>
-          </div>
-        </label>
-      )}
+            <label
+              htmlFor={id}
+              className={cn(
+                "grid cursor-pointer grid-cols-[min-content_1fr_minmax(0,max-content)] items-center gap-3 px-4 py-3.5 transition-colors",
+                !selected && !disabled && "hover:bg-muted/50",
+                disabled && "cursor-not-allowed"
+              )}
+            >
+              <RadioGroupItem
+                value={method.value}
+                id={id}
+                className="size-[18px] shrink-0"
+              />
 
-      {/* PAYPAL */}
-      {enabledMethods.paypal && (
-        <label 
-          htmlFor="paypal" 
-          className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-        >
-          <RadioGroupItem value="PAYPAL" id="paypal" className="flex-shrink-0" />
-          <div className="flex-shrink-0 w-7 h-7" aria-hidden="true">
-            <PayPalIcon width={28} height={18} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm leading-tight">PayPal</div>
-            <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-              Internacional
-            </div>
-          </div>
-        </label>
-      )}
+              <span className="min-w-0 text-sm font-semibold leading-tight">
+                {method.label}
+              </span>
 
-      {/* MERCADO PAGO */}
-      {enabledMethods.mercadopago && (
-        <label 
-          htmlFor="mercadopago" 
-          className="flex items-center gap-2.5 rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer min-w-0"
-        >
-          <RadioGroupItem value="MERCADOPAGO" id="mercadopago" className="flex-shrink-0" />
-          <div className="flex-shrink-0" aria-hidden="true">
-            <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-xs font-bold text-blue-600">MP</span>
-            </div>
+              <span className="flex items-center gap-1.5">{method.marks}</span>
+            </label>
+
+            {selected && (
+              <div className="border-t bg-muted/40 px-4 py-4">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {method.detail}
+                </p>
+              </div>
+            )}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm leading-tight">Mercado Pago</div>
-            <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-              LATAM
-            </div>
-          </div>
-        </label>
-      )}
+        );
+      })}
     </RadioGroup>
   );
 }
