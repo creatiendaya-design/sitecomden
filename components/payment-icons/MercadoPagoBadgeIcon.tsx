@@ -9,9 +9,11 @@ interface MercadoPagoBadgeIconProps {
 }
 
 /**
- * Mercado Pago en formato tarjeta (38×24, fondo amarillo de marca), para la
- * fila de marcas del checkout. Distinto de `MercadoPagoIcon`, que es el disco
- * con degradado y a tamaño pequeño se confunde con otras billeteras.
+ * Mercado Pago en formato tarjeta (38×24, fondo amarillo de marca).
+ *
+ * Sustituye al antiguo `MercadoPagoIcon`, que era una copia literal de
+ * `PlinIcon` (mismos paths, mismo degradado, solo cambiaban los ids): la tienda
+ * mostraba el logo de Plin donde decía Mercado Pago.
  *
  * El id del clip se genera por instancia para no colisionar si el icono se
  * pinta más de una vez en la misma página.

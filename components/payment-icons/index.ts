@@ -3,7 +3,6 @@ export { default as YapeIcon } from './YapeIcon';
 export { default as PlinIcon } from './PlinIcon';
 export { default as VisaIcon } from './VisaIcon';
 export { default as MastercardIcon } from './MastercardIcon';
-export { default as MercadoPagoIcon } from './MercadoPagoIcon';
 export { default as AmexIcon } from './AmexIcon';
 export { default as DinersClubIcon } from './DinersClubIcon';
 export { default as PagoEfectivoIcon } from './PagoEfectivoIcon';

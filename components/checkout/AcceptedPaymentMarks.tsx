@@ -7,7 +7,7 @@ import {
   YapeIcon,
   PlinIcon,
   PayPalIcon,
-  MercadoPagoIcon,
+  MercadoPagoBadgeIcon,
 } from "@/components/payment-icons";
 import { cn } from "@/lib/utils";
 
@@ -41,8 +41,8 @@ interface AcceptedPaymentMarksProps {
 }
 
 const SIZES = {
-  md: { visa: [36, 24], master: [32, 20], wallet: [28, 28], paypal: [64, 36], mp: [56, 24] },
-  sm: { visa: [28, 18], master: [26, 16], wallet: [24, 24], paypal: [56, 32], mp: [48, 20] },
+  md: { visa: [36, 24], master: [32, 20], wallet: [28, 28], paypal: [64, 36], mp: [38, 24] },
+  sm: { visa: [28, 18], master: [26, 16], wallet: [24, 24], paypal: [56, 32], mp: [32, 20] },
 } as const;
 
 export function AcceptedPaymentMarks({
@@ -91,7 +91,11 @@ export function AcceptedPaymentMarks({
           <PlinIcon width={s.wallet[0]} height={s.wallet[1]} className={opacity} />
         )}
         {methods.mercadopago && (
-          <MercadoPagoIcon width={s.mp[0]} height={s.mp[1]} className={opacity} />
+          <MercadoPagoBadgeIcon
+            width={s.mp[0]}
+            height={s.mp[1]}
+            className={opacity}
+          />
         )}
         {methods.paypal && (
           <PayPalIcon width={s.paypal[0]} height={s.paypal[1]} className={opacity} />
