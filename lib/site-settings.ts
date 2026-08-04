@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import type { InputJsonValue } from "@prisma/client/runtime/library";
+import { publicSiteUrlOrNull } from "@/lib/site-url";
 
 export interface SiteSettings {
   // General
@@ -34,10 +35,20 @@ export interface SiteSettings {
   default_currency: string;   // ISO 4217, e.g. "PEN"
 }
 
+/**
+ * URL usada cuando la tienda todavía no tiene `site_url` en BD.
+ *
+ * Se resuelve desde `NEXT_PUBLIC_APP_URL` en lugar de un dominio horneado:
+ * una instalación nueva arrancaba con la URL de otra tienda y la escribía en
+ * su propia BD vía `createDefaultSettings()`, contaminando canónicas y correos
+ * hasta que alguien lo notara a mano. Ver `lib/site-url.ts`.
+ */
+const FALLBACK_SITE_URL = publicSiteUrlOrNull() ?? "";
+
 const DEFAULT_SETTINGS: SiteSettings = {
   site_name: "ShopGood Perú",
   site_logo: "/logo.png",
-  site_url: "https://shopgood.pe",
+  site_url: FALLBACK_SITE_URL,
   site_favicon: "/favicon.ico",
 
   seo_home_title: "ShopGood Perú - Los Mejores Productos con Envío a Todo el País",
@@ -154,7 +165,7 @@ async function createDefaultSettings() {
     // General
     { key: 'site_name', value: 'ShopGood Perú', category: 'general' },
     { key: 'site_logo', value: '/logo.png', category: 'general' },
-    { key: 'site_url', value: 'https://shopgood.pe', category: 'general' },
+    { key: 'site_url', value: FALLBACK_SITE_URL, category: 'general' },
     { key: 'site_favicon', value: '/favicon.ico', category: 'general' },
 
     // SEO

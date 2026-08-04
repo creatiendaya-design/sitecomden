@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
+    "setup:tienda": "tsx scripts/setup-tienda-nueva.ts",
+    "check:env": "tsx scripts/setup-tienda-nueva.ts --check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

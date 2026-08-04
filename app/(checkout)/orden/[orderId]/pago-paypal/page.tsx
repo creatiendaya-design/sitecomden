@@ -7,16 +7,14 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { canStartPayment } from "@/lib/payments/order-payable";
 import { displayOrderNumber } from "@/lib/utils";
 import PaypalRedirectClient from "./paypal-redirect-client";
+import { publicSiteUrl } from "@/lib/site-url";
 
 interface PageProps {
   params: Promise<{ orderId: string }>;
   searchParams: Promise<{ token?: string; cancel?: string }>;
 }
 
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_URL ||
-  "http://localhost:3000";
+// URL canónica resuelta por petición — ver lib/site-url.ts.
 
 export default async function PaymentPayPalPage({ params, searchParams }: PageProps) {
   const { orderId } = await params;
@@ -102,7 +100,7 @@ export default async function PaymentPayPalPage({ params, searchParams }: PagePr
     amount: chargeAmount,
     currency: paypalSettings.currency,
     viewToken: order.viewToken,
-    baseUrl: APP_URL,
+    baseUrl: publicSiteUrl(),
     brandName: siteSettings.site_name || "Tienda",
   });
 

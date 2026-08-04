@@ -10,6 +10,7 @@ import { protectRoute } from "@/lib/protect-route";
 import { checkRateLimit, apiRateLimiter, checkoutRateLimiter } from "@/lib/rate-limit";
 import { createOrderSchema, type UpdateOrderStatusInput } from "./orders-schema";
 import { getSiteSettings } from "@/lib/site-settings";
+import { getSiteUrl } from "@/lib/site-url";
 import { displayOrderNumber } from "@/lib/utils";
 import { validateShippingRestriction } from "@/lib/products/shipping-restriction";
 import { getProductImageUrl } from "@/lib/image-utils";
@@ -780,7 +781,7 @@ export async function createOrder(rawData: unknown) {
           shippingAddress: order.shippingAddress as unknown as { address: string; district: string; city: string; department: string },
           paymentMethod: order.paymentMethod,
           // Link para ver orden sin login
-          viewOrderLink: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${viewToken}&email=${encodeURIComponent(order.customerEmail)}`,
+          viewOrderLink: `${await getSiteUrl()}/orden/verificar?token=${viewToken}&email=${encodeURIComponent(order.customerEmail)}`,
         });
       } catch (emailError) {
         // No fallar la orden si el email falla
@@ -1271,7 +1272,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
           currency: "PEN",
           transactionId: currentOrder.orderNumber,
           items: trackingItems,
-          sourceUrl: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || "https://nuejoy.online"}/orden/${currentOrder.id}/confirmacion`,
+          sourceUrl: `${await getSiteUrl()}/orden/${currentOrder.id}/confirmacion`,
           clientIp: clientIp || undefined,
           clientUserAgent: clientUserAgent || undefined,
         });
@@ -1282,7 +1283,7 @@ export async function updateOrderStatus(input: UpdateOrderStatusInput) {
     }
 
     // ✅ ENVIAR EMAILS AUTOMÁTICOS según el cambio de estado
-    const viewOrderLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${currentOrder.viewToken}&email=${encodeURIComponent(currentOrder.customerEmail)}`;
+    const viewOrderLink = `${await getSiteUrl()}/orden/verificar?token=${currentOrder.viewToken}&email=${encodeURIComponent(currentOrder.customerEmail)}`;
 
     try {
       const {

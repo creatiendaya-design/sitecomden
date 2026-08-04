@@ -70,8 +70,20 @@ Copia [.env.example](../.env.example) como referencia. En el proyecto de Vercel
 # Base de datos (de esta tienda — Neon)
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require"
 
-# URL pública de la tienda  ⚠️ usar NEXT_PUBLIC_APP_URL (no NEXT_PUBLIC_URL)
+# URL pública de la tienda — FUENTE ÚNICA de la URL canónica.
+# La resuelve `lib/site-url.ts` y la consumen sitemap, robots.txt, correos,
+# redirects de pago y eventos de tracking. `NEXT_PUBLIC_URL` está deprecada.
 NEXT_PUBLIC_APP_URL=https://tienda2.com
+
+# Firma del webhook de Clerk (dashboard → Webhooks → Signing Secret).
+# OBLIGATORIA: sin ella no se crea ningún `Customer` y la tienda "parece" ir bien.
+CLERK_WEBHOOK_SECRET=whsec_...
+
+# Remitente de correos (dominio verificado en Resend)
+RESEND_FROM_EMAIL=pedidos@tienda2.com
+
+# Protege los endpoints de cron. Generar: openssl rand -hex 32
+CRON_SECRET=...
 
 # Culqi — pagos con tarjeta
 NEXT_PUBLIC_CULQI_PUBLIC_KEY=pk_live_...
@@ -118,55 +130,36 @@ SENTRY_AUTH_TOKEN=
 
 ## Paso 4 — Aplicar el esquema y datos iniciales
 
-Estos comandos se corren **una sola vez** por tienda, **apuntando a la BD de esa tienda**.
-Puedes hacerlo desde tu máquina poniendo el `DATABASE_URL` de la tienda nueva en tu `.env`
-local temporalmente (o exportándolo en la terminal) y ejecutando:
+Un solo comando. Pon el `DATABASE_URL` y el resto de variables de la tienda nueva en tu
+`.env` local (o expórtalas en la terminal) y ejecuta:
 
 ```bash
-# 1) Cliente Prisma actualizado
-npx prisma generate
-
-# 2) Crear todas las tablas en la BD nueva
-npx prisma migrate deploy
-
-# 3) Permisos + rol Super Admin + usuario admin inicial
-#    (usa SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD del .env)
-npx tsx prisma/seed-permissions.ts
-npx tsx scripts/sync-all-permissions.ts        # catálogo completo de permisos (idempotente)
-npx tsx scripts/make-admin-editable.ts
-
-# 4) Geografía de Perú (departamentos / provincias / distritos)
-npx tsx prisma/seed-peru-completo.ts
-
-# 5) Sistema de envíos (zonas + tarifas base)
-npx tsx prisma/seed-shipping-system.ts
-
-# 6) Tema + contenido base (home, carrito, menús, políticas, páginas)
-npx tsx scripts/seed-themes.ts
-npx tsx scripts/seed-menus.ts
-npx tsx scripts/seed-home-page.ts
-npx tsx scripts/seed-cart-page.ts
-npx tsx scripts/seed-policies.ts
-npx tsx scripts/seed-static-pages.ts
-
-# 7) Configuración inicial de integraciones
-npx tsx scripts/init-culqi-config.ts
-npx tsx scripts/init-complaints-config.ts
+npm run setup:tienda
 ```
 
-Seeds **opcionales** (según lo que use la tienda):
+El script [scripts/setup-tienda-nueva.ts](../scripts/setup-tienda-nueva.ts):
+
+1. **Valida las variables de entorno** antes de tocar nada, separando obligatorias de
+   recomendadas. Aborta si falta alguna crítica —incluidas las que no rompen el build
+   pero sí la tienda, como `CLERK_WEBHOOK_SECRET` (sin ella no se crea ningún `Customer`).
+2. **Te muestra el host y el nombre de la base destino y te exige escribir ese nombre**
+   para continuar. Es la protección contra el error caro de este flujo: sembrar la
+   tienda nueva encima de la que ya factura.
+3. Ejecuta los ~16 pasos de migración y siembra en orden.
+
+Opciones:
 
 ```bash
-npx tsx scripts/seed-landing-templates.ts   # plantillas de landing de producto
-npx tsx scripts/seed-product-template.ts    # plantilla de ficha de producto
-npx tsx scripts/seed-cod-form-default.ts    # formulario contra-entrega (COD)
-npx tsx scripts/seed-reviews.ts             # datos de ejemplo de reseñas
-npx tsx scripts/seed-fbt-section.ts         # sección "Comprados juntos"
+npm run check:env                                   # solo valida, no escribe nada
+npx tsx scripts/setup-tienda-nueva.ts --with-optional  # + plantillas landing, COD, FBT…
+npx tsx scripts/setup-tienda-nueva.ts --skip-migrate   # el esquema ya está aplicado
+npx tsx scripts/setup-tienda-nueva.ts --local          # permite localhost (BD de desarrollo)
+npx tsx scripts/setup-tienda-nueva.ts --yes            # sin confirmación (CI)
 ```
 
-> ⚠️ **Cuidado con qué BD está activa.** Antes de correr migraciones/seeds, verifica
-> que el `DATABASE_URL` apunta a la tienda correcta. Equivocarse aquí escribe datos en
-> la BD que no toca. Cuando termines, **restaura tu `.env` local** a tu BD de desarrollo.
+Todos los pasos son idempotentes: si algo falla a mitad, corriges y vuelves a ejecutar.
+
+> ⚠️ Cuando termines, **restaura tu `.env` local** a tu BD de desarrollo.
 
 ## Paso 5 — Desplegar y conectar el dominio
 
@@ -182,17 +175,21 @@ npx tsx scripts/seed-fbt-section.ts         # sección "Comprados juntos"
 Un solo repo. Haces `git push` y **Vercel redeploya las N tiendas** automáticamente
 (cada proyecto está conectado al mismo repo). No hay que hacer nada por tienda.
 
-### Cambios de esquema (Prisma) — lo único que se multiplica
-Cada vez que cambies `prisma/schema.prisma` y generes una migración, debes aplicarla
-contra **cada base de datos**:
+### Cambios de esquema (Prisma) — automáticos
+No hay que aplicarlas a mano. [vercel.json](../vercel.json) ejecuta `prisma migrate deploy`
+como parte del `buildCommand`, y **cada proyecto de Vercel trae su propio `DATABASE_URL`**:
+un `git push` redeploya las N tiendas y cada una migra su propia base.
+
+> ⚠️ Esto es justamente por lo que **las migraciones deben seguir dentro del
+> `buildCommand`** en este modelo. Sacarlas del build (una recomendación habitual en
+> despliegues single-store) te obligaría a aplicarlas manualmente en cada BD.
+
+Solo necesitas hacerlo a mano si una tienda no se redeployó:
 
 ```bash
-# Por cada tienda: apunta DATABASE_URL a su BD y ejecuta
+# Apunta DATABASE_URL a su BD y ejecuta
 npx prisma migrate deploy
 ```
-
-Conviene guardar las connection strings en un gestor seguro y, cuando tengas varias
-tiendas, scriptear este bucle. Pídelo cuando llegues a ese punto.
 
 ### Permisos nuevos
 Cuando el código agrega permisos nuevos, corre en cada BD (es idempotente):

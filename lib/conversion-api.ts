@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import crypto from "crypto";
+import { publicSiteUrlOrNull } from "@/lib/site-url";
 
 // ============================================
 // TIPOS
@@ -98,7 +99,11 @@ export async function sendFacebookConversion(data: ConversionEventData) {
           event_name: data.eventName,
           event_time: data.eventTime || Math.floor(Date.now() / 1000),
           event_id: data.eventId || generateEventId(),
-          event_source_url: data.sourceUrl || "https://shopgood.pe",
+          // Sin sourceUrl explícito caemos a la URL canónica de ESTA tienda.
+          // Antes había un dominio horneado: los eventos de una tienda nueva
+          // se atribuían al sitio de otra. `undefined` se omite al serializar,
+          // que es preferible a mentir sobre el origen.
+          event_source_url: data.sourceUrl ?? publicSiteUrlOrNull() ?? undefined,
           action_source: "website",
           user_data: {
             ...hashedUserData,
@@ -185,7 +190,7 @@ export async function sendTikTokConversion(data: ConversionEventData) {
       event_id: data.eventId || generateEventId(),
       context: {
         page: {
-          url: data.sourceUrl || "https://shopgood.pe",
+          url: data.sourceUrl ?? publicSiteUrlOrNull() ?? undefined,
         },
         user_agent: data.clientUserAgent,
         ip: data.clientIpAddress,

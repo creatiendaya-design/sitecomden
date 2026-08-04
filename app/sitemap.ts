@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db'
+import { getSiteUrl } from '@/lib/site-url'
 
 // Read products/categories from DB on every request instead of prerendering
 // at build time. Avoids DB calls during `next build` (CI has no DATABASE_URL
@@ -7,17 +8,10 @@ import { prisma } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Obtener configuración del sitio
-  const siteSettings = await prisma.setting.findUnique({
-    where: { key: 'site_settings' },
-  })
-
-  // Type assertion para JsonValue
-  const siteConfig = siteSettings?.value as { siteUrl?: string } | undefined
-  const baseUrl = (siteConfig?.siteUrl || 'https://nuejoy.online').replace(
-    /\/$/,
-    '',
-  )
+  // Antes esto leía la clave `site_settings`, que nadie escribe: el sitemap
+  // salía siempre con el dominio horneado. `getSiteUrl()` ya viene normalizado
+  // (sin barra final).
+  const baseUrl = await getSiteUrl()
 
   // Páginas estáticas (siempre indexables, no dependen de DB).
   // `/carrito` y `/checkout` se omiten — quedan disallow en robots.txt y

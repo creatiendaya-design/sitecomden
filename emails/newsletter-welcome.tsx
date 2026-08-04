@@ -11,6 +11,7 @@ import {
   Text,
 } from "@react-email/components";
 import * as React from "react";
+import { publicSiteUrl } from "@/lib/site-url";
 
 interface NewsletterWelcomeEmailProps {
   name?: string;
@@ -82,7 +83,7 @@ export const NewsletterWelcomeEmail = ({
                   <br />
                   * Válido por 30 días
                 </Text>
-                <Button style={button} href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://shopgood.pe'}/productos`}>
+                <Button style={button} href={`${publicSiteUrl()}/productos`}>
                   Explorar Productos
                 </Button>
               </Section>

@@ -40,7 +40,9 @@ export default function CulqiCheckoutButton({
   onError,
   disabled = false,
   className = '',
-  siteName = 'nuejoy',
+  // Sin nombre explícito, el modal de Culqi mostraba una marca horneada — en
+  // otra tienda el cliente veía un nombre ajeno sobre el formulario de tarjeta.
+  siteName = 'Tienda',
   siteLogo = '/logo.png'
 }: CulqiCheckoutButtonProps) {
   const [isLoaded, setIsLoaded] = useState(false);

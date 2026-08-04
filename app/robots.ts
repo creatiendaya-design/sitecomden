@@ -1,19 +1,10 @@
 import { MetadataRoute } from 'next'
-import { prisma } from '@/lib/db'
+import { getSiteUrl } from '@/lib/site-url'
 
-// Read site URL from DB on every request instead of prerendering at build
-// time. Avoids DB calls during `next build` (CI has no DATABASE_URL reachable)
-// and lets dominio changes from admin take effect on the next request.
+// Resolve the site URL per request instead of prerendering at build time.
+// Avoids DB calls during `next build` (CI has no DATABASE_URL reachable) and
+// lets a domain change from admin take effect on the next request.
 export const dynamic = 'force-dynamic'
-
-interface SiteConfig {
-  siteUrl?: string;
-  siteName?: string;
-}
-
-function isSiteConfig(value: unknown): value is SiteConfig {
-  return typeof value === 'object' && value !== null
-}
 
 // Private surfaces that NO bot (search engine or LLM) should crawl.
 const PRIVATE_DISALLOW = [
@@ -61,21 +52,10 @@ const AI_AND_SEARCH_BOTS = [
 ]
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
-  let baseUrl = 'https://nuejoy.online'
-
-  // DB lookup is wrapped in try/catch so CI builds (no DATABASE_URL reachable)
-  // and transient Neon outages still produce a valid robots.txt instead of
-  // failing the whole build / route.
-  try {
-    const siteSettings = await prisma.setting.findUnique({
-      where: { key: 'site_settings' },
-    })
-    if (siteSettings?.value && isSiteConfig(siteSettings.value)) {
-      baseUrl = siteSettings.value.siteUrl || baseUrl
-    }
-  } catch (err) {
-    console.warn('[robots] Falling back to default baseUrl:', err)
-  }
+  // Antes esto leía la clave `site_settings` (que nadie escribía nunca) y caía
+  // a un dominio horneado, así que el robots.txt de cualquier tienda salía con
+  // la URL de otra. `getSiteUrl()` es ahora la única fuente.
+  const baseUrl = await getSiteUrl()
 
   const aiBotRules = AI_AND_SEARCH_BOTS.map((userAgent) => ({
     userAgent,

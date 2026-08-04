@@ -21,11 +21,9 @@ import { createPaypalOrder } from "@/lib/paypal/client";
 import { readPaypalSettings, convertPenToCharge } from "@/lib/paypal/config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
+import { publicSiteUrl } from "@/lib/site-url";
 
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_URL ||
-  "http://localhost:3000";
+// URL canónica resuelta por petición — ver lib/site-url.ts.
 
 export interface StartGatewayCheckoutResult {
   success: boolean;
@@ -71,7 +69,7 @@ export async function startGatewayCheckout(
 
   if (order.paymentMethod === "MERCADOPAGO") {
     const preference = await createCheckoutPreference(
-      buildPreferenceInput(order, orderDisplayNumber, APP_URL)
+      buildPreferenceInput(order, orderDisplayNumber, publicSiteUrl())
     );
     if (!preference.success || !preference.redirectUrl) {
       return { success: false, error: preference.error ?? "No se pudo iniciar el pago." };
@@ -94,7 +92,7 @@ export async function startGatewayCheckout(
       amount: chargeAmount,
       currency: paypalSettings.currency,
       viewToken: order.viewToken,
-      baseUrl: APP_URL,
+      baseUrl: publicSiteUrl(),
       brandName: settings.site_name || "Tienda",
     });
     if (!created.success || !created.approveUrl) {

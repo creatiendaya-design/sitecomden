@@ -1,3 +1,4 @@
+import { publicSiteUrl } from "@/lib/site-url";
 /**
  * Helpers para resolver URLs de imágenes que se incrustan en correos.
  *
@@ -7,11 +8,8 @@
  * las plantillas reciban URLs ya saneadas.
  */
 
-const SITE_URL = (
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_URL ||
-  "http://localhost:3000"
-).replace(/\/$/, "");
+// Resuelto en cada llamada, no al cargar el módulo: la URL depende de la
+// tienda que esté sirviendo la petición. Ver lib/site-url.ts.
 
 /**
  * Convierte cualquier ruta en una URL absoluta utilizable en un correo.
@@ -25,7 +23,7 @@ export function resolveEmailImageUrl(url?: string | null): string | undefined {
   if (!trimmed || trimmed.startsWith("data:")) return undefined;
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return `${SITE_URL}${path}`;
+  return `${publicSiteUrl()}${path}`;
 }
 
 /**

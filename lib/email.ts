@@ -10,6 +10,7 @@ import OrderCancelledEmail from "@/emails/OrderCancelledEmail";
 import PaymentFailedEmail from "@/emails/PaymentFailedEmail";
 import PaymentRefundedEmail from "@/emails/PaymentRefundedEmail";
 import ComprobanteEmitido from "@/emails/comprobante-emitido";
+import { publicSiteUrl } from "@/lib/site-url";
 
 interface OrderData {
   orderNumber: string;
@@ -435,7 +436,7 @@ export async function sendNewsletterWelcomeEmail(
       getSiteSettings(),
     ]);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = publicSiteUrl();
     const unsubscribeUrl = `${appUrl}/newsletter/cancelar?email=${encodeURIComponent(email)}`;
 
     // Crear HTML del email con el mismo estilo que los emails de órdenes

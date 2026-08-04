@@ -22,13 +22,11 @@ import {
 import { confirmMercadoPagoPayment } from "@/lib/mercadopago/confirm-payment";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
+import { publicSiteUrl } from "@/lib/site-url";
 
 const log = logger.child({ module: "mercadopago-card-action" });
 
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_URL ||
-  "http://localhost:3000";
+// URL canónica resuelta por petición — ver lib/site-url.ts.
 
 /**
  * Datos que devuelve `cardPaymentBrickController.getFormData()`.
@@ -133,7 +131,7 @@ export async function payOrderWithMercadoPagoCard(
     customerName: order.customerName,
     customerEmail: order.customerEmail,
     customerDni: order.customerDni,
-    baseUrl: APP_URL,
+    baseUrl: publicSiteUrl(),
     token: card.token,
     paymentMethodId: card.payment_method_id,
     issuerId: card.issuer_id != null ? String(card.issuer_id) : null,

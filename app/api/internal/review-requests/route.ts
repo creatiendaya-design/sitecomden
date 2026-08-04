@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
 import { getReviewRequestConfig } from "@/actions/review-settings";
+import { publicSiteUrl } from "@/lib/site-url";
 
 /**
  * Post-purchase "leave a review" email job.
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
     Date.now() - config.daysAfterDelivery * 24 * 60 * 60 * 1000
   );
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const appUrl = publicSiteUrl();
 
   try {
     const orders = await prisma.order.findMany({

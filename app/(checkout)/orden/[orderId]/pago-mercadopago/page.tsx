@@ -7,16 +7,16 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { canStartPayment } from "@/lib/payments/order-payable";
 import { displayOrderNumber } from "@/lib/utils";
 import MercadoPagoRedirectClient from "./mercadopago-redirect-client";
+import { publicSiteUrl } from "@/lib/site-url";
 
 interface PageProps {
   params: Promise<{ orderId: string }>;
   searchParams: Promise<{ token?: string }>;
 }
 
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_URL ||
-  "http://localhost:3000";
+// Resuelto por petición (no a nivel de módulo): en producción esta URL es
+// la del dominio de ESTA tienda, y el redirect de pago debe fallar antes que
+// devolver al cliente a localhost. Ver lib/site-url.ts.
 
 export default async function PaymentMercadoPagoPage({ params, searchParams }: PageProps) {
   const { orderId } = await params;
@@ -78,7 +78,7 @@ export default async function PaymentMercadoPagoPage({ params, searchParams }: P
   }
 
   const preference = await createCheckoutPreference(
-    buildPreferenceInput(order, orderDisplayNumber, APP_URL)
+    buildPreferenceInput(order, orderDisplayNumber, publicSiteUrl())
   );
 
   return (

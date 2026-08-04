@@ -21,6 +21,7 @@ import { logger } from "@/lib/logger";
 import { getSiteSettings } from "@/lib/site-settings";
 import { displayOrderNumber } from "@/lib/utils";
 import { onOrderPaid } from "@/lib/loyalty/award-purchase";
+import { publicSiteUrl } from "@/lib/site-url";
 
 const log = logger.child({ module: "culqi-post-payment" });
 
@@ -67,7 +68,7 @@ async function sendCulqiConfirmationEmail(orderId: string): Promise<void> {
   const { sendOrderConfirmationEmail } = await import("@/lib/email");
   const settings = await getSiteSettings();
   const orderNumber = displayOrderNumber(order, settings.order_prefix || "PED");
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = publicSiteUrl();
 
   await sendOrderConfirmationEmail({
     orderNumber,

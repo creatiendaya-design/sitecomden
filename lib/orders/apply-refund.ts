@@ -20,16 +20,11 @@ import { displayOrderNumber } from "@/lib/utils";
 import { restoreStockForOrder } from "@/lib/inventory/restore-stock";
 import { revertLoyaltyForOrder } from "@/lib/loyalty/revert-purchase";
 import { getLoyaltySettings } from "@/actions/loyalty";
+import { publicSiteUrl } from "@/lib/site-url";
 
 const log = logger.child({ module: "apply-refund" });
 
-function appBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_URL ||
-    "http://localhost:3000"
-  );
-}
+
 
 export interface ApplyRefundResult {
   ok: boolean;
@@ -105,7 +100,7 @@ export async function applyRefund(
     const { sendPaymentRefundedEmail } = await import("@/lib/email");
     const settings = await getSiteSettings();
     const orderDisplayNumber = displayOrderNumber(order, settings.order_prefix || "PED");
-    const viewOrderLink = `${appBaseUrl()}/orden/verificar?token=${order.viewToken}&email=${encodeURIComponent(order.customerEmail)}`;
+    const viewOrderLink = `${publicSiteUrl()}/orden/verificar?token=${order.viewToken}&email=${encodeURIComponent(order.customerEmail)}`;
     await sendPaymentRefundedEmail(
       orderDisplayNumber,
       order.customerName,

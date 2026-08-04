@@ -17,6 +17,7 @@ import { displayOrderNumber } from "@/lib/utils";
 import { getMercadoPagoPayment } from "./client";
 import { MERCADOPAGO_CURRENCY } from "./config";
 import { onOrderPaid } from "@/lib/loyalty/award-purchase";
+import { publicSiteUrl } from "@/lib/site-url";
 import {
   cancelOrderForFailedPayment,
   claimOrderAsPaid,
@@ -45,14 +46,6 @@ export type ConfirmResult =
        */
       retryable: boolean;
     };
-
-function appBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_URL ||
-    "http://localhost:3000"
-  );
-}
 
 /**
  * Confirma un pago de MercadoPago por su id. Idempotente: si la orden ya está
@@ -283,7 +276,7 @@ export async function confirmMercadoPagoPayment(
       const { sendPaymentApprovedEmail } = await import("@/lib/email");
       const emailSettings = await getSiteSettings();
       const orderDisplayNumber = displayOrderNumber(order, emailSettings.order_prefix || "PED");
-      const viewOrderLink = `${appBaseUrl()}/orden/verificar?token=${order.viewToken}&email=${encodeURIComponent(order.customerEmail)}`;
+      const viewOrderLink = `${publicSiteUrl()}/orden/verificar?token=${order.viewToken}&email=${encodeURIComponent(order.customerEmail)}`;
       await sendPaymentApprovedEmail(
         orderDisplayNumber,
         order.customerName,

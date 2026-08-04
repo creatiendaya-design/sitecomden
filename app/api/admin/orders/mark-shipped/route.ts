@@ -3,6 +3,7 @@ import { requirePermission } from "@/lib/auth";
 import { markOrderShippedSchema } from "@/lib/validations";
 import { prisma } from "@/lib/db";
 import { sendOrderShippedEmail } from "@/lib/email";
+import { publicSiteUrl } from "@/lib/site-url";
 
 export async function POST(request: Request) {
   // 🔐 PROTECCIÓN: Verificar autenticación y permiso
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     // Generar link de visualización
     const viewOrderLink = order.viewToken
-      ? `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
+      ? `${publicSiteUrl()}/orden/verificar?token=${order.viewToken}&email=${order.customerEmail}`
       : '';
 
     // Enviar email de envío
