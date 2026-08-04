@@ -16,7 +16,11 @@ import {
   VisaIcon,
   MastercardIcon,
   PayPalIcon,
-  MercadoPagoIcon,
+  AmexIcon,
+  DinersClubIcon,
+  PagoEfectivoIcon,
+  YapeBadgeIcon,
+  MercadoPagoBadgeIcon,
 } from "@/components/payment-icons";
 import { cn } from "@/lib/utils";
 
@@ -75,10 +79,25 @@ interface PaymentMethodSelectorProps {
  * Los logos cuadrados (Yape/Plin) se centran a 18px para que todas las marcas
  * ocupen exactamente el mismo espacio y la columna derecha no baile.
  */
-function Mark({ children, label }: { children: ReactNode; label: string }) {
+function Mark({
+  children,
+  label,
+  framed = true,
+}: {
+  children: ReactNode;
+  label: string;
+  /**
+   * `false` para logos que ya traen su propio marco de tarjeta 38×24
+   * (PagoEfectivo, Yape, Mercado Pago): enmarcarlos otra vez duplica el borde.
+   */
+  framed?: boolean;
+}) {
   return (
     <span
-      className="flex h-6 w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-[3px] border border-black/10 bg-white"
+      className={cn(
+        "flex h-6 w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-[3px]",
+        framed && "border border-black/10 bg-white"
+      )}
       title={label}
       aria-hidden="true"
     >
@@ -86,6 +105,35 @@ function Mark({ children, label }: { children: ReactNode; label: string }) {
     </span>
   );
 }
+
+/**
+ * Marcas por procesador: Culqi solo liquida Visa y Mastercard, mientras que el
+ * formulario de Mercado Pago suma Amex y Diners. Cada fila anuncia únicamente
+ * lo que su procesador acepta — prometer una marca que después rechaza el pago
+ * es peor que no anunciarla.
+ */
+const CULQI_CARD_MARKS = (
+  <>
+    <Mark label="Visa">
+      <VisaIcon width={34} height={22} />
+    </Mark>
+    <Mark label="Mastercard">
+      <MastercardIcon width={28} height={18} />
+    </Mark>
+  </>
+);
+
+const MERCADOPAGO_CARD_MARKS = (
+  <>
+    {CULQI_CARD_MARKS}
+    <Mark label="American Express">
+      <AmexIcon width={30} height={19} />
+    </Mark>
+    <Mark label="Diners Club">
+      <DinersClubIcon width={19} height={19} />
+    </Mark>
+  </>
+);
 
 interface MethodConfig {
   /** Toggle de admin que gobierna la fila. Varias filas pueden compartirlo. */
@@ -132,16 +180,7 @@ const METHODS: readonly MethodConfig[] = [
     hint: "Pago seguro con Culqi",
     detail:
       "Se abrirá la ventana segura de Culqi para ingresar los datos de tu tarjeta. Nunca almacenamos tu número de tarjeta.",
-    marks: (
-      <>
-        <Mark label="Visa">
-          <VisaIcon width={34} height={22} />
-        </Mark>
-        <Mark label="Mastercard">
-          <MastercardIcon width={28} height={18} />
-        </Mark>
-      </>
-    ),
+    marks: CULQI_CARD_MARKS,
   },
   {
     key: "paypal",
@@ -160,19 +199,10 @@ const METHODS: readonly MethodConfig[] = [
     hint: "Ingresa tu tarjeta aquí, sin salir de la tienda",
     detail:
       "Completa los datos de tu tarjeta abajo. El formulario es de Mercado Pago: tu número de tarjeta nunca pasa por nuestros servidores.",
-    marks: (
-      <>
-        <Mark label="Mercado Pago">
-          <MercadoPagoIcon width={20} height={20} />
-        </Mark>
-        <Mark label="Visa">
-          <VisaIcon width={34} height={22} />
-        </Mark>
-        <Mark label="Mastercard">
-          <MastercardIcon width={28} height={18} />
-        </Mark>
-      </>
-    ),
+    // Marcas de tarjeta, no el logo de Mercado Pago: la fila representa las
+    // tarjetas que acepta el formulario, y el procesador ya se nombra en el
+    // título y en la fila de redirección.
+    marks: MERCADOPAGO_CARD_MARKS,
   },
   {
     key: "mercadopago",
@@ -180,10 +210,19 @@ const METHODS: readonly MethodConfig[] = [
     hint: "Yape, efectivo y billetera Mercado Pago",
     detail:
       "Se te redirigirá a Mercado Pago para que completes la compra y luego volverás a la tienda.",
+    // Mismo orden que el `hint`: Yape, efectivo y billetera Mercado Pago.
     marks: (
-      <Mark label="Mercado Pago">
-        <MercadoPagoIcon width={20} height={20} />
-      </Mark>
+      <>
+        <Mark label="Yape" framed={false}>
+          <YapeBadgeIcon />
+        </Mark>
+        <Mark label="PagoEfectivo" framed={false}>
+          <PagoEfectivoIcon />
+        </Mark>
+        <Mark label="Mercado Pago" framed={false}>
+          <MercadoPagoBadgeIcon />
+        </Mark>
+      </>
     ),
   },
 ];
@@ -317,7 +356,12 @@ export function PaymentMethodSelector({
                 )}
               </span>
 
-              <span className="flex items-center gap-1.5">{method.marks}</span>
+              {/* `flex-wrap` es el seguro de la fila de 4 marcas (MercadoPago
+                  con tarjeta): en pantallas muy angostas bajan a una segunda
+                  línea en vez de comerse el ancho del título. */}
+              <span className="flex flex-wrap items-center justify-end gap-1.5">
+                {method.marks}
+              </span>
             </label>
 
             {selected && (
