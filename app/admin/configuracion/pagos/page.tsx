@@ -33,6 +33,48 @@ import {
   MastercardIcon,
   PayPalIcon,
 } from "@/components/payment-icons";
+import {
+  DEFAULT_PAYMENT_METHOD_TITLES,
+  PAYMENT_METHOD_TITLE_MAX_LENGTH,
+  emptyPaymentMethodTitles,
+  type PaymentMethodRow,
+} from "@/lib/payments/method-titles";
+
+/**
+ * Campo para renombrar una fila del selector de pago del checkout.
+ * Vacío = se usa el título de fábrica (por eso va como placeholder).
+ */
+function CheckoutTitleField({
+  row,
+  value,
+  onChange,
+  label = "Título en el checkout",
+}: {
+  row: PaymentMethodRow;
+  value: string;
+  onChange: (value: string) => void;
+  label?: string;
+}) {
+  const fallback = DEFAULT_PAYMENT_METHOD_TITLES[row];
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`title-${row}`}>{label}</Label>
+      <Input
+        id={`title-${row}`}
+        type="text"
+        value={value}
+        maxLength={PAYMENT_METHOD_TITLE_MAX_LENGTH}
+        placeholder={fallback}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <p className="text-xs text-muted-foreground">
+        Es el nombre que ve el cliente al elegir cómo pagar. Déjalo vacío para
+        usar &laquo;{fallback}&raquo;.
+      </p>
+    </div>
+  );
+}
 
 export default function PaymentSettingsPage() {
   const [settings, setSettings] = useState<PaymentMethodSettings>({
@@ -60,6 +102,7 @@ export default function PaymentSettingsPage() {
       enabled: false,
       description: "",
     },
+    titles: emptyPaymentMethodTitles(),
   });
 
   const [loadingSettings, setLoadingSettings] = useState(true);
@@ -80,6 +123,13 @@ export default function PaymentSettingsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSettings(); // data fetch on mount; setState is async inside loadSettings
   }, [loadSettings]);
+
+  const setTitle = (row: PaymentMethodRow, value: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      titles: { ...prev.titles, [row]: value },
+    }));
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -235,6 +285,12 @@ export default function PaymentSettingsPage() {
           
           {settings.yape.enabled && (
             <CardContent className="space-y-4">
+              <CheckoutTitleField
+                row="YAPE"
+                value={settings.titles.YAPE}
+                onChange={(value) => setTitle("YAPE", value)}
+              />
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="yape-phone">Número de Teléfono</Label>
@@ -350,6 +406,12 @@ export default function PaymentSettingsPage() {
           
           {settings.plin.enabled && (
             <CardContent className="space-y-4">
+              <CheckoutTitleField
+                row="PLIN"
+                value={settings.titles.PLIN}
+                onChange={(value) => setTitle("PLIN", value)}
+              />
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="plin-phone">Número de Teléfono</Label>
@@ -478,6 +540,12 @@ export default function PaymentSettingsPage() {
                 </AlertDescription>
               </Alert>
 
+              <CheckoutTitleField
+                row="CARD"
+                value={settings.titles.CARD}
+                onChange={(value) => setTitle("CARD", value)}
+              />
+
               <div className="space-y-2">
                 <Label htmlFor="card-description">Descripción (opcional)</Label>
                 <Textarea
@@ -531,6 +599,12 @@ export default function PaymentSettingsPage() {
                   </Link>
                 </AlertDescription>
               </Alert>
+
+              <CheckoutTitleField
+                row="PAYPAL"
+                value={settings.titles.PAYPAL}
+                onChange={(value) => setTitle("PAYPAL", value)}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="paypal-description">Descripción (opcional)</Label>
@@ -587,6 +661,23 @@ export default function PaymentSettingsPage() {
                   </Link>
                 </AlertDescription>
               </Alert>
+
+              {/* Mercado Pago pinta DOS filas en el checkout con este mismo
+                  toggle: el formulario embebido y la redirección. Cada una
+                  lleva su propio título. */}
+              <CheckoutTitleField
+                row="MERCADOPAGO_CARD"
+                value={settings.titles.MERCADOPAGO_CARD}
+                onChange={(value) => setTitle("MERCADOPAGO_CARD", value)}
+                label="Título de la opción con formulario de tarjeta"
+              />
+
+              <CheckoutTitleField
+                row="MERCADOPAGO"
+                value={settings.titles.MERCADOPAGO}
+                onChange={(value) => setTitle("MERCADOPAGO", value)}
+                label="Título de la opción con redirección a Mercado Pago"
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="mp-description">Descripción (opcional)</Label>

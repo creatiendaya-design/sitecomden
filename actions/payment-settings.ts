@@ -5,6 +5,11 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
+import {
+  emptyPaymentMethodTitles,
+  normalizePaymentMethodTitles,
+  type PaymentMethodTitles,
+} from "@/lib/payments/method-titles";
 
 export type PaymentMethodSettings = {
   yape: {
@@ -31,6 +36,12 @@ export type PaymentMethodSettings = {
     enabled: boolean;
     description: string;
   };
+  /**
+   * Títulos personalizados de cada fila del selector de checkout.
+   * Se guardan por fila y no por método porque `mercadopago` pinta dos filas.
+   * Valor vacío = usar el título de fábrica.
+   */
+  titles: PaymentMethodTitles;
 };
 
 const DEFAULT_SETTINGS: PaymentMethodSettings = {
@@ -58,7 +69,16 @@ const DEFAULT_SETTINGS: PaymentMethodSettings = {
     enabled: false,
     description: "Alternativa para LATAM",
   },
+  titles: emptyPaymentMethodTitles(),
 };
+
+/**
+ * Copia fresca de los defaults: nunca devolvemos la constante compartida para
+ * que un consumidor que edite `titles` no contamine al resto del proceso.
+ */
+function defaultSettings(): PaymentMethodSettings {
+  return { ...DEFAULT_SETTINGS, titles: emptyPaymentMethodTitles() };
+}
 
 /**
  * Obtener configuración de métodos de pago (Público - NO proteger)
@@ -71,7 +91,7 @@ export async function getPaymentMethodSettings(): Promise<PaymentMethodSettings>
 
     // ✅ Validar que exista y que value no sea null
     if (!setting || !setting.value) {
-      return DEFAULT_SETTINGS;
+      return defaultSettings();
     }
 
     // ✅ Validar que sea un objeto con la estructura correcta
@@ -91,14 +111,17 @@ export async function getPaymentMethodSettings(): Promise<PaymentMethodSettings>
         card: value.card || DEFAULT_SETTINGS.card,
         paypal: value.paypal || DEFAULT_SETTINGS.paypal,
         mercadopago: value.mercadopago || DEFAULT_SETTINGS.mercadopago,
+        // `titles` es posterior al resto de campos: las configuraciones ya
+        // guardadas no lo traen y hay que completarlo siempre.
+        titles: normalizePaymentMethodTitles(value.titles),
       } as PaymentMethodSettings;
     }
 
     // Si no cumple la estructura, retornar defaults
-    return DEFAULT_SETTINGS;
+    return defaultSettings();
   } catch (error) {
     console.error("Error getting payment method settings:", error);
-    return DEFAULT_SETTINGS;
+    return defaultSettings();
   }
 }
 
@@ -142,17 +165,24 @@ export async function savePaymentMethodSettings(
       };
     }
 
+    // Los títulos vienen de inputs libres: se recortan y se filtran claves
+    // desconocidas antes de tocar la BD.
+    const sanitized: PaymentMethodSettings = {
+      ...settings,
+      titles: normalizePaymentMethodTitles(settings.titles),
+    };
+
     // Guardar o actualizar setting
     await prisma.setting.upsert({
       where: { key: "payment_methods" },
       update: {
-        value: settings as unknown as Prisma.InputJsonValue,
+        value: sanitized as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de métodos de pago",
       },
       create: {
         key: "payment_methods",
-        value: settings as unknown as Prisma.InputJsonValue,
+        value: sanitized as unknown as Prisma.InputJsonValue,
         category: "payment",
         description: "Configuración de métodos de pago",
       },
@@ -260,16 +290,18 @@ export async function uploadQRImage(
   }
 }
 
-/**
- * Obtener solo los métodos de pago habilitados (para usar en checkout)
- */
-export async function getEnabledPaymentMethods(): Promise<{
+export type EnabledPaymentMethods = {
   yape: boolean;
   plin: boolean;
   card: boolean;
   paypal: boolean;
   mercadopago: boolean;
-}> {
+};
+
+/**
+ * Obtener solo los métodos de pago habilitados (para usar en checkout)
+ */
+export async function getEnabledPaymentMethods(): Promise<EnabledPaymentMethods> {
   const settings = await getPaymentMethodSettings();
 
   return {
@@ -278,5 +310,29 @@ export async function getEnabledPaymentMethods(): Promise<{
     card: settings.card.enabled,
     paypal: settings.paypal.enabled,
     mercadopago: settings.mercadopago.enabled,
+  };
+}
+
+export type CheckoutPaymentConfig = {
+  enabled: EnabledPaymentMethods;
+  titles: PaymentMethodTitles;
+};
+
+/**
+ * Todo lo que el selector del checkout necesita, en una sola lectura del
+ * `Setting` (habilitados + títulos personalizados).
+ */
+export async function getCheckoutPaymentConfig(): Promise<CheckoutPaymentConfig> {
+  const settings = await getPaymentMethodSettings();
+
+  return {
+    enabled: {
+      yape: settings.yape.enabled,
+      plin: settings.plin.enabled,
+      card: settings.card.enabled,
+      paypal: settings.paypal.enabled,
+      mercadopago: settings.mercadopago.enabled,
+    },
+    titles: settings.titles,
   };
 }

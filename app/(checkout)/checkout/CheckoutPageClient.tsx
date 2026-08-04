@@ -48,6 +48,7 @@ import {
   type MercadoPagoBrickController,
 } from "@/components/checkout/MercadoPagoCardBrick";
 import { payOrderWithMercadoPagoCard } from "@/actions/mercadopago-card";
+import type { PaymentMethodTitles } from "@/lib/payments/method-titles";
 import CheckoutUpsell from "@/components/checkout/CheckoutUpsell";
 import {
   getCartRecommendations,
@@ -108,6 +109,8 @@ interface CheckoutPageClientProps {
     paypal: boolean;
     mercadopago: boolean;
   };
+  /** Títulos de cada método configurados en el admin. */
+  paymentTitles: PaymentMethodTitles;
 }
 
 export default function CheckoutPageClient({
@@ -117,6 +120,7 @@ export default function CheckoutPageClient({
   pricesIncludeIgv,
   departments,
   enabledMethods,
+  paymentTitles,
 }: CheckoutPageClientProps) {
   const router = useRouter();
   const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();
@@ -1562,6 +1566,7 @@ export default function CheckoutPageClient({
                     <PaymentMethodSelector
                       selectedMethod={formData.paymentMethod}
                       initialEnabledMethods={enabledMethods}
+                      initialTitles={paymentTitles}
                       onMethodChange={(method) => {
                         setFormData({ ...formData, paymentMethod: method });
                         setCulqiToken(null);

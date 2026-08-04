@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
-import { getEnabledPaymentMethods } from "@/actions/payment-settings";
+import { getCheckoutPaymentConfig } from "@/actions/payment-settings";
+import {
+  resolvePaymentMethodTitle,
+  type PaymentMethodRow,
+  type PaymentMethodTitles,
+} from "@/lib/payments/method-titles";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -30,13 +35,7 @@ type EnabledMethods = {
  * dónde paga el cliente — aquí mismo con el Brick, o en la pantalla de
  * MercadoPago. Ver `toDbPaymentMethod` en el checkout.
  */
-export type MethodValue =
-  | "YAPE"
-  | "PLIN"
-  | "CARD"
-  | "PAYPAL"
-  | "MERCADOPAGO"
-  | "MERCADOPAGO_CARD";
+export type MethodValue = PaymentMethodRow;
 
 const DEFAULT_ENABLED: EnabledMethods = {
   yape: true,
@@ -56,6 +55,12 @@ interface PaymentMethodSelectorProps {
    * instantly — no spinner, no flicker.
    */
   initialEnabledMethods?: EnabledMethods;
+  /**
+   * Títulos personalizados por fila, configurados en
+   * Admin → Configuración → Métodos de Pago. Los que vengan vacíos caen al
+   * título de fábrica.
+   */
+  initialTitles?: PaymentMethodTitles;
   /**
    * Contenido extra dentro del panel desplegado de un método concreto (p. ej.
    * el formulario de tarjeta de MercadoPago). Va aquí y no en el checkout para
@@ -86,7 +91,6 @@ interface MethodConfig {
   /** Toggle de admin que gobierna la fila. Varias filas pueden compartirlo. */
   key: keyof EnabledMethods;
   value: MethodValue;
-  label: string;
   /** Aclara la fila cuando su etiqueta se parece a la de otra (dos "Tarjeta"). */
   hint?: string;
   /** Contenido del panel que se despliega bajo la opción seleccionada. */
@@ -94,11 +98,15 @@ interface MethodConfig {
   marks: ReactNode;
 }
 
+/**
+ * El título de cada fila NO vive aquí: es editable desde el admin y su valor
+ * de fábrica está en `lib/payments/method-titles.ts` (fuente única compartida
+ * con el formulario de configuración).
+ */
 const METHODS: readonly MethodConfig[] = [
   {
     key: "yape",
     value: "YAPE",
-    label: "Yape",
     detail:
       "Al confirmar tu pedido te mostraremos el número Yape para transferir. Luego subes tu constancia de pago y validamos la orden.",
     marks: (
@@ -110,7 +118,6 @@ const METHODS: readonly MethodConfig[] = [
   {
     key: "plin",
     value: "PLIN",
-    label: "Plin",
     detail:
       "Al confirmar tu pedido te mostraremos el número Plin para transferir. Luego subes tu constancia de pago y validamos la orden.",
     marks: (
@@ -122,7 +129,6 @@ const METHODS: readonly MethodConfig[] = [
   {
     key: "card",
     value: "CARD",
-    label: "Tarjeta de crédito o débito",
     hint: "Pago seguro con Culqi",
     detail:
       "Se abrirá la ventana segura de Culqi para ingresar los datos de tu tarjeta. Nunca almacenamos tu número de tarjeta.",
@@ -140,7 +146,6 @@ const METHODS: readonly MethodConfig[] = [
   {
     key: "paypal",
     value: "PAYPAL",
-    label: "PayPal",
     detail:
       "Se te redirigirá a PayPal para que completes la compra y luego volverás a la tienda.",
     marks: (
@@ -152,7 +157,6 @@ const METHODS: readonly MethodConfig[] = [
   {
     key: "mercadopago",
     value: "MERCADOPAGO_CARD",
-    label: "Tarjeta con Mercado Pago",
     hint: "Ingresa tu tarjeta aquí, sin salir de la tienda",
     detail:
       "Completa los datos de tu tarjeta abajo. El formulario es de Mercado Pago: tu número de tarjeta nunca pasa por nuestros servidores.",
@@ -173,7 +177,6 @@ const METHODS: readonly MethodConfig[] = [
   {
     key: "mercadopago",
     value: "MERCADOPAGO",
-    label: "Mercado Pago",
     hint: "Yape, efectivo y billetera Mercado Pago",
     detail:
       "Se te redirigirá a Mercado Pago para que completes la compra y luego volverás a la tienda.",
@@ -190,10 +193,14 @@ export function PaymentMethodSelector({
   onMethodChange,
   disabled,
   initialEnabledMethods,
+  initialTitles,
   panelExtras,
 }: PaymentMethodSelectorProps) {
   const [enabledMethods, setEnabledMethods] = useState<EnabledMethods>(
     initialEnabledMethods ?? DEFAULT_ENABLED
+  );
+  const [titles, setTitles] = useState<PaymentMethodTitles | undefined>(
+    initialTitles
   );
   const [loading, setLoading] = useState(!initialEnabledMethods);
 
@@ -201,9 +208,10 @@ export function PaymentMethodSelector({
   useEffect(() => {
     if (initialEnabledMethods) return;
     let active = true;
-    getEnabledPaymentMethods().then((methods) => {
+    getCheckoutPaymentConfig().then((config) => {
       if (!active) return;
-      setEnabledMethods(methods);
+      setEnabledMethods(config.enabled);
+      setTitles(config.titles);
       setLoading(false);
     });
     return () => {
@@ -300,7 +308,7 @@ export function PaymentMethodSelector({
 
               <span className="min-w-0">
                 <span className="block text-sm font-semibold leading-tight">
-                  {method.label}
+                  {resolvePaymentMethodTitle(method.value, titles)}
                 </span>
                 {method.hint && (
                   <span className="mt-0.5 block text-xs leading-tight text-muted-foreground">
